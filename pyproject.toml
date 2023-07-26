@@ -1,0 +1,135 @@
+[project]
+name = "transformerft"
+dynamic = ["version", "readme"]
+description = "Package description"
+license = {text = "Other/Proprietary License"}
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: Other/Proprietary License",
+    "Natural Language :: English",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "matplotlib ~= 3.6",
+    "numpy ~= 1.24",
+    "pandas ~= 2.0",
+    "rich ~= 13.3.5",
+]
+
+[[project.authors]]
+name = "Anton Lu"
+email = "anton96lu@gmail.com"
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-cov"
+]
+doc = [
+    "acc-py-sphinx",
+    "myst-parser",
+    "sphinx-copybutton",
+]
+dev = [
+    "pre-commit",
+    "ruff",
+    "mypy",
+]
+
+[build-system]
+requires = [
+    "setuptools >= 61",
+    "setuptools-scm[toml] ~= 6.0",
+    "wheel",
+]
+build-backend = "setuptools.build_meta"
+
+# keep this for dynamic versioning
+[tool.setuptools_scm]
+write_to = "transformerft/_version.py"
+local_scheme = "no-local-version"
+
+[tool.setuptools.dynamic]
+readme = {file = ["README.md"], content-type = "text/markdown"}
+
+[tool.setuptools]
+packages = ["transformerft"]
+
+[project.scripts]
+# project endpoints here
+
+[tool.black]
+target-version = ["py39"]
+line-length = 79
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.ruff]
+
+fixable = ["A", "B", "C", "D", "E", "F", "G", "I", "N", "Q", "S", "T", "W", "ANN", "ARG", "BLE", "COM", "DJ", "DTZ", "EM", "ERA", "EXE", "FBT", "ICN", "INP", "ISC", "NPY", "PD", "PGH", "PIE", "PL", "PT", "PTH", "PYI", "RET", "RSE", "RUF", "SIM", "SLF", "TCH", "TID", "TRY", "UP", "YTT"]
+ignore = ["E501"]
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+    ".venv",
+]
+
+line-length = 79
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+
+target-version = "py39"
+
+[tool.ruff.mccabe]
+max-complexity = 10
+
+[tool.mypy]
+disallow_untyped_defs = true
+plugins = "numpy.typing.mypy_plugin"
+
+[[tool.mypy.overrides]]
+module = [
+    "matplotlib.*",
+]
+ignore_missing_imports = true
+
+# for pyright LSP
+[tool.pyright]
+reportPrivateImportUsage = "none"
