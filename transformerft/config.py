@@ -63,4 +63,3 @@ class BaseConfig:
     checkpoint_dir: str = "logs"
     model_dir: str | None = None
     callbacks: list = field(default_factory=list)
-

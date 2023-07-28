@@ -29,7 +29,9 @@ from ...utils import ops
 __all__ = ["PhyLSTM1", "PhyLSTM2", "PhyLSTM3"]
 
 
-STATES = typing.TypeVar("STATES", PhyLSTM1States, PhyLSTM2States, PhyLSTM3States)
+STATE1 = typing.TypeVar("STATE1", bound=PhyLSTM1States)
+STATE2 = typing.TypeVar("STATE2", bound=PhyLSTM2States)
+STATE3 = typing.TypeVar("STATE3", bound=PhyLSTM3States)
 
 
 log = logging.getLogger(__name__)
@@ -162,7 +164,7 @@ class PhyLSTM1(nn.Module):
             self,
             x: torch.Tensor,
             return_states: typing.Literal[False] = False,
-            hidden_state: typing.Optional[STATES] = None,
+            hidden_state: typing.Optional[STATE1] = None,
     ) -> PhyLSTM1Output:
         ...
 
@@ -171,16 +173,16 @@ class PhyLSTM1(nn.Module):
             self,
             x: torch.Tensor,
             return_states: typing.Literal[True],
-            hidden_state: typing.Optional[STATES] = None,
-    ) -> tuple[PhyLSTM1Output, STATES]:
+            hidden_state: typing.Optional[STATE1] = None,
+    ) -> tuple[PhyLSTM1Output, PhyLSTM1States]:
         ...
 
     def forward(
             self,
             x: torch.Tensor,
             return_states: bool = False,
-            hidden_state: typing.Optional[STATES] = None,
-    ) -> PhyLSTM1Output | tuple[PhyLSTM1Output, STATES]:
+            hidden_state: typing.Optional[STATE1] = None,
+    ) -> PhyLSTM1Output | tuple[PhyLSTM1Output, PhyLSTM1States]:
         """
         Forward pass of the model.
         :param x: Input torch.Tensor of shape (batch_size, sequence_length, 1).
@@ -305,7 +307,7 @@ class PhyLSTM2(PhyLSTM1):
             self,
             x: torch.Tensor,
             return_states: typing.Literal[False] = False,
-            hidden_state: typing.Optional[STATES] = None,
+            hidden_state: typing.Optional[STATE2] = None,
     ) -> PhyLSTM2Output:
         ...
 
@@ -314,16 +316,16 @@ class PhyLSTM2(PhyLSTM1):
             self,
             x: torch.Tensor,
             return_states: typing.Literal[True],
-            hidden_state: typing.Optional[STATES] = None,
-    ) -> tuple[PhyLSTM2Output, STATES]:   # type: ignore[override]
+            hidden_state: typing.Optional[STATE2] = None,
+    ) -> tuple[PhyLSTM2Output, PhyLSTM2States]:   # type: ignore[override]
         ...
 
     def forward(
             self,
             x: torch.Tensor,
             return_states: bool = False,
-            hidden_state: STATES | None = None,
-    ) -> PhyLSTM2Output | tuple[PhyLSTM2Output, STATES]:
+            hidden_state: typing.Optional[STATE2] = None,
+    ) -> PhyLSTM2Output | tuple[PhyLSTM2Output, PhyLSTM2States]:
         """
         Forward pass of the model.
         :param x: Input torch.Tensor of shape (batch_size, sequence_length, 1).
@@ -421,7 +423,7 @@ class PhyLSTM3(PhyLSTM2):
             self,
             x: torch.Tensor,
             return_states: typing.Literal[False] = False,
-            hidden_state: typing.Optional[STATES] = None,
+            hidden_state: typing.Optional[STATE3] = None,
     ) -> PhyLSTM3Output:
         ...
 
@@ -430,16 +432,16 @@ class PhyLSTM3(PhyLSTM2):
             self,
             x: torch.Tensor,
             return_states: typing.Literal[True],
-            hidden_state: typing.Optional[STATES] = None,
-    ) -> tuple[PhyLSTM3Output, STATES]:
+            hidden_state: typing.Optional[STATE3] = None,
+    ) -> tuple[PhyLSTM3Output, PhyLSTM3States]:
         ...
 
     def forward(
             self,
             x: torch.Tensor,
             return_states: bool = False,
-            hidden_state: typing.Optional[STATES] = None,
-    ) -> PhyLSTM3Output | tuple[PhyLSTM3Output, STATES]:
+            hidden_state: typing.Optional[STATE3] = None,
+    ) -> PhyLSTM3Output | tuple[PhyLSTM3Output, PhyLSTM3States]:
         """
         This forward pass can be used for both training and inference.
 
@@ -498,4 +500,3 @@ class PhyLSTM3(PhyLSTM2):
             return output, typing.cast(PhyLSTM3States, states)
         else:
             return output
-
