@@ -36,7 +36,9 @@ class RunningNormalizer(nn.Module, BaseEstimator, TransformerMixin):
         self.register_buffer("scale_", scale_)
         self.register_buffer("n_samples_seen_", n_samples_seen_)
 
-    def forward(self, y: torch.Tensor, target_scale: torch.Tensor | None = None) -> torch.Tensor:
+    def forward(
+        self, y: torch.Tensor, target_scale: torch.Tensor | None = None
+    ) -> torch.Tensor:
         """
         Inverse transform data.
         """

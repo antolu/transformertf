@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import logging
 import typing
+
 import torch
 from einops import einops
 from sklearn.utils.validation import NotFittedError, check_is_fitted
 from torch import nn
 from torch.nn import functional as F
+
 from ._normalizer import RunningNormalizer
 
 try:
@@ -14,17 +16,10 @@ try:
 except ImportError:
     from torch.optim.lr_scheduler import _LRScheduler as LRScheduler  # noqa
 
-from ._output import (
-    PhyLSTM1Output,
-    PhyLSTM1States,
-    PhyLSTM2Output,
-    PhyLSTM2States,
-    PhyLSTM3Output,
-    PhyLSTM3States,
-)
-from ._utils import GradientTorch
 from ...utils import ops
-
+from ._output import (PhyLSTM1Output, PhyLSTM1States, PhyLSTM2Output,
+                      PhyLSTM2States, PhyLSTM3Output, PhyLSTM3States)
+from ._utils import GradientTorch
 
 __all__ = ["PhyLSTM1", "PhyLSTM2", "PhyLSTM3"]
 
@@ -39,18 +34,18 @@ log = logging.getLogger(__name__)
 
 class PhyLSTM1(nn.Module):
     def __init__(
-            self,
-            num_layers: int = 3,
-            sequence_length: int = 500,
-            hidden_dim: int = 350,
-            dropout: float = 0.2,
-            i2b_k: torch.Tensor | float | None = None,
-            i2b_m: torch.Tensor | float | None = None,
-            running_normalizer: bool = True,
-            input_center: torch.Tensor | float | None = None,
-            input_scale: torch.Tensor | float | None = None,
-            target_center: torch.Tensor | float | None = None,
-            target_scale: torch.Tensor | float | None = None,
+        self,
+        num_layers: int = 3,
+        sequence_length: int = 500,
+        hidden_dim: int = 350,
+        dropout: float = 0.2,
+        i2b_k: torch.Tensor | float | None = None,
+        i2b_m: torch.Tensor | float | None = None,
+        running_normalizer: bool = True,
+        input_center: torch.Tensor | float | None = None,
+        input_scale: torch.Tensor | float | None = None,
+        target_center: torch.Tensor | float | None = None,
+        target_scale: torch.Tensor | float | None = None,
     ):
         """
         This is a PyTorch implementation of the Physics inspired neural network
@@ -153,35 +148,35 @@ class PhyLSTM1(nn.Module):
             if module.bias is not None:
                 nn.init.zeros_(module.bias.data)
         elif (
-                isinstance(module, (nn.ConvTranspose2d, nn.Linear))
-                and module.weight.requires_grad
+            isinstance(module, (nn.ConvTranspose2d, nn.Linear))
+            and module.weight.requires_grad
         ):  # guard for linear_field
             gain = nn.init.calculate_gain("leaky_relu", 0.01)
             nn.init.orthogonal_(module.weight, gain=gain)
 
     @typing.overload
     def forward(
-            self,
-            x: torch.Tensor,
-            return_states: typing.Literal[False] = False,
-            hidden_state: typing.Optional[STATE1] = None,
+        self,
+        x: torch.Tensor,
+        return_states: typing.Literal[False] = False,
+        hidden_state: typing.Optional[STATE1] = None,
     ) -> PhyLSTM1Output:
         ...
 
     @typing.overload
     def forward(
-            self,
-            x: torch.Tensor,
-            return_states: typing.Literal[True],
-            hidden_state: typing.Optional[STATE1] = None,
+        self,
+        x: torch.Tensor,
+        return_states: typing.Literal[True],
+        hidden_state: typing.Optional[STATE1] = None,
     ) -> tuple[PhyLSTM1Output, PhyLSTM1States]:
         ...
 
     def forward(
-            self,
-            x: torch.Tensor,
-            return_states: bool = False,
-            hidden_state: typing.Optional[STATE1] = None,
+        self,
+        x: torch.Tensor,
+        return_states: bool = False,
+        hidden_state: typing.Optional[STATE1] = None,
     ) -> PhyLSTM1Output | tuple[PhyLSTM1Output, PhyLSTM1States]:
         """
         Forward pass of the model.
@@ -220,7 +215,7 @@ class PhyLSTM1(nn.Module):
             z1 = self.target_scaler(z[..., 0])
             z2 = z[..., 1] * self.target_scaler.scale_
         except (
-                NotFittedError
+            NotFittedError
         ):  # on the first batch when the scaler is not fitted yet
             z1 = z[..., 0]
             z2 = z[..., 1]
@@ -254,18 +249,18 @@ class PhyLSTM1(nn.Module):
 
 class PhyLSTM2(PhyLSTM1):
     def __init__(
-            self,
-            num_layers: int = 3,
-            sequence_length: int = 500,
-            hidden_dim: int = 350,
-            dropout: float = 0.2,
-            i2b_k: torch.Tensor | float | None = None,
-            i2b_m: torch.Tensor | float | None = None,
-            running_normalizer: bool = True,
-            input_center: torch.Tensor | float | None = None,
-            input_scale: torch.Tensor | float | None = None,
-            target_center: torch.Tensor | float | None = None,
-            target_scale: torch.Tensor | float | None = None,
+        self,
+        num_layers: int = 3,
+        sequence_length: int = 500,
+        hidden_dim: int = 350,
+        dropout: float = 0.2,
+        i2b_k: torch.Tensor | float | None = None,
+        i2b_m: torch.Tensor | float | None = None,
+        running_normalizer: bool = True,
+        input_center: torch.Tensor | float | None = None,
+        input_scale: torch.Tensor | float | None = None,
+        target_center: torch.Tensor | float | None = None,
+        target_scale: torch.Tensor | float | None = None,
     ) -> None:
         super().__init__(
             num_layers=num_layers,
@@ -304,27 +299,27 @@ class PhyLSTM2(PhyLSTM1):
 
     @typing.overload  # type: ignore[override]
     def forward(
-            self,
-            x: torch.Tensor,
-            return_states: typing.Literal[False] = False,
-            hidden_state: typing.Optional[STATE2] = None,
+        self,
+        x: torch.Tensor,
+        return_states: typing.Literal[False] = False,
+        hidden_state: typing.Optional[STATE2] = None,
     ) -> PhyLSTM2Output:
         ...
 
     @typing.overload  # type: ignore[override]
     def forward(
-            self,
-            x: torch.Tensor,
-            return_states: typing.Literal[True],
-            hidden_state: typing.Optional[STATE2] = None,
-    ) -> tuple[PhyLSTM2Output, PhyLSTM2States]:   # type: ignore[override]
+        self,
+        x: torch.Tensor,
+        return_states: typing.Literal[True],
+        hidden_state: typing.Optional[STATE2] = None,
+    ) -> tuple[PhyLSTM2Output, PhyLSTM2States]:  # type: ignore[override]
         ...
 
     def forward(
-            self,
-            x: torch.Tensor,
-            return_states: bool = False,
-            hidden_state: typing.Optional[STATE2] = None,
+        self,
+        x: torch.Tensor,
+        return_states: bool = False,
+        hidden_state: typing.Optional[STATE2] = None,
     ) -> PhyLSTM2Output | tuple[PhyLSTM2Output, PhyLSTM2States]:
         """
         Forward pass of the model.
@@ -363,12 +358,15 @@ class PhyLSTM2(PhyLSTM1):
 
         g_gamma_x = self.g_plus_x(torch.cat([g, x1_scaled], dim=2))
 
-        output = typing.cast(PhyLSTM2Output, {
-            **phylstm1_output,
-            "dz_dt": dz_dt,
-            "g": g,
-            "g_gamma_x": g_gamma_x,
-        })
+        output = typing.cast(
+            PhyLSTM2Output,
+            {
+                **phylstm1_output,
+                "dz_dt": dz_dt,
+                "g": g,
+                "g_gamma_x": g_gamma_x,
+            },
+        )
         if return_states:
             assert hidden1 is not None
             states = {**hidden1, "lstm2": ops.detach(h_lstm2)}
@@ -379,18 +377,18 @@ class PhyLSTM2(PhyLSTM1):
 
 class PhyLSTM3(PhyLSTM2):
     def __init__(
-            self,
-            num_layers: int = 3,
-            sequence_length: int = 500,
-            hidden_dim: int = 350,
-            dropout: float = 0.2,
-            i2b_k: torch.Tensor | float | None = None,
-            i2b_m: torch.Tensor | float | None = None,
-            running_normalizer: bool = True,
-            input_center: torch.Tensor | float | None = None,
-            input_scale: torch.Tensor | float | None = None,
-            target_center: torch.Tensor | float | None = None,
-            target_scale: torch.Tensor | float | None = None,
+        self,
+        num_layers: int = 3,
+        sequence_length: int = 500,
+        hidden_dim: int = 350,
+        dropout: float = 0.2,
+        i2b_k: torch.Tensor | float | None = None,
+        i2b_m: torch.Tensor | float | None = None,
+        running_normalizer: bool = True,
+        input_center: torch.Tensor | float | None = None,
+        input_scale: torch.Tensor | float | None = None,
+        target_center: torch.Tensor | float | None = None,
+        target_scale: torch.Tensor | float | None = None,
     ):
         super().__init__(
             num_layers=num_layers,
@@ -420,27 +418,27 @@ class PhyLSTM3(PhyLSTM2):
 
     @typing.overload  # type: ignore[override]
     def forward(
-            self,
-            x: torch.Tensor,
-            return_states: typing.Literal[False] = False,
-            hidden_state: typing.Optional[STATE3] = None,
+        self,
+        x: torch.Tensor,
+        return_states: typing.Literal[False] = False,
+        hidden_state: typing.Optional[STATE3] = None,
     ) -> PhyLSTM3Output:
         ...
 
     @typing.overload  # type: ignore[override]
     def forward(
-            self,
-            x: torch.Tensor,
-            return_states: typing.Literal[True],
-            hidden_state: typing.Optional[STATE3] = None,
+        self,
+        x: torch.Tensor,
+        return_states: typing.Literal[True],
+        hidden_state: typing.Optional[STATE3] = None,
     ) -> tuple[PhyLSTM3Output, PhyLSTM3States]:
         ...
 
     def forward(
-            self,
-            x: torch.Tensor,
-            return_states: bool = False,
-            hidden_state: typing.Optional[STATE3] = None,
+        self,
+        x: torch.Tensor,
+        return_states: bool = False,
+        hidden_state: typing.Optional[STATE3] = None,
     ) -> PhyLSTM3Output | tuple[PhyLSTM3Output, PhyLSTM3States]:
         """
         This forward pass can be used for both training and inference.
@@ -489,10 +487,13 @@ class PhyLSTM3(PhyLSTM2):
         o_lstm3 = self.ln3(o_lstm3)
         dr_dt = self.fc31(o_lstm3)
 
-        output = typing.cast(PhyLSTM3Output, {
-            **phylstm2_output,
-            "dr_dt": dr_dt,
-        })
+        output = typing.cast(
+            PhyLSTM3Output,
+            {
+                **phylstm2_output,
+                "dr_dt": dr_dt,
+            },
+        )
 
         if return_states:
             assert hidden2 is not None

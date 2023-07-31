@@ -10,7 +10,6 @@ if typing.TYPE_CHECKING:
     from ._loss import LossWeights
 
 
-
 @dataclasses.dataclass
 class PhyLSTMConfig(BaseConfig):
     phylstm: typing.Literal[1, 2, 3] | None = 3

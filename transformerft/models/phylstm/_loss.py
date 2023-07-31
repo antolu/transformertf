@@ -96,42 +96,42 @@ class PhyLSTMLoss(nn.Module):
 
     @typing.overload
     def forward(
-            self,
-            y_hat: PhyLSTM1Output | PhyLSTM2Output | PhyLSTM3Output,
-            targets: torch.torch.Tensor,
-            weights: LossWeights | None = None,
-            *,
-            return_all: typing.Literal[False],
+        self,
+        y_hat: PhyLSTM1Output | PhyLSTM2Output | PhyLSTM3Output,
+        targets: torch.torch.Tensor,
+        weights: LossWeights | None = None,
+        *,
+        return_all: typing.Literal[False],
     ) -> torch.Tensor:
         ...
 
     @typing.overload
     def forward(
-            self,
-            y_hat: PhyLSTM1Output | PhyLSTM2Output | PhyLSTM3Output,
-            targets: torch.torch.Tensor,
-            weights: LossWeights | None = None,
-            *,
-            return_all: typing.Literal[True],
+        self,
+        y_hat: PhyLSTM1Output | PhyLSTM2Output | PhyLSTM3Output,
+        targets: torch.torch.Tensor,
+        weights: LossWeights | None = None,
+        *,
+        return_all: typing.Literal[True],
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         ...
 
     @typing.overload
     def forward(
-            self,
-            y_hat: PhyLSTM1Output | PhyLSTM2Output | PhyLSTM3Output,
-            targets: torch.torch.Tensor,
-            weights: LossWeights | None = None,
-            return_all: typing.Literal[False] = False,
+        self,
+        y_hat: PhyLSTM1Output | PhyLSTM2Output | PhyLSTM3Output,
+        targets: torch.torch.Tensor,
+        weights: LossWeights | None = None,
+        return_all: typing.Literal[False] = False,
     ) -> torch.Tensor:
         ...
 
     def forward(
-            self,
-            y_hat: PhyLSTM1Output | PhyLSTM2Output | PhyLSTM3Output,
-            targets: torch.torch.Tensor,
-            weights: LossWeights | None = None,
-            return_all: bool = False,
+        self,
+        y_hat: PhyLSTM1Output | PhyLSTM2Output | PhyLSTM3Output,
+        targets: torch.torch.Tensor,
+        weights: LossWeights | None = None,
+        return_all: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """
         Computes the loss function.
@@ -155,67 +155,67 @@ class PhyLSTMLoss(nn.Module):
 
     @typing.overload
     def forward_explicit(
-            self,
-            z: torch.Tensor,
-            y: torch.Tensor,
-            dz_dt: torch.Tensor | None,
-            gx: torch.Tensor | None,
-            dr_dt: torch.Tensor | None,
-            weights: LossWeights | None = None,
-            *,
-            return_all: typing.Literal[False],
+        self,
+        z: torch.Tensor,
+        y: torch.Tensor,
+        dz_dt: torch.Tensor | None,
+        gx: torch.Tensor | None,
+        dr_dt: torch.Tensor | None,
+        weights: LossWeights | None = None,
+        *,
+        return_all: typing.Literal[False],
     ) -> torch.Tensor:
         ...
 
     @typing.overload
     def forward_explicit(
-            self,
-            z: torch.Tensor,
-            y: torch.Tensor,
-            dz_dt: torch.Tensor | None,
-            gx: torch.Tensor | None,
-            dr_dt: torch.Tensor | None,
-            weights: LossWeights | None = None,
-            *,
-            return_all: typing.Literal[True],
+        self,
+        z: torch.Tensor,
+        y: torch.Tensor,
+        dz_dt: torch.Tensor | None,
+        gx: torch.Tensor | None,
+        dr_dt: torch.Tensor | None,
+        weights: LossWeights | None = None,
+        *,
+        return_all: typing.Literal[True],
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         ...
 
     @typing.overload
     def forward_explicit(
-            self,
-            z: torch.Tensor,
-            y: torch.Tensor,
-            dz_dt: torch.Tensor | None,
-            gx: torch.Tensor | None,
-            dr_dt: torch.Tensor | None,
-            weights: LossWeights | None = None,
-            return_all: typing.Literal[False] = False,
+        self,
+        z: torch.Tensor,
+        y: torch.Tensor,
+        dz_dt: torch.Tensor | None,
+        gx: torch.Tensor | None,
+        dr_dt: torch.Tensor | None,
+        weights: LossWeights | None = None,
+        return_all: typing.Literal[False] = False,
     ) -> torch.Tensor:
         ...
 
     @typing.overload
     def forward_explicit(
-            self,
-            z: torch.Tensor,
-            y: torch.Tensor,
-            dz_dt: torch.Tensor | None,
-            gx: torch.Tensor | None,
-            dr_dt: torch.Tensor | None,
-            weights: LossWeights | None = None,
-            return_all: bool = False,
+        self,
+        z: torch.Tensor,
+        y: torch.Tensor,
+        dz_dt: torch.Tensor | None,
+        gx: torch.Tensor | None,
+        dr_dt: torch.Tensor | None,
+        weights: LossWeights | None = None,
+        return_all: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]:
         ...
 
     def forward_explicit(
-            self,
-            z: torch.Tensor,
-            y: torch.Tensor,
-            dz_dt: torch.Tensor | None,
-            gx: torch.Tensor | None,
-            dr_dt: torch.Tensor | None,
-            weights: LossWeights | None = None,
-            return_all: bool = False,
+        self,
+        z: torch.Tensor,
+        y: torch.Tensor,
+        dz_dt: torch.Tensor | None,
+        gx: torch.Tensor | None,
+        dr_dt: torch.Tensor | None,
+        weights: LossWeights | None = None,
+        return_all: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """
         Computes the loss function.

@@ -10,7 +10,14 @@ else:
 import torch
 
 
-__all__ = ["PhyLSTM1Output", "PhyLSTM2Output", "PhyLSTM3Output", "PhyLSTM1States", "PhyLSTM2States", "PhyLSTM3States"]
+__all__ = [
+    "PhyLSTM1Output",
+    "PhyLSTM2Output",
+    "PhyLSTM3Output",
+    "PhyLSTM1States",
+    "PhyLSTM2States",
+    "PhyLSTM3States",
+]
 
 
 class PhyLSTM1Output(TypedDict):
