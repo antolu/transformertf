@@ -69,6 +69,12 @@ class WindowGenerator:
         if label_seq_len is None:
             label_seq_len = in_window_size
 
+        if in_window_size > len(input_data):
+            raise ValueError(
+                "Input window size ({}) must be less than the input data "
+                "length ({})".format(in_window_size, len(input_data))
+            )
+
         self._label_window_size = label_seq_len
         self._input_data = np.array(input_data)
 
@@ -77,6 +83,12 @@ class WindowGenerator:
         else:
             self._label_data = np.array(label_data)
 
+            if label_seq_len > len(label_data):
+                raise ValueError(
+                    "Label window size ({}) must be less than the label data "
+                    "length ({})".format(label_seq_len, len(label_data))
+                )
+
             if len(self._input_data) != len(self._label_data):
                 raise ValueError(
                     "Input and label data must have the same length: "
@@ -84,12 +96,6 @@ class WindowGenerator:
                         len(self._input_data), len(self._label_data)
                     )
                 )
-
-        if len(self._input_data) < in_window_size:
-            raise ValueError(
-                "Input data length ({}) must be greater than the input window "
-                "size ({})".format(len(self._input_data), in_window_size)
-            )
 
         self._in_window_size = in_window_size
         self._stride = stride
@@ -100,19 +106,26 @@ class WindowGenerator:
                 + 1
             )
         else:
-            self._num_samples = math.ceil(len(self._input_data) / stride)
+            self._num_samples = (
+                math.ceil(
+                    (len(self._input_data) - self._in_window_size + 1) / stride
+                )
+                + (len(self._input_data) - self._in_window_size) % stride
+            )
 
         if zero_pad:
-            input_data_padded = np.zeros(
-                (self._num_samples * self._stride, *input_data.shape[1:])
+            pad_shape = (
+                len(self._input_data)
+                + ((len(self._input_data) - self._in_window_size) % stride),
+                *input_data.shape[1:],
             )
+
+            input_data_padded = np.zeros(pad_shape)
             input_data_padded[: len(self._input_data)] = self._input_data
             self._input_data = input_data_padded
 
             if label_data is not None:
-                label_data_padded = np.zeros(
-                    (self._num_samples * self._stride, *label_data.shape[1:])  # type: ignore[union-attr]  # noqa: E501
-                )
+                label_data_padded = np.zeros(pad_shape)
                 label_data_padded[: len(label_data)] = label_data
                 self._label_data = label_data_padded
 
