@@ -107,7 +107,9 @@ def test_window_generator_correct_samples_x_1d(x_data: np.ndarray) -> None:
     assert np.all(wg[6] == [7, 8, 9])
 
 
-def test_window_generator_correct_slices_x_1d_stride_2(x_data: np.ndarray) -> None:
+def test_window_generator_correct_slices_x_1d_stride_2(
+    x_data: np.ndarray,
+) -> None:
     wg = WindowGenerator(x_data, 3, stride=2)
 
     assert wg.calc_slice(0) == slice(0, 3)
@@ -116,7 +118,9 @@ def test_window_generator_correct_slices_x_1d_stride_2(x_data: np.ndarray) -> No
     assert wg.calc_slice(3) == slice(6, 9)
 
 
-def test_window_generator_correct_samples_x_1d_stride_2(x_data: np.ndarray) -> None:
+def test_window_generator_correct_samples_x_1d_stride_2(
+    x_data: np.ndarray,
+) -> None:
     wg = WindowGenerator(x_data, 3, stride=2)
 
     assert np.all(wg[0] == [1, 2, 3])
