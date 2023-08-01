@@ -107,11 +107,12 @@ class TimeSeriesDataset(Dataset):
 
         self._target_data: typing.Sequence[np.ndarray | None]
         if target_data is not None:
-            if len(self._input_data) != len(target_data):
+            self._target_data = convert_data(target_data)
+
+            if len(self._input_data) != len(self._target_data):
                 raise ValueError(
                     "The number of input and target data sources must be the same."
                 )
-            self._target_data = convert_data(target_data)
             if predict:
                 self._dataset_type = DataSetType.VAL_TEST
             else:
@@ -204,7 +205,7 @@ class TimeSeriesDataset(Dataset):
             x, y = self._create_sample(idx)
             return {"input": x, "target": y}
         elif self._dataset_type == DataSetType.PREDICT:
-            x, _ = self._create_sample(idx)
+            x = self._get_prediction_input(idx)
             return {"input": x}
         else:
             raise ValueError(f"Unknown dataset type {self._dataset_type}")
