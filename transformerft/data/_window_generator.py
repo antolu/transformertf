@@ -22,17 +22,6 @@ DATA_SOURCE = typing.TypeVar(
 
 
 class WindowGenerator:
-    """
-    Class to generate sliding windows for input and label data.
-
-    The class takes both input and label data, but takes different window sizes
-    for each. If the label window size is not specified, it is set to the same
-    size as the input window size.
-
-    The class does not consider the number of columns in the input and label
-    data, therefore the returned data is not necessarily of the same shape.
-    """
-
     def __init__(
         self,
         input_data: DATA_SOURCE,
@@ -43,16 +32,39 @@ class WindowGenerator:
         zero_pad: bool = False,
     ):
         """
-        :param input_data: Input data. Can be a pandas DataFrame, Series, or
-            numpy array.
-        :param in_window_size: Input window size.
-        :param label_data: Label data. Can be a pandas DataFrame, Series, or
-            numpy array.
-        :param label_seq_len: Label window size. If None, the input window size
-            is used.
-        :param stride: Stride for the sliding window.
-        :param zero_pad: If True, the input and label data are zero padded to
-            fit the stride.
+        Class to generate sliding windows for input and label data.
+
+        The class takes both input and label data, but takes different window sizes
+        for each. If the label window size is not specified, it is set to the same
+        size as the input window size.
+
+        The class does not consider the number of columns in the input and label
+        data, therefore the returned data is not necessarily of the same shape.
+        Parameters
+
+        ----------
+        input_data : DATA_SOURCE
+            Input data. Can be a pandas DataFrame, Series, or numpy array.
+        in_window_size : int
+            Input window size.
+        label_data : DATA_SOURCE, optional
+            Label data. Can be a pandas DataFrame, Series, or numpy array.
+            The default is None.
+        label_seq_len : int, optional
+            Label window size. If None, the input window size is used.
+            The default is None.
+        stride : int, optional
+            Stride for the sliding window. The default is 1.
+        zero_pad : bool, optional
+            If True, the input and label data are zero padded to fit the stride.
+            The default is False.
+
+        Raises
+        ------
+        ValueError
+            If the input and label data have different lengths.
+        ValueError
+            If the input data length is less than the input window size.
         """
         if label_seq_len is None:
             label_seq_len = in_window_size
@@ -108,11 +120,23 @@ class WindowGenerator:
     def num_samples(self) -> int:
         """
         Number of samples that can be generated from the input data.
-        :return: Number of samples.
+
+        Returns
+        -------
+        int
+            Number of samples.
         """
         return self._num_samples
 
     def __len__(self) -> int:
+        """
+        Number of samples that can be generated from the input data.
+
+        Returns
+        -------
+        int
+            Number of samples.
+        """
         return self.num_samples
 
     def calc_slice(self, idx: int, label: bool = False) -> slice:
@@ -121,11 +145,23 @@ class WindowGenerator:
         specific index. First performs an index check to ensure that the index
         is within bounds.
 
-        :param idx: Index of the sample. If index is out of bounds an
-            IndexError is raised.
-        :param label: If True, the label window size is used. Otherwise, the
-            input window size is used.
-        :return: Slice object representing the window size.
+        Parameters
+        ----------
+        idx : int
+            Index of the sample. If index is out of bounds an IndexError is raised.
+        label : bool, optional
+            If True, the label window size is used. Otherwise, the input window size is used.
+            The default is False.
+
+        Returns
+        -------
+        slice
+            Slice object representing the window size.
+
+        Raises
+        ------
+        IndexError
+            If the index is out of bounds.
         """
         # Check index
         if idx < 0:
@@ -151,9 +187,15 @@ class WindowGenerator:
         Return a pair of input and labeled data.
         The input and labeled data are not necessarily of the same length
 
-        :param idx: index of the sample. If index is out of bounds an
-            IndexError is raised.
-        :return: Tuple of input and label data (x, y).
+        Parameters
+        ----------
+        idx : int
+            index of the sample. If index is out of bounds an IndexError is raised.
+
+        Returns
+        -------
+        np.ndarray | tuple[np.ndarray, np.ndarray]
+            Tuple of input and label data (x, y).
         """
         input_data = self._input_data[self.calc_slice(idx)]
         if self._label_data is None:
