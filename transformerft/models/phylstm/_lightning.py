@@ -211,6 +211,7 @@ class PhyLSTMModule(LightningModuleBase):
         kwargs.update(new_kwargs)
         return cls(**kwargs)
 
+
     def on_validation_epoch_start(self) -> None:
         """Reset the hidden states"""
         self._val_hidden = [None]  # type: ignore[assignment]
