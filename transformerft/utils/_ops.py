@@ -1,17 +1,32 @@
 from __future__ import annotations
 
 import builtins
-from typing import Any, Hashable, Sequence, TypeVar
+import typing
 
 import torch
 
-T = TypeVar("T", dict[Hashable, Any], tuple, Sequence, torch.Tensor, covariant=True)
-M = TypeVar(
-    "M", dict[Hashable, torch.Tensor], tuple[torch.Tensor, ...], Sequence[torch.Tensor], torch.Tensor, covariant=True,
+T_co = typing.TypeVar(
+    "T_co",
+    dict,
+    tuple,
+    typing.Sequence,
+    torch.Tensor,
+    covariant=True,
+)
+M_co = typing.TypeVar(
+    "M_co",
+    dict[typing.Hashable, torch.Tensor],
+    tuple[torch.Tensor, ...],
+    typing.Sequence[torch.Tensor],
+    torch.Tensor,
+    covariant=True,
 )
 
 
-def _op_T(data: T, op: Any) -> T:
+# pyright: reportGeneralTypeIssues=false
+def _op_T(
+    data: T_co, op: typing.Callable[[torch.Tensor], torch.Tensor]
+) -> T_co:
     if isinstance(data, dict):
         return type(data)({k: _op_T(v, op) for k, v in data.items()})
     elif isnamedtupleinstance(data):
@@ -20,7 +35,7 @@ def _op_T(data: T, op: Any) -> T:
         return type(data)([_op_T(v, op) for v in data])
     elif isinstance(data, list):
         return type(data)([_op_T(v, op) for v in data])
-    elif isinstance(data, Sequence):
+    elif isinstance(data, typing.Sequence):
         return type(data)([_op_T(v, op) for v in data])  # type: ignore[call-arg]
     elif isinstance(data, torch.Tensor):
         return op(data)
@@ -28,36 +43,36 @@ def _op_T(data: T, op: Any) -> T:
         raise TypeError(f"Unknown type {type(data)}.")
 
 
-def detach(data: T) -> T:
+def detach(data: T_co) -> T_co:
     """
     Detach data from the computational graph.
     """
     return _op_T(data, lambda x: x.detach())
 
 
-def to(data: T, device: torch.device) -> T:
+def to(data: T_co, device: torch.device) -> T_co:
     """
     Copy the data from GPU to CPU
     """
     return _op_T(data, lambda x: x.to(device))
 
 
-def to_cpu(data: T) -> T:
+def to_cpu(data: T_co) -> T_co:
     """
     Copy the data from GPU to CPU
     """
     return _op_T(data, lambda x: x.to(torch.device("cpu")))
 
 
-def truncate(data: M, length: int) -> M:
+def truncate(data: M_co, length: int) -> M_co:
     return _op_T(data, lambda x: x[:length])
 
 
-def squeeze(data: T) -> T:
+def squeeze(data: T_co) -> T_co:
     return _op_T(data, lambda x: x.squeeze())
 
 
-def concatenate(*args: M) -> M:
+def concatenate(*args: M_co) -> M_co:
     type_ = type(args[0])
     if not all(isinstance(x, type_) for x in args):
         raise TypeError("All arguments must be of the same type.")
@@ -78,7 +93,7 @@ def concatenate(*args: M) -> M:
         return type(args[0])(
             [concatenate(*[x[i] for x in args]) for i in range(len(args[0]))]
         )
-    elif isinstance(args[0], Sequence):
+    elif isinstance(args[0], typing.Sequence):
         return type(args[0])(
             *[concatenate(*[x[i] for x in args]) for i in range(len(args[0]))]
         )
@@ -88,11 +103,11 @@ def concatenate(*args: M) -> M:
         raise TypeError(f"Unknown type {type(args[0])}.")
 
 
-def slice(data: M, s: builtins.slice) -> M:
+def slice(data: M_co, s: builtins.slice) -> M_co:
     return _op_T(data, lambda x: x.__getitem__(s))
 
 
-def isnamedtupleinstance(x: Any) -> bool:
+def isnamedtupleinstance(x: typing.Any) -> bool:
     t = type(x)
     b = t.__bases__
     if len(b) != 1 or b[0] != tuple:
