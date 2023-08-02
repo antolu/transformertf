@@ -183,15 +183,10 @@ def test_dataset_predict_1d_single(x1_1d: np.ndarray) -> None:
 
 
 def test_dataset_predict_1d_multiple(x1_1d: np.ndarray) -> None:
-    dataset = TimeSeriesDataset(
-        input_data=[x1_1d, x1_1d], seq_len=3, predict=True
-    )
-
-    assert len(dataset) == 8
-    sample = dataset[0]
-    assert isinstance(sample, dict)
-    assert sample["input"].shape == (3,)
-    assert "target" not in sample
+    with pytest.raises(ValueError):
+        TimeSeriesDataset(
+            input_data=[x1_1d, x1_1d], seq_len=3, predict=True
+        )
 
 
 def test_dataset_predict_2d_single(x1_2d: np.ndarray) -> None:
@@ -205,36 +200,31 @@ def test_dataset_predict_2d_single(x1_2d: np.ndarray) -> None:
 
 
 def test_dataset_predict_2d_multiple(x1_2d: np.ndarray) -> None:
-    dataset = TimeSeriesDataset(
-        input_data=[x1_2d, x1_2d], seq_len=3, predict=True
-    )
-
-    assert len(dataset) == 6
-    sample = dataset[0]
-    assert isinstance(sample, dict)
-    assert sample["input"].shape == (3, 2)
-    assert "target" not in sample
+    with pytest.raises(ValueError):
+        TimeSeriesDataset(
+            input_data=[x1_2d, x1_2d], seq_len=3, predict=True
+        )
 
 
 def test_dataset_num_points_1d_single(x1_1d: np.ndarray) -> None:
     dataset = TimeSeriesDataset(input_data=x1_1d, seq_len=3)
 
-    assert dataset.num_points == 7
+    assert dataset.num_points == 10
 
 
 def test_dataset_num_points_1d_multiple(x1_1d: np.ndarray) -> None:
     dataset = TimeSeriesDataset(input_data=[x1_1d, x1_1d], seq_len=3)
 
-    assert dataset.num_points == 14
+    assert dataset.num_points == 20
 
 
 def test_dataset_num_points_2d_single(x1_2d: np.ndarray) -> None:
     dataset = TimeSeriesDataset(input_data=x1_2d, seq_len=3)
 
-    assert dataset.num_points == 7
+    assert dataset.num_points == 9
 
 
 def test_dataset_num_points_2d_multiple(x1_2d: np.ndarray) -> None:
     dataset = TimeSeriesDataset(input_data=[x1_2d, x1_2d], seq_len=3)
 
-    assert dataset.num_points == 14
+    assert dataset.num_points == 18
