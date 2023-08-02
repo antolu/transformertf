@@ -33,13 +33,17 @@ class DataModuleBase(L.LightningDataModule):
     subclass constructor.
     """
 
-    def __init__(self) -> None:
-        super().__init__()
-
-        self._train_data_pth: str | typing.Sequence[str] | None = None
-        self._val_data_pth: str | typing.Sequence[str] | None = None
-        self._test_data_pth: str | None = None
-        self._predict_data_pth: str | None = None
+    def __init__(
+        self,
+        train_dataset: str | typing.Sequence[str] | None = None,
+        val_dataset: str | typing.Sequence[str] | None = None,
+        test_dataset: str | None = None,
+        predict_dataset: str | None = None,
+    ):
+        self._train_data_pth = train_dataset
+        self._val_data_pth = val_dataset
+        self._test_data_pth = test_dataset
+        self._predict_data_pth = predict_dataset
 
         self._train_df: list[pd.DataFrame] | None = None
         self._val_df: list[pd.DataFrame] | None = None
