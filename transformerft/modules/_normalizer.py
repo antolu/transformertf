@@ -13,6 +13,53 @@ log = logging.getLogger(__name__)
 
 
 class RunningNormalizer(nn.Module, BaseEstimator, TransformerMixin):
+    """
+    RunningNormalizer class
+
+    A class for normalizing and scaling data using running statistics.
+
+    Parameters:
+        - num_features (int): The number of features in the data. Default is 1.
+        - center (torch.Tensor | float): The center value for rescaling. Default is 0.0.
+        - scale (torch.Tensor | float): The scale value for rescaling. Default is 1.0.
+
+    Attributes:
+        - center_ (torch.Tensor): The running mean center value.
+        - scale_ (torch.Tensor): The running standard deviation scale value.
+        - n_samples_seen_ (torch.Tensor): The total number of samples seen for fitting.
+
+    Methods:
+        - forward(y: torch.Tensor, target_scale: torch.Tensor | None = None) -> torch.Tensor:
+            Applies the inverse transformation on the input data.
+
+        - fit(y: torch.Tensor) -> RunningNormalizer:
+            Fits the normalizer to the data.
+
+        - transform(y: torch.Tensor, return_scales: bool = False, target_scale: torch.Tensor | None = None)
+            -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
+            Rescales the input data.
+
+        - inverse_transform(y: torch.Tensor) -> torch.Tensor:
+            Applies the inverse scaling on the input data.
+
+        - get_parameters() -> torch.Tensor:
+            Returns the current parameters of the normalizer.
+
+        - _set_parameters(y_center: torch.Tensor, y_scale: torch.Tensor) -> None:
+            Sets the parameters of the normalizer based on the input data.
+
+        - __sklearn_is_fitted__() -> bool:
+            Checks if the normalizer has been fitted to the data.
+
+    Note:
+        This class inherits from nn.Module, BaseEstimator, and TransformerMixin.
+        The `fit` method returns the fitted instance of the normalizer.
+        The `transform` method can return the rescaling factors if `return_scales` is set to True.
+        The `n_samples_seen_` attribute keeps track of the number of samples seen during fitting.
+        The class uses running statistics for incrementally updating the center and scale during fitting.
+        The class supports PyTorch tensors for all numeric inputs.
+
+    """
     center_: torch.Tensor
     scale_: torch.Tensor
     n_samples_seen_: torch.Tensor
@@ -23,6 +70,19 @@ class RunningNormalizer(nn.Module, BaseEstimator, TransformerMixin):
         center: torch.Tensor | float = 0.0,
         scale: torch.Tensor | float = 1.0,
     ):
+        """
+        Parameters
+        ----------
+        num_features : int
+            The number of features in the input data.
+
+        center : torch.Tensor or float, optional
+            The center value for normalization. Default is 0.0.
+
+        scale : torch.Tensor or float, optional
+            The scale value for normalization. Default is 1.0.
+
+        """
         nn.Module.__init__(self)
         BaseEstimator.__init__(self)
 
