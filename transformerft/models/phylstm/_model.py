@@ -9,16 +9,20 @@ from sklearn.utils.validation import NotFittedError, check_is_fitted
 from torch import nn
 from torch.nn import functional as F
 
-from ._normalizer import RunningNormalizer
-
 try:
     from torch.optim.lr_scheduler import LRScheduler
 except ImportError:
     from torch.optim.lr_scheduler import _LRScheduler as LRScheduler  # noqa
 
 from ...utils import ops
-from ._output import (PhyLSTM1Output, PhyLSTM1States, PhyLSTM2Output,
-                      PhyLSTM2States, PhyLSTM3Output, PhyLSTM3States)
+from ._output import (
+    PhyLSTM1Output,
+    PhyLSTM1States,
+    PhyLSTM2Output,
+    PhyLSTM2States,
+    PhyLSTM3Output,
+    PhyLSTM3States,
+)
 from ._utils import GradientTorch
 
 __all__ = ["PhyLSTM1", "PhyLSTM2", "PhyLSTM3"]
@@ -39,13 +43,6 @@ class PhyLSTM1(nn.Module):
         sequence_length: int = 500,
         hidden_dim: int = 350,
         dropout: float = 0.2,
-        i2b_k: torch.Tensor | float | None = None,
-        i2b_m: torch.Tensor | float | None = None,
-        running_normalizer: bool = True,
-        input_center: torch.Tensor | float | None = None,
-        input_scale: torch.Tensor | float | None = None,
-        target_center: torch.Tensor | float | None = None,
-        target_scale: torch.Tensor | float | None = None,
     ):
         """
         This is a PyTorch implementation of the Physics inspired neural network
@@ -102,24 +99,6 @@ class PhyLSTM1(nn.Module):
 
         # linear component of inputs
         self.linear = nn.Linear(1, 1)
-        if i2b_k is not None and i2b_m is not None:
-            self.linear.requires_grad_(False)
-        if i2b_k is not None:
-            self.linear.weight.data = torch.Tensor([[i2b_k]])
-        if i2b_m is not None:
-            self.linear.bias.data = torch.Tensor([i2b_m])
-
-        self.running_normalizer = running_normalizer
-        self.input_scaler = RunningNormalizer(
-            center=input_center or 0.0,
-            scale=input_scale or 1.0,
-            num_features=2,
-        )
-        self.target_scaler = RunningNormalizer(
-            center=target_center or 0.0,
-            scale=target_scale or 1.0,
-            num_features=1,
-        )
 
         self.apply(self.weights_init)
 
@@ -191,16 +170,8 @@ class PhyLSTM1(nn.Module):
         else:
             h_lstm1 = None
 
-        try:
-            check_is_fitted(self.input_scaler)
-            x_scaled = self.input_scaler.transform(x)  # type: ignore
-        except NotFittedError:  # on the first batch, the scaler is not fitted
-            # one-off fit of the scaler
-            x_scaled = RunningNormalizer(num_features=2).fit_transform(x)
-            # x_scaled = x
-
-        x1_scaled = x_scaled[:, :, 0, None]
-        o_lstm1, h_lstm1 = self.lstm1(x1_scaled, hx=h_lstm1)
+        x1 = x[:, :, 0, None]
+        o_lstm1, h_lstm1 = self.lstm1(x1, hx=h_lstm1)
         o_lstm1 = F.leaky_relu(self.fc1(o_lstm1))
 
         o_lstm1 = self.ln1(o_lstm1)
@@ -226,7 +197,7 @@ class PhyLSTM1(nn.Module):
         z = torch.stack([z1, z2, z[..., 2]], dim=-1)
 
         assert isinstance(h_lstm1, tuple)
-        output: PhyLSTM1Output = {"z": z, "z_raw": z_raw, "x_scaled": x_scaled}
+        output: PhyLSTM1Output = {"z": z, "z_raw": z_raw}
         states: PhyLSTM1States = {"lstm1": tuple(o.detach() for o in h_lstm1)}
 
         if return_states:
@@ -254,26 +225,12 @@ class PhyLSTM2(PhyLSTM1):
         sequence_length: int = 500,
         hidden_dim: int = 350,
         dropout: float = 0.2,
-        i2b_k: torch.Tensor | float | None = None,
-        i2b_m: torch.Tensor | float | None = None,
-        running_normalizer: bool = True,
-        input_center: torch.Tensor | float | None = None,
-        input_scale: torch.Tensor | float | None = None,
-        target_center: torch.Tensor | float | None = None,
-        target_scale: torch.Tensor | float | None = None,
     ) -> None:
         super().__init__(
             num_layers=num_layers,
             sequence_length=sequence_length,
             hidden_dim=hidden_dim,
             dropout=dropout,
-            i2b_k=i2b_k,
-            i2b_m=i2b_m,
-            running_normalizer=running_normalizer,
-            input_center=input_center,
-            input_scale=input_scale,
-            target_center=target_center,
-            target_scale=target_scale,
         )
 
         self.gradient = GradientTorch()
@@ -340,8 +297,7 @@ class PhyLSTM2(PhyLSTM1):
                 x, hidden_state=hidden_state, return_states=False
             )
 
-        x_scaled = phylstm1_output["x_scaled"]
-        x1_scaled = x_scaled[..., 0, None]
+        x1 = x[..., 0, None]
         z = phylstm1_output["z_raw"]
 
         if hidden_state is None:
@@ -356,7 +312,7 @@ class PhyLSTM2(PhyLSTM1):
         o_lstm2 = self.ln2(o_lstm2)
         g = self.fc21(o_lstm2)
 
-        g_gamma_x = self.g_plus_x(torch.cat([g, x1_scaled], dim=2))
+        g_gamma_x = self.g_plus_x(torch.cat([g, x1], dim=2))
 
         output = typing.cast(
             PhyLSTM2Output,
@@ -395,13 +351,6 @@ class PhyLSTM3(PhyLSTM2):
             sequence_length=sequence_length,
             hidden_dim=hidden_dim,
             dropout=dropout,
-            i2b_k=i2b_k,
-            i2b_m=i2b_m,
-            running_normalizer=running_normalizer,
-            input_center=input_center,
-            input_scale=input_scale,
-            target_center=target_center,
-            target_scale=target_scale,
         )
 
         # hysteric parameter modeling

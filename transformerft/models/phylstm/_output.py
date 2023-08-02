@@ -23,7 +23,6 @@ __all__ = [
 class PhyLSTM1Output(TypedDict):
     z: torch.Tensor
     z_raw: torch.Tensor
-    x_scaled: torch.Tensor
 
 
 class PhyLSTM2Output(PhyLSTM1Output):
