@@ -1,9 +1,8 @@
 from ..._mod_replace import replace_modname
 from ._config import PhyLSTMConfig
-from ._lightning import PhyLSTMModule
+from ._lightning import STEP_OUTPUT, PhyLSTMModule
 from ._loss import LossWeights, PhyLSTMLoss
 from ._model import PhyLSTM1, PhyLSTM2, PhyLSTM3
-from ._normalizer import RunningNormalizer
 from ._output import (PhyLSTM1Output, PhyLSTM1States, PhyLSTM2Output,
                       PhyLSTM2States, PhyLSTM3Output, PhyLSTM3States)
 
@@ -14,7 +13,6 @@ for _mod in (
     PhyLSTM2,
     PhyLSTM3,
     PhyLSTMModule,
-    RunningNormalizer,
 ):
     replace_modname(_mod, __name__)
 
@@ -30,7 +28,7 @@ __all__ = [
     "PhyLSTM2",
     "PhyLSTM3",
     "PhyLSTMModule",
-    "RunningNormalizer",
+    "STEP_OUTPUT",
     "PhyLSTM1Output",
     "PhyLSTM2Output",
     "PhyLSTM3Output",
