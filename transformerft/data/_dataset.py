@@ -121,11 +121,11 @@ class TimeSeriesDataset(Dataset):
             self._target_data = [None] * len(self._input_data)
             self._dataset_type = DataSetType.PREDICT
 
-        if predict and len(self._input_data) != 1:
-            raise ValueError(
-                f"Predicting requires exactly one input data source. "
-                f"Got {len(self._input_data)}"
-            )
+            if predict and len(self._input_data) != 1:
+                raise ValueError(
+                    f"Predicting requires exactly one input data source. "
+                    f"Got {len(self._input_data)}"
+                )
 
         self._window_gen = [
             WindowGenerator(
