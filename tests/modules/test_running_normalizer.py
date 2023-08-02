@@ -1,4 +1,4 @@
-from transformerft.models.phylstm import RunningNormalizer
+from transformerft.modules import RunningNormalizer
 import torch
 
 
