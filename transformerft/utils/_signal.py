@@ -178,13 +178,23 @@ def mean_filter(
         values in the window.
     """
     new_arr = value.copy()
+
+    smoothed_last = False
     for i in range((value.size - window_size) // stride):
         s = slice(i * stride, i * stride + window_size)
 
-        arr_s = new_arr[s]
-        if np.any(np.abs(arr_s - np.median(arr_s)) > threshold):
-            new_arr[s.start : s.start + stride] = arr_s[:stride]
-        else:
+        arr_s = value[s]
+        condition = np.abs(arr_s - arr_s[0]) < threshold
+        if np.all(condition):
             new_arr[s] = np.mean(arr_s)
+            smoothed_last = True
+        elif smoothed_last and np.argmin(condition) > 1:
+            first_false = np.argmin(condition)
+            new_arr[s.start : s.start + first_false] = np.mean(
+                arr_s[:first_false]
+            )
+        else:
+            new_arr[s.start : s.start + stride] = arr_s[:stride]
+            smoothed_last = False
 
     return new_arr
