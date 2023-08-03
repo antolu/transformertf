@@ -17,13 +17,6 @@ class PhyLSTMConfig(BaseConfig):
     num_layers: int = 3
     dropout: float = 0.2
 
-    running_normalization: bool = True
-    input_center: float | None = None
-    input_scale: float | None = None
-    target_center: float | None = None
-    target_scale: float | None = None
-    fit_scaler_until: int | None = None
-
     lowpass_filter: bool = True
     mean_filter: bool = True
 
