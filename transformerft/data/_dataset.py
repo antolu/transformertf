@@ -6,6 +6,7 @@ which are used to load and preprocess data for training the hysteresis model.
 """
 from __future__ import annotations
 
+import enum
 import logging
 import sys
 import typing
@@ -14,7 +15,6 @@ import warnings
 import numpy as np
 import pandas as pd
 import torch
-import enum
 from torch.utils.data import Dataset
 
 if sys.version_info >= (3, 11):
@@ -22,6 +22,7 @@ if sys.version_info >= (3, 11):
 else:
     from typing_extensions import TypedDict, NotRequired
 
+from ..modules import RunningNormalizer
 from ._window_generator import WindowGenerator
 
 __all__ = ["TimeSeriesDataset", "TimeSeriesSample"]
@@ -50,6 +51,8 @@ class TimeSeriesDataset(Dataset):
         target_data: DATA_SOURCE | list[DATA_SOURCE] | None = None,
         stride: int = 1,
         predict: bool = False,
+        input_normalizer: RunningNormalizer | None = None,
+        target_normalizer: RunningNormalizer | None = None,
     ):
         """
         The dataset used to train the hysteresis model.
@@ -143,6 +146,9 @@ class TimeSeriesDataset(Dataset):
             [wg.num_samples for wg in self._window_gen]
         )
 
+        self._input_normalizer = input_normalizer
+        self._target_normalizer = target_normalizer
+
     @classmethod
     def from_dataframe(
         cls,
@@ -193,6 +199,49 @@ class TimeSeriesDataset(Dataset):
         :return: The number of points.
         """
         return int(np.sum([len(arr) for arr in self._input_data]))
+
+    @property
+    def input_scale(self) -> np.ndarray:
+        if self._input_normalizer is None:
+            return np.array([])
+
+        return self._input_normalizer.get_parameters().numpy()
+
+    @property
+    def input_scaler(self) -> RunningNormalizer | None:
+        return self._input_normalizer
+
+    @property
+    def target_scale(self) -> np.ndarray:
+        if self._target_normalizer is None:
+            return np.array([])
+
+        return self._target_normalizer.get_parameters().numpy()
+
+    @property
+    def target_scaler(self) -> RunningNormalizer | None:
+        return self._target_normalizer
+
+    def inverse_transform(
+        self,
+        input: torch.Tensor | None = None,
+        target: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor | None, torch.Tensor | None]:
+        if self._input_normalizer is None:
+            inv_input = input
+        elif input is None:
+            inv_input = None
+        else:
+            inv_input = self._input_normalizer.inverse_transform(input)
+
+        if self._target_normalizer is None:
+            inv_target = target
+        elif target is None:
+            inv_target = None
+        else:
+            inv_target = self._target_normalizer.inverse_transform(target)
+
+        return inv_input, inv_target
 
     def __getitem__(self, idx: int) -> TimeSeriesSample:
         """
