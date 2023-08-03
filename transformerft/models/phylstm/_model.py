@@ -59,7 +59,7 @@ class PhyLSTM1(nn.Module):
         :math:`B`, and the :math:`f(t)` input function replaced by the current
         :math:`i(t)`.
         .. math::
-            a\\dot{B}(t) + b(B, \\dot{B}) + r(B, \\dot{B}, B(\tau)) = \\Gamma i(t)
+            a\\dot{B}(t) + b(B, \\dot{B}) + r(B, \\dot{B}, B(\\tau)) = \\Gamma i(t)
 
         Which can be rewritten as: :math:`\\ddot{B} + g = \\Gamma i(t)`
 
