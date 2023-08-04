@@ -79,7 +79,7 @@ build_docs_on_tag:
 pre-commit:
   extends: .acc_py_pre-commit
   before_script:
-    - !reference [.acc_py_pre_commit, before_script]
+    - !reference [.acc_py_pre-commit, before_script]
     - yum install -y git-lfs
     - git lfs install --skip-smudge
 
