@@ -7,7 +7,7 @@ import torch.utils.data
 from transformerft.models.phylstm import PhyLSTMDataModule, PhyLSTMConfig
 
 
-DF_PATH = str(Path(__file__).parent / "sample_data.parquet")
+DF_PATH = str(Path(__file__).parent.parent.parent / "sample_data.parquet")
 CURRENT = "I_meas_A"
 FIELD = "B_meas_T"
 
