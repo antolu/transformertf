@@ -20,7 +20,7 @@ build_wheel:
   extends: .acc_py_build_wheel
 
 
-_install_git_lfs:
+._install_git_lfs:
   before_script:
     - yum install -y git-lfs
     - git lfs install --skip-smudge
@@ -28,9 +28,11 @@ _install_git_lfs:
 
 # A development installation of the package tested with pytest.
 test_dev:
-  extends:
-    - .acc_py_dev_test
-    - ._install_git_lfs
+  extends: .acc_py_dev_test
+  before_script:
+    - !reference [.acc_py_dev_test, before_script]
+    - yum install -y git-lfs
+    - git lfs install --skip-smudge
   script:
     # Run the unit-tests with coverage output.
     - cd ${project_root}
@@ -43,11 +45,13 @@ test_dev:
 
 
 test_wheel:
-  extends:
-    - .acc_py_wheel_test
-    - ._install_git_lfs
+  extends: .acc_py_wheel_test
   needs:
     - build_wheel
+  before_script:
+    - !reference [.acc_py_wheel_test, before_script]
+    - yum install -y git-lfs
+    - git lfs install --skip-smudge
   script:
     - mkdir -p ~/not-the-source-dir && cp -r ${project_root}/tests ~/not-the-source-dir && cd ~/not-the-source-dir
     - python -m pytest ./tests
