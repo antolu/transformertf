@@ -143,6 +143,21 @@ class DataModuleBase(L.LightningDataModule):
             else []
         )
 
+        def apply_to_dfs(
+            dfs: list[pd.DataFrame],
+            f: typing.Callable[[pd.DataFrame], pd.DataFrame],
+        ) -> list[pd.DataFrame]:
+            return [f(df) for df in dfs]
+
+        self._train_df = apply_to_dfs(
+            self._train_df, self.preprocess_dataframe
+        )
+        self._val_df = apply_to_dfs(self._val_df, self.preprocess_dataframe)
+        self._test_df = apply_to_dfs(self._test_df, self.preprocess_dataframe)
+        self._predict_df = apply_to_dfs(
+            self._predict_df, self.preprocess_dataframe
+        )
+
         try:
             self._try_scalers_fitted()
             raise RuntimeError("Scalers have already been fitted.")
@@ -150,12 +165,13 @@ class DataModuleBase(L.LightningDataModule):
             for df in self._train_df:
                 self._fit_scalers(df)
 
-        self._train_df = [self._try_scale_df(df) for df in self._train_df]
-        self._val_df = [self._try_scale_df(df) for df in self._val_df]
-        self._test_df = [self._try_scale_df(df) for df in self._test_df]
-        self._predict_df = [
-            self._try_scale_df(df, skip_target=True) for df in self._predict_df
-        ]
+        self._train_df = apply_to_dfs(self._train_df, self._try_scale_df)
+        self._val_df = apply_to_dfs(self._val_df, self._try_scale_df)
+        self._test_df = apply_to_dfs(self._test_df, self._try_scale_df)
+        self._predict_df = apply_to_dfs(
+            self._predict_df,
+            functools.partial(self._try_scale_df, skip_target=True),
+        )
 
         if save:
             self.save_data(self._tmp_dir.name)
@@ -186,7 +202,12 @@ class DataModuleBase(L.LightningDataModule):
                 dfs.append(df)
             return dfs
 
-        if stage in ("train", "fit"):
+        if stage is None:
+            self._train_df = load_parquet("train", self._tmp_dir.name)
+            self._val_df = load_parquet("val", self._tmp_dir.name)
+            self._test_df = load_parquet("test", self._tmp_dir.name)
+            self._predict_df = load_parquet("predict", self._tmp_dir.name)
+        elif stage in ("train", "fit"):
             self._train_df = load_parquet("train", self._tmp_dir.name)
             self._val_df = load_parquet("val", self._tmp_dir.name)
         elif stage == "val":
@@ -502,8 +523,8 @@ class DataModuleBase(L.LightningDataModule):
             target_data=df[self.hparams["target_columns"]].to_numpy(),
             stride=self.hparams["stride"],
             predict=predict,
-            input_normalizer=self.input_normalizer,
-            target_normalizer=self.target_normalizer,
+            input_normalizer=self._input_normalizer,
+            target_normalizer=self._target_normalizer,
         )
 
     def train_dataloader(

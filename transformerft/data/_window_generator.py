@@ -75,9 +75,10 @@ class WindowGenerator:
                 "length ({})".format(in_window_size, len(input_data))
             )
 
-        self._label_window_size = label_seq_len
-        self._input_data = np.array(input_data)
+        self._label_window_size: int = label_seq_len
+        self._input_data: np.ndarray = np.array(input_data)
 
+        self._label_data: np.ndarray | None
         if label_data is None:
             self._label_data = None
         else:
@@ -97,9 +98,10 @@ class WindowGenerator:
                     )
                 )
 
-        self._in_window_size = in_window_size
-        self._stride = stride
+        self._in_window_size: int = in_window_size
+        self._stride: int = stride
 
+        self._num_samples: int
         if not zero_pad:
             self._num_samples = int(
                 (len(self._input_data) - self._in_window_size) // self._stride
@@ -114,18 +116,17 @@ class WindowGenerator:
             )
 
         if zero_pad:
-            pad_shape = (
+            pad_shape: tuple[int] = (
                 len(self._input_data)
                 + ((len(self._input_data) - self._in_window_size) % stride),
-                *input_data.shape[1:],
             )
 
-            input_data_padded = np.zeros(pad_shape)
+            input_data_padded = np.zeros((*pad_shape, *input_data.shape[1:]))
             input_data_padded[: len(self._input_data)] = self._input_data
             self._input_data = input_data_padded
 
             if label_data is not None:
-                label_data_padded = np.zeros(pad_shape)
+                label_data_padded = np.zeros((*pad_shape, *label_data.shape[1:]))  # type: ignore[union-attr]
                 label_data_padded[: len(label_data)] = label_data
                 self._label_data = label_data_padded
 

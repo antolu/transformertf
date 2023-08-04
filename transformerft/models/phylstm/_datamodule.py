@@ -87,7 +87,7 @@ class PhyLSTMDataModule(DataModuleBase):
             predict_dataset=predict_dataset,
             normalize=True,
         )
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=["current_column", "field_column"])
 
         self._check_args()
 
@@ -137,7 +137,7 @@ class PhyLSTMDataModule(DataModuleBase):
             target=target,
             timestamp=timestamp,
             input_columns=self.hparams["input_columns"],
-            target_columns=self.hparams["target_columns"][0],
+            target_columns=[self.hparams["target_columns"][0]],
         )
 
         return df
@@ -162,18 +162,18 @@ class PhyLSTMDataModule(DataModuleBase):
         """
         df = super().preprocess_dataframe(df)
 
-        current: str = self.hparams["input_columns"]
-        field: str | None = self.hparams["target_columns"]
+        current: str = self.hparams["input_columns"][0]
+        field: str | None = self.hparams["target_columns"][0]
 
         # signal processing: lowpass filter
         if self.hparams["lowpass_filter"]:
             df[current] = signal.butter_lowpass_filter(
-                df[current], cutoff=32, fs=1e3, order=10
+                df[current].to_numpy(), cutoff=32, fs=1e3, order=10
             )
 
             if field is not None and field in df:
                 df[field] = signal.butter_lowpass_filter(
-                    df[field], cutoff=32, fs=1e3, order=10
+                    df[field].to_numpy(), cutoff=32, fs=1e3, order=10
                 )
 
         # signal processing: mean filter to remove low amplitude fluctuations
@@ -225,10 +225,7 @@ class PhyLSTMDataModule(DataModuleBase):
                 f"Available fields are {df.columns}."
             )
 
-        if self.hparams["use_derivative"]:
-            df[field_dot] = np.gradient(df[field].to_numpy())
-        else:
-            df[field_dot] = np.ones_like(df[field])
+        df[field_dot] = np.gradient(df[field].to_numpy())
 
         return df
 

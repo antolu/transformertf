@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import numpy as np
 import numpy.typing as npt
-import pandas as pd
 import scipy.signal as signal
 from numba import njit, prange
 
@@ -146,7 +145,7 @@ def butter_lowpass(cutoff: float, fs: float, order: int = 5) -> np.ndarray:
 
 
 def butter_lowpass_filter(
-    data: np.ndarray | pd.Series, cutoff: int, fs: float, order: int
+    data: np.ndarray, cutoff: int, fs: float, order: int
 ) -> np.ndarray:
     """
     :param data: The data to filter.
