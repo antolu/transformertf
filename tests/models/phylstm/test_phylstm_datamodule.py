@@ -154,6 +154,7 @@ def phylstm_datamodule() -> PhyLSTMDataModule:
 
     return dm
 
+
 def test_phylstm_datamodule_setup(phylstm_datamodule: PhyLSTMDataModule) -> None:
     assert phylstm_datamodule is not None
 

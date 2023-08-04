@@ -50,6 +50,11 @@ class DataModuleBase(L.LightningDataModule):
         test_dataset: str | None = None,
         predict_dataset: str | None = None,
         normalize: bool = True,
+        seq_len: int = 500,
+        out_seq_len: int = 0,
+        stride: int = 1,
+        batch_size: int = 128,
+        num_workers: int = 0,
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -256,7 +261,7 @@ class DataModuleBase(L.LightningDataModule):
         elif isinstance(input_columns, str):
             input_columns = [input_columns]
 
-        if target is not None:
+        if target is not None or isinstance(input_, pd.DataFrame):
             if target_columns is None:
                 target_columns = self.hparams["target_columns"]
             elif isinstance(target_columns, str):
@@ -650,7 +655,7 @@ class DataModuleBase(L.LightningDataModule):
             else:
                 paths = []
                 multi_file_stem = path.join(
-                    self.hparams["model_dir"], f"{name}_{{}}.parquet"
+                    dir_, f"{name}_{{}}.parquet"
                 )
                 # find all files with the same stem
                 i = 0

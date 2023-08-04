@@ -86,6 +86,9 @@ class PhyLSTMDataModule(DataModuleBase):
             test_dataset=test_dataset,
             predict_dataset=predict_dataset,
             normalize=True,
+            seq_len=seq_len,
+            out_seq_len=out_seq_len,
+            stride=stride,
         )
         self.save_hyperparameters(ignore=["current_column", "field_column"])
 
