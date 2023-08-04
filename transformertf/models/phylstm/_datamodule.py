@@ -6,7 +6,7 @@ import typing
 import numpy as np
 import pandas as pd
 
-from transformerft.utils import signal
+from transformertf.utils import signal
 
 from ...data import DataModuleBase
 from ._config import PhyLSTMConfig

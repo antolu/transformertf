@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 import numpy as np
 
-from transformerft.data import WindowGenerator
+from transformertf.data import WindowGenerator
 
 
 @pytest.fixture(scope="module")

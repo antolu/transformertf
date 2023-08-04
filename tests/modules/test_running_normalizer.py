@@ -1,4 +1,4 @@
-from transformerft.modules import RunningNormalizer
+from transformertf.modules import RunningNormalizer
 import torch
 
 

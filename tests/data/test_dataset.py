@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 import numpy as np
 
-from transformerft.data import TimeSeriesDataset
+from transformertf.data import TimeSeriesDataset
 
 
 @pytest.fixture

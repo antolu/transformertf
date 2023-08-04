@@ -1,6 +1,6 @@
 .. _API_docs:
 
-TransformerFT API documentation
+TransformerTF API documentation
 ===========================
 
 .. rubric:: Modules
@@ -10,4 +10,4 @@ TransformerFT API documentation
 
    .. Add the sub-packages that you wish to document below
 
-    transformerft
+    transformertf

@@ -4,7 +4,7 @@ import pytest
 from pathlib import Path
 import torch.utils.data
 
-from transformerft.models.phylstm import PhyLSTMDataModule, PhyLSTMConfig
+from transformertf.models.phylstm import PhyLSTMDataModule, PhyLSTMConfig
 
 
 DF_PATH = str(Path(__file__).parent.parent.parent / "sample_data.parquet")

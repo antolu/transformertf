@@ -1,5 +1,5 @@
-============================================
-TransformerFT - Transformers for Time Series
-============================================
+===================================================
+TransformerFT - Transformers for Transfer Functions
+===================================================
 
-This contains the package documentation for transformerft.
+This contains the package documentation for transformertf.

@@ -6,7 +6,7 @@ include:
    file: v2/python.gitlab-ci.yml
 
 variables:
-  project_name: "transformerft"
+  project_name: "transformertf"
   PY_VERSION: "3.9"
   ACC_PY_BASE_IMAGE_TAG: "2021.12"
 

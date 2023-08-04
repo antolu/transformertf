@@ -1,5 +1,5 @@
 [project]
-name = "transformerft"
+name = "transformertf"
 dynamic = ["version", "readme"]
 description = "Package description"
 license = {text = "Other/Proprietary License"}
@@ -32,7 +32,7 @@ dependencies = [
 
 [[project.authors]]
 name = "Anton Lu"
-email = "anton96lu@gmail.com"
+email = "anton.lu@cern.ch"
 
 [project.optional-dependencies]
 test = [
@@ -60,14 +60,14 @@ build-backend = "setuptools.build_meta"
 
 # keep this for dynamic versioning
 [tool.setuptools_scm]
-write_to = "transformerft/_version.py"
+write_to = "transformertf/_version.py"
 local_scheme = "no-local-version"
 
 [tool.setuptools.dynamic]
 readme = {file = ["README.md"], content-type = "text/markdown"}
 
 [tool.setuptools]
-packages = ["transformerft"]
+packages = ["transformertf"]
 
 [project.scripts]
 # project endpoints here

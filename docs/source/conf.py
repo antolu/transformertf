@@ -6,15 +6,15 @@ import typing
 
 import sphinx.util.logging
 
-import transformerft
+import transformertf
 
 if typing.TYPE_CHECKING:
     import sphinx.application
 
 
-project = "transformerft"
+project = "transformertf"
 author = "Anton Lu"
-version = transformerft.__version__
+version = transformertf.__version__
 
 copyright = "{0}, CERN".format(datetime.datetime.now().year)
 
@@ -86,17 +86,17 @@ def hijack_module_name_replacement() -> None:
     # Working in sphinx environment, not replacing due to
     # https://github.com/sphinx-doc/sphinx/issues/11031
     logger.info("Disabling __module__ rewrite")
-    import transformerft._mod_replace
+    import transformertf._mod_replace
 
     for mod_name in list(sys.modules):
-        if mod_name == "transformerft._mod_replace":
+        if mod_name == "transformertf._mod_replace":
             continue
-        if mod_name == "transformerft" or mod_name.startswith(
-            "transformerft."
+        if mod_name == "transformertf" or mod_name.startswith(
+            "transformertf."
         ):
             del sys.modules[mod_name]
 
-    transformerft._mod_replace.replace_modname = lambda *_: None
+    transformertf._mod_replace.replace_modname = lambda *_: None
 
 
 hijack_module_name_replacement()
