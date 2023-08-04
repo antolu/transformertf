@@ -22,6 +22,7 @@ dependencies = [
     "numba ~= 0.57",
     "numpy ~= 1.24",
     "pandas ~= 2.0",
+    "pyarrow ~= 11.0.0",
     "pytorch-optimizer ~= 2.5.2",
     "rich ~= 13.3.5",
     "scikit-learn ~= 1.2.2",
