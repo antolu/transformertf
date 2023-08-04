@@ -6,7 +6,6 @@ This module contains functions for preprocessing data.
 from __future__ import annotations
 
 import logging
-import math
 import typing
 
 import numpy as np
@@ -102,18 +101,9 @@ class WindowGenerator:
         self._stride: int = stride
 
         self._num_samples: int
-        if not zero_pad:
-            self._num_samples = int(
-                (len(self._input_data) - self._in_window_size) // self._stride
-                + 1
-            )
-        else:
-            self._num_samples = (
-                math.ceil(
-                    (len(self._input_data) - self._in_window_size + 1) / stride
-                )
-                + (len(self._input_data) - self._in_window_size) % stride
-            )
+        self._num_samples = int(len(input_data) - in_window_size + stride) // stride
+        if zero_pad:
+            self._num_samples += int(np.ceil(((len(input_data) - in_window_size) % stride) / stride))
 
         if zero_pad:
             pad_shape: tuple[int] = (
