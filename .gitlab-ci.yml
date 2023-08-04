@@ -32,7 +32,6 @@ test_dev:
   before_script:
     - !reference [.acc_py_dev_test, before_script]
     - yum install -y git-lfs
-    - git lfs install --skip-smudge
   script:
     # Run the unit-tests with coverage output.
     - cd ${project_root}
@@ -51,7 +50,6 @@ test_wheel:
   before_script:
     - !reference [.acc_py_wheel_test, before_script]
     - yum install -y git-lfs
-    - git lfs install --skip-smudge
   script:
     - mkdir -p ~/not-the-source-dir && cp -r ${project_root}/tests ~/not-the-source-dir && cd ~/not-the-source-dir
     - python -m pytest ./tests
@@ -81,7 +79,6 @@ pre-commit:
   before_script:
     - !reference [.acc_py_pre-commit, before_script]
     - yum install -y git-lfs
-    - git lfs install --skip-smudge
 
 
 release_dist:
