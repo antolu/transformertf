@@ -290,6 +290,11 @@ class TimeSeriesDataset(Dataset):
 
         x, y = self._window_gen[df_idx].get_sample(shifted_idx)
 
+        if x.ndim == 1:
+            x = x.reshape(-1, 1)
+        if y.ndim == 1:
+            y = y.reshape(-1, 1)
+
         x = torch.from_numpy(x).to(torch.float32)
         y = torch.from_numpy(y).to(torch.float32)
 
