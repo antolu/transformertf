@@ -1,26 +1,10 @@
 from __future__ import annotations
 
-import pytest
 import pandas as pd
 from transformertf.data import TimeSeriesDataset
-from pathlib import Path
 import numpy as np
 import math
-
-
-DF_PATH = str(Path(__file__).parent.parent.parent / "sample_data.parquet")
-CURRENT = "I_meas_A"
-FIELD = "B_meas_T"
-
-
-@pytest.fixture(scope="module")
-def df() -> pd.DataFrame:
-    df = pd.read_parquet(DF_PATH)
-    df = df.dropna()
-    df = df.reset_index(drop=True)
-    df = df[[CURRENT, FIELD]]
-
-    return df
+from ...conftest import CURRENT, FIELD
 
 
 def test_dataset_train_without_der(df: pd.DataFrame) -> None:

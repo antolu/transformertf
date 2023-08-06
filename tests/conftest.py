@@ -1,8 +1,10 @@
 import numpy
 import random
 import torch
+import pandas as pd
 
 import pytest
+from pathlib import Path
 
 
 @pytest.fixture(scope="session")
@@ -13,3 +15,19 @@ def random_seed() -> int:
     torch.manual_seed(seed)
 
     return seed
+
+
+DF_PATH = str(Path(__file__).parent / "sample_data.parquet")
+CURRENT = "I_meas_A"
+FIELD = "B_meas_T"
+FIELD_DOT = f"{FIELD}_dot"
+
+
+@pytest.fixture(scope="session")
+def df() -> pd.DataFrame:
+    df = pd.read_parquet(DF_PATH)
+    df = df.dropna()
+    df = df.reset_index(drop=True)
+    df[FIELD_DOT] = numpy.gradient(df[FIELD].values)
+
+    return df

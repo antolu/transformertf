@@ -71,8 +71,8 @@ def test_dataset_train_1d_single(x1_1d: np.ndarray, y1_1d: np.ndarray) -> None:
 
     assert len(dataset) == 8
     assert isinstance(dataset[0], dict)
-    assert dataset[0]["input"].shape == (3,)
-    assert dataset[0]["target"].shape == (3,)
+    assert dataset[0]["input"].shape == (3, 1)
+    assert dataset[0]["target"].shape == (3, 1)
 
 
 def test_dataset_train_1d_multiple(
@@ -84,8 +84,8 @@ def test_dataset_train_1d_multiple(
 
     assert len(dataset) == 16
     assert isinstance(dataset[0], dict)
-    assert dataset[0]["input"].shape == (3,)
-    assert dataset[0]["target"].shape == (3,)
+    assert dataset[0]["input"].shape == (3, 1)
+    assert dataset[0]["target"].shape == (3, 1)
 
 
 def test_dataset_train_2d_single(x1_2d: np.ndarray, y1_2d: np.ndarray) -> None:
@@ -118,9 +118,9 @@ def test_dataset_test_1d_single(x2_1d: np.ndarray, y2_1d: np.ndarray) -> None:
     assert len(dataset) == 4
     sample = dataset[0]
     assert isinstance(sample, dict)
-    assert sample["input"].shape == (3,)
+    assert sample["input"].shape == (3, 1)
     assert "target" in sample
-    assert sample["target"].shape == (3,)
+    assert sample["target"].shape == (3, 1)
 
 
 def test_dataset_test_1d_multiple(
@@ -136,9 +136,9 @@ def test_dataset_test_1d_multiple(
     assert len(dataset) == 8
     sample = dataset[0]
     assert isinstance(sample, dict)
-    assert sample["input"].shape == (3,)
+    assert sample["input"].shape == (3, 1)
     assert "target" in sample
-    assert sample["target"].shape == (3,)
+    assert sample["target"].shape == (3, 1)
 
 
 def test_dataset_test_2d_single(x2_2d: np.ndarray, y2_2d: np.ndarray) -> None:
@@ -184,9 +184,7 @@ def test_dataset_predict_1d_single(x1_1d: np.ndarray) -> None:
 
 def test_dataset_predict_1d_multiple(x1_1d: np.ndarray) -> None:
     with pytest.raises(ValueError):
-        TimeSeriesDataset(
-            input_data=[x1_1d, x1_1d], seq_len=3, predict=True
-        )
+        TimeSeriesDataset(input_data=[x1_1d, x1_1d], seq_len=3, predict=True)
 
 
 def test_dataset_predict_2d_single(x1_2d: np.ndarray) -> None:
@@ -201,9 +199,7 @@ def test_dataset_predict_2d_single(x1_2d: np.ndarray) -> None:
 
 def test_dataset_predict_2d_multiple(x1_2d: np.ndarray) -> None:
     with pytest.raises(ValueError):
-        TimeSeriesDataset(
-            input_data=[x1_2d, x1_2d], seq_len=3, predict=True
-        )
+        TimeSeriesDataset(input_data=[x1_2d, x1_2d], seq_len=3, predict=True)
 
 
 def test_dataset_num_points_1d_single(x1_1d: np.ndarray) -> None:

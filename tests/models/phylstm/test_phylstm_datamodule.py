@@ -1,15 +1,11 @@
 from __future__ import annotations
 
 import pytest
-from pathlib import Path
 import torch.utils.data
 
+from ...conftest import DF_PATH, CURRENT, FIELD
+
 from transformertf.models.phylstm import PhyLSTMDataModule, PhyLSTMConfig
-
-
-DF_PATH = str(Path(__file__).parent.parent.parent / "sample_data.parquet")
-CURRENT = "I_meas_A"
-FIELD = "B_meas_T"
 
 
 def test_phylstm_datamodule_create() -> None:
@@ -155,11 +151,15 @@ def phylstm_datamodule() -> PhyLSTMDataModule:
     return dm
 
 
-def test_phylstm_datamodule_setup(phylstm_datamodule: PhyLSTMDataModule) -> None:
+def test_phylstm_datamodule_setup(
+    phylstm_datamodule: PhyLSTMDataModule,
+) -> None:
     assert phylstm_datamodule is not None
 
 
-def test_phylstm_datamodule_train_dataset(phylstm_datamodule: PhyLSTMDataModule) -> None:
+def test_phylstm_datamodule_train_dataset(
+    phylstm_datamodule: PhyLSTMDataModule,
+) -> None:
     dm = phylstm_datamodule
 
     dataset = dm.train_dataset
@@ -171,7 +171,9 @@ def test_phylstm_datamodule_train_dataset(phylstm_datamodule: PhyLSTMDataModule)
     assert isinstance(dataloader, torch.utils.data.DataLoader)
 
 
-def test_phylstm_datamodule_val_dataset(phylstm_datamodule: PhyLSTMDataModule) -> None:
+def test_phylstm_datamodule_val_dataset(
+    phylstm_datamodule: PhyLSTMDataModule,
+) -> None:
     dm = phylstm_datamodule
 
     dataset = dm.val_dataset
