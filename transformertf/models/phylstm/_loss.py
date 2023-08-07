@@ -144,7 +144,7 @@ class PhyLSTMLoss(nn.Module):
         :return: The loss value. For mathematical formulation see the module documentation.
         """
         return self.forward_explicit(
-            z=y_hat["z_raw"],
+            z=y_hat["z"],
             y=targets,
             dz_dt=y_hat.get("dz_dt"),
             dr_dt=y_hat.get("dr_dt"),

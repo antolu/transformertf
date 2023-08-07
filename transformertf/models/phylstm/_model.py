@@ -5,7 +5,6 @@ import typing
 
 import torch
 from einops import einops
-from sklearn.utils.validation import NotFittedError, check_is_fitted
 from torch import nn
 from torch.nn import functional as F
 
@@ -76,8 +75,6 @@ class PhyLSTM1(nn.Module):
         :param sequence_length: Length of the input sequence.
         :param hidden_dim: Number of hidden units in each LSTM layer.
         :param dropout: Dropout probability.
-        :param i2b_k: The proportionality constant between the current and
-            the field without hysteresis.
         """
         super().__init__()
 
@@ -177,45 +174,22 @@ class PhyLSTM1(nn.Module):
         o_lstm1 = self.ln1(o_lstm1)
         z = self.fc11(o_lstm1)
 
-        # postprocessing
-        z_raw = z
-
-        # undo the scaling before adding to the proportional component
-        try:
-            check_is_fitted(self.target_scaler)
-            z1 = self.target_scaler(z[..., 0])
-            z2 = z[..., 1] * self.target_scaler.scale_
-        except (
-            NotFittedError
-        ):  # on the first batch when the scaler is not fitted yet
-            z1 = z[..., 0]
-            z2 = z[..., 1]
+        z1 = z[..., 0]
+        z2 = z[..., 1]
 
         z1 = z1 + self.linear(x[..., 0, None])[..., 0]
-        z2 = z2 + self.linear.weight * x[..., 1]
+        z2 = z2 + self.linear.weight * x[..., 0]
 
         z = torch.stack([z1, z2, z[..., 2]], dim=-1)
 
         assert isinstance(h_lstm1, tuple)
-        output: PhyLSTM1Output = {"z": z, "z_raw": z_raw}
+        output: PhyLSTM1Output = {"z": z}
         states: PhyLSTM1States = {"lstm1": tuple(o.detach() for o in h_lstm1)}
 
         if return_states:
             return output, states
         else:
             return output
-
-    def fit_scaler(self, x: torch.Tensor, y: torch.Tensor) -> None:
-        if self.training and self.running_normalizer:
-            self.input_scaler.fit(x)
-
-            # do not fit Bdot
-            y_ = y[..., 0] - self.linear(x[..., 0, None])[..., 0]
-            self.target_scaler.fit(y_[..., None].detach())
-        else:
-            log.warning(
-                "Not fitting target scaler, model is not in training mode."
-            )
 
 
 class PhyLSTM2(PhyLSTM1):
@@ -298,7 +272,7 @@ class PhyLSTM2(PhyLSTM1):
             )
 
         x1 = x[..., 0, None]
-        z = phylstm1_output["z_raw"]
+        z = phylstm1_output["z"]
 
         if hidden_state is None:
             h_lstm2 = None
@@ -338,13 +312,6 @@ class PhyLSTM3(PhyLSTM2):
         sequence_length: int = 500,
         hidden_dim: int = 350,
         dropout: float = 0.2,
-        i2b_k: torch.Tensor | float | None = None,
-        i2b_m: torch.Tensor | float | None = None,
-        running_normalizer: bool = True,
-        input_center: torch.Tensor | float | None = None,
-        input_scale: torch.Tensor | float | None = None,
-        target_center: torch.Tensor | float | None = None,
-        target_scale: torch.Tensor | float | None = None,
     ):
         super().__init__(
             num_layers=num_layers,
@@ -414,7 +381,7 @@ class PhyLSTM3(PhyLSTM2):
                 x, hidden_state=hidden_state, return_states=False
             )
 
-        z = phylstm2_output["z_raw"]
+        z = phylstm2_output["z"]
         dz_dt = phylstm2_output["dz_dt"]
 
         if hidden_state is None:
