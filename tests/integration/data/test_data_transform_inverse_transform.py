@@ -1,0 +1,57 @@
+# type: ignore
+from __future__ import annotations
+
+import numpy as np
+import pytest
+import pandas as pd
+from transformertf.data import DataModuleBase
+from transformertf.utils import ops
+from ...conftest import DF_PATH, CURRENT, FIELD
+
+
+@pytest.fixture(scope="module")
+def dm() -> DataModuleBase:
+    dm = DataModuleBase(
+        train_dataset=DF_PATH,
+        val_dataset=DF_PATH,
+        input_columns=[CURRENT],
+        target_columns=[FIELD],
+    )
+    dm.prepare_data()
+    dm.setup()
+
+    return dm
+
+
+def test_data_transform_inverse_transform(dm: DataModuleBase) -> None:
+    df = pd.read_parquet(DF_PATH)
+    df = df.dropna()
+    df = df.reset_index(drop=True)
+    df = df[[CURRENT, FIELD]]
+
+    dataset = dm.val_dataset
+
+    x = [dataset[i]["input"] for i in range(len(dataset))]
+    y = [dataset[i]["target"] for i in range(len(dataset))]
+
+    x = ops.concatenate(x)
+    y = ops.concatenate(y)
+
+    assert len(x) > len(df)
+    assert len(y) > len(df)
+
+    x = ops.truncate(x, dataset.num_points)
+    y = ops.truncate(y, dataset.num_points)
+
+    assert len(x) == len(df)
+    assert len(y) == len(df)
+
+    x, y = dataset.inverse_transform(x, y)
+    x = x.numpy().flatten()
+    y = y.numpy().flatten()
+
+    x_true = df[CURRENT].values
+    y_true = df[FIELD].values
+
+    assert np.allclose(x, x_true)
+    assert np.allclose(y, y_true)
