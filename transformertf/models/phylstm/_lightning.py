@@ -257,7 +257,7 @@ class PhyLSTMModule(LightningModuleBase):
 
         hidden = ops.detach(hidden)
 
-        _, losses = self.calc_real_loss(batch, output, return_all=True)
+        _, losses = self.criterion(output, target, return_all=True)
 
         # remove batch dimension
         assert output["z"].shape[0] == 1
@@ -274,7 +274,7 @@ class PhyLSTMModule(LightningModuleBase):
 
         model_output = self.forward(batch["input"])
 
-        _, losses = self.calc_real_loss(batch, model_output, return_all=True)
+        _, losses = self.criterion(model_output, target, return_all=True)
 
         self.common_log_step(losses, "train")
 
