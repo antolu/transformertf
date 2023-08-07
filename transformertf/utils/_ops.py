@@ -4,7 +4,9 @@ import builtins
 import typing
 
 import torch
+import numpy as np
 
+arr_t = typing.TypeVar("arr_t", torch.Tensor, np.ndarray)
 T_co = typing.TypeVar(
     "T_co",
     dict,
@@ -15,10 +17,18 @@ T_co = typing.TypeVar(
 )
 M_co = typing.TypeVar(
     "M_co",
-    dict[typing.Hashable, torch.Tensor],
+    tuple[np.ndarray, ...],
     tuple[torch.Tensor, ...],
+    list[np.ndarray],
+    list[torch.Tensor],
+    typing.Sequence[np.ndarray],
     typing.Sequence[torch.Tensor],
-    torch.Tensor,
+    covariant=True,
+)
+D_co = typing.TypeVar(
+    "D_co",
+    dict[typing.Hashable, np.ndarray],
+    dict[typing.Hashable, torch.Tensor],
     covariant=True,
 )
 
@@ -72,35 +82,130 @@ def squeeze(data: T_co) -> T_co:
     return _op_T(data, lambda x: x.squeeze())
 
 
-def concatenate(*args: M_co) -> M_co:
-    type_ = type(args[0])
-    if not all(isinstance(x, type_) for x in args):
+@typing.overload
+def concatenate(
+    value: tuple[arr_t, ...] | list[arr_t] | typing.Sequence[arr_t]
+) -> arr_t:
+    ...
+
+
+@typing.overload
+def concatenate(
+    value: typing.Sequence[tuple[arr_t, ...]]
+) -> tuple[arr_t, ...]:
+    ...
+
+
+@typing.overload  # type: ignore[misc]
+def concatenate(value: typing.Sequence[dict[str, arr_t]]) -> dict[str, arr_t]:
+    ...
+
+
+@typing.overload
+def concatenate(value: typing.Sequence[list[arr_t]]) -> list[arr_t]:
+    ...
+
+
+@typing.overload
+def concatenate(
+    value: typing.Sequence[typing.Sequence[arr_t]],
+) -> typing.Sequence[arr_t]:
+    ...
+
+
+def concatenate(  # type: ignore[misc]
+    value: list[tuple[arr_t, ...]]
+    | list[arr_t]
+    | typing.Sequence[dict[str, arr_t]]
+    | typing.Sequence[arr_t]
+    | typing.Sequence[tuple[arr_t, ...]]
+    | typing.Sequence[list[arr_t]]
+    | typing.Sequence[typing.Sequence[arr_t]]
+) -> (
+    arr_t
+    | dict[str, arr_t]
+    | list[arr_t]
+    | tuple[arr_t, ...]
+    | typing.Sequence[arr_t]
+):
+    if isinstance(value[0], torch.Tensor):
+        value = typing.cast(
+            typing.Sequence[torch.Tensor],
+            value,
+        )
+        return torch.cat(list(value))
+    elif isinstance(value[0], np.ndarray):
+        return np.concatenate(list(value))
+
+    elif isinstance(value[0], dict):
+        if not all(isinstance(x, dict) for x in value):
+            raise TypeError("All arguments must be of the same type.")
+
+        value = typing.cast(
+            typing.Sequence[dict[str, arr_t]],
+            value,
+        )
+        arr_type = type(list(value[0].values())[0])
+
+        if not all(
+            all(isinstance(x, arr_type) for x in d.values()) for d in value
+        ):
+            raise TypeError("All arguments must be of the same type.")
+
+        return type(value[0])(
+            {k: concatenate([x[k] for x in value]) for k in value[0].keys()}
+        )
+
+    type_ = type(value[0])
+    if not all(isinstance(x, type_) for x in value):
         raise TypeError("All arguments must be of the same type.")
 
-    if isinstance(args[0], dict):
-        return type(args[0])(
-            {k: concatenate(*[x[k] for x in args]) for k in args[0]}  # type: ignore
+    if isinstance(value[0], tuple) and all(
+        isinstance(x, tuple) for x in value
+    ):
+        value = typing.cast(
+            typing.Sequence[tuple[arr_t, ...]],
+            value,
         )
-    elif isnamedtupleinstance(args[0]):
-        return type_(
-            *[concatenate(*[x[i] for x in args]) for i in range(len(args[0]))]
+        return type_(  # type: ignore[call-arg]
+            [concatenate([x[i] for x in value]) for i in range(len(value[0]))]
         )
-    elif isinstance(args[0], tuple):
-        return type(args[0])(
-            [concatenate(*[x[i] for x in args]) for i in range(len(args[0]))]
+    elif isinstance(value[0], list) and all(
+        isinstance(x, list) for x in value
+    ):
+        if all(isinstance(x, tuple) for x in value[0]):
+            value = typing.cast(
+                typing.Sequence[tuple[arr_t, ...]],
+                value,
+            )
+            return type_(  # type: ignore[call-arg]
+                [
+                    concatenate([x[i] for x in value])
+                    for i in range(len(value[0]))
+                ]
+            )
+        else:
+            value = typing.cast(
+                typing.Sequence[list[arr_t]],
+                value,
+            )
+            return type_(  # type: ignore[call-arg]
+                [
+                    concatenate([x[i] for x in value])
+                    for i in range(len(value[0]))
+                ]
+            )
+    elif isinstance(value[0], typing.Sequence):
+        value = typing.cast(
+            typing.Sequence[typing.Sequence[arr_t]],
+            value,
         )
-    elif isinstance(args[0], list):
-        return type(args[0])(
-            [concatenate(*[x[i] for x in args]) for i in range(len(args[0]))]
+        return type(value[0])(
+            *[concatenate([x[i] for x in value]) for i in range(len(value[0]))]
         )
-    elif isinstance(args[0], typing.Sequence):
-        return type(args[0])(
-            *[concatenate(*[x[i] for x in args]) for i in range(len(args[0]))]
-        )
-    elif isinstance(args[0], torch.Tensor):
-        return torch.cat(tuple(args))  # type: ignore
+
     else:
-        raise TypeError(f"Unknown type {type(args[0])}.")
+        raise TypeError(f"Unknown type {type(value[0])}.")
 
 
 def slice(data: M_co, s: builtins.slice) -> M_co:
