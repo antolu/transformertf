@@ -23,6 +23,10 @@ def test_dataset_train_without_der(df: pd.DataFrame) -> None:
     assert sample["input"].shape == (500, 1)
     assert sample["target"].shape == (500, 1)
 
+    last_sample = dataset[-1]
+    assert last_sample["input"].shape == (500, 1)
+    assert last_sample["target"].shape == (500, 1)
+
 
 def test_dataset_train_with_der(df: pd.DataFrame) -> None:
     df = df.copy()
@@ -43,6 +47,10 @@ def test_dataset_train_with_der(df: pd.DataFrame) -> None:
     assert sample["input"].shape == (500, 1)
     assert sample["target"].shape == (500, 2)
 
+    last_sample = dataset[-1]
+    assert last_sample["input"].shape == (500, 1)
+    assert last_sample["target"].shape == (500, 2)
+
 
 def test_dataset_val_without_der(df: pd.DataFrame) -> None:
     dataset = TimeSeriesDataset(
@@ -60,6 +68,10 @@ def test_dataset_val_without_der(df: pd.DataFrame) -> None:
 
     assert sample["input"].shape == (500, 1)
     assert sample["target"].shape == (500, 1)
+
+    last_sample = dataset[-1]
+    assert last_sample["input"].shape == (500, 1)
+    assert last_sample["target"].shape == (500, 1)
 
 
 def test_dataset_val_with_der(df: pd.DataFrame) -> None:
@@ -81,3 +93,7 @@ def test_dataset_val_with_der(df: pd.DataFrame) -> None:
 
     assert sample["input"].shape == (500, 1)
     assert sample["target"].shape == (500, 2)
+
+    last_sample = dataset[-1]
+    assert last_sample["input"].shape == (500, 1)
+    assert last_sample["target"].shape == (500, 2)

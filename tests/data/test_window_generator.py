@@ -26,6 +26,25 @@ def y_data_2d() -> np.ndarray:
     return np.arange(20, 40).reshape((10, 2))
 
 
+@pytest.mark.parametrize("arr,win_size,stride,zero_pad,expected,sample_shape", [
+    (np.arange(9), 3, 1, False, 7, (3,)),
+    (np.arange(9), 3, 1, True, 7, (3,)),
+    (np.arange(7), 3, 2, False, 3, (3,)),
+    (np.arange(7), 3, 2, True, 3, (3,)),
+    (np.arange(8), 3, 2, False, 3, (3,)),
+    (np.arange(8), 3, 2, True, 4, (3,)),
+    (np.arange(16096), 800, 800, False, 20, (800,)),
+    (np.arange(16096), 800, 800, True, 21, (800,)),
+])
+def test_num_samples(arr: np.ndarray, win_size: int, stride: int, zero_pad: bool, expected: int, sample_shape: tuple[int, ...]) -> None:
+    wg = WindowGenerator(arr, win_size, stride=stride, zero_pad=zero_pad)
+
+    assert wg.num_samples == expected
+    last_sample = wg[wg.num_samples - 1]
+    assert isinstance(last_sample, np.ndarray)
+    assert last_sample.shape == sample_shape
+
+
 # Test 1D data
 
 

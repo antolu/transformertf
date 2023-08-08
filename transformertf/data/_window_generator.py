@@ -100,23 +100,18 @@ class WindowGenerator:
         self._in_window_size: int = in_window_size
         self._stride: int = stride
 
-        self._num_samples: int
-        self._num_samples = int(len(input_data) - in_window_size + stride) // stride
-        if zero_pad:
-            self._num_samples += int(np.ceil(((len(input_data) - in_window_size) % stride) / stride))
+        round_op: typing.Callable[[float], float] = np.ceil if zero_pad else np.floor  # type: ignore[assignment]
+        self._num_samples = int(round_op((len(input_data) - in_window_size + stride) / stride))
 
         if zero_pad:
-            pad_shape: tuple[int] = (
-                len(self._input_data)
-                + ((len(self._input_data) - self._in_window_size) % stride),
-            )
+            zero_pad_len = len(self._input_data) + (self._num_samples - 1) * stride
 
-            input_data_padded = np.zeros((*pad_shape, *input_data.shape[1:]))
+            input_data_padded = np.zeros((zero_pad_len, *input_data.shape[1:]))
             input_data_padded[: len(self._input_data)] = self._input_data
             self._input_data = input_data_padded
 
             if label_data is not None:
-                label_data_padded = np.zeros((*pad_shape, *label_data.shape[1:]))  # type: ignore[union-attr]
+                label_data_padded = np.zeros((zero_pad_len, *label_data.shape[1:]))  # type: ignore[union-attr]
                 label_data_padded[: len(label_data)] = label_data
                 self._label_data = label_data_padded
 

@@ -183,3 +183,8 @@ def test_phylstm_datamodule_val_dataset(
     dataloader = dm.val_dataloader()
     assert dataloader is not None
     assert isinstance(dataloader, torch.utils.data.DataLoader)
+
+    samples = [sample for sample in dataloader]
+
+    assert samples[-1]["input"].shape == (1, dm.hparams["seq_len"], 1)
+    assert samples[-1]["target"].shape == (1, dm.hparams["seq_len"], 2)
