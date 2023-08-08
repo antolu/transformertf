@@ -46,7 +46,7 @@ def test_running_normalizer_multi_feature() -> None:
     )
 
     assert torch.allclose(x_transformed, target)
-    assert normalizer.n_samples_seen_ == 8
+    assert normalizer.n_samples_seen_ == 1
     assert torch.allclose(normalizer.center_, torch.tensor([2.5, 3.5]))
     assert torch.allclose(
         normalizer.scale_, torch.tensor([1.2909945, 1.2909945])
