@@ -28,6 +28,7 @@ class BaseConfig:
     momentum: float = 0.9
     num_epochs: int = 1000
     gradient_clip_val: float = 1.0
+    patience: int | None = None
 
     precision: PRECISION = "32-true"
 
