@@ -227,19 +227,19 @@ class PhyLSTMModule(LightningModuleBase):
         """Reset the hidden states"""
         self._val_hidden = [None]  # type: ignore[assignment]
 
-        super().on_validation_start()
+        super().on_validation_epoch_start()
 
     def on_test_epoch_start(self) -> None:
         """Reset the hidden states"""
         self._test_hidden = [None]  # type: ignore[assignment]
 
-        super().on_test_start()
+        super().on_test_epoch_start()
 
     def on_predict_epoch_start(self) -> None:
         """Reset the hidden states"""
         self._predict_hidden = [None]  # type: ignore[assignment]
 
-        super().on_predict_start()
+        super().on_predict_epoch_start()
 
     def common_test_step(
         self,

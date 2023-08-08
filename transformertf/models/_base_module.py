@@ -71,7 +71,7 @@ class LightningModuleBase(L.LightningModule):
     def on_validation_epoch_start(self) -> None:
         self._val_outputs = []
 
-        super().on_validation_start()
+        super().on_validation_epoch_start()
 
     def on_validation_batch_end(
         self,
@@ -85,7 +85,7 @@ class LightningModuleBase(L.LightningModule):
     def on_test_epoch_start(self) -> None:
         self._test_outputs = []
 
-        super().on_test_start()
+        super().on_test_epoch_start()
 
     def on_test_batch_end(
         self,
@@ -99,7 +99,7 @@ class LightningModuleBase(L.LightningModule):
     def on_predict_epoch_start(self) -> None:
         self._inference_outputs = []
 
-        super().on_predict_start()
+        super().on_predict_epoch_start()
 
     def on_predict_batch_end(
         self,
