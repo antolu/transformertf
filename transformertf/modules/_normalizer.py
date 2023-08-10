@@ -103,12 +103,15 @@ class RunningNormalizer(nn.Module, BaseEstimator, TransformerMixin):
         Inverse transform data.
         """
         if target_scale is None:
-            target_scale = self.get_parameters().unsqueeze(0)
+            target_scale = self.get_parameters()
 
         if y.ndim > target_scale.ndim:
             target_scale.unsqueeze(-1)
 
-        y_unscaled = y * target_scale[..., 1] + target_scale[..., 0]
+        center = target_scale[0, ..., 0]
+        scale = target_scale[0, ..., 1]
+
+        y_unscaled = y * scale + center
 
         if y.ndim == 1 and y.ndim > target_scale.ndim:
             y_unscaled.squeeze(0)
@@ -160,10 +163,10 @@ class RunningNormalizer(nn.Module, BaseEstimator, TransformerMixin):
         :return: The rescaled data.
         """
         if target_scale is None:
-            target_scale = self.get_parameters().unsqueeze(0)
+            target_scale = self.get_parameters()
 
-        center = target_scale[..., 0]
-        scale = target_scale[..., 1]
+        center = target_scale[0, ..., 0]
+        scale = target_scale[0, ..., 1]
 
         if y.ndim > center.ndim:
             center = center.view(
@@ -187,7 +190,7 @@ class RunningNormalizer(nn.Module, BaseEstimator, TransformerMixin):
 
         :return: The inverse scaled data.
         """
-        return self(y, target_scale=self.get_parameters()[None, :])
+        return self(y, target_scale=self.get_parameters())
 
     def get_parameters(self) -> torch.Tensor:
         """
@@ -204,11 +207,19 @@ class RunningNormalizer(nn.Module, BaseEstimator, TransformerMixin):
     ) -> None:
         eps = torch.finfo(y_center.dtype).eps
 
-        dim = tuple(range(y_center.ndim - 1)) if y_center.ndim > 2 else 0
+        dim = tuple(range(y_center.ndim - 1)) if y_center.ndim > 1 else 0
         new_mean = torch.mean(y_center, dim=dim)
         new_scale = torch.std(y_scale, dim=dim) + eps
 
         n_samples = y_center.shape[0]
+
+        expanded_dims = list(y_center.shape)
+        if y_center.ndim > 1:
+            assert isinstance(dim, tuple)
+            expanded_dims[:len(dim)] = [1] * len(dim)
+
+        new_mean = new_mean.expand(*expanded_dims)
+        new_scale = new_scale.expand(*expanded_dims)
 
         if not self.__sklearn_is_fitted__():
             self.center_ = new_mean
