@@ -74,6 +74,7 @@ class PhyLSTMModule(LightningModuleBase):
         max_epochs: int = 1000,
         phylstm: typing.Literal[1, 2, 3] | None = 3,
         validate_every_n_epochs: int = 50,
+        log_grad_norm: bool = False,
         criterion: PhyLSTMLoss | None = None,
         lr_scheduler: str
         | typing.Type[torch.optim.lr_scheduler.LRScheduler]
@@ -202,6 +203,7 @@ class PhyLSTMModule(LightningModuleBase):
             optimizer=config.optimizer,
             optimizer_kwargs=config.optimizer_kwargs,
             validate_every_n_epochs=config.validate_every,
+            log_grad_norm=config.log_grad_norm,
             criterion=criterion or PhyLSTMLoss.from_config(config),
             lr_scheduler=lr_scheduler or config.lr_scheduler,
             lr_scheduler_interval=config.lr_scheduler_interval,
@@ -248,16 +250,22 @@ class PhyLSTMModule(LightningModuleBase):
         hidden_state: HIDDEN_STATE | None = None,
     ) -> tuple[dict[str, torch.Tensor], PHYLSTM_OUTPUT, HIDDEN_STATE]:
         target = batch.get("target")
+        target_scale = batch.get("target_scale")
         assert target is not None
+        assert target_scale is not None
 
         hidden: HIDDEN_STATE
         output, hidden = self.forward(
-            batch["input"], hidden_state=hidden_state, return_states=True
+            batch["input"],
+            hidden_state=hidden_state,
+            return_states=True,
         )
 
         hidden = ops.detach(hidden)
 
-        _, losses = self.criterion(output, target, return_all=True)
+        _, losses = self.criterion(
+            output, target, target_scale=target_scale, return_all=True
+        )
 
         # remove batch dimension
         assert output["z"].shape[0] == 1
@@ -270,11 +278,15 @@ class PhyLSTMModule(LightningModuleBase):
         self, batch: TimeSeriesSample, batch_idx: int
     ) -> dict[str, torch.Tensor]:
         target = batch.get("target")
+        target_scale = batch.get("target_scale")
         assert target is not None
+        assert target_scale is not None
 
         model_output = self.forward(batch["input"])
 
-        _, losses = self.criterion(model_output, target, return_all=True)
+        _, losses = self.criterion(
+            model_output, target, target_scale=target_scale, return_all=True
+        )
 
         self.common_log_step(losses, "train")
 

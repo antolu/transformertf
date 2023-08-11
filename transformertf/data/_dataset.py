@@ -32,7 +32,11 @@ log = logging.getLogger(__name__)
 
 TimeSeriesSample = TypedDict(
     "TimeSeriesSample",
-    {"input": torch.Tensor, "target": NotRequired[torch.Tensor]},
+    {
+        "input": torch.Tensor,
+        "target": NotRequired[torch.Tensor],
+        "target_scale": NotRequired[torch.Tensor],
+    },
 )
 DATA_SOURCE = typing.Union[pd.Series, np.ndarray, torch.Tensor]
 
@@ -252,12 +256,17 @@ class TimeSeriesDataset(Dataset):
         """
         if self._dataset_type in (DataSetType.TRAIN, DataSetType.VAL_TEST):
             x, y = self._create_sample(idx)
-            return {"input": x, "target": y}
+            sample = {"input": x, "target": y}
         elif self._dataset_type == DataSetType.PREDICT:
             x = self._get_prediction_input(idx)
-            return {"input": x}
+            sample = {"input": x}
         else:
             raise ValueError(f"Unknown dataset type {self._dataset_type}")
+
+        if self._target_normalizer is not None:
+            sample["target_scale"] = self._target_normalizer.get_parameters()
+
+        return typing.cast(TimeSeriesSample, sample)
 
     def _check_index(self, idx: int) -> int:
         if idx > self.num_samples or idx < -self.num_samples:

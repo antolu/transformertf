@@ -100,6 +100,7 @@ class PhyLSTMLoss(nn.Module):
         y_hat: PhyLSTM1Output | PhyLSTM2Output | PhyLSTM3Output,
         targets: torch.torch.Tensor,
         weights: LossWeights | None = None,
+        target_scale: torch.Tensor | None = None,
         *,
         return_all: typing.Literal[False],
     ) -> torch.Tensor:
@@ -111,6 +112,7 @@ class PhyLSTMLoss(nn.Module):
         y_hat: PhyLSTM1Output | PhyLSTM2Output | PhyLSTM3Output,
         targets: torch.torch.Tensor,
         weights: LossWeights | None = None,
+        target_scale: torch.Tensor | None = None,
         *,
         return_all: typing.Literal[True],
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
@@ -122,6 +124,8 @@ class PhyLSTMLoss(nn.Module):
         y_hat: PhyLSTM1Output | PhyLSTM2Output | PhyLSTM3Output,
         targets: torch.torch.Tensor,
         weights: LossWeights | None = None,
+        target_scale: torch.Tensor | None = None,
+        *,
         return_all: typing.Literal[False] = False,
     ) -> torch.Tensor:
         ...
@@ -131,6 +135,8 @@ class PhyLSTMLoss(nn.Module):
         y_hat: PhyLSTM1Output | PhyLSTM2Output | PhyLSTM3Output,
         targets: torch.torch.Tensor,
         weights: LossWeights | None = None,
+        target_scale: torch.Tensor | None = None,
+        *,
         return_all: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """
@@ -140,6 +146,7 @@ class PhyLSTMLoss(nn.Module):
         :param targets: The target values, i.e. the B field.
         :param weights: The weights for the loss terms.
         :param return_all: Whether to return all the loss terms.
+        :param target_scale: The scale of the target values.
 
         :return: The loss value. For mathematical formulation see the module documentation.
         """
@@ -150,6 +157,7 @@ class PhyLSTMLoss(nn.Module):
             dr_dt=y_hat.get("dr_dt"),
             gx=y_hat.get("g_gamma_x"),
             weights=weights,
+            target_scale=target_scale,
             return_all=return_all,
         )
 
@@ -162,6 +170,7 @@ class PhyLSTMLoss(nn.Module):
         gx: torch.Tensor | None,
         dr_dt: torch.Tensor | None,
         weights: LossWeights | None = None,
+        target_scale: torch.Tensor | None = None,
         *,
         return_all: typing.Literal[False],
     ) -> torch.Tensor:
@@ -176,6 +185,7 @@ class PhyLSTMLoss(nn.Module):
         gx: torch.Tensor | None,
         dr_dt: torch.Tensor | None,
         weights: LossWeights | None = None,
+        target_scale: torch.Tensor | None = None,
         *,
         return_all: typing.Literal[True],
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
@@ -190,6 +200,8 @@ class PhyLSTMLoss(nn.Module):
         gx: torch.Tensor | None,
         dr_dt: torch.Tensor | None,
         weights: LossWeights | None = None,
+        target_scale: torch.Tensor | None = None,
+        *,
         return_all: typing.Literal[False] = False,
     ) -> torch.Tensor:
         ...
@@ -203,6 +215,8 @@ class PhyLSTMLoss(nn.Module):
         gx: torch.Tensor | None,
         dr_dt: torch.Tensor | None,
         weights: LossWeights | None = None,
+        target_scale: torch.Tensor | None = None,
+        *,
         return_all: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]:
         ...
@@ -215,6 +229,8 @@ class PhyLSTMLoss(nn.Module):
         gx: torch.Tensor | None,
         dr_dt: torch.Tensor | None,
         weights: LossWeights | None = None,
+        target_scale: torch.Tensor | None = None,
+        *,
         return_all: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """
@@ -226,6 +242,7 @@ class PhyLSTMLoss(nn.Module):
         :param gx: The output of the MLP, computed from PhyLSTM2.
         :param dr_dt: The time derivative of the hysteretic parameter r, from PhyLSTM3.
         :param weights: The weights for the loss terms.
+        :param target_scale: The scale of the target values.
         :param return_all: Whether to return all the loss terms.
 
         :return: The loss value. For mathematical formulation see the module documentation.
@@ -241,31 +258,44 @@ class PhyLSTMLoss(nn.Module):
             beta = self.beta
             gamma = self.gamma
             eta = self.eta
+            kappa = self.kappa
         else:
             alpha = weights.alpha
             beta = weights.beta
             gamma = weights.gamma
             eta = weights.eta
+            kappa = weights.kappa
 
         mse = functools.partial(F.mse_loss, reduction="sum")
         loss_dict: dict[str, torch.Tensor] = {}
 
+        # PhyLSTM1 loss
         loss_dict["loss1"] = alpha * mse(z[..., 0], y[..., 0])  # ||z1 - y1||^2
         loss_dict["loss2"] = beta * mse(z[..., 1], y[..., 1])  # ||z2 - y2||^2
 
-        if dz_dt is not None:
+        if dz_dt is not None and gx is not None:
+            if target_scale is None:
+                raise ValueError(
+                    "target_scale must be provided if PhyLSTM2 is used."
+                )
+
+            center = target_scale[..., 0]
+            scale = target_scale[..., 1]
+
+            # PhyLSTM2 loss
             loss_dict["loss3"] = gamma * mse(
-                dz_dt[:, :, 0], z[:, :, 1]
+                scale[:, 1, None] * dz_dt[..., 0] + center[:, 1, None],
+                scale[:, 0, None] * z[..., 1],
             )  # ||dz1/dt - z2||^2
 
-        if gx is not None and dz_dt is not None:
-            loss_dict["loss4"] = gamma * mse(
-                dz_dt[:, :, 1].unsqueeze(-1), -gx
+            loss_dict["loss4"] = eta * mse(
+                dz_dt[..., 1, None], -gx
             )  # ||dz2/dt + MLP(g, i)||^2
 
         if dr_dt is not None and dz_dt is not None:
-            loss_dict["loss5"] = eta * mse(
-                dr_dt, dz_dt[:, :, 2].unsqueeze(-1)
+            # PhyLSTM3 loss
+            loss_dict["loss5"] = kappa * mse(
+                dr_dt, dz_dt[..., 2, None]
             )  # ||dr/dt - dz3/dt||^2
 
         total_loss: torch.Tensor = torch.stack(list(loss_dict.values())).sum()

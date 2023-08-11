@@ -15,7 +15,9 @@ __all__ = [
 
 log = logging.getLogger(__name__)
 
-PRECISION = typing.Literal["16-mixed", "bf16-mixed", "32-true", "64-true", 16, 32, 64]
+PRECISION = typing.Literal[
+    "16-mixed", "bf16-mixed", "32-true", "64-true", 16, 32, 64
+]
 
 
 @dataclass(init=True)
@@ -28,6 +30,7 @@ class BaseConfig:
     momentum: float = 0.9
     num_epochs: int = 1000
     gradient_clip_val: float = 1.0
+    log_grad_norm: bool = False
     patience: int | None = None
 
     precision: PRECISION = "32-true"
