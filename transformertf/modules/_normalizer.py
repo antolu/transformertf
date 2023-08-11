@@ -60,6 +60,7 @@ class RunningNormalizer(nn.Module, BaseEstimator, TransformerMixin):
         The class supports PyTorch tensors for all numeric inputs.
 
     """
+
     center_: torch.Tensor
     scale_: torch.Tensor
     n_samples_seen_: torch.Tensor
@@ -105,11 +106,11 @@ class RunningNormalizer(nn.Module, BaseEstimator, TransformerMixin):
         if target_scale is None:
             target_scale = self.get_parameters()
 
-        if y.ndim > target_scale.ndim:
-            target_scale.unsqueeze(-1)
+        center = target_scale[..., 0]
+        scale = target_scale[..., 1]
 
-        center = target_scale[0, ..., 0]
-        scale = target_scale[0, ..., 1]
+        center = _view_as_y(center, y)
+        scale = _view_as_y(scale, y)
 
         y_unscaled = y * scale + center
 
@@ -165,15 +166,11 @@ class RunningNormalizer(nn.Module, BaseEstimator, TransformerMixin):
         if target_scale is None:
             target_scale = self.get_parameters()
 
-        center = target_scale[0, ..., 0]
-        scale = target_scale[0, ..., 1]
+        center = target_scale[..., 0]
+        scale = target_scale[..., 1]
 
-        if y.ndim > center.ndim:
-            center = center.view(
-                *(1,) * (y.ndim - center.ndim),
-                *center.size(),
-            )
-            scale = scale.view(*(1,) * (y.ndim - scale.ndim), *scale.size())
+        center = _view_as_y(center, y)
+        scale = _view_as_y(scale, y)
 
         y_scaled = (y - center) / scale
 
@@ -213,31 +210,30 @@ class RunningNormalizer(nn.Module, BaseEstimator, TransformerMixin):
 
         n_samples = y_center.shape[0]
 
-        expanded_dims = list(y_center.shape)
-        if y_center.ndim > 1:
-            assert isinstance(dim, tuple)
-            expanded_dims[:len(dim)] = [1] * len(dim)
-
-        new_mean = new_mean.expand(*expanded_dims)
-        new_scale = new_scale.expand(*expanded_dims)
-
         if not self.__sklearn_is_fitted__():
             self.center_ = new_mean
             self.scale_ = new_scale
         else:
-            self.center_ = (
-                self.n_samples_seen_ * self.center_ + n_samples * new_mean
-            ) / (self.n_samples_seen_ + n_samples)
+            N = self.n_samples_seen_
+            self.center_ = (N * self.center_ + n_samples * new_mean) / (
+                N + n_samples
+            )
 
             self.scale_ = torch.sqrt(
                 (
-                    (self.n_samples_seen_ - 1) * torch.square(self.scale_)
+                    (N - 1) * torch.square(self.scale_)
                     + (n_samples - 1) * torch.square(new_scale)
                 )
-                / (self.n_samples_seen_ + n_samples - 2)
+                / (N + n_samples - 2)
             )
 
         self.n_samples_seen_ += n_samples
 
     def __sklearn_is_fitted__(self) -> bool:
         return self.n_samples_seen_.item() > 0
+
+
+def _view_as_y(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    if x.ndim < y.ndim:
+        return x.view(*(1,) * (y.ndim - x.ndim), *x.size())
+    return x
