@@ -122,6 +122,8 @@ class PhyLSTMDataModule(DataModuleBase):
         input_: np.ndarray | pd.Series | pd.DataFrame,
         target: np.ndarray | pd.Series | pd.DataFrame | None = None,
         timestamp: np.ndarray | pd.Series | pd.DataFrame | None = None,
+        input_columns: typing.Sequence[str] | None = None,
+        target_columns: typing.Sequence[str] | None = None,
     ) -> pd.DataFrame:
         """
         Transforms the input data into a dataframe with the specified columns.
@@ -134,13 +136,18 @@ class PhyLSTMDataModule(DataModuleBase):
             The target data.
         timestamp : np.ndarray | pd.Series | pd.DataFrame | None
             The timestamps of the data.
+        input_columns : typing.Sequence[str] | None
+            The names of the input columns.
+        target_columns : typing.Sequence[str] | None
+            The names of the target columns.
         """
+
         df = super().read_input(
             input_=input_,
             target=target,
             timestamp=timestamp,
-            input_columns=self.hparams["input_columns"],
-            target_columns=[self.hparams["target_columns"][0]],
+            input_columns=input_columns,
+            target_columns=target_columns,
         )
 
         return df
@@ -196,7 +203,8 @@ class PhyLSTMDataModule(DataModuleBase):
                     threshold=6e-6,
                 )
 
-        df = self._add_derivative(df)
+        if field is not None and field in df:
+            df = self._add_derivative(df)
 
         # downsample
         df = df.iloc[:: self.hparams["downsample"]].reset_index()

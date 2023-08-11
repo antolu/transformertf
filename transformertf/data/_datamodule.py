@@ -301,8 +301,12 @@ class DataModuleBase(L.LightningDataModule):
             df = pd.DataFrame.from_dict(df_dict)
         elif isinstance(input_, pd.DataFrame):
             df = input_.dropna(how="all", axis="columns")
-            target_columns = target_columns or []
-            df = df[list(input_columns) + list(target_columns)]
+
+            if target_columns is not None:
+                col_filter = list(input_columns) + [
+                    col for col in target_columns if col in df.columns
+                ]
+                df = df[col_filter]
         else:
             raise TypeError(
                 f"Expected np.ndarray or pd.DataFrame, got {type(input_)}"
@@ -522,10 +526,14 @@ class DataModuleBase(L.LightningDataModule):
     def _make_dataset_from_df(
         self, df: pd.DataFrame, predict: bool = False
     ) -> TimeSeriesDataset:
+        if all([col in df.columns for col in self.hparams["target_columns"]]):
+            target_data = df[self.hparams["target_columns"]].to_numpy()
+        else:
+            target_data = None
         return TimeSeriesDataset(
             input_data=df[self.hparams["input_columns"]].to_numpy(),
             seq_len=self.hparams["seq_len"],
-            target_data=df[self.hparams["target_columns"]].to_numpy(),
+            target_data=target_data,
             stride=self.hparams["stride"],
             predict=predict,
             input_normalizer=self._input_normalizer,
@@ -654,9 +662,7 @@ class DataModuleBase(L.LightningDataModule):
                 return [single_df_path]
             else:
                 paths = []
-                multi_file_stem = path.join(
-                    dir_, f"{name}_{{}}.parquet"
-                )
+                multi_file_stem = path.join(dir_, f"{name}_{{}}.parquet")
                 # find all files with the same stem
                 i = 0
                 while True:
