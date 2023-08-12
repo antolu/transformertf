@@ -284,8 +284,8 @@ class PhyLSTMLoss(nn.Module):
 
             # PhyLSTM2 loss
             loss_dict["loss3"] = gamma * mse(
-                scale[:, 1, None] * dz_dt[..., 0] + center[:, 1, None],
-                scale[:, 0, None] * z[..., 1],
+                scale[:, 1, None] * z[..., 1] + center[:, 1, None],
+                scale[:, 0, None] * dz_dt[..., 0],
             )  # ||dz1/dt - z2||^2
 
             loss_dict["loss4"] = eta * mse(
