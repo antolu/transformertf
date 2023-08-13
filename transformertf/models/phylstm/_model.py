@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+import collections
 import logging
 import typing
 
 import torch
 from einops import einops
 from torch import nn
-from torch.nn import functional as F
 
 try:
     from torch.optim.lr_scheduler import LRScheduler
@@ -90,9 +90,14 @@ class PhyLSTM1(nn.Module):
             dropout=dropout,
         )
 
-        self.fc1 = nn.Linear(hidden_dim, hidden_dim // 2)
-        self.ln1 = nn.LayerNorm(hidden_dim // 2)
-        self.fc11 = nn.Linear(hidden_dim // 2, 3)
+        self.fc1 = nn.Sequential(
+            collections.OrderedDict([
+                ("fc11", nn.Linear(hidden_dim, hidden_dim // 2)),
+                ("lrelu1", nn.LeakyReLU()),
+                ("ln1", nn.LayerNorm(hidden_dim // 2)),
+                ("fc12", nn.Linear(hidden_dim, 3)),
+            ])
+        )
 
         # linear component of inputs
         self.linear = nn.Linear(1, 1)
@@ -167,18 +172,13 @@ class PhyLSTM1(nn.Module):
         else:
             h_lstm1 = None
 
-        x1 = x[:, :, 0, None]
-        o_lstm1, h_lstm1 = self.lstm1(x1, hx=h_lstm1)
-        o_lstm1 = F.leaky_relu(self.fc1(o_lstm1))
+        o_lstm1, h_lstm1 = self.lstm1(x, hx=h_lstm1)
 
-        o_lstm1 = self.ln1(o_lstm1)
-        z = self.fc11(o_lstm1)
+        z = self.fc1(o_lstm1)
 
-        z1 = z[..., 0]
-        z2 = z[..., 1]
-
-        z1 = z1 + self.linear(x[..., 0, None])[..., 0]
-        z2 = z2 + self.linear.weight * x[..., 0]
+        # add linear component
+        z1 = z[..., 0] + self.linear(x)[..., 0]
+        z2 = z[..., 1] + self.linear.weight
 
         z = torch.stack([z1, z2, z[..., 2]], dim=-1)
 
@@ -217,9 +217,13 @@ class PhyLSTM2(PhyLSTM1):
             batch_first=True,
             dropout=dropout,
         )
-        self.fc2 = nn.Linear(hidden_dim, hidden_dim // 2)
-        self.ln2 = nn.LayerNorm(hidden_dim // 2)
-        self.fc21 = nn.Linear(hidden_dim // 2, 1)
+
+        self.fc2 = nn.Sequential(collections.OrderedDict([
+            ("fc21", nn.Linear(hidden_dim, hidden_dim // 2)),
+            ("lrelu2", nn.LeakyReLU()),
+            ("ln1", nn.LayerNorm(hidden_dim // 2)),
+            ("fc22", nn.Linear(hidden_dim // 2, 1)),
+        ]))
 
         self.g_plus_x = nn.Sequential(
             nn.Linear(2, hidden_dim),
@@ -271,7 +275,6 @@ class PhyLSTM2(PhyLSTM1):
                 x, hidden_state=hidden_state, return_states=False
             )
 
-        x1 = x[..., 0, None]
         z = phylstm1_output["z"]
 
         if hidden_state is None:
@@ -282,11 +285,10 @@ class PhyLSTM2(PhyLSTM1):
         dz_dt = self.gradient(z)
 
         o_lstm2, h_lstm2 = self.lstm2(z, hx=h_lstm2)
-        o_lstm2 = F.leaky_relu(self.fc2(o_lstm2))
-        o_lstm2 = self.ln2(o_lstm2)
-        g = self.fc21(o_lstm2)
 
-        g_gamma_x = self.g_plus_x(torch.cat([g, x1], dim=2))
+        g = self.fc2(o_lstm2)
+
+        g_gamma_x = self.g_plus_x(torch.cat([g, x], dim=2))
 
         output = typing.cast(
             PhyLSTM2Output,
@@ -328,9 +330,13 @@ class PhyLSTM3(PhyLSTM2):
             batch_first=True,
             dropout=dropout,
         )
-        self.fc3 = nn.Linear(hidden_dim, hidden_dim // 2)
-        self.ln3 = nn.LayerNorm(hidden_dim // 2)
-        self.fc31 = nn.Linear(hidden_dim // 2, 1)
+
+        self.fc3 = nn.Sequential(collections.OrderedDict([
+            ("fc31", nn.Linear(hidden_dim, hidden_dim // 2)),
+            ("lrelu3", nn.LeakyReLU()),
+            ("ln3", nn.LayerNorm(hidden_dim // 2)),
+            ("fc32", nn.Linear(hidden_dim // 2, 1)),
+        ]))
 
     @typing.overload  # type: ignore[override]
     def forward(
@@ -398,10 +404,8 @@ class PhyLSTM3(PhyLSTM2):
         phi = torch.cat([delta_z_dot, z[..., 2, None]], dim=2)
 
         o_lstm3, h_lstm3 = self.lstm3(phi, hx=h_lstm3)
-        o_lstm3 = F.leaky_relu(self.fc3(o_lstm3))
 
-        o_lstm3 = self.ln3(o_lstm3)
-        dr_dt = self.fc31(o_lstm3)
+        dr_dt = self.fc3(o_lstm3)
 
         output = typing.cast(
             PhyLSTM3Output,
