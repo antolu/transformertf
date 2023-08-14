@@ -91,12 +91,14 @@ class PhyLSTM1(nn.Module):
         )
 
         self.fc1 = nn.Sequential(
-            collections.OrderedDict([
-                ("fc11", nn.Linear(hidden_dim, hidden_dim // 2)),
-                ("lrelu1", nn.LeakyReLU()),
-                ("ln1", nn.LayerNorm(hidden_dim // 2)),
-                ("fc12", nn.Linear(hidden_dim, 3)),
-            ])
+            collections.OrderedDict(
+                [
+                    ("fc11", nn.Linear(hidden_dim, hidden_dim // 2)),
+                    ("lrelu1", nn.LeakyReLU()),
+                    ("ln1", nn.LayerNorm(hidden_dim // 2)),
+                    ("fc12", nn.Linear(hidden_dim // 2, 3)),
+                ]
+            )
         )
 
         # linear component of inputs
@@ -218,12 +220,16 @@ class PhyLSTM2(PhyLSTM1):
             dropout=dropout,
         )
 
-        self.fc2 = nn.Sequential(collections.OrderedDict([
-            ("fc21", nn.Linear(hidden_dim, hidden_dim // 2)),
-            ("lrelu2", nn.LeakyReLU()),
-            ("ln1", nn.LayerNorm(hidden_dim // 2)),
-            ("fc22", nn.Linear(hidden_dim // 2, 1)),
-        ]))
+        self.fc2 = nn.Sequential(
+            collections.OrderedDict(
+                [
+                    ("fc21", nn.Linear(hidden_dim, hidden_dim // 2)),
+                    ("lrelu2", nn.LeakyReLU()),
+                    ("ln1", nn.LayerNorm(hidden_dim // 2)),
+                    ("fc22", nn.Linear(hidden_dim // 2, 1)),
+                ]
+            )
+        )
 
         self.g_plus_x = nn.Sequential(
             nn.Linear(2, hidden_dim),
@@ -331,12 +337,16 @@ class PhyLSTM3(PhyLSTM2):
             dropout=dropout,
         )
 
-        self.fc3 = nn.Sequential(collections.OrderedDict([
-            ("fc31", nn.Linear(hidden_dim, hidden_dim // 2)),
-            ("lrelu3", nn.LeakyReLU()),
-            ("ln3", nn.LayerNorm(hidden_dim // 2)),
-            ("fc32", nn.Linear(hidden_dim // 2, 1)),
-        ]))
+        self.fc3 = nn.Sequential(
+            collections.OrderedDict(
+                [
+                    ("fc31", nn.Linear(hidden_dim, hidden_dim // 2)),
+                    ("lrelu3", nn.LeakyReLU()),
+                    ("ln3", nn.LayerNorm(hidden_dim // 2)),
+                    ("fc32", nn.Linear(hidden_dim // 2, 1)),
+                ]
+            )
+        )
 
     @typing.overload  # type: ignore[override]
     def forward(
