@@ -1,5 +1,5 @@
 [project]
-name = "transformerft"
+name = "transformertf"
 dynamic = ["version", "readme"]
 description = "Package description"
 license = {text = "Other/Proprietary License"}
@@ -16,20 +16,23 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 dependencies = [
+    "einops ~= 0.6.0",
+    "lightning ~= 2.0.0",
     "matplotlib ~= 3.6",
+    "numba ~= 0.57",
     "numpy ~= 1.24",
     "pandas ~= 2.0",
-    "einops ~= 0.6.0",
-    "torch ~= 2.0.0",
+    "pyarrow ~= 11.0.0",
+    "pytorch-optimizer ~= 2.5.2",
     "rich ~= 13.3.5",
-    "numba ~= 0.57",
-    "scipy ~= 1.10.1",
     "scikit-learn ~= 1.2.2",
+    "scipy ~= 1.10.1",
+    "torch ~= 2.0.0",
 ]
 
 [[project.authors]]
 name = "Anton Lu"
-email = "anton96lu@gmail.com"
+email = "anton.lu@cern.ch"
 
 [project.optional-dependencies]
 test = [
@@ -57,14 +60,14 @@ build-backend = "setuptools.build_meta"
 
 # keep this for dynamic versioning
 [tool.setuptools_scm]
-write_to = "transformerft/_version.py"
+write_to = "transformertf/_version.py"
 local_scheme = "no-local-version"
 
 [tool.setuptools.dynamic]
 readme = {file = ["README.md"], content-type = "text/markdown"}
 
 [tool.setuptools]
-packages = ["transformerft"]
+packages = ["transformertf"]
 
 [project.scripts]
 # project endpoints here

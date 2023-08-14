@@ -6,7 +6,7 @@ include:
    file: v2/python.gitlab-ci.yml
 
 variables:
-  project_name: "transformerft"
+  project_name: "transformertf"
   PY_VERSION: "3.9"
   ACC_PY_BASE_IMAGE_TAG: "2021.12"
 
@@ -20,9 +20,18 @@ build_wheel:
   extends: .acc_py_build_wheel
 
 
+._install_git_lfs:
+  before_script:
+    - yum install -y git-lfs
+    - git lfs install --skip-smudge
+
+
 # A development installation of the package tested with pytest.
 test_dev:
   extends: .acc_py_dev_test
+  before_script:
+    - !reference [.acc_py_dev_test, before_script]
+    - yum install -y git-lfs
   script:
     # Run the unit-tests with coverage output.
     - cd ${project_root}
@@ -35,10 +44,12 @@ test_dev:
 
 
 test_wheel:
-  extends:
-    - .acc_py_wheel_test
+  extends: .acc_py_wheel_test
   needs:
     - build_wheel
+  before_script:
+    - !reference [.acc_py_wheel_test, before_script]
+    - yum install -y git-lfs
   script:
     - mkdir -p ~/not-the-source-dir && cp -r ${project_root}/tests ~/not-the-source-dir && cd ~/not-the-source-dir
     - python -m pytest ./tests
@@ -65,6 +76,9 @@ build_docs_on_tag:
 
 pre-commit:
   extends: .acc_py_pre-commit
+  before_script:
+    - !reference [.acc_py_pre-commit, before_script]
+    - yum install -y git-lfs
 
 
 release_dist:
