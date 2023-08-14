@@ -51,12 +51,15 @@ class DataModuleBase(L.LightningDataModule):
         predict_dataset: str | None = None,
         normalize: bool = True,
         seq_len: int = 500,
+        min_seq_len: int | None = None,
+        randomize_seq_len: bool = False,
         out_seq_len: int = 0,
         stride: int = 1,
         batch_size: int = 128,
         num_workers: int = 0,
     ):
         super().__init__()
+        min_seq_len = min_seq_len or seq_len
         self.save_hyperparameters()
 
         self._train_data_pth = train_dataset
@@ -530,12 +533,17 @@ class DataModuleBase(L.LightningDataModule):
             target_data = df[self.hparams["target_columns"]].to_numpy()
         else:
             target_data = None
+
         return TimeSeriesDataset(
             input_data=df[self.hparams["input_columns"]].to_numpy(),
             seq_len=self.hparams["seq_len"],
             target_data=target_data,
             stride=self.hparams["stride"],
             predict=predict,
+            min_seq_len=self.hparams["min_seq_len"] if not predict else None,
+            randomize_seq_len=self.hparams["randomize_seq_len"]
+            if not predict
+            else False,
             input_normalizer=self._input_normalizer,
             target_normalizer=self._target_normalizer,
         )

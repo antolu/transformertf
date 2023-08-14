@@ -53,8 +53,11 @@ class TimeSeriesDataset(Dataset):
         input_data: DATA_SOURCE | list[DATA_SOURCE],
         seq_len: int,
         target_data: DATA_SOURCE | list[DATA_SOURCE] | None = None,
+        *,
         stride: int = 1,
         predict: bool = False,
+        min_seq_len: int | None = None,
+        randomize_seq_len: bool = False,
         input_normalizer: RunningNormalizer | None = None,
         target_normalizer: RunningNormalizer | None = None,
     ):
@@ -87,7 +90,19 @@ class TimeSeriesDataset(Dataset):
                 warnings.warn("Stride is ignored when predicting.")
             stride = seq_len
 
+        if randomize_seq_len:
+            if min_seq_len is None:
+                raise ValueError(
+                    "min_seq_len must be specified when randomize_seq_len is True."
+                )
+            if min_seq_len > seq_len:
+                raise ValueError(
+                    "min_seq_len must be less than or equal to seq_len."
+                )
+
         self._seq_len = seq_len
+        self._min_seq_len = min_seq_len
+        self._randomize_seq_len = randomize_seq_len
         self._stride = stride
         self._predict = predict
 
@@ -307,6 +322,12 @@ class TimeSeriesDataset(Dataset):
         x = torch.from_numpy(x).to(torch.float32)
         y = torch.from_numpy(y).to(torch.float32)
 
+        if self._randomize_seq_len:
+            assert self._min_seq_len is not None
+            random_len = np.random.randint(self._min_seq_len, self._seq_len)
+            x[random_len:] = 0.0
+            y[random_len:] = 0.0
+
         return x, y
 
     def _get_prediction_input(self, idx: int) -> torch.Tensor:
@@ -319,6 +340,11 @@ class TimeSeriesDataset(Dataset):
         idx = self._check_index(idx)
 
         x = self._window_gen[0].get_sample(idx)
-        x = torch.from_numpy(x).to(torch.float32)
+        x_to: torch.Tensor = torch.from_numpy(x).to(torch.float32)
 
-        return x
+        if self._randomize_seq_len:
+            assert self._min_seq_len is not None
+            random_len = np.random.randint(self._min_seq_len, self._seq_len)
+            x_to[random_len:] = 0.0
+
+        return x_to

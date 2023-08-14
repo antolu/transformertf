@@ -224,3 +224,19 @@ def test_dataset_num_points_2d_multiple(x1_2d: np.ndarray) -> None:
     dataset = TimeSeriesDataset(input_data=[x1_2d, x1_2d], seq_len=3)
 
     assert dataset.num_points == 18
+
+
+def test_dataset_randomize_seq_len_1d_single(
+    x1_1d: np.ndarray, y1_1d: np.ndarray
+) -> None:
+    dataset = TimeSeriesDataset(
+        input_data=x1_1d,
+        target_data=y1_1d,
+        seq_len=3,
+        min_seq_len=1,
+        randomize_seq_len=True,
+    )
+
+    assert len(dataset) == 8
+    assert dataset[0]["input"].shape == (3, 1)
+    assert dataset[0]["target"].shape == (3, 1)

@@ -55,7 +55,9 @@ class PhyLSTMDataModule(DataModuleBase):
         test_dataset: str | None = None,
         predict_dataset: str | None = None,
         seq_len: int = 500,
+        min_seq_len: int | None = None,
         out_seq_len: int = 0,
+        randomize_seq_len: bool = False,
         stride: int = 1,
         lowpass_filter: bool = False,
         mean_filter: bool = False,
@@ -87,7 +89,9 @@ class PhyLSTMDataModule(DataModuleBase):
             predict_dataset=predict_dataset,
             normalize=True,
             seq_len=seq_len,
+            min_seq_len=min_seq_len,
             out_seq_len=out_seq_len,
+            randomize_seq_len=randomize_seq_len,
             stride=stride,
         )
         self.save_hyperparameters(ignore=["current_column", "field_column"])
@@ -104,6 +108,8 @@ class PhyLSTMDataModule(DataModuleBase):
             "test_dataset": config.test_dataset,
             "predict_dataset": config.predict_dataset,
             "seq_len": config.seq_len,
+            "min_seq_len": config.min_seq_len,
+            "randomize_seq_len": config.randomize_seq_len,
             "stride": config.stride,
             "downsample": config.downsample,
             "batch_size": config.batch_size,

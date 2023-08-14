@@ -39,6 +39,8 @@ class BaseConfig:
 
     # data processing parameters
     seq_len: int = 500
+    min_seq_len: int | None = None
+    randomize_seq_len: bool = False
     stride: int = 1
     normalize: bool = True
     downsample: int = 1
