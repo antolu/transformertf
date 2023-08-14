@@ -61,6 +61,8 @@ def test_phylstm_datamodule_hparams_correct() -> None:
         "test_dataset": "test_data.parquet",
         "predict_dataset": "predict_data.parquet",
         "seq_len": 500,
+        "min_seq_len": None,
+        "randomize_seq_len": False,
         "out_seq_len": 0,
         "stride": 1,
         "lowpass_filter": True,
