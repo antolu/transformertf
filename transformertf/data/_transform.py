@@ -83,7 +83,7 @@ class PolynomialTransform(
         x_tensor = torch.from_numpy(x) if isinstance(x, np.ndarray) else x
         y_tensor = torch.from_numpy(y) if isinstance(y, np.ndarray) else y
 
-        return y_tensor - self.forward(x_tensor).detach()
+        return (y_tensor - self.forward(x_tensor)).detach()
 
     def inverse_transform(
         self, x: torch.Tensor | np.ndarray, y: torch.Tensor | np.ndarray

@@ -31,7 +31,7 @@ def test_polynomial_transform_transform(df: pd.DataFrame) -> None:
     plt.plot(df[CURRENT].values, df[FIELD].values)
     plt.plot(
         df[CURRENT].values,
-        transform(torch.from_numpy(df[CURRENT].values).detach()),
+        transform(torch.from_numpy(df[CURRENT].values)).detach(),
     )
     plt.twinx()
     plt.plot(df[CURRENT].values, transformed)
