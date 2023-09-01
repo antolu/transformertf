@@ -60,7 +60,7 @@ class PhyLSTMDataModule(DataModuleBase):
         lowpass_filter: bool = False,
         mean_filter: bool = False,
         downsample: int = 1,
-        remove_polynomial: bool = False,
+        remove_polynomial: bool = True,
         polynomial_degree: int = 1,
         polynomial_iterations: int = 1000,
         batch_size: int = 128,

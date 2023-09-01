@@ -193,14 +193,18 @@ class DataModuleBase(L.LightningDataModule):
             )
         )
 
+        self._try_fit_polynomial_transform(pd.concat(self._train_df))
+
         try:
             self._try_scalers_fitted()
             raise RuntimeError("Scalers have already been fitted.")
         except sklearn.exceptions.NotFittedError:
-            for df in self._train_df:
-                self._fit_scalers(df)
-
-        self._try_fit_polynomial_transform(pd.concat(self._train_df))
+            if self._polynomial_transform is not None:
+                self._fit_scalers(
+                    self._try_transform_polynomial(pd.concat(self._train_df))
+                )
+            else:
+                self._fit_scalers(pd.concat(self._train_df))
 
         self._train_df = list(map(self.apply_transforms, self._train_df))
         self._val_df = list(map(self.apply_transforms, self._val_df))
@@ -392,10 +396,10 @@ class DataModuleBase(L.LightningDataModule):
         sklearn.exceptions.NotFittedError
             If the scaler has not been fitted.
         """
-        if self.hparams["normalize"]:
-            df = self._try_scale_df(df, skip_target=skip_target)
         if self.hparams["remove_polynomial"]:
             df = self._try_transform_polynomial(df)
+        if self.hparams["normalize"]:
+            df = self._try_scale_df(df, skip_target=skip_target)
         return df
 
     def transform_input(
