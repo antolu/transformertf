@@ -18,6 +18,7 @@ import torch.utils.data
 from ..config import BaseConfig
 from ..modules import RunningNormalizer
 from ._dataset import TimeSeriesDataset
+from ._transform import PolynomialTransform
 
 __all__ = ["DataModuleBase"]
 
@@ -31,6 +32,9 @@ TIME = "time_ms"
 
 
 class DataModuleBase(L.LightningDataModule):
+    _train_data_pth: list[str]
+    _val_data_pth: list[str]
+
     _input_normalizer: RunningNormalizer | None
     _target_normalizer: RunningNormalizer | None
 
@@ -47,14 +51,15 @@ class DataModuleBase(L.LightningDataModule):
         target_columns: typing.Sequence[str],
         train_dataset: str | typing.Sequence[str] | None = None,
         val_dataset: str | typing.Sequence[str] | None = None,
-        test_dataset: str | None = None,
-        predict_dataset: str | None = None,
         normalize: bool = True,
         seq_len: int = 500,
         min_seq_len: int | None = None,
         randomize_seq_len: bool = False,
         out_seq_len: int = 0,
         stride: int = 1,
+        remove_polynomial: bool = False,
+        polynomial_degree: int = 2,
+        polynomial_iterations: int = 1000,
         batch_size: int = 128,
         num_workers: int = 0,
     ):
@@ -62,15 +67,23 @@ class DataModuleBase(L.LightningDataModule):
         min_seq_len = min_seq_len or seq_len
         self.save_hyperparameters()
 
-        self._train_data_pth = train_dataset
-        self._val_data_pth = val_dataset
-        self._test_data_pth = test_dataset
-        self._predict_data_pth = predict_dataset
+        for attr_name, arg in (
+            ("_train_data_pth", train_dataset),
+            ("_val_data_pth", val_dataset),
+        ):
+            if isinstance(arg, str):
+                setattr(self, attr_name, [arg])
+            elif isinstance(arg, (list, tuple)):
+                setattr(self, attr_name, arg)
+            elif arg is None:
+                setattr(self, attr_name, [])
+            else:
+                raise TypeError(
+                    f"Expected str, list or tuple, got {type(arg)}."
+                )
 
-        self._train_df: list[pd.DataFrame] | None = None
-        self._val_df: list[pd.DataFrame] | None = None
-        self._test_df: list[pd.DataFrame] | None = None
-        self._predict_df: list[pd.DataFrame] | None = None
+        self._train_df: list[pd.DataFrame] = []
+        self._val_df: list[pd.DataFrame] = []
 
         if normalize:
             if input_columns is None or target_columns is None:
@@ -88,6 +101,18 @@ class DataModuleBase(L.LightningDataModule):
             self._input_normalizer = None
             self._target_normalizer = None
 
+        self._polynomial_transform: dict[str, PolynomialTransform] | None
+        if remove_polynomial:
+            self._polynomial_transform = {
+                col: PolynomialTransform(
+                    degree=polynomial_degree,
+                    num_iterations=polynomial_iterations,
+                )
+                for col in target_columns
+            }
+        else:
+            self._polynomial_transform = None
+
         self._tmp_dir = tempfile.TemporaryDirectory()
 
     @classmethod
@@ -102,6 +127,12 @@ class DataModuleBase(L.LightningDataModule):
             state["input_normalizer"] = self._input_normalizer.state_dict()
         if self._target_normalizer is not None:
             state["target_normalizer"] = self._target_normalizer.state_dict()
+
+        if self._polynomial_transform is not None:
+            state["polynomial_transform"] = {
+                col: transform.state_dict()
+                for col, transform in self._polynomial_transform.items()
+            }
 
         return state
 
@@ -121,6 +152,14 @@ class DataModuleBase(L.LightningDataModule):
                 state.pop("target_normalizer")
             )
 
+        if "polynomial_transform" in state:
+            if self._polynomial_transform is None:
+                raise RuntimeError("polynomial_transform is None")
+
+            for col, transform in self._polynomial_transform.items():
+                transform.load_state_dict(state["polynomial_transform"][col])
+            state.pop("polynomial_transform")
+
         super().load_state_dict(state)
 
     def prepare_data(self, save: bool = True) -> None:
@@ -138,32 +177,20 @@ class DataModuleBase(L.LightningDataModule):
             Whether to save the dataframes to parquet files.
 
         """
-        self._train_df = self._load_and_preprocess_data(
-            self._train_data_pth or []
+        # load all data into memory and then apply transforms
+        self._train_df = list(
+            map(
+                self.preprocess_dataframe,
+                map(
+                    self._load_and_preprocess_data, self._train_data_pth or []
+                ),
+            )
         )
-        self._val_df = self._load_and_preprocess_data(self._val_data_pth or [])
-        self._test_df = self._load_and_preprocess_data(
-            [self._test_data_pth] if self._test_data_pth is not None else []
-        )
-        self._predict_df = self._load_and_preprocess_data(
-            [self._predict_data_pth]
-            if self._predict_data_pth is not None
-            else []
-        )
-
-        def apply_to_dfs(
-            dfs: list[pd.DataFrame],
-            f: typing.Callable[[pd.DataFrame], pd.DataFrame],
-        ) -> list[pd.DataFrame]:
-            return [f(df) for df in dfs]
-
-        self._train_df = apply_to_dfs(
-            self._train_df, self.preprocess_dataframe
-        )
-        self._val_df = apply_to_dfs(self._val_df, self.preprocess_dataframe)
-        self._test_df = apply_to_dfs(self._test_df, self.preprocess_dataframe)
-        self._predict_df = apply_to_dfs(
-            self._predict_df, self.preprocess_dataframe
+        self._val_df = list(
+            map(
+                self.preprocess_dataframe,
+                map(self._load_and_preprocess_data, self._val_data_pth or []),
+            )
         )
 
         try:
@@ -173,13 +200,10 @@ class DataModuleBase(L.LightningDataModule):
             for df in self._train_df:
                 self._fit_scalers(df)
 
-        self._train_df = apply_to_dfs(self._train_df, self._try_scale_df)
-        self._val_df = apply_to_dfs(self._val_df, self._try_scale_df)
-        self._test_df = apply_to_dfs(self._test_df, self._try_scale_df)
-        self._predict_df = apply_to_dfs(
-            self._predict_df,
-            functools.partial(self._try_scale_df, skip_target=True),
-        )
+        self._try_fit_polynomial_transform(pd.concat(self._train_df))
+
+        self._train_df = list(map(self.apply_transforms, self._train_df))
+        self._val_df = list(map(self.apply_transforms, self._val_df))
 
         if save:
             self.save_data(self._tmp_dir.name)
@@ -213,17 +237,21 @@ class DataModuleBase(L.LightningDataModule):
         if stage is None:
             self._train_df = load_parquet("train", self._tmp_dir.name)
             self._val_df = load_parquet("val", self._tmp_dir.name)
-            self._test_df = load_parquet("test", self._tmp_dir.name)
-            self._predict_df = load_parquet("predict", self._tmp_dir.name)
         elif stage in ("train", "fit"):
             self._train_df = load_parquet("train", self._tmp_dir.name)
             self._val_df = load_parquet("val", self._tmp_dir.name)
         elif stage == "val":
             self._val_df = load_parquet("val", self._tmp_dir.name)
         elif stage == "test":
-            self._test_df = load_parquet("test", self._tmp_dir.name)
+            raise NotImplementedError(
+                "Datamodule does not support using the test set.\n"
+                "Use the 'make_dataset' or 'make_dataloader' methods instead."
+            )
         elif stage == "predict":
-            self._predict_df = load_parquet("predict", self._tmp_dir.name)
+            raise NotImplementedError(
+                "Datamodule does not support using the predict set.\n"
+                "Use the 'make_dataset' or 'make_dataloader' methods instead."
+            )
         else:
             raise ValueError(f"Unknown stage {stage}.")
 
@@ -323,7 +351,8 @@ class DataModuleBase(L.LightningDataModule):
     ) -> pd.DataFrame:
         """
         Preprocess the dataframe into the format expected by the model.
-        This function should be chaininvoked with the ``read_input`` function.
+        This function should be chaininvoked with the ``read_input`` function,
+        and must be called before ``apply_transforms``.
 
         Parameters
         ----------
@@ -337,7 +366,7 @@ class DataModuleBase(L.LightningDataModule):
         """
         return df
 
-    def normalize_dataframe(
+    def apply_transforms(
         self,
         df: pd.DataFrame,
         skip_target: bool = False,
@@ -363,7 +392,10 @@ class DataModuleBase(L.LightningDataModule):
         sklearn.exceptions.NotFittedError
             If the scaler has not been fitted.
         """
-        df = self._try_scale_df(df, skip_target=skip_target)
+        if self.hparams["normalize"]:
+            df = self._try_scale_df(df, skip_target=skip_target)
+        if self.hparams["remove_polynomial"]:
+            df = self._try_transform_polynomial(df)
         return df
 
     def transform_input(
@@ -416,7 +448,7 @@ class DataModuleBase(L.LightningDataModule):
         skip_target = not all(
             [col in df.columns for col in self.hparams["target_columns"]]
         )
-        df = self.normalize_dataframe(df, skip_target=skip_target)
+        df = self.apply_transforms(df, skip_target=skip_target)
         return df
 
     def make_dataset(
@@ -498,34 +530,6 @@ class DataModuleBase(L.LightningDataModule):
 
         return datasets[0] if len(datasets) == 1 else datasets
 
-    @property
-    def test_dataset(
-        self,
-    ) -> TimeSeriesDataset | typing.Sequence[TimeSeriesDataset]:
-        if self._test_df is None or len(self._test_df) == 0:
-            raise ValueError("No test data available.")
-
-        datasets = [
-            self._make_dataset_from_df(df, predict=True)
-            for df in self._test_df
-        ]
-
-        return datasets[0] if len(datasets) == 1 else datasets
-
-    @property
-    def predict_dataset(
-        self,
-    ) -> TimeSeriesDataset | typing.Sequence[TimeSeriesDataset]:
-        if self._predict_df is None or len(self._predict_df) == 0:
-            raise ValueError("No prediction data available.")
-
-        datasets = [
-            self._make_dataset_from_df(df, predict=True)
-            for df in self._predict_df
-        ]
-
-        return datasets[0] if len(datasets) == 1 else datasets
-
     def _make_dataset_from_df(
         self, df: pd.DataFrame, predict: bool = False
     ) -> TimeSeriesDataset:
@@ -578,41 +582,6 @@ class DataModuleBase(L.LightningDataModule):
         else:
             return [make_dataloader(ds) for ds in self.val_dataset]
 
-    def test_dataloader(
-        self,
-    ) -> (
-        torch.utils.data.DataLoader
-        | typing.Sequence[torch.utils.data.DataLoader]
-    ):
-        make_dataloader = functools.partial(
-            torch.utils.data.DataLoader,
-            batch_size=1,
-            num_workers=self.hparams["num_workers"],
-            shuffle=False,
-        )
-        if isinstance(self.test_dataset, TimeSeriesDataset):
-            return make_dataloader(self.test_dataset)
-        else:
-            return [make_dataloader(ds) for ds in self.test_dataset]
-
-    def predict_dataloader(
-        self,
-    ) -> (
-        torch.utils.data.DataLoader
-        | typing.Sequence[torch.utils.data.DataLoader]
-    ):
-        if not isinstance(self.predict_dataset, TimeSeriesDataset):
-            raise ValueError(
-                "Predictions are only supported for single test datasets."
-            )
-
-        return torch.utils.data.DataLoader(
-            self.predict_dataset,
-            batch_size=1,
-            num_workers=self.hparams["num_workers"],
-            shuffle=False,
-        )
-
     def save_data(self, save_dir: typing.Optional[str] = None) -> None:
         """
         Saves the data to the model directory.
@@ -635,8 +604,6 @@ class DataModuleBase(L.LightningDataModule):
 
         save_parquet(self._train_df, "train")
         save_parquet(self._val_df, "val")
-        save_parquet(self._test_df, "test")
-        save_parquet(self._predict_df, "predict")
 
     def _tmp_data_paths(
         self,
@@ -682,9 +649,7 @@ class DataModuleBase(L.LightningDataModule):
 
                 return paths
 
-    def _load_and_preprocess_data(
-        self, df_pths: str | typing.Sequence[str]
-    ) -> list[pd.DataFrame]:
+    def _load_and_preprocess_data(self, pth: str) -> pd.DataFrame:
         """
         Loads and preprocesses data dataframes.
 
@@ -696,16 +661,10 @@ class DataModuleBase(L.LightningDataModule):
         :return: List of processed dataframes.
         """
 
-        def load_and_preprocess(pth: str) -> pd.DataFrame:
-            log.info(f"Reading data from {pth}.")
-            df = pd.read_parquet(pth)
+        log.info(f"Reading data from {pth}.")
+        df = pd.read_parquet(pth)
 
-            return self.read_input(df)
-
-        if isinstance(df_pths, str):
-            return [load_and_preprocess(df_pths)]
-        else:
-            return [load_and_preprocess(pth) for pth in df_pths]
+        return self.read_input(df)
 
     def _try_scalers_fitted(self) -> None:
         if (
@@ -760,6 +719,73 @@ class DataModuleBase(L.LightningDataModule):
             target_col_names = self.hparams["target_columns"]
             df[target_col_names] = self._target_normalizer.transform(
                 torch.from_numpy(df[target_col_names].to_numpy())
+            )
+
+        return df
+
+    def _try_fit_polynomial_transform(self, df: pd.DataFrame) -> None:
+        if self._polynomial_transform is not None:
+            try:
+                for transform in self._polynomial_transform.values():
+                    sklearn.utils.validation.check_is_fitted(transform)
+                log.info("Polynomial transform already fitted.")
+            except sklearn.exceptions.NotFittedError:
+                log.info("Polynomial transform not fitted yet.")
+
+                if len(self.hparams["input_columns"]) > 1:
+                    raise ValueError(
+                        "Polynomial transform can only be used with a single input column."
+                    )
+
+                base_columns = [
+                    o
+                    for o in self.hparams["target_columns"]
+                    if not o.endswith("_dot")
+                ]
+                deriv_columns = [
+                    o
+                    for o in self.hparams["target_columns"]
+                    if o.endswith("_dot")
+                ]
+
+                for col in base_columns:
+                    log.info(f"Fitting polynomial transform for {col}.")
+                    self._polynomial_transform[col].fit(
+                        df[self.hparams["input_columns"][0]].to_numpy(),
+                        df[col].to_numpy(),
+                    )
+
+                for col in base_columns:
+                    if col + "_dot" in deriv_columns:
+                        log.info(
+                            f"Fitting polynomial transform for {col}_dot."
+                        )
+                        self._polynomial_transform[
+                            col + "_dot"
+                        ] = self._polynomial_transform[col].get_derivative()
+
+    def _try_transform_polynomial(self, df: pd.DataFrame) -> pd.DataFrame:
+        self._try_fit_polynomial_transform(df)
+
+        if self._polynomial_transform is None:
+            log.debug("No polynomial transform found, skipping transform.")
+            return df
+
+        input_col_names = self.hparams["input_columns"]
+
+        if len(input_col_names) > 1:
+            raise ValueError(
+                "Polynomial transform can only be used with a single input column."
+            )
+
+        for col in self.hparams["target_columns"]:
+            df[col] = (
+                self._polynomial_transform[col]
+                .transform(
+                    df[input_col_names[0]].to_numpy(),
+                    df[col].to_numpy(),
+                )
+                .numpy()
             )
 
         return df

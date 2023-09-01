@@ -101,9 +101,6 @@ class PhyLSTM1(nn.Module):
             )
         )
 
-        # linear component of inputs
-        self.linear = nn.Linear(1, 1)
-
         self.apply(self.weights_init)
 
     @staticmethod
@@ -177,12 +174,6 @@ class PhyLSTM1(nn.Module):
         o_lstm1, h_lstm1 = self.lstm1(x, hx=h_lstm1)
 
         z = self.fc1(o_lstm1)
-
-        # add linear component
-        z1 = z[..., 0] + self.linear(x)[..., 0]
-        z2 = z[..., 1] + self.linear.weight
-
-        z = torch.stack([z1, z2, z[..., 2]], dim=-1)
 
         assert isinstance(h_lstm1, tuple)
         output: PhyLSTM1Output = {"z": z}

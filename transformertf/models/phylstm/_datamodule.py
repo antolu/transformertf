@@ -52,8 +52,6 @@ class PhyLSTMDataModule(DataModuleBase):
         self,
         train_dataset: str | typing.Sequence[str] | None = None,
         val_dataset: str | typing.Sequence[str] | None = None,
-        test_dataset: str | None = None,
-        predict_dataset: str | None = None,
         seq_len: int = 500,
         min_seq_len: int | None = None,
         out_seq_len: int = 0,
@@ -62,6 +60,9 @@ class PhyLSTMDataModule(DataModuleBase):
         lowpass_filter: bool = False,
         mean_filter: bool = False,
         downsample: int = 1,
+        remove_polynomial: bool = False,
+        polynomial_degree: int = 1,
+        polynomial_iterations: int = 1000,
         batch_size: int = 128,
         num_workers: int = 0,
         current_column: str = CURRENT,
@@ -85,14 +86,15 @@ class PhyLSTMDataModule(DataModuleBase):
             target_columns=[field_column, get_dot_name(field_column)],
             train_dataset=train_dataset,
             val_dataset=val_dataset,
-            test_dataset=test_dataset,
-            predict_dataset=predict_dataset,
             normalize=True,
             seq_len=seq_len,
             min_seq_len=min_seq_len,
             out_seq_len=out_seq_len,
             randomize_seq_len=randomize_seq_len,
             stride=stride,
+            remove_polynomial=remove_polynomial,
+            polynomial_degree=polynomial_degree,
+            polynomial_iterations=polynomial_iterations,
         )
         self.save_hyperparameters(ignore=["current_column", "field_column"])
 
@@ -105,8 +107,6 @@ class PhyLSTMDataModule(DataModuleBase):
         default_kwargs = {
             "train_dataset": config.train_dataset,
             "val_dataset": config.val_dataset,
-            "test_dataset": config.test_dataset,
-            "predict_dataset": config.predict_dataset,
             "seq_len": config.seq_len,
             "min_seq_len": config.min_seq_len,
             "randomize_seq_len": config.randomize_seq_len,
@@ -117,6 +117,9 @@ class PhyLSTMDataModule(DataModuleBase):
             "model_dir": config.model_dir,
             "lowpass_filter": config.lowpass_filter,
             "mean_filter": config.mean_filter,
+            "remove_polynomial": config.remove_polynomial,
+            "polynomial_degree": config.polynomial_degree,
+            "polynomial_iterations": config.polynomial_iterations,
         }
         default_kwargs.update(kwargs)
         return PhyLSTMDataModule(

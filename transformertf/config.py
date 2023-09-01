@@ -45,6 +45,10 @@ class BaseConfig:
     normalize: bool = True
     downsample: int = 1
 
+    remove_polynomial: bool = False
+    polynomial_degree: int = 1
+    polynomial_iterations: int = 1000
+
     # physics parameters
     remove_linear: bool = False
     use_derivative: bool = True
