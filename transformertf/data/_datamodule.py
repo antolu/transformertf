@@ -715,17 +715,18 @@ class DataModuleBase(L.LightningDataModule):
 
         input_col_names = self.hparams["input_columns"]
 
-        df[input_col_names] = self._input_normalizer.transform(
+        out = pd.DataFrame()
+        out[input_col_names] = self._input_normalizer.transform(
             torch.from_numpy(df[input_col_names].to_numpy())
         )
         if not skip_target:
             assert self._target_normalizer is not None
             target_col_names = self.hparams["target_columns"]
-            df[target_col_names] = self._target_normalizer.transform(
+            out[target_col_names] = self._target_normalizer.transform(
                 torch.from_numpy(df[target_col_names].to_numpy())
             )
 
-        return df
+        return out
 
     def _try_fit_polynomial_transform(self, df: pd.DataFrame) -> None:
         if self._polynomial_transform is not None:
@@ -782,8 +783,9 @@ class DataModuleBase(L.LightningDataModule):
                 "Polynomial transform can only be used with a single input column."
             )
 
+        out = pd.DataFrame()
         for col in self.hparams["target_columns"]:
-            df[col] = (
+            out[col] = (
                 self._polynomial_transform[col]
                 .transform(
                     df[input_col_names[0]].to_numpy(),
@@ -792,4 +794,4 @@ class DataModuleBase(L.LightningDataModule):
                 .numpy()
             )
 
-        return df
+        return out
