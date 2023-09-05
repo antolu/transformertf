@@ -147,7 +147,7 @@ class PolynomialTransform(nn.Module, BaseTransform):
         self.bias = torch.nn.Parameter(torch.zeros(1))
 
     def __sklearn_is_fitted__(self) -> bool:
-        return bool(
+        return not bool(
             torch.all(self.weights == 0.0) and torch.all(self.bias == 0.0)
         )
 

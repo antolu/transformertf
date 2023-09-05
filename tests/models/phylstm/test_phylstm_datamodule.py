@@ -189,4 +189,4 @@ def test_phylstm_datamodule_val_dataset(
     samples = [sample for sample in dataloader]
 
     assert samples[-1]["input"].shape == (1, dm.hparams["seq_len"], 1)
-    assert samples[-1]["target"].shape == (1, dm.hparams["seq_len"], 2)
+    assert samples[-1]["target"].shape == (1, dm.hparams["seq_len"], 1)
