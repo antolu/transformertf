@@ -3,9 +3,9 @@ from __future__ import annotations
 import pytest
 import torch.utils.data
 
-from ...conftest import DF_PATH, CURRENT, FIELD
+from transformertf.models.phylstm import PhyLSTMConfig, PhyLSTMDataModule
 
-from transformertf.models.phylstm import PhyLSTMDataModule, PhyLSTMConfig
+from ...conftest import CURRENT, DF_PATH, FIELD
 
 
 def test_phylstm_datamodule_create() -> None:
@@ -68,7 +68,7 @@ def test_phylstm_datamodule_hparams_correct() -> None:
         "batch_size": 32,
         "num_workers": 4,
         "input_columns": ["a"],
-        "target_columns": ["b", "b_dot"],
+        "target_columns": ["b"],
         "model_dir": "model_dir",
         "normalize": True,
         "remove_polynomial": True,

@@ -22,7 +22,7 @@ if sys.version_info >= (3, 11):
 else:
     from typing_extensions import TypedDict, NotRequired
 
-from ..modules import RunningNormalizer
+from ._transform import BaseTransform
 from ._window_generator import WindowGenerator
 
 __all__ = ["TimeSeriesDataset", "TimeSeriesSample"]
@@ -58,8 +58,8 @@ class TimeSeriesDataset(Dataset):
         predict: bool = False,
         min_seq_len: int | None = None,
         randomize_seq_len: bool = False,
-        input_normalizer: RunningNormalizer | None = None,
-        target_normalizer: RunningNormalizer | None = None,
+        input_transforms: list[BaseTransform] | None = None,
+        target_transforms: list[BaseTransform] | None = None,
     ):
         """
         The dataset used to train the hysteresis model.
@@ -165,8 +165,8 @@ class TimeSeriesDataset(Dataset):
             [wg.num_samples for wg in self._window_gen]
         )
 
-        self._input_normalizer = input_normalizer
-        self._target_normalizer = target_normalizer
+        self._input_transforms = input_transforms or []
+        self._target_transforms = target_transforms or []
 
     @classmethod
     def from_dataframe(
@@ -219,46 +219,18 @@ class TimeSeriesDataset(Dataset):
         """
         return int(np.sum([len(arr) for arr in self._input_data]))
 
-    @property
-    def input_scale(self) -> np.ndarray:
-        if self._input_normalizer is None:
-            return np.array([])
-
-        return self._input_normalizer.get_parameters().numpy()
-
-    @property
-    def input_scaler(self) -> RunningNormalizer | None:
-        return self._input_normalizer
-
-    @property
-    def target_scale(self) -> np.ndarray:
-        if self._target_normalizer is None:
-            return np.array([])
-
-        return self._target_normalizer.get_parameters().numpy()
-
-    @property
-    def target_scaler(self) -> RunningNormalizer | None:
-        return self._target_normalizer
-
     def inverse_transform(
         self,
-        input: torch.Tensor | None = None,
-        target: torch.Tensor | None = None,
-    ) -> tuple[torch.Tensor | None, torch.Tensor | None]:
-        if self._input_normalizer is None:
-            inv_input = input
-        elif input is None:
-            inv_input = None
-        else:
-            inv_input = self._input_normalizer.inverse_transform(input)
+        input: torch.Tensor,
+        target: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        inv_input = input
+        for transform in reversed(self._input_transforms):
+            inv_input = transform.inverse_transform(inv_input)
 
-        if self._target_normalizer is None:
-            inv_target = target
-        elif target is None:
-            inv_target = None
-        else:
-            inv_target = self._target_normalizer.inverse_transform(target)
+        inv_target = target
+        for transform in reversed(self._target_transforms):
+            inv_target = transform.inverse_transform(inv_input, inv_target)
 
         return inv_input, inv_target
 
@@ -278,8 +250,10 @@ class TimeSeriesDataset(Dataset):
         else:
             raise ValueError(f"Unknown dataset type {self._dataset_type}")
 
-        if self._target_normalizer is not None:
-            sample["target_scale"] = self._target_normalizer.get_parameters()
+        if self._target_transforms is not None and len(self._target_transforms) > 0:
+            sample["target_scale"] = self._target_transforms[
+                0
+            ].get_parameters()  # type: ignore
 
         return typing.cast(TimeSeriesSample, sample)
 

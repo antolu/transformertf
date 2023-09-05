@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import functools
 import logging
 import os.path as path
 import tempfile
 import typing
 from pathlib import Path
-import functools
 
 import lightning as L
 import numpy as np
@@ -16,9 +16,8 @@ import torch
 import torch.utils.data
 
 from ..config import BaseConfig
-from ..modules import RunningNormalizer
 from ._dataset import TimeSeriesDataset
-from ._transform import PolynomialTransform
+from ._transform import BaseTransform, PolynomialTransform, RunningNormalizer
 
 __all__ = ["DataModuleBase"]
 
@@ -511,14 +510,16 @@ class DataModuleBase(L.LightningDataModule):
             for df in self._train_df
         ]
 
+        input_transforms, target_transforms = self.get_transforms()
+
         return TimeSeriesDataset(
             input_data=input_data,
             seq_len=self.hparams["seq_len"],
             target_data=target_data,
             stride=self.hparams["stride"],
             predict=False,
-            input_normalizer=self._input_normalizer,
-            target_normalizer=self._target_normalizer,
+            input_transforms=input_transforms,
+            target_transforms=target_transforms,
         )
 
     @property
@@ -542,6 +543,8 @@ class DataModuleBase(L.LightningDataModule):
         else:
             target_data = None
 
+        input_transforms, target_transforms = self.get_transforms()
+
         return TimeSeriesDataset(
             input_data=df[self.hparams["input_columns"]].to_numpy(),
             seq_len=self.hparams["seq_len"],
@@ -552,8 +555,8 @@ class DataModuleBase(L.LightningDataModule):
             randomize_seq_len=self.hparams["randomize_seq_len"]
             if not predict
             else False,
-            input_normalizer=self._input_normalizer,
-            target_normalizer=self._target_normalizer,
+            input_transforms=input_transforms,
+            target_transforms=target_transforms,
         )
 
     def train_dataloader(
@@ -742,32 +745,12 @@ class DataModuleBase(L.LightningDataModule):
                         "Polynomial transform can only be used with a single input column."
                     )
 
-                base_columns = [
-                    o
-                    for o in self.hparams["target_columns"]
-                    if not o.endswith("_dot")
-                ]
-                deriv_columns = [
-                    o
-                    for o in self.hparams["target_columns"]
-                    if o.endswith("_dot")
-                ]
-
-                for col in base_columns:
+                for col in self.hparams["target_columns"]:
                     log.info(f"Fitting polynomial transform for {col}.")
                     self._polynomial_transform[col].fit(
                         df[self.hparams["input_columns"][0]].to_numpy(),
                         df[col].to_numpy(),
                     )
-
-                for col in base_columns:
-                    if col + "_dot" in deriv_columns:
-                        log.info(
-                            f"Fitting polynomial transform for {col}_dot."
-                        )
-                        self._polynomial_transform[
-                            col + "_dot"
-                        ] = self._polynomial_transform[col].get_derivative()
 
     def _try_transform_polynomial(self, df: pd.DataFrame) -> pd.DataFrame:
         self._try_fit_polynomial_transform(df)
@@ -783,7 +766,7 @@ class DataModuleBase(L.LightningDataModule):
                 "Polynomial transform can only be used with a single input column."
             )
 
-        out = pd.DataFrame()
+        out = df.copy()
         for col in self.hparams["target_columns"]:
             out[col] = (
                 self._polynomial_transform[col]
@@ -795,3 +778,18 @@ class DataModuleBase(L.LightningDataModule):
             )
 
         return out
+
+    def get_transforms(
+        self,
+    ) -> tuple[list[BaseTransform], list[BaseTransform]]:
+        input_transforms = []
+        if self._input_normalizer is not None:
+            input_transforms.append(self._input_normalizer)
+
+        target_transforms = []
+        if self._target_normalizer is not None:
+            target_transforms.append(self._target_normalizer)
+        if self._polynomial_transform is not None:
+            target_transforms.extend(self._polynomial_transform.values())
+
+        return input_transforms, target_transforms

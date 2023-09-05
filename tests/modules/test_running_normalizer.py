@@ -1,5 +1,6 @@
-from transformertf.modules import RunningNormalizer
 import torch
+
+from transformertf.data import RunningNormalizer
 
 
 def test_running_normalizer_single_feature() -> None:

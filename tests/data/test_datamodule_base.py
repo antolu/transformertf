@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-import pytest
-import pandas as pd
-from transformertf.data import DataModuleBase
 from pathlib import Path
+
+import pandas as pd
+import pytest
 import torch.utils.data
 
+from transformertf.data import DataModuleBase
 
 DF_PATH = str(Path(__file__).parent.parent / "sample_data.parquet")
 CURRENT = "I_meas_A"
@@ -151,8 +152,6 @@ def test_datamodule_base_normalize_dataframe(
 
     assert CURRENT in processed_df.columns
     assert FIELD in processed_df.columns
-
-    assert len(processed_df.columns) == len(df.columns)
 
 
 def test_datamodule_base_transform_input(

@@ -83,7 +83,7 @@ class PhyLSTMDataModule(DataModuleBase):
         """
         super().__init__(
             input_columns=[current_column],
-            target_columns=[field_column, get_dot_name(field_column)],
+            target_columns=[field_column],
             train_dataset=train_dataset,
             val_dataset=val_dataset,
             normalize=True,
@@ -101,8 +101,10 @@ class PhyLSTMDataModule(DataModuleBase):
         self._check_args()
 
     @classmethod
-    def from_config(
-        cls, config: PhyLSTMConfig, **kwargs: typing.Any  # type: ignore[override]
+    def from_config(  # type: ignore[override]
+        cls,
+        config: PhyLSTMConfig,
+        **kwargs: typing.Any,
     ) -> PhyLSTMDataModule:
         default_kwargs = {
             "train_dataset": config.train_dataset,
@@ -212,9 +214,6 @@ class PhyLSTMDataModule(DataModuleBase):
                     threshold=6e-6,
                 )
 
-        if field is not None and field in df:
-            df = self._add_derivative(df)
-
         # downsample
         df = df.iloc[:: self.hparams["downsample"]].reset_index()
 
@@ -225,36 +224,3 @@ class PhyLSTMDataModule(DataModuleBase):
             raise ValueError(
                 f"Stride must be at least 1, but got {self.hparams['stride']}."
             )
-
-    def _add_derivative(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Adds the derivative of the field to the dataframe.
-
-        :return: Dataframes with the derivative added.
-        """
-        # add derivative before sliding window
-        if len(df) == 0:
-            return df
-
-        field = self.hparams["target_columns"][0]
-        field_dot = get_dot_name(field)
-
-        if field not in df.columns:
-            raise ValueError(
-                f"Field {field} not in dataframe. "
-                f"Available fields are {df.columns}."
-            )
-
-        df[field_dot] = np.gradient(df[field].to_numpy())
-
-        return df
-
-
-def get_dot_name(name: str) -> str:
-    """
-    Returns the name of the derivative of the given field.
-
-    :param name: Name of the field.
-    :return: Name of the derivative of the field.
-    """
-    return f"{name}_dot"
