@@ -65,6 +65,7 @@ def physical_dm() -> PhyLSTMDataModule:
     dm = PhyLSTMDataModule(
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
+        polynomial_iterations=10,
     )
     dm.prepare_data()
     dm.setup()
@@ -99,7 +100,7 @@ def test_physical_data_transform_inverse_transform(
 
     x, y = dataset.inverse_transform(x, y)
     x = x.numpy().flatten()
-    y = y.numpy()
+    y = y.numpy().flatten()
 
     x_true = df[CURRENT].values
     y_true = df[FIELD].values
