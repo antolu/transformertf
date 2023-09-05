@@ -20,4 +20,7 @@ class PhyLSTMConfig(BaseConfig):
     lowpass_filter: bool = True
     mean_filter: bool = True
 
+    remove_polynomial: bool = True
+    polynomial_degree: int = 1
+    polynomial_iterations: int = 1000
     loss_weights: LossWeights | None = None

@@ -786,10 +786,10 @@ class DataModuleBase(L.LightningDataModule):
         if self._input_normalizer is not None:
             input_transforms.append(self._input_normalizer)
 
-        target_transforms = []
-        if self._target_normalizer is not None:
-            target_transforms.append(self._target_normalizer)
+        target_transforms: list[BaseTransform] = []
         if self._polynomial_transform is not None:
             target_transforms.extend(self._polynomial_transform.values())
+        if self._target_normalizer is not None:
+            target_transforms.append(self._target_normalizer)
 
         return input_transforms, target_transforms

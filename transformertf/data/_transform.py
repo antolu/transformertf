@@ -47,6 +47,7 @@ class PolynomialTransform(nn.Module, BaseTransform):
         self.p: torch.Tensor
 
         self.register_buffer("p", torch.arange(1, degree + 1))
+        self._reset_parameters()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -113,7 +114,7 @@ class PolynomialTransform(nn.Module, BaseTransform):
         x_tensor = _as_torch(x)
         y_tensor = _as_torch(y)
 
-        return y_tensor + self.forward(x_tensor).detach()
+        return (y_tensor + self.forward(x_tensor)).detach()
 
     def get_derivative(self) -> PolynomialTransform:
         """
@@ -146,7 +147,9 @@ class PolynomialTransform(nn.Module, BaseTransform):
         self.bias = torch.nn.Parameter(torch.zeros(1))
 
     def __sklearn_is_fitted__(self) -> bool:
-        return hasattr(self, "weights") and hasattr(self, "bias")
+        return bool(
+            torch.all(self.weights == 0.0) and torch.all(self.bias == 0.0)
+        )
 
 
 class RunningNormalizer(nn.Module, BaseTransform):
@@ -333,7 +336,10 @@ class RunningNormalizer(nn.Module, BaseTransform):
 
         :return: The inverse scaled data.
         """
-        return self(_as_torch(y or x), target_scale=self.get_parameters())
+        return self(
+            _as_torch(y if y is not None else x),
+            target_scale=self.get_parameters(),
+        )
 
     def get_parameters(self) -> torch.Tensor:
         """

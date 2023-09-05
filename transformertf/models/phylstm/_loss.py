@@ -10,7 +10,6 @@ from torch.nn import functional as F
 
 from ._output import PhyLSTM1Output, PhyLSTM2Output, PhyLSTM3Output
 
-
 if typing.TYPE_CHECKING:
     from ._config import PhyLSTMConfig
 
@@ -290,6 +289,10 @@ class PhyLSTMLoss(nn.Module):
                 z[..., 1],
                 dz_dt[..., 0],
             )  # ||dz1/dt - z2||^2
+            loss_dict["loss3"] += gamma * mse(
+                dz_dt[..., 0],
+                y_dot,
+            )
 
             loss_dict["loss4"] = eta * mse(
                 dz_dt[..., 1, None], -gx

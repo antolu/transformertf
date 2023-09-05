@@ -250,9 +250,12 @@ class TimeSeriesDataset(Dataset):
         else:
             raise ValueError(f"Unknown dataset type {self._dataset_type}")
 
-        if self._target_transforms is not None and len(self._target_transforms) > 0:
+        if (
+            self._target_transforms is not None
+            and len(self._target_transforms) > 0
+        ):
             sample["target_scale"] = self._target_transforms[
-                0
+                -1
             ].get_parameters()  # type: ignore
 
         return typing.cast(TimeSeriesSample, sample)

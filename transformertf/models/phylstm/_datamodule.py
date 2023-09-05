@@ -42,8 +42,6 @@ class PhyLSTMDataModule(DataModuleBase):
 
     The processing then partitions data into training, validation and test sets (optional).
 
-    Lastly, the derivative is added to the dataframes if specified.
-
     The training, validation and test sets can then be retrieved using the respective properties
     :attr:`train_data`, :attr:`val_data` and :attr:`test_data`.
     """
