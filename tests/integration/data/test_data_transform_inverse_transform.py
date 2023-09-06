@@ -106,4 +106,5 @@ def test_physical_data_transform_inverse_transform(
     y_true = df[FIELD].values
 
     assert np.allclose(x, x_true)
-    assert np.allclose(y, y_true)
+    assert np.allclose(y, y_true, atol=1e-5)
+    # y gets cast to float32 in dataset, so we need to increase atol
