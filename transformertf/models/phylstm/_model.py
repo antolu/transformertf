@@ -22,7 +22,6 @@ from ._output import (
     PhyLSTM3Output,
     PhyLSTM3States,
 )
-from ._utils import GradientTorch
 
 __all__ = ["PhyLSTM1", "PhyLSTM2", "PhyLSTM3"]
 
@@ -38,10 +37,11 @@ log = logging.getLogger(__name__)
 class PhyLSTM1(nn.Module):
     def __init__(
         self,
-        num_layers: int = 3,
+        num_layers: int | tuple[int, ...] = 3,
         sequence_length: int = 500,
-        hidden_dim: int = 350,
-        dropout: float = 0.2,
+        hidden_dim: int | tuple[int, ...] = 350,
+        hidden_dim_fc: int | tuple[int, ...] | None = None,
+        dropout: float | tuple[float, ...] = 0.2,
     ):
         """
         This is a PyTorch implementation of the Physics inspired neural network
@@ -78,25 +78,33 @@ class PhyLSTM1(nn.Module):
         """
         super().__init__()
 
+        num_layers_ = _parse_vararg(num_layers, 1)
+        hidden_dim_ = _parse_vararg(hidden_dim, 1)
+        dropout_ = _parse_vararg(dropout, 1)
+
         self.sequence_length = sequence_length
-        self.hidden_dim = hidden_dim
+        self.hidden_dim = hidden_dim_
 
         # state space variable modeling
         self.lstm1 = nn.LSTM(
             input_size=1,
-            hidden_size=hidden_dim,
-            num_layers=num_layers,
+            hidden_size=hidden_dim_,
+            num_layers=num_layers_,
             batch_first=True,
-            dropout=dropout,
+            dropout=dropout_,
         )
 
+        if hidden_dim_fc is None:
+            hidden_dim_fc_ = hidden_dim_ // 2
+        else:
+            hidden_dim_fc_ = _parse_vararg(hidden_dim_fc, 1)
         self.fc1 = nn.Sequential(
             collections.OrderedDict(
                 [
-                    ("fc11", nn.Linear(hidden_dim, hidden_dim // 2)),
+                    ("fc11", nn.Linear(hidden_dim_, hidden_dim_fc_)),
                     ("lrelu1", nn.LeakyReLU()),
-                    ("ln1", nn.LayerNorm(hidden_dim // 2)),
-                    ("fc12", nn.Linear(hidden_dim // 2, 3)),
+                    ("ln1", nn.LayerNorm(hidden_dim_fc_)),
+                    ("fc12", nn.Linear(hidden_dim_fc_, 3)),
                 ]
             )
         )
@@ -188,45 +196,52 @@ class PhyLSTM1(nn.Module):
 class PhyLSTM2(PhyLSTM1):
     def __init__(
         self,
-        num_layers: int = 3,
+        num_layers: int | tuple[int, ...] = 3,
         sequence_length: int = 500,
-        hidden_dim: int = 350,
-        dropout: float = 0.2,
+        hidden_dim: int | tuple[int, ...] = 350,
+        hidden_dim_fc: int | tuple[int, ...] | None = None,
+        dropout: float | tuple[float, ...] = 0.2,
     ) -> None:
         super().__init__(
             num_layers=num_layers,
             sequence_length=sequence_length,
             hidden_dim=hidden_dim,
+            hidden_dim_fc=hidden_dim_fc,
             dropout=dropout,
         )
 
-        self.gradient = GradientTorch()
+        hidden_dim_ = _parse_vararg(hidden_dim, 2)
+        num_layers_ = _parse_vararg(num_layers, 2)
+        dropout_ = _parse_vararg(dropout, 2)
 
-        # ??
         self.lstm2 = nn.LSTM(
             input_size=3,
-            hidden_size=hidden_dim,
-            num_layers=num_layers,
+            hidden_size=hidden_dim_,
+            num_layers=num_layers_,
             batch_first=True,
-            dropout=dropout,
+            dropout=dropout_,
         )
 
+        if hidden_dim_fc is None:
+            hidden_dim_fc_ = hidden_dim_ // 2
+        else:
+            hidden_dim_fc_ = _parse_vararg(hidden_dim_fc, 2)
         self.fc2 = nn.Sequential(
             collections.OrderedDict(
                 [
-                    ("fc21", nn.Linear(hidden_dim, hidden_dim // 2)),
+                    ("fc21", nn.Linear(hidden_dim_, hidden_dim_fc_)),
                     ("lrelu2", nn.LeakyReLU()),
-                    ("ln1", nn.LayerNorm(hidden_dim // 2)),
-                    ("fc22", nn.Linear(hidden_dim // 2, 1)),
+                    ("ln1", nn.LayerNorm(hidden_dim_fc_)),
+                    ("fc22", nn.Linear(hidden_dim_fc_, 1)),
                 ]
             )
         )
 
         self.g_plus_x = nn.Sequential(
-            nn.Linear(2, hidden_dim),
-            nn.LayerNorm(hidden_dim),
+            nn.Linear(2, hidden_dim_fc_),
+            nn.LayerNorm(hidden_dim_fc_),
             nn.ReLU(),
-            nn.Linear(hidden_dim, 1),
+            nn.Linear(hidden_dim_fc_, 1),
         )
 
     @typing.overload  # type: ignore[override]
@@ -279,18 +294,16 @@ class PhyLSTM2(PhyLSTM1):
         else:
             h_lstm2 = hidden_state["lstm2"]
 
-        dz_dt = self.gradient(z)
+        dz_dt = torch.gradient(z, dim=1)
 
         o_lstm2, h_lstm2 = self.lstm2(z, hx=h_lstm2)
 
         g = self.fc2(o_lstm2)
-
         g_gamma_x = self.g_plus_x(torch.cat([g, x], dim=2))
 
         output = typing.cast(
             PhyLSTM2Output,
-            {
-                **phylstm1_output,
+            phylstm1_output | {
                 "dz_dt": dz_dt,
                 "g": g,
                 "g_gamma_x": g_gamma_x,
@@ -298,7 +311,7 @@ class PhyLSTM2(PhyLSTM1):
         )
         if return_states:
             assert hidden1 is not None
-            states = {**hidden1, "lstm2": ops.detach(h_lstm2)}
+            states = hidden1 | {"lstm2": ops.detach(h_lstm2)}
             return output, typing.cast(PhyLSTM2States, states)
         else:
             return output
@@ -307,34 +320,44 @@ class PhyLSTM2(PhyLSTM1):
 class PhyLSTM3(PhyLSTM2):
     def __init__(
         self,
-        num_layers: int = 3,
+        num_layers: int | tuple[int, ...] = 3,
         sequence_length: int = 500,
-        hidden_dim: int = 350,
-        dropout: float = 0.2,
+        hidden_dim: int | tuple[int, ...] = 350,
+        hidden_dim_fc: int | tuple[int, ...] | None = None,
+        dropout: float | tuple[float] = 0.2,
     ):
         super().__init__(
             num_layers=num_layers,
             sequence_length=sequence_length,
             hidden_dim=hidden_dim,
+            hidden_dim_fc=hidden_dim_fc,
             dropout=dropout,
         )
+
+        hidden_dim_ = _parse_vararg(hidden_dim, 3)
+        num_layers_ = _parse_vararg(num_layers, 3)
+        dropout_ = _parse_vararg(dropout, 3)
 
         # hysteric parameter modeling
         self.lstm3 = nn.LSTM(
             input_size=2,
-            hidden_size=hidden_dim,
-            num_layers=num_layers,
+            hidden_size=hidden_dim_,
+            num_layers=num_layers_,
             batch_first=True,
-            dropout=dropout,
+            dropout=dropout_,
         )
 
+        if hidden_dim_fc is None:
+            hidden_dim_fc_ = hidden_dim_ // 2
+        else:
+            hidden_dim_fc_ = _parse_vararg(hidden_dim_fc, 3)
         self.fc3 = nn.Sequential(
             collections.OrderedDict(
                 [
-                    ("fc31", nn.Linear(hidden_dim, hidden_dim // 2)),
+                    ("fc31", nn.Linear(hidden_dim_, hidden_dim_fc_)),
                     ("lrelu3", nn.LeakyReLU()),
-                    ("ln3", nn.LayerNorm(hidden_dim // 2)),
-                    ("fc32", nn.Linear(hidden_dim // 2, 1)),
+                    ("ln3", nn.LayerNorm(hidden_dim_fc_)),
+                    ("fc32", nn.Linear(hidden_dim_fc_, 1)),
                 ]
             )
         )
@@ -410,15 +433,36 @@ class PhyLSTM3(PhyLSTM2):
 
         output = typing.cast(
             PhyLSTM3Output,
-            {
-                **phylstm2_output,
+                phylstm2_output | {
                 "dr_dt": dr_dt,
             },
         )
 
         if return_states:
             assert hidden2 is not None
-            states = {**hidden2, "lstm3": ops.detach(h_lstm3)}
+            states = hidden2 | {"lstm3": ops.detach(h_lstm3)}
             return output, typing.cast(PhyLSTM3States, states)
         else:
             return output
+
+
+T = typing.TypeVar("T")
+def _parse_vararg(vararg: T | tuple[T, ...], num_args: int) -> T:
+    """
+    Extract the `num_args`-th argument from `vararg`.
+
+    Parameters
+    ----------
+    vararg
+    num_args
+
+    Returns
+    -------
+
+    """
+    if not isinstance(vararg, tuple):
+        return vararg
+
+    if len(vararg) < num_args:
+        raise ValueError(f"Expected at least {num_args} arguments, got {len(vararg)}")
+    return vararg[num_args-1]

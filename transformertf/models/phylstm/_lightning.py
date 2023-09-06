@@ -61,10 +61,11 @@ PREDICT_OUTPUT = typing.TypedDict(
 class PhyLSTMModule(LightningModuleBase):
     def __init__(
         self,
-        num_layers: int = 3,
+        num_layers: int | tuple[int, ...] = 3,
         sequence_length: int = 500,
-        hidden_dim: int = 350,
-        dropout: float = 0.2,
+        hidden_dim: int | tuple[int, ...] = 350,
+        hidden_dim_fc: int | tuple[int, ...] | None = None,
+        dropout: float | tuple[float, ...] = 0.2,
         lr: float = 1e-3,
         weight_decay: float = 1e-4,
         momentum: float = 0.9,
@@ -197,6 +198,7 @@ class PhyLSTMModule(LightningModuleBase):
             num_layers=config.num_layers,
             sequence_length=config.seq_len,
             hidden_dim=config.hidden_size,
+            hidden_dim_fc=config.hidden_size_fc,
             dropout=config.dropout,
             lr=config.lr,
             max_epochs=config.num_epochs,
