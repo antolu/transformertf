@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 import pandas as pd
+import pytest
+
 from transformertf.data import DataModuleBase
 from transformertf.models.phylstm import PhyLSTMDataModule
 from transformertf.utils import ops
-from ...conftest import DF_PATH, CURRENT, FIELD
+
+from ...conftest import CURRENT, DF_PATH, FIELD
 
 
 @pytest.fixture(scope="module")
@@ -58,12 +60,12 @@ def test_data_transform_inverse_transform(dm: DataModuleBase) -> None:
     assert np.allclose(y, y_true)
 
 
-
 @pytest.fixture(scope="module")
 def physical_dm() -> PhyLSTMDataModule:
     dm = PhyLSTMDataModule(
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
+        polynomial_iterations=10,
     )
     dm.prepare_data()
     dm.setup()
@@ -71,12 +73,13 @@ def physical_dm() -> PhyLSTMDataModule:
     return dm
 
 
-def test_physical_data_transform_inverse_transform(physical_dm: PhyLSTMDataModule) -> None:
+def test_physical_data_transform_inverse_transform(
+    physical_dm: PhyLSTMDataModule,
+) -> None:
     df = pd.read_parquet(DF_PATH)
     df = df.dropna()
     df = df.reset_index(drop=True)
     df = df[[CURRENT, FIELD]]
-    df[f"{FIELD}_dot"] = np.gradient(df[FIELD].values)
 
     dataset = physical_dm.val_dataset
 
@@ -97,10 +100,11 @@ def test_physical_data_transform_inverse_transform(physical_dm: PhyLSTMDataModul
 
     x, y = dataset.inverse_transform(x, y)
     x = x.numpy().flatten()
-    y = y.numpy()
+    y = y.numpy().flatten()
 
     x_true = df[CURRENT].values
-    y_true = df[[FIELD, f"{FIELD}_dot"]].values
+    y_true = df[FIELD].values
 
     assert np.allclose(x, x_true)
-    assert np.allclose(y, y_true)
+    assert np.allclose(y, y_true, atol=1e-5)
+    # y gets cast to float32 in dataset, so we need to increase atol

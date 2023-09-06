@@ -42,8 +42,6 @@ class PhyLSTMDataModule(DataModuleBase):
 
     The processing then partitions data into training, validation and test sets (optional).
 
-    Lastly, the derivative is added to the dataframes if specified.
-
     The training, validation and test sets can then be retrieved using the respective properties
     :attr:`train_data`, :attr:`val_data` and :attr:`test_data`.
     """
@@ -52,8 +50,6 @@ class PhyLSTMDataModule(DataModuleBase):
         self,
         train_dataset: str | typing.Sequence[str] | None = None,
         val_dataset: str | typing.Sequence[str] | None = None,
-        test_dataset: str | None = None,
-        predict_dataset: str | None = None,
         seq_len: int = 500,
         min_seq_len: int | None = None,
         out_seq_len: int = 0,
@@ -62,6 +58,9 @@ class PhyLSTMDataModule(DataModuleBase):
         lowpass_filter: bool = False,
         mean_filter: bool = False,
         downsample: int = 1,
+        remove_polynomial: bool = True,
+        polynomial_degree: int = 1,
+        polynomial_iterations: int = 1000,
         batch_size: int = 128,
         num_workers: int = 0,
         current_column: str = CURRENT,
@@ -82,31 +81,32 @@ class PhyLSTMDataModule(DataModuleBase):
         """
         super().__init__(
             input_columns=[current_column],
-            target_columns=[field_column, get_dot_name(field_column)],
+            target_columns=[field_column],
             train_dataset=train_dataset,
             val_dataset=val_dataset,
-            test_dataset=test_dataset,
-            predict_dataset=predict_dataset,
             normalize=True,
             seq_len=seq_len,
             min_seq_len=min_seq_len,
             out_seq_len=out_seq_len,
             randomize_seq_len=randomize_seq_len,
             stride=stride,
+            remove_polynomial=remove_polynomial,
+            polynomial_degree=polynomial_degree,
+            polynomial_iterations=polynomial_iterations,
         )
         self.save_hyperparameters(ignore=["current_column", "field_column"])
 
         self._check_args()
 
     @classmethod
-    def from_config(
-        cls, config: PhyLSTMConfig, **kwargs: typing.Any  # type: ignore[override]
+    def from_config(  # type: ignore[override]
+        cls,
+        config: PhyLSTMConfig,
+        **kwargs: typing.Any,
     ) -> PhyLSTMDataModule:
         default_kwargs = {
             "train_dataset": config.train_dataset,
             "val_dataset": config.val_dataset,
-            "test_dataset": config.test_dataset,
-            "predict_dataset": config.predict_dataset,
             "seq_len": config.seq_len,
             "min_seq_len": config.min_seq_len,
             "randomize_seq_len": config.randomize_seq_len,
@@ -117,6 +117,9 @@ class PhyLSTMDataModule(DataModuleBase):
             "model_dir": config.model_dir,
             "lowpass_filter": config.lowpass_filter,
             "mean_filter": config.mean_filter,
+            "remove_polynomial": config.remove_polynomial,
+            "polynomial_degree": config.polynomial_degree,
+            "polynomial_iterations": config.polynomial_iterations,
         }
         default_kwargs.update(kwargs)
         return PhyLSTMDataModule(
@@ -209,9 +212,6 @@ class PhyLSTMDataModule(DataModuleBase):
                     threshold=6e-6,
                 )
 
-        if field is not None and field in df:
-            df = self._add_derivative(df)
-
         # downsample
         df = df.iloc[:: self.hparams["downsample"]].reset_index()
 
@@ -222,36 +222,3 @@ class PhyLSTMDataModule(DataModuleBase):
             raise ValueError(
                 f"Stride must be at least 1, but got {self.hparams['stride']}."
             )
-
-    def _add_derivative(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Adds the derivative of the field to the dataframe.
-
-        :return: Dataframes with the derivative added.
-        """
-        # add derivative before sliding window
-        if len(df) == 0:
-            return df
-
-        field = self.hparams["target_columns"][0]
-        field_dot = get_dot_name(field)
-
-        if field not in df.columns:
-            raise ValueError(
-                f"Field {field} not in dataframe. "
-                f"Available fields are {df.columns}."
-            )
-
-        df[field_dot] = np.gradient(df[field].to_numpy())
-
-        return df
-
-
-def get_dot_name(name: str) -> str:
-    """
-    Returns the name of the derivative of the given field.
-
-    :param name: Name of the field.
-    :return: Name of the derivative of the field.
-    """
-    return f"{name}_dot"

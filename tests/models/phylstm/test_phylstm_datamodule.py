@@ -3,17 +3,15 @@ from __future__ import annotations
 import pytest
 import torch.utils.data
 
-from ...conftest import DF_PATH, CURRENT, FIELD
+from transformertf.models.phylstm import PhyLSTMConfig, PhyLSTMDataModule
 
-from transformertf.models.phylstm import PhyLSTMDataModule, PhyLSTMConfig
+from ...conftest import CURRENT, DF_PATH, FIELD
 
 
 def test_phylstm_datamodule_create() -> None:
     dm = PhyLSTMDataModule(
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
-        test_dataset=DF_PATH,
-        predict_dataset=DF_PATH,
         seq_len=500,
         out_seq_len=0,
         stride=1,
@@ -40,8 +38,6 @@ def test_phylstm_datamodule_hparams_correct() -> None:
     dm = PhyLSTMDataModule(
         train_dataset=DF_PATH,
         val_dataset="val_data.parquet",
-        test_dataset="test_data.parquet",
-        predict_dataset="predict_data.parquet",
         seq_len=500,
         out_seq_len=0,
         stride=1,
@@ -50,6 +46,9 @@ def test_phylstm_datamodule_hparams_correct() -> None:
         downsample=50,
         batch_size=32,
         num_workers=4,
+        remove_polynomial=True,
+        polynomial_degree=2,
+        polynomial_iterations=2000,
         current_column="a",
         field_column="b",
         model_dir="model_dir",
@@ -58,8 +57,6 @@ def test_phylstm_datamodule_hparams_correct() -> None:
     correct_hparams = {
         "train_dataset": DF_PATH,
         "val_dataset": "val_data.parquet",
-        "test_dataset": "test_data.parquet",
-        "predict_dataset": "predict_data.parquet",
         "seq_len": 500,
         "min_seq_len": None,
         "randomize_seq_len": False,
@@ -71,9 +68,12 @@ def test_phylstm_datamodule_hparams_correct() -> None:
         "batch_size": 32,
         "num_workers": 4,
         "input_columns": ["a"],
-        "target_columns": ["b", "b_dot"],
+        "target_columns": ["b"],
         "model_dir": "model_dir",
         "normalize": True,
+        "remove_polynomial": True,
+        "polynomial_degree": 2,
+        "polynomial_iterations": 2000,
     }
 
     hparams = dict(dm.hparams)
@@ -189,4 +189,4 @@ def test_phylstm_datamodule_val_dataset(
     samples = [sample for sample in dataloader]
 
     assert samples[-1]["input"].shape == (1, dm.hparams["seq_len"], 1)
-    assert samples[-1]["target"].shape == (1, dm.hparams["seq_len"], 2)
+    assert samples[-1]["target"].shape == (1, dm.hparams["seq_len"], 1)

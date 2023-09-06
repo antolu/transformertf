@@ -3,8 +3,8 @@ from __future__ import annotations
 import builtins
 import typing
 
-import torch
 import numpy as np
+import torch
 
 arr_t = typing.TypeVar("arr_t", torch.Tensor, np.ndarray)
 T_co = typing.TypeVar(
@@ -17,6 +17,7 @@ T_co = typing.TypeVar(
 )
 M_co = typing.TypeVar(
     "M_co",
+    torch.Tensor,
     tuple[np.ndarray, ...],
     tuple[torch.Tensor, ...],
     list[np.ndarray],

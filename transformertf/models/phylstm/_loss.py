@@ -10,7 +10,6 @@ from torch.nn import functional as F
 
 from ._output import PhyLSTM1Output, PhyLSTM2Output, PhyLSTM3Output
 
-
 if typing.TYPE_CHECKING:
     from ._config import PhyLSTMConfig
 
@@ -268,10 +267,11 @@ class PhyLSTMLoss(nn.Module):
 
         mse = functools.partial(F.mse_loss, reduction="sum")
         loss_dict: dict[str, torch.Tensor] = {}
+        y_dot = torch.gradient(y[..., 0], dim=1)[0]
 
         # PhyLSTM1 loss
         loss_dict["loss1"] = alpha * mse(z[..., 0], y[..., 0])  # ||z1 - y1||^2
-        loss_dict["loss2"] = beta * mse(z[..., 1], y[..., 1])  # ||z2 - y2||^2
+        loss_dict["loss2"] = beta * mse(z[..., 1], y_dot)  # ||z2 - y2||^2
 
         if dz_dt is not None and gx is not None:
             if target_scale is None:
@@ -279,14 +279,20 @@ class PhyLSTMLoss(nn.Module):
                     "target_scale must be provided if PhyLSTM2 is used."
                 )
 
-            center = target_scale[..., 0]
-            scale = target_scale[..., 1]
+            target_scale[..., 0]
+            target_scale[..., 1]
 
             # PhyLSTM2 loss
             loss_dict["loss3"] = gamma * mse(
-                scale[:, 1, None] * z[..., 1] + center[:, 1, None],
-                scale[:, 0, None] * dz_dt[..., 0],
+                # scale[:, 1, None] * z[..., 1] + center[:, 1, None],
+                # scale[:, 0, None] * dz_dt[..., 0],
+                z[..., 1],
+                dz_dt[..., 0],
             )  # ||dz1/dt - z2||^2
+            loss_dict["loss3"] += gamma * mse(
+                dz_dt[..., 0],
+                y_dot,
+            )
 
             loss_dict["loss4"] = eta * mse(
                 dz_dt[..., 1, None], -gx

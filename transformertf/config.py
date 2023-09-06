@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import datetime
 import logging
+import typing
 from dataclasses import dataclass, field
 from functools import partial
-import typing
+
 import torch
 from torch.optim.lr_scheduler import LRScheduler
-
 
 __all__ = [
     "BaseConfig",
@@ -45,8 +45,11 @@ class BaseConfig:
     normalize: bool = True
     downsample: int = 1
 
+    remove_polynomial: bool = False
+    polynomial_degree: int = 1
+    polynomial_iterations: int = 1000
+
     # physics parameters
-    remove_linear: bool = False
     use_derivative: bool = True
     lowpass_filter: bool = False
     mean_filter: bool = False
