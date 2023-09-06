@@ -294,7 +294,7 @@ class PhyLSTM2(PhyLSTM1):
         else:
             h_lstm2 = hidden_state["lstm2"]
 
-        dz_dt = torch.gradient(z, dim=1)
+        dz_dt = torch.gradient(z, dim=1)[0]
 
         o_lstm2, h_lstm2 = self.lstm2(z, hx=h_lstm2)
 
