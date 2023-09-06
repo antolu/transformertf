@@ -75,7 +75,11 @@ class PolynomialTransform(nn.Module, BaseTransform):
 
         criterion = nn.MSELoss()
 
-        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
+        optimizer = torch.optim.Adam(self.parameters(), lr=0.1)
+        scheduler = torch.optim.lr_scheduler.ExponentialLR(
+            optimizer,
+            gamma=0.99,
+        )
 
         self.train()
 
@@ -83,8 +87,11 @@ class PolynomialTransform(nn.Module, BaseTransform):
             y_hat = self.forward(x_tensor)
 
             loss = criterion(y_hat, y_tensor)
+
             loss.backward()
             optimizer.step()
+            scheduler.step()
+
             optimizer.zero_grad()
 
         self.eval()
