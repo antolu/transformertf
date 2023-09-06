@@ -768,7 +768,7 @@ class DataModuleBase(L.LightningDataModule):
 
         out = df.copy()
         for col in self.hparams["target_columns"]:
-            if col not in self._polynomial_transform:
+            if col not in df.columns:
                 continue
             out[col] = (
                 self._polynomial_transform[col]
