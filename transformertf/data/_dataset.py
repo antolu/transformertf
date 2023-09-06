@@ -35,6 +35,7 @@ TimeSeriesSample = TypedDict(
     {
         "input": torch.Tensor,
         "target": NotRequired[torch.Tensor],
+        "initial": torch.Tensor,
         "target_scale": NotRequired[torch.Tensor],
     },
 )
@@ -243,10 +244,10 @@ class TimeSeriesDataset(Dataset):
         """
         if self._dataset_type in (DataSetType.TRAIN, DataSetType.VAL_TEST):
             x, y = self._create_sample(idx)
-            sample = {"input": x, "target": y}
+            sample = {"input": x, "target": y, "initial": torch.concatenate([x[0], y[0]], dim=0)}
         elif self._dataset_type == DataSetType.PREDICT:
             x = self._get_prediction_input(idx)
-            sample = {"input": x}
+            sample = {"input": x}  # TODO: add initial value
         else:
             raise ValueError(f"Unknown dataset type {self._dataset_type}")
 
