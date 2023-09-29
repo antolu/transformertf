@@ -773,8 +773,8 @@ class DataModuleBase(L.LightningDataModule):
             out[col] = (
                 self._polynomial_transform[col]
                 .transform(
-                    df[input_col_names[0]].to_numpy(),
-                    df[col].to_numpy(),
+                    df[input_col_names[0]],
+                    df[col],
                 )
                 .numpy()
             )

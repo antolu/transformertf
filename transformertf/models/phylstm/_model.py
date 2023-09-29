@@ -108,6 +108,15 @@ class PhyLSTM1(nn.Module):
                 ]
             )
         )
+        self.fc_init = nn.Sequential(
+            collections.OrderedDict(
+                [
+                    ("fc_init1", nn.Linear(2, hidden_dim_fc_)),
+                    ("lrelu_init", nn.ReLU()),
+                    ("fc_init2", nn.Linear(hidden_dim_fc_, hidden_dim_)),
+                ]
+            )
+        )
 
         self.apply(self.weights_init)
 
@@ -191,6 +200,23 @@ class PhyLSTM1(nn.Module):
             return output, states
         else:
             return output
+
+    def init_states(self, init_cond: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Initialize the hidden states of the LSTM layers based on some initial condition.
+
+        May be called before the forward pass to initialize the hidden states of the LSTM layers.
+
+        :param init_cond: Initial condition of the system of shape (batch_size, 2).
+        :return: The hidden states of the LSTM layers.
+        """
+        init_cond.shape[0]
+        h_lstm1 = self.fc_init(init_cond)
+        h_lstm1 = h_lstm1.unsqueeze(0).repeat(self.lstm1.num_layers, 1, 1)
+        c_lstm1 = torch.zeros_like(h_lstm1)
+
+        return h_lstm1, c_lstm1
+
 
 
 class PhyLSTM2(PhyLSTM1):
@@ -292,7 +318,7 @@ class PhyLSTM2(PhyLSTM1):
         if hidden_state is None:
             h_lstm2 = None
         else:
-            h_lstm2 = hidden_state["lstm2"]
+            h_lstm2 = hidden_state["lstm2"] if "lstm2" in hidden_state else None
 
         dz_dt = torch.gradient(z, dim=1)[0]
 
@@ -417,7 +443,7 @@ class PhyLSTM3(PhyLSTM2):
         if hidden_state is None:
             h_lstm3 = None
         else:
-            h_lstm3 = hidden_state["lstm3"]
+            h_lstm3 = hidden_state["lstm3"] if "lstm3" in hidden_state else None
 
         dz_dt_0 = einops.repeat(
             dz_dt[:, 0, 1, None],

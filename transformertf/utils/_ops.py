@@ -214,9 +214,25 @@ def slice(data: M_co, s: builtins.slice) -> M_co:
 
 
 def isnamedtupleinstance(x: typing.Any) -> bool:
+    """
+    Determine if x is a namedtuple instance.
+
+    Find the superclasses of x and check if any of them is tuple,
+    and if so, check if x has a _fields attribute that is a tuple.
+    """
     t = type(x)
-    b = t.__bases__
-    if len(b) != 1 or b[0] != tuple:
+    superclasses: set[typing.Type] = set()
+
+    def find_superclasses(t: typing.Type) -> None:
+        nonlocal superclasses
+        bases = list(t.__bases__)
+        for b in bases:
+            find_superclasses(b)
+
+        superclasses = superclasses | set(bases)
+
+    find_superclasses(t)
+    if tuple not in superclasses:
         return False
     f = getattr(t, "_fields", None)
     if not isinstance(f, tuple):

@@ -4,6 +4,7 @@ import logging
 import typing
 
 import numpy as np
+import pandas as pd
 import sklearn.base
 import torch
 import torch.nn as nn
@@ -105,7 +106,8 @@ class PolynomialTransform(nn.Module, BaseTransform):
         x_tensor = _as_torch(x)
         y_tensor = _as_torch(y)
 
-        return (y_tensor - self.forward(x_tensor)).detach()
+        with torch.no_grad():
+            return y_tensor - self.forward(x_tensor)
 
     def inverse_transform(
         self,
@@ -121,7 +123,8 @@ class PolynomialTransform(nn.Module, BaseTransform):
         x_tensor = _as_torch(x)
         y_tensor = _as_torch(y)
 
-        return (y_tensor + self.forward(x_tensor)).detach()
+        with torch.no_grad():
+            return y_tensor + self.forward(x_tensor)
 
     def get_derivative(self) -> PolynomialTransform:
         """
@@ -245,7 +248,9 @@ class RunningNormalizer(nn.Module, BaseTransform):
         self.register_buffer("n_samples_seen_", n_samples_seen_)
 
     def forward(
-        self, y: torch.Tensor, target_scale: torch.Tensor | None = None
+        self,
+        y: np.ndarray | torch.Tensor,
+        target_scale: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """
         Inverse transform data.
@@ -315,6 +320,8 @@ class RunningNormalizer(nn.Module, BaseTransform):
 
         :return: The rescaled data.
         """
+        y = _as_torch(y)
+
         if target_scale is None:
             target_scale = self.get_parameters()
 
@@ -398,7 +405,9 @@ def _view_as_y(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     return x
 
 
-def _as_torch(x: np.ndarray | torch.Tensor) -> torch.Tensor:
+def _as_torch(x: pd.Series | np.ndarray | torch.Tensor) -> torch.Tensor:
+    if isinstance(x, pd.Series):
+        x = x.to_numpy()
     if isinstance(x, np.ndarray):
         return torch.from_numpy(x)
     return x
