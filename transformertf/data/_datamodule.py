@@ -31,18 +31,23 @@ TIME = "time_ms"
 
 
 class DataModuleBase(L.LightningDataModule):
-    _train_data_pth: list[str]
-    _val_data_pth: list[str]
-
-    _input_normalizer: RunningNormalizer | None
-    _target_normalizer: RunningNormalizer | None
-
     """
     Abstract base class for all data modules.
 
     Don't forget to call :meth:`save_hyperparameters` in your
     subclass constructor.
     """
+
+    _train_data_pth: list[str]
+    _val_data_pth: list[str]
+
+    _input_normalizer: RunningNormalizer | None
+    _target_normalizer: RunningNormalizer | None
+
+    _polynomial_transform: dict[str, PolynomialTransform] | None
+
+    TRANSFORMS: list[typing.Literal["polynomial", "normalize"]] = []
+    """ Which transforms are to be run """
 
     def __init__(
         self,
@@ -81,38 +86,48 @@ class DataModuleBase(L.LightningDataModule):
                     f"Expected str, list or tuple, got {type(arg)}."
                 )
 
+        self._init_normalizers()
+        self._init_polynomial_transform()
+
         self._train_df: list[pd.DataFrame] = []
         self._val_df: list[pd.DataFrame] = []
 
-        if normalize:
-            if input_columns is None or target_columns is None:
+        self._tmp_dir = tempfile.TemporaryDirectory()
+
+    def _init_normalizers(self) -> None:
+        if self.hparams["normalize"] and "normalize" in self.TRANSFORMS:
+            if (
+                self.hparams["input_columns"] is None
+                or self.hparams["target_columns"] is None
+            ):
                 raise ValueError(
                     "input_columns and target_columns must "
                     "be set if normalize=True"
                 )
             self._input_normalizer = RunningNormalizer(
-                num_features=len(input_columns)
+                num_features=len(self.hparams["input_columns"])
             )
             self._target_normalizer = RunningNormalizer(
-                num_features=len(target_columns)
+                num_features=len(self.hparams["target_columns"])
             )
         else:
             self._input_normalizer = None
             self._target_normalizer = None
 
-        self._polynomial_transform: dict[str, PolynomialTransform] | None
-        if remove_polynomial:
+    def _init_polynomial_transform(self) -> None:
+        if (
+            self.hparams["remove_polynomial"]
+            and "polynomial" in self.TRANSFORMS
+        ):
             self._polynomial_transform = {
                 col: PolynomialTransform(
-                    degree=polynomial_degree,
-                    num_iterations=polynomial_iterations,
+                    degree=self.hparams["polynomial_degree"],
+                    num_iterations=self.hparams["polynomial_iterations"],
                 )
-                for col in target_columns
+                for col in self.hparams["target_columns"]
             }
         else:
             self._polynomial_transform = None
-
-        self._tmp_dir = tempfile.TemporaryDirectory()
 
     @classmethod
     def from_config(
@@ -199,6 +214,7 @@ class DataModuleBase(L.LightningDataModule):
             raise RuntimeError("Scalers have already been fitted.")
         except sklearn.exceptions.NotFittedError:
             if self._polynomial_transform is not None:
+                # must fit scalers on polynomial-removed data
                 self._fit_scalers(
                     self._try_transform_polynomial(pd.concat(self._train_df))
                 )
@@ -302,6 +318,8 @@ class DataModuleBase(L.LightningDataModule):
                 target_columns = [target_columns]
 
         # convert inputs to dataframe
+        assert isinstance(input_columns, (list, tuple))
+        assert isinstance(target_columns, (list, tuple))
         if isinstance(input_, np.ndarray):
             df_dict: dict[str, np.ndarray | pd.Series] = {
                 input_columns[i]: input_[:, i]
@@ -395,9 +413,12 @@ class DataModuleBase(L.LightningDataModule):
         sklearn.exceptions.NotFittedError
             If the scaler has not been fitted.
         """
-        if self.hparams["remove_polynomial"]:
+        if (
+            self.hparams["remove_polynomial"]
+            and "polynomial" in self.TRANSFORMS
+        ):
             df = self._try_transform_polynomial(df)
-        if self.hparams["normalize"]:
+        if self.hparams["normalize"] and "normalize" in self.TRANSFORMS:
             df = self._try_scale_df(df, skip_target=skip_target)
         return df
 
@@ -469,6 +490,30 @@ class DataModuleBase(L.LightningDataModule):
 
         return self._make_dataset_from_df(df, predict=predict)
 
+    def _make_dataset_from_df(
+        self, df: pd.DataFrame, predict: bool = False
+    ) -> TimeSeriesDataset:
+        if all([col in df.columns for col in self.hparams["target_columns"]]):
+            target_data = df[self.hparams["target_columns"]].to_numpy()
+        else:
+            target_data = None
+
+        input_transforms, target_transforms = self.get_transforms()
+
+        return TimeSeriesDataset(
+            input_data=df[self.hparams["input_columns"]].to_numpy(),
+            seq_len=self.hparams["seq_len"],
+            target_data=target_data,
+            stride=self.hparams["stride"],
+            predict=predict,
+            min_seq_len=self.hparams["min_seq_len"] if not predict else None,
+            randomize_seq_len=self.hparams["randomize_seq_len"]
+            if not predict
+            else False,
+            input_transforms=input_transforms,
+            target_transforms=target_transforms,
+        )
+
     def make_dataloader(
         self,
         input_: np.ndarray | pd.Series | pd.DataFrame,
@@ -534,30 +579,6 @@ class DataModuleBase(L.LightningDataModule):
         ]
 
         return datasets[0] if len(datasets) == 1 else datasets
-
-    def _make_dataset_from_df(
-        self, df: pd.DataFrame, predict: bool = False
-    ) -> TimeSeriesDataset:
-        if all([col in df.columns for col in self.hparams["target_columns"]]):
-            target_data = df[self.hparams["target_columns"]].to_numpy()
-        else:
-            target_data = None
-
-        input_transforms, target_transforms = self.get_transforms()
-
-        return TimeSeriesDataset(
-            input_data=df[self.hparams["input_columns"]].to_numpy(),
-            seq_len=self.hparams["seq_len"],
-            target_data=target_data,
-            stride=self.hparams["stride"],
-            predict=predict,
-            min_seq_len=self.hparams["min_seq_len"] if not predict else None,
-            randomize_seq_len=self.hparams["randomize_seq_len"]
-            if not predict
-            else False,
-            input_transforms=input_transforms,
-            target_transforms=target_transforms,
-        )
 
     def train_dataloader(
         self,
@@ -677,6 +698,7 @@ class DataModuleBase(L.LightningDataModule):
         if (
             self._input_normalizer is not None
             and self._target_normalizer is not None
+            and "normalize" in self.TRANSFORMS
         ):
             try:
                 sklearn.utils.validation.check_is_fitted(
@@ -732,7 +754,10 @@ class DataModuleBase(L.LightningDataModule):
         return out
 
     def _try_fit_polynomial_transform(self, df: pd.DataFrame) -> None:
-        if self._polynomial_transform is not None:
+        if (
+            self._polynomial_transform is not None
+            and "polynomial" in self.TRANSFORMS
+        ):
             try:
                 for transform in self._polynomial_transform.values():
                     sklearn.utils.validation.check_is_fitted(transform)

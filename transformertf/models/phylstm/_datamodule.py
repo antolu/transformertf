@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 import typing
 
-import numpy as np
 import pandas as pd
 
 from transformertf.utils import signal
@@ -45,6 +44,8 @@ class PhyLSTMDataModule(DataModuleBase):
     The training, validation and test sets can then be retrieved using the respective properties
     :attr:`train_data`, :attr:`val_data` and :attr:`test_data`.
     """
+
+    TRANSFORMS = ["polynomial", "normalize"]
 
     def __init__(
         self,
@@ -93,6 +94,8 @@ class PhyLSTMDataModule(DataModuleBase):
             remove_polynomial=remove_polynomial,
             polynomial_degree=polynomial_degree,
             polynomial_iterations=polynomial_iterations,
+            batch_size=batch_size,
+            num_workers=num_workers,
         )
         self.save_hyperparameters(ignore=["current_column", "field_column"])
 
@@ -125,41 +128,6 @@ class PhyLSTMDataModule(DataModuleBase):
         return PhyLSTMDataModule(
             **default_kwargs,  # type: ignore[arg-type]
         )
-
-    def read_input(  # type: ignore[override]
-        self,
-        input_: np.ndarray | pd.Series | pd.DataFrame,
-        target: np.ndarray | pd.Series | pd.DataFrame | None = None,
-        timestamp: np.ndarray | pd.Series | pd.DataFrame | None = None,
-        input_columns: typing.Sequence[str] | None = None,
-        target_columns: typing.Sequence[str] | None = None,
-    ) -> pd.DataFrame:
-        """
-        Transforms the input data into a dataframe with the specified columns.
-
-        Parameters
-        ----------
-        input_ : np.ndarray | pd.Series | pd.DataFrame
-            The input data.
-        target : np.ndarray | pd.Series | pd.DataFrame | None
-            The target data.
-        timestamp : np.ndarray | pd.Series | pd.DataFrame | None
-            The timestamps of the data.
-        input_columns : typing.Sequence[str] | None
-            The names of the input columns.
-        target_columns : typing.Sequence[str] | None
-            The names of the target columns.
-        """
-
-        df = super().read_input(
-            input_=input_,
-            target=target,
-            timestamp=timestamp,
-            input_columns=input_columns,
-            target_columns=target_columns,
-        )
-
-        return df
 
     def preprocess_dataframe(
         self,
