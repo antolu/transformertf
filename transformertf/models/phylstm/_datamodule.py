@@ -99,8 +99,6 @@ class PhyLSTMDataModule(DataModuleBase):
         )
         self.save_hyperparameters(ignore=["current_column", "field_column"])
 
-        self._check_args()
-
     @classmethod
     def from_config(  # type: ignore[override]
         cls,
@@ -184,9 +182,3 @@ class PhyLSTMDataModule(DataModuleBase):
         df = df.iloc[:: self.hparams["downsample"]].reset_index()
 
         return df
-
-    def _check_args(self) -> None:
-        if self.hparams["stride"] < 1:
-            raise ValueError(
-                f"Stride must be at least 1, but got {self.hparams['stride']}."
-            )
