@@ -61,6 +61,7 @@ class DataModuleBase(L.LightningDataModule):
         randomize_seq_len: bool = False,
         out_seq_len: int | None = None,
         stride: int = 1,
+        downsample: int = 1,
         remove_polynomial: bool = False,
         polynomial_degree: int = 2,
         polynomial_iterations: int = 1000,

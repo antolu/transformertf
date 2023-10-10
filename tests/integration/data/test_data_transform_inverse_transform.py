@@ -19,6 +19,7 @@ def dm() -> DataModuleBase:
         val_dataset=DF_PATH,
         input_columns=[CURRENT],
         target_columns=[FIELD],
+        seq_len=500,
     )
     dm.prepare_data()
     dm.setup()
