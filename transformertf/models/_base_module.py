@@ -1,17 +1,15 @@
 from __future__ import annotations
 
 import functools
-import inspect
 import typing
 
 import lightning as L
 import lightning.pytorch.utilities
-import pytorch_optimizer as py_optim
 import torch
 
 from ..config import BaseConfig
 from ..data import TimeSeriesSample
-from ..utils import ops
+from ..utils import configure_lr_scheduler, configure_optimizers, ops
 
 MODEL_INPUT = typing.Union[torch.Tensor, dict[str, torch.Tensor]]
 MODEL_OUTPUT = typing.Union[torch.Tensor, dict[str, torch.Tensor]]
@@ -20,37 +18,17 @@ MODEL_STATES = typing.Union[torch.Tensor, dict[str, torch.Tensor]]
 STEP_OUTPUT = typing.Union[MODEL_OUTPUT, dict[str, MODEL_OUTPUT]]
 EPOCH_OUTPUT = list[STEP_OUTPUT]
 
-LR_SCHEDULER_DICT = typing.TypedDict(
-    "LR_SCHEDULER_DICT",
-    {
-        "scheduler": typing.Union[
-            torch.optim.lr_scheduler.LRScheduler,
-            torch.optim.lr_scheduler.ReduceLROnPlateau,
-        ],
-        "monitor": str,
-        "interval": typing.Literal["epoch", "step"],
-    },
-)
-OPTIMIZER_DICT = typing.TypedDict(
-    "OPTIMIZER_DICT",
-    {
-        "optimizer": torch.optim.Optimizer,
-        "lr_scheduler": typing.Union[
-            typing.Union[
-                torch.optim.lr_scheduler.LRScheduler,
-                torch.optim.lr_scheduler.ReduceLROnPlateau,
-            ],
-            None,
-            LR_SCHEDULER_DICT,
-        ],
-    },
-)
 
 if typing.TYPE_CHECKING:
     SameType = typing.TypeVar("SameType", bound="LightningModuleBase")
+    from ..utils import OPTIMIZER_DICT
 
 
 class LightningModuleBase(L.LightningModule):
+    _lr_scheduler: str | typing.Type[
+        torch.optim.lr_scheduler.LRScheduler
+    ] | functools.partial | None
+
     def __init__(self) -> None:
         super().__init__()
 
@@ -58,6 +36,8 @@ class LightningModuleBase(L.LightningModule):
         self._val_outputs: list[MODEL_OUTPUT] = []
         self._test_outputs: list[MODEL_OUTPUT] = []
         self._inference_outputs: list[MODEL_OUTPUT] = []
+
+        self._lr_scheduler = None
 
     @classmethod
     def from_config(
@@ -142,88 +122,26 @@ class LightningModuleBase(L.LightningModule):
         lr: float = self.hparams["lr"]
         if lr == "auto":
             lr = 1e-3
+        optimizer = configure_optimizers(
+            self.hparams["optimizer"],
+            lr=lr,
+            weight_decay=self.hparams.get("weight_decay", 0.0),
+            momentum=self.hparams.get("momentum", 0.0),
+            **self.hparams.get("optimizer_kwargs", {}),
+        )(self.parameters())
 
-        optimizer: torch.optim.Optimizer
-        if self.hparams["optimizer"] == "adam":
-            optimizer = torch.optim.Adam(
-                self.parameters(),
-                lr=lr,
-                weight_decay=self.hparams["weight_decay"],
-                **self.hparams["optimizer_kwargs"],
-            )
-        elif self.hparams["optimizer"] == "adamw":
-            optimizer = torch.optim.AdamW(
-                self.parameters(),
-                lr=lr,
-                weight_decay=self.hparams["weight_decay"],
-                **self.hparams["optimizer_kwargs"],
-            )
-        elif self.hparams["optimizer"] == "sgd":
-            optimizer = torch.optim.SGD(
-                self.parameters(),
-                lr=lr,
-                momentum=self.hparams["momentum"],
-                weight_decay=self.hparams["weight_decay"],
-                **self.hparams["optimizer_kwargs"],
-            )
-        elif self.hparams["optimizer"] == "ranger":
-            optimizer = py_optim.Ranger(
-                self.parameters(),
-                lr=lr,
-                weight_decay=self.hparams["weight_decay"],
-                **self.hparams["optimizer_kwargs"],
-            )
-        else:
-            raise ValueError(f"Unknown optimizer: {self.hparams['optimizer']}")
+        if self._lr_scheduler is None:
+            return optimizer
 
-        if self._lr_scheduler is not None:
-            if isinstance(self._lr_scheduler, str):
-                if self._lr_scheduler == "plateau":
-                    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                        optimizer=optimizer,
-                        mode="min",
-                        factor=0.1,
-                        verbose=True,
-                        patience=self.hparams["reduce_on_plateau_patience"],
-                    )
-                if self._lr_scheduler == "constant_then_cosine":
-                    scheduler = torch.optim.lr_scheduler.SequentialLR(
-                        optimizer,
-                        [  # type: ignore
-                            torch.optim.lr_scheduler.ConstantLR(
-                                factor=1.0,
-                                optimizer=optimizer,
-                                total_iters=int(
-                                    0.75 * self.hparams["max_epochs"]
-                                ),
-                            ),
-                            torch.optim.lr_scheduler.CosineAnnealingLR(
-                                optimizer=optimizer,
-                                T_max=int(0.25 * self.hparams["max_epochs"]),
-                            ),
-                        ],
-                        milestones=[int(0.75 * self.hparams["max_epochs"])],
-                    )
-                else:
-                    raise ValueError(
-                        f"Unknown lr_scheduler: {self._lr_scheduler}"
-                    )
-            elif isinstance(self._lr_scheduler, functools.partial):
-                scheduler = self._lr_scheduler(optimizer=optimizer)
-            elif inspect.isclass(self._lr_scheduler):
-                scheduler = self._lr_scheduler(optimizer=optimizer)
-            else:
-                raise NotImplementedError(
-                    "Learning rate schedulers are not implemented yet."
-                )
+        scheduler_dict = configure_lr_scheduler(
+            optimizer,
+            lr_scheduler=self._lr_scheduler,
+            monitor="loss/validation",
+            scheduler_interval=self.hparams["lr_scheduler_interval"],
+            max_epochs=self.hparams["max_epochs"],
+            reduce_on_plateau_patience=self.hparams[
+                "reduce_on_plateau_patience"
+            ],
+        )
 
-            return {
-                "optimizer": optimizer,
-                "lr_scheduler": {
-                    "scheduler": scheduler,
-                    "monitor": "loss/validation",
-                    "interval": self.hparams["lr_scheduler_interval"],
-                },
-            }
-
-        return optimizer
+        return {"optimizer": optimizer, "lr_scheduler": scheduler_dict}

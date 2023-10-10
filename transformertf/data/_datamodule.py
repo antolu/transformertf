@@ -89,6 +89,9 @@ class DataModuleBase(L.LightningDataModule):
         self._init_normalizers()
         self._init_polynomial_transform()
 
+        self._raw_train_df: list[pd.DataFrame] = []
+        self._raw_val_df: list[pd.DataFrame] = []
+
         self._train_df: list[pd.DataFrame] = []
         self._val_df: list[pd.DataFrame] = []
 
@@ -192,7 +195,7 @@ class DataModuleBase(L.LightningDataModule):
 
         """
         # load all data into memory and then apply transforms
-        self._train_df = list(
+        self._raw_train_df = list(
             map(
                 self.preprocess_dataframe,
                 map(
@@ -200,29 +203,30 @@ class DataModuleBase(L.LightningDataModule):
                 ),
             )
         )
-        self._val_df = list(
+        self._raw_val_df = list(
             map(
                 self.preprocess_dataframe,
                 map(self._load_and_preprocess_data, self._val_data_pth or []),
             )
         )
 
-        self._try_fit_polynomial_transform(pd.concat(self._train_df))
+        self._try_fit_polynomial_transform(pd.concat(self._raw_train_df))
 
         try:
             self._try_scalers_fitted()
-            raise RuntimeError("Scalers have already been fitted.")
         except sklearn.exceptions.NotFittedError:
             if self._polynomial_transform is not None:
                 # must fit scalers on polynomial-removed data
                 self._fit_scalers(
-                    self._try_transform_polynomial(pd.concat(self._train_df))
+                    self._try_transform_polynomial(
+                        pd.concat(self._raw_train_df)
+                    )
                 )
             else:
                 self._fit_scalers(pd.concat(self._train_df))
 
-        self._train_df = list(map(self.apply_transforms, self._train_df))
-        self._val_df = list(map(self.apply_transforms, self._val_df))
+        self._train_df = list(map(self.apply_transforms, self._raw_train_df))
+        self._val_df = list(map(self.apply_transforms, self._raw_val_df))
 
         if save:
             self.save_data(self._tmp_dir.name)

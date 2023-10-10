@@ -105,8 +105,7 @@ def test_datamodule_base_prepare_twice() -> None:
     )
     dm.prepare_data()
 
-    with pytest.raises(RuntimeError):
-        dm.prepare_data()
+    dm.prepare_data()
 
 
 @pytest.fixture(scope="module")
