@@ -52,7 +52,7 @@ class TimeSeriesDataset(Dataset):
     def __init__(
         self,
         input_data: DATA_SOURCE | list[DATA_SOURCE],
-        seq_len: int,
+        seq_len: int | None,
         target_data: DATA_SOURCE | list[DATA_SOURCE] | None = None,
         *,
         stride: int = 1,
@@ -79,9 +79,15 @@ class TimeSeriesDataset(Dataset):
         (in_seq_len, 1) and (in_seq_len + out_seq_len, 2) respectively.
         This is concatenated into a single torch.Tensor of shape (batch, seq_len, 1 or 2) during training.
 
-        :param seq_len: The length of the windows into the current curve.
-        :param stride: The offset between windows into the curve.
-        :param zero_pad: Whether to zero-pad the input data to the length of the window
+        Parameters
+        ----------
+        seq_len : int, optional
+            The length of the windows to create for the samples. If none, the
+            entire dataset is used.
+        stride : int
+            The offset between windows into the curve.
+        zero_pad : bool
+            Whether to zero-pad the input data to the length of the window
             if the input data is shorter than the window length.
         """
         super().__init__()
@@ -89,9 +95,14 @@ class TimeSeriesDataset(Dataset):
         if predict:
             if stride != 1:
                 warnings.warn("Stride is ignored when predicting.")
-            stride = seq_len
+            if seq_len is not None:
+                stride = seq_len
 
         if randomize_seq_len:
+            if seq_len is None:
+                raise ValueError(
+                    "seq_len must be specified when randomize_seq_len is True."
+                )
             if min_seq_len is None:
                 raise ValueError(
                     "min_seq_len must be specified when randomize_seq_len is True."
@@ -153,10 +164,10 @@ class TimeSeriesDataset(Dataset):
         self._window_gen = [
             WindowGenerator(
                 input_data=input_,
-                in_window_size=seq_len,
+                in_window_size=seq_len or len(input_),
                 label_data=target,
-                label_seq_len=seq_len,
-                stride=stride,
+                label_seq_len=seq_len or len(input_),
+                stride=stride if seq_len is not None else len(input_),
                 zero_pad=predict,
             )
             for input_, target in zip(self._input_data, self._target_data)
@@ -244,7 +255,11 @@ class TimeSeriesDataset(Dataset):
         """
         if self._dataset_type in (DataSetType.TRAIN, DataSetType.VAL_TEST):
             x, y = self._create_sample(idx)
-            sample = {"input": x, "target": y, "initial": torch.concatenate([x[0], y[0]], dim=0)}
+            sample = {
+                "input": x,
+                "target": y,
+                "initial": torch.concatenate([x[0], y[0]], dim=0),
+            }
         elif self._dataset_type == DataSetType.PREDICT:
             x = self._get_prediction_input(idx)
             sample = {"input": x}  # TODO: add initial value
