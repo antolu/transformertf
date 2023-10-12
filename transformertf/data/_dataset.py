@@ -61,6 +61,7 @@ class TimeSeriesDataset(Dataset):
         randomize_seq_len: bool = False,
         input_transforms: list[BaseTransform] | None = None,
         target_transforms: list[BaseTransform] | None = None,
+        dtype: torch.dtype = torch.float32,
     ):
         """
         The dataset used to train the hysteresis model.
@@ -117,6 +118,7 @@ class TimeSeriesDataset(Dataset):
         self._randomize_seq_len = randomize_seq_len
         self._stride = stride
         self._predict = predict
+        self._dtype = dtype
 
         def convert_data(
             data: DATA_SOURCE | list[DATA_SOURCE],
@@ -312,8 +314,8 @@ class TimeSeriesDataset(Dataset):
         if y.ndim == 1:
             y = y.reshape(-1, 1)
 
-        x = torch.from_numpy(x).to(torch.float32)
-        y = torch.from_numpy(y).to(torch.float32)
+        x = torch.from_numpy(x).to(self._dtype)
+        y = torch.from_numpy(y).to(self._dtype)
 
         if self._randomize_seq_len:
             assert self._min_seq_len is not None
@@ -333,7 +335,7 @@ class TimeSeriesDataset(Dataset):
         idx = self._check_index(idx)
 
         x = self._window_gen[0].get_sample(idx)
-        x_to: torch.Tensor = torch.from_numpy(x).to(torch.float32)
+        x_to: torch.Tensor = torch.from_numpy(x).to(self._dtype)
 
         if self._randomize_seq_len:
             assert self._min_seq_len is not None
