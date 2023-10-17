@@ -311,7 +311,7 @@ class BaseHysteresis(Module, ModeModule):
         elif self._mode == REGRESSION:
             norm_h, _ = self.transformer.transform(x)
             states = get_states(
-                norm_h, self.mesh_points, tkwargs=self.tkwargs, temp=self.temp
+                norm_h, self.mesh_points, temp=self.temp
             )
 
         elif self.mode == CURRENT:
