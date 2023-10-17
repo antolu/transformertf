@@ -1,41 +1,29 @@
 from __future__ import annotations
 
-import torch
 import typing
 
+import torch
 
-def sweep_up(
-    h: float, mesh: torch.Tensor, initial_state: torch.Tensor, T: float = 1e-2
+
+@torch.jit.script
+def switch(
+    h: torch.Tensor, mesh: torch.Tensor, T: float = 1e-4
 ) -> torch.Tensor:
-    return torch.minimum(
-        initial_state + switch(h, mesh[:, 1], T), torch.ones_like(mesh[:, 1])
-    )
-
-
-def sweep_left(
-    h: float, mesh: torch.Tensor, initial_state: torch.Tensor, T: float = 1e-2
-) -> torch.Tensor:
-    return torch.maximum(
-        initial_state - switch(mesh[:, 0], h, T),
-        torch.ones_like(mesh[:, 0]) * -1.0,
-    )
-
-
-def switch(h: float, mesh: torch.Tensor, T: float = 1e-4) -> torch.Tensor:
     # note that + T is needed to satisfy boundary conditions (creating a bit of delay
     # before the flip starts happening
     return 1.0 + torch.tanh((h - mesh - 0 * T) / abs(T))
 
 
+@torch.jit.script
 def get_current(
-    current_state: torch.Tensor | None,
-    current_field: torch.Tensor | None,
+    current_state: typing.Optional[torch.Tensor],
+    current_field: typing.Optional[torch.Tensor],
     n_mesh_points: int,
-    **tkwargs: typing.Any,
+    dtype: torch.dtype = torch.float64,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     # list of hysteresis states with initial state set
     if current_state is None:
-        initial_state = torch.ones(n_mesh_points, **tkwargs) * -1.0
+        initial_state = torch.ones(n_mesh_points, dtype=dtype) * -1.0
         initial_field = torch.zeros(1)
     else:
         if not isinstance(current_field, torch.Tensor):
@@ -46,6 +34,31 @@ def get_current(
         initial_field = current_field
 
     return initial_state, initial_field
+
+
+@torch.jit.script
+def sweep_up(
+    h: torch.Tensor,
+    mesh: torch.Tensor,
+    initial_state: torch.Tensor,
+    T: float = 1e-2,
+) -> torch.Tensor:
+    return torch.minimum(
+        initial_state + switch(h, mesh[:, 1], T), torch.ones_like(mesh[:, 1])
+    )
+
+
+@torch.jit.script
+def sweep_left(
+    h: torch.Tensor,
+    mesh: torch.Tensor,
+    initial_state: torch.Tensor,
+    T: float = 1e-2,
+) -> torch.Tensor:
+    return torch.maximum(
+        initial_state - switch(mesh[:, 0], h, T),
+        torch.ones_like(mesh[:, 0]) * -1.0,
+    )
 
 
 def predict_batched_state(
@@ -90,13 +103,14 @@ def predict_batched_state(
     return result
 
 
+@torch.jit.script
 def get_states(
     h: torch.Tensor,
     mesh_points: torch.Tensor,
-    current_state: torch.Tensor | None = None,
-    current_field: torch.Tensor | None = None,
-    tkwargs: dict[str, typing.Any] | None = None,
+    current_state: typing.Optional[torch.Tensor] = None,
+    current_field: typing.Optional[torch.Tensor] = None,
     temp: float = 1e-3,
+    dtype: torch.dtype = torch.float64,
 ) -> torch.Tensor:
     """
     Returns magnetic hysteresis state as an m x n x n tensor, where
@@ -142,11 +156,10 @@ def get_states(
 
     assert len(h.shape) == 1
     n_mesh_points = mesh_points.shape[0]
-    tkwargs = tkwargs or {}
 
     # list of hysteresis states with initial state set
     initial_state, initial_field = get_current(
-        current_state, current_field, n_mesh_points, **tkwargs
+        current_state, current_field, n_mesh_points, dtype=dtype
     )
 
     states = []
