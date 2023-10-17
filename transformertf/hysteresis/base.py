@@ -1,17 +1,18 @@
 from __future__ import annotations
 
+import logging
 import typing
+
 import gpytorch.constraints
-import torch
-from torch.nn import Parameter
-from gpytorch import Module
 import numpy as np
+import torch
+from gpytorch import Module
+from torch.nn import Parameter
+
 from .meshing import create_triangle_mesh
+from .modes import CURRENT, FITTING, FUTURE, NEXT, REGRESSION, ModeModule
 from .states import get_states, predict_batched_state
 from .transform import HysteresisTransform
-from .modes import ModeModule, REGRESSION, NEXT, FUTURE, FITTING, CURRENT
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -213,15 +214,17 @@ class BaseHysteresis(Module, ModeModule):
             if torch.equal(history_h, history_m):
                 raise RuntimeError("train h and train m cannot be equal")
 
-        _history_h, _history_m = self.transformer.transform(
-            history_h, history_m
-        )
+        with torch.no_grad():
+            _history_h, _history_m = self.transformer.transform(
+                history_h, history_m
+            )
         self._update_h_history_buffer(_history_h)
 
         if not isinstance(_history_m, torch.Tensor):
             old_mode = self.mode
             self.regression()
-            _history_m = self.forward(history_h.detach())
+            with torch.no_grad():
+                _history_m = self.forward(history_h)
             self.mode = old_mode
         self.register_buffer("_history_m", _history_m.detach())
 
@@ -229,7 +232,10 @@ class BaseHysteresis(Module, ModeModule):
         self.register_buffer("_history_h", norm_history_h.detach())
 
         # recalculate states
-        _states = get_states(self._history_h, self.mesh_points, temp=self.temp)
+        with torch.no_grad():
+            _states = get_states(
+                self._history_h, self.mesh_points, temp=self.temp
+            )
         self.register_buffer("_states", _states)
 
     def apply_field(self, h: torch.Tensor) -> None:
