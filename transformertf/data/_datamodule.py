@@ -109,10 +109,10 @@ class DataModuleBase(L.LightningDataModule):
                     "be set if normalize=True"
                 )
             self._input_normalizer = RunningNormalizer(
-                num_features=len(self.hparams["input_columns"])
+                num_features_=len(self.hparams["input_columns"])
             )
             self._target_normalizer = RunningNormalizer(
-                num_features=len(self.hparams["target_columns"])
+                num_features_=len(self.hparams["target_columns"])
             )
         else:
             self._input_normalizer = None
