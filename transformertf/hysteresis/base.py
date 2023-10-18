@@ -336,7 +336,6 @@ class BaseHysteresis(Module, ModeModule):
                 self.mesh_points,
                 current_state=current_state,
                 current_field=current_fld,
-                tkwargs=self.tkwargs,
                 temp=self.temp,
             )
 
@@ -348,7 +347,6 @@ class BaseHysteresis(Module, ModeModule):
                 self.mesh_points,
                 current_state=current_state,
                 current_field=current_fld,
-                tkwargs=self.tkwargs,
                 temp=self.temp,
             )
 
