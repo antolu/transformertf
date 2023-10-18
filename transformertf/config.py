@@ -62,8 +62,6 @@ class BaseConfig:
     dataset: str | None = None  # do not use this one in the code
     train_dataset: str | typing.Sequence[str] | None = None
     val_dataset: str | typing.Sequence[str] | None = None
-    test_dataset: str | None = None
-    predict_dataset: str | None = None
 
     checkpoint_every: int = 50
     validate_every: int = 50
