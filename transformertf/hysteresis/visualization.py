@@ -39,7 +39,9 @@ def plot_hysterion_density(
 
 
 def plot_bayes_predicition(
-    summary: dict[str, dict[str, torch.Tensor]], m: torch.Tensor, baseline: bool = False
+    summary: dict[str, dict[str, torch.Tensor]],
+    m: torch.Tensor,
+    baseline: bool = False,
 ) -> tuple[plt.Figure, Axes]:
     y = summary["obs"]
     ax: Axes
