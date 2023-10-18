@@ -31,6 +31,7 @@ def plot_hysterion_density(
     den = density  # * H.get_mesh_size(x, y)
     c = ax.tripcolor(x, y, den)
     if new_ax:
+        assert fig is not None
         fig.colorbar(c)
         return fig, ax, c
     else:
@@ -38,9 +39,10 @@ def plot_hysterion_density(
 
 
 def plot_bayes_predicition(
-    summary: dict[str, torch.Tensor], m: torch.Tensor, baseline: bool = False
+    summary: dict[str, dict[str, torch.Tensor]], m: torch.Tensor, baseline: bool = False
 ) -> tuple[plt.Figure, Axes]:
     y = summary["obs"]
+    ax: Axes
     fig, ax = plt.subplots()
     ax.plot(m.detach(), "C1o", label="Data")
 
@@ -53,7 +55,7 @@ def plot_bayes_predicition(
         upper = upper - m
         lower = lower - m
     ax.plot(mean, "C0", label="Model prediction")
-    ax.fill_between(range(len(m)), upper, lower, alpha=0.25)
+    ax.fill_between(range(len(m)), int(upper), int(lower), alpha=0.25)
     ax.set_xlabel("step")
     ax.set_ylabel("B (arb. units)")
     ax.legend()
