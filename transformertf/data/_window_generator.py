@@ -9,38 +9,29 @@ import logging
 import typing
 
 import numpy as np
-import pandas as pd
 
 __all__ = ["WindowGenerator"]
 
 log = logging.getLogger(__name__)
 
-DATA_SOURCE = typing.TypeVar(
-    "DATA_SOURCE", pd.Series, np.ndarray, covariant=True
-)
 
-
-class WindowGenerator:
+class WindowGenerator(typing.Sequence[slice]):
     def __init__(
         self,
-        input_data: DATA_SOURCE,
-        in_window_size: int,
-        label_data: DATA_SOURCE | None = None,
-        label_seq_len: int | None = None,
+        num_points: int,
+        window_size: int,
         stride: int = 1,
         zero_pad: bool = False,
     ):
         """
         Class to generate sliding windows for input and label data.
 
-        The class takes both input and label data, but takes different window sizes
-        for each. If the label window size is not specified, it is set to the same
-        size as the input window size.
+        The class is agnostic to the data source and can be used with
+        any data source that supports indexing and slicing. The only
+        thing that is required is that the input and label data have
+        the same length.
 
-        The class does not consider the number of columns in the input and label
-        data, therefore the returned data is not necessarily of the same shape.
         Parameters
-
         ----------
         input_data : DATA_SOURCE
             Input data. Can be a pandas DataFrame, Series, or numpy array.
@@ -50,7 +41,7 @@ class WindowGenerator:
             Label data. Can be a pandas DataFrame, Series, or numpy array.
             The default is None.
         label_seq_len : int, optional
-            Label window size. If None, the input window size is used.
+            Label window size. If set, the label window size is used instead of the
             The default is None.
         stride : int, optional
             Stride for the sliding window. The default is 1.
@@ -65,55 +56,26 @@ class WindowGenerator:
         ValueError
             If the input data length is less than the input window size.
         """
-        if label_seq_len is None:
-            label_seq_len = in_window_size
-
-        if in_window_size > len(input_data):
+        if window_size > num_points:
             raise ValueError(
                 "Input window size ({}) must be less than the input data "
-                "length ({})".format(in_window_size, len(input_data))
+                "length ({})".format(window_size, num_points)
             )
 
-        self._label_window_size: int = label_seq_len
-        self._input_data: np.ndarray = np.array(input_data)
-
-        self._label_data: np.ndarray | None
-        if label_data is None:
-            self._label_data = None
-        else:
-            self._label_data = np.array(label_data)
-
-            if label_seq_len > len(label_data):
-                raise ValueError(
-                    "Label window size ({}) must be less than the label data "
-                    "length ({})".format(label_seq_len, len(label_data))
-                )
-
-            if len(self._input_data) != len(self._label_data):
-                raise ValueError(
-                    "Input and label data must have the same length: "
-                    "({}) and ({})".format(
-                        len(self._input_data), len(self._label_data)
-                    )
-                )
-
-        self._in_window_size: int = in_window_size
+        self._window_size: int = window_size
         self._stride: int = stride
+        self._label_data: np.ndarray | None
 
         round_op: typing.Callable[[float], float] = np.ceil if zero_pad else np.floor  # type: ignore[assignment]
-        self._num_samples = int(round_op((len(input_data) - in_window_size + stride) / stride))
+        self._num_samples = int(
+            round_op((num_points - window_size + stride) / stride)
+        )
 
         if zero_pad:
-            zero_pad_len = len(self._input_data) + (self._num_samples - 1) * stride
-
-            input_data_padded = np.zeros((zero_pad_len, *input_data.shape[1:]))
-            input_data_padded[: len(self._input_data)] = self._input_data
-            self._input_data = input_data_padded
-
-            if label_data is not None:
-                label_data_padded = np.zeros((zero_pad_len, *label_data.shape[1:]))  # type: ignore[union-attr]
-                label_data_padded[: len(label_data)] = label_data
-                self._label_data = label_data_padded
+            # extend input and label data to fit stride
+            self._source_len = num_points + (stride - (num_points % stride))
+        else:
+            self._source_len = num_points
 
     @property
     def num_samples(self) -> int:
@@ -127,6 +89,13 @@ class WindowGenerator:
         """
         return self._num_samples
 
+    @property
+    def real_data_len(self) -> int:
+        """
+        Number of points including zero-padding.
+        """
+        return self._source_len
+
     def __len__(self) -> int:
         """
         Number of samples that can be generated from the input data.
@@ -138,7 +107,7 @@ class WindowGenerator:
         """
         return self.num_samples
 
-    def calc_slice(self, idx: int, label: bool = False) -> slice:
+    def calc_slice(self, idx: int) -> slice:
         """
         Calculate the slice (window size) for the input or label data at a
         specific index. First performs an index check to ensure that the index
@@ -148,9 +117,6 @@ class WindowGenerator:
         ----------
         idx : int
             Index of the sample. If index is out of bounds an IndexError is raised.
-        label : bool, optional
-            If True, the label window size is used. Otherwise, the input window size is used.
-            The default is False.
 
         Returns
         -------
@@ -171,41 +137,42 @@ class WindowGenerator:
 
         # Calculate slice
         start = idx * self._stride
-        if label:
-            stop = start + self._label_window_size
-        else:
-            stop = start + self._in_window_size
+        stop = start + self._window_size
 
         return slice(start, stop)
 
-    def get_sample(
-        self, idx: int
-    ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
-        """
-        Calculate sliding window for input and label data.
-        Return a pair of input and labeled data.
-        The input and labeled data are not necessarily of the same length
+    @typing.overload
+    def __getitem__(self, idx: int) -> slice:
+        ...
 
-        Parameters
-        ----------
-        idx : int
-            index of the sample. If index is out of bounds an IndexError is raised.
+    @typing.overload
+    def __getitem__(self, idx: slice) -> typing.Sequence[slice]:
+        ...
 
-        Returns
-        -------
-        np.ndarray | tuple[np.ndarray, np.ndarray]
-            Tuple of input and label data (x, y).
+    def __getitem__(self, idx: int | slice) -> slice | typing.Sequence[slice]:
         """
-        input_data = self._input_data[self.calc_slice(idx)]
-        if self._label_data is None:
-            return input_data
+        Determine the type of sample to return based on the label window size.
+        """
+        if isinstance(idx, int):
+            return self.calc_slice(idx)
         else:
-            return (
-                input_data,
-                self._label_data[self.calc_slice(idx, True)],
-            )
+            return [
+                self.calc_slice(i)
+                for i in range(
+                    idx.start or 0, idx.stop or len(self), idx.step or 1
+                )
+            ]
 
-    def __getitem__(
-        self, idx: int
-    ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
-        return self.get_sample(idx)
+    def __iter__(self) -> typing.Iterator[slice]:
+        for i in range(len(self)):
+            yield self[i]
+
+    def __str__(self) -> str:
+        return (
+            f"WindowGenerator(window_size={self._window_size}, "
+            f"stride={self._stride}, "
+            f"num_samples={self._num_samples})"
+        )
+
+    def __repr__(self) -> str:
+        return str(self)

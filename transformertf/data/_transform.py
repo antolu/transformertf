@@ -145,9 +145,12 @@ class TransformCollection(BaseTransform):
                         raise ValueError("Cannot fit Y when Y is None.")
                     y_transformed = transform.fit_transform(y_transformed)
             elif transform._transform_type == TransformType.XY:
-                y_transformed = transform.fit_transform(
-                    x_transformed, y_transformed
-                )
+                if self._transform_type == TransformType.X:
+                    x_transformed = transform.fit_transform(x_transformed, y_transformed)
+                elif self._transform_type == TransformType.XY:
+                    y_transformed = transform.fit_transform(
+                        x_transformed, y_transformed
+                    )
             else:
                 raise ValueError(
                     f"Invalid transform type: {transform._transform_type}"
@@ -633,10 +636,7 @@ class RunningNormalizer(BaseTransform):
         return self.n_samples_seen_.item() > 0
 
     def __str__(self) -> str:
-        return (
-            f"{self.__class__.__name__}(num_features={self.center_.shape[0]}, "
-            f"center={self.center_[0]:.4f}, scale={self.scale_[0]:.4f})"
-        )
+        return f"{self.__class__.__name__}()"
 
 
 def _view_as_y(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:

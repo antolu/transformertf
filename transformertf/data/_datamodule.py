@@ -10,14 +10,18 @@ from pathlib import Path
 import lightning as L
 import numpy as np
 import pandas as pd
-import sklearn.exceptions
-import sklearn.utils.validation
 import torch
 import torch.utils.data
 
 from ..config import BaseConfig
 from ._dataset import TimeSeriesDataset
-from ._transform import BaseTransform, PolynomialTransform, RunningNormalizer
+from ._transform import (
+    BaseTransform,
+    PolynomialTransform,
+    RunningNormalizer,
+    TransformCollection,
+    TransformType,
+)
 
 __all__ = ["DataModuleBase"]
 
@@ -25,7 +29,6 @@ log = logging.getLogger(__name__)
 
 if typing.TYPE_CHECKING:
     SameType = typing.TypeVar("SameType", bound="DataModuleBase")
-
 
 TIME = "time_ms"
 
@@ -38,147 +41,245 @@ class DataModuleBase(L.LightningDataModule):
     subclass constructor.
     """
 
-    _train_data_pth: list[str]
-    _val_data_pth: list[str]
-
-    _input_normalizer: RunningNormalizer | None
-    _target_normalizer: RunningNormalizer | None
-
-    _polynomial_transform: dict[str, PolynomialTransform] | None
+    _input_transforms: dict[str, TransformCollection]
+    _target_transform: TransformCollection
 
     TRANSFORMS: list[typing.Literal["polynomial", "normalize"]] = []
     """ Which transforms are to be run """
 
     def __init__(
         self,
-        input_columns: typing.Sequence[str],
-        target_columns: typing.Sequence[str],
-        train_dataset: str | typing.Sequence[str] | None = None,
-        val_dataset: str | typing.Sequence[str] | None = None,
+        train_df: pd.DataFrame | list[pd.DataFrame],
+        val_df: pd.DataFrame | list[pd.DataFrame],
+        input_columns: str | typing.Sequence[str],
+        target_column: str,
         normalize: bool = True,
         seq_len: int | None = None,
         min_seq_len: int | None = None,
         randomize_seq_len: bool = False,
-        out_seq_len: int | None = None,
         stride: int = 1,
         downsample: int = 1,
         remove_polynomial: bool = False,
-        polynomial_degree: int = 2,
+        polynomial_degree: int = 1,
         polynomial_iterations: int = 1000,
+        target_depends_on: str | None = None,
         batch_size: int = 128,
         num_workers: int = 0,
+        dtype: torch.dtype = torch.float32,
     ):
         super().__init__()
+        input_columns = _to_list(input_columns)
         min_seq_len = min_seq_len or seq_len
-        self.save_hyperparameters()
 
-        for attr_name, arg in (
-            ("_train_data_pth", train_dataset),
-            ("_val_data_pth", val_dataset),
-        ):
-            if isinstance(arg, str):
-                setattr(self, attr_name, [arg])
-            elif isinstance(arg, (list, tuple)):
-                setattr(self, attr_name, arg)
-            elif arg is None:
-                setattr(self, attr_name, [])
-            else:
-                raise TypeError(
-                    f"Expected str, list or tuple, got {type(arg)}."
-                )
+        self.save_hyperparameters(ignore=["train_df", "val_df"])
 
-        self._init_normalizers()
-        self._init_polynomial_transform()
+        self._create_transforms()
 
-        self._raw_train_df: list[pd.DataFrame] = []
-        self._raw_val_df: list[pd.DataFrame] = []
+        self._raw_train_df: list[pd.DataFrame] = _to_list(train_df)
+        self._raw_val_df: list[pd.DataFrame] = _to_list(val_df)
 
+        # these will be set by prepare_data
         self._train_df: list[pd.DataFrame] = []
         self._val_df: list[pd.DataFrame] = []
 
         self._tmp_dir = tempfile.TemporaryDirectory()
 
-    def _init_normalizers(self) -> None:
-        if self.hparams["normalize"] and "normalize" in self.TRANSFORMS:
-            if (
-                self.hparams["input_columns"] is None
-                or self.hparams["target_columns"] is None
-            ):
-                raise ValueError(
-                    "input_columns and target_columns must "
-                    "be set if normalize=True"
-                )
-            self._input_normalizer = RunningNormalizer(
-                num_features_=len(self.hparams["input_columns"])
-            )
-            self._target_normalizer = RunningNormalizer(
-                num_features_=len(self.hparams["target_columns"])
-            )
-        else:
-            self._input_normalizer = None
-            self._target_normalizer = None
-
-    def _init_polynomial_transform(self) -> None:
-        if (
+    def _create_transforms(self) -> None:
+        """
+        Instantiates the transforms to be used by the datamodule.
+        """
+        normalize = (
+            self.hparams["normalize"] and "normalize" in self.TRANSFORMS
+        )
+        polynomial = (
             self.hparams["remove_polynomial"]
             and "polynomial" in self.TRANSFORMS
-        ):
-            self._polynomial_transform = {
-                col: PolynomialTransform(
-                    degree=self.hparams["polynomial_degree"],
-                    num_iterations=self.hparams["polynomial_iterations"],
+        )
+
+        # input transforms
+        input_transforms: dict[str, list[BaseTransform]]
+        input_transforms = {col: [] for col in self.hparams["input_columns"]}
+        for input_col in self.hparams["input_columns"]:
+            if normalize:
+                input_transforms[input_col].append(
+                    RunningNormalizer(num_features_=1)
                 )
-                for col in self.hparams["target_columns"]
-            }
-        else:
-            self._polynomial_transform = None
+
+        self._input_transforms = {
+            col: TransformCollection(transforms)
+            for col, transforms in input_transforms.items()
+        }
+
+        target_transform = []
+        if normalize:
+            target_transform.append(RunningNormalizer(num_features_=1))
+        if polynomial:
+            if self.hparams["target_depends_on"] is not None:
+                target_transform.append(
+                    PolynomialTransform(
+                        self.hparams["polynomial_degree"],
+                        self.hparams["polynomial_iterations"],
+                    )
+                )
+
+        self._target_transform = TransformCollection(
+            target_transform,
+            transform_type=TransformType.XY,
+        )
 
     @classmethod
-    def from_config(
-        cls: typing.Type[SameType], config: BaseConfig, **kwargs: typing.Any
+    def from_dataframe(
+        cls: typing.Type[SameType],
+        config: BaseConfig,
+        train_df: pd.DataFrame | list[pd.DataFrame],
+        val_df: pd.DataFrame | list[pd.DataFrame],
+        input_columns: str | typing.Sequence[str] | None = None,
+        target_column: str | None = None,
+        **kwargs: typing.Any,
     ) -> SameType:
-        raise NotImplementedError
+        """
+        Create a datamodule instance from dataframes and a config.
+        This function does not need to be overridden by subclasses.
 
-    def state_dict(self) -> dict[str, typing.Any]:
-        state = super().state_dict()
-        if self._input_normalizer is not None:
-            state["input_normalizer"] = self._input_normalizer.state_dict()
-        if self._target_normalizer is not None:
-            state["target_normalizer"] = self._target_normalizer.state_dict()
+        Parameters
+        ----------
+        config : BaseConfig
+            The config or config subclass instance to instanitate the datamodule with.
+        train_df : pd.DataFrame | list[pd.DataFrame]
+            Dataframes containing the training data.
+        val_df : pd.DataFrame | list[pd.DataFrame]
+            Dataframes containing the validation data.
+        input_columns : str | typing.Sequence[str]
+            The names of the input columns.
+        target_column : str
+            The name of the target column.
+        kwargs : typing.Any
+            Additional keyword arguments to pass to the datamodule constructor.
+            These will override the values specified in the config.
 
-        if self._polynomial_transform is not None:
-            state["polynomial_transform"] = {
-                col: transform.state_dict()
-                for col, transform in self._polynomial_transform.items()
-            }
+        Returns
+        -------
+        SameType
+            The created datamodule instance.
+        """
+        train_df = _to_list(train_df)
+        val_df = _to_list(val_df)
 
-        return state
+        if input_columns is None:
+            if config.input_columns is None:
+                raise ValueError(
+                    "Either input_columns or config.input_columns must be set."
+                )
 
-    def load_state_dict(self, state: dict[str, typing.Any]) -> None:
-        if "input_normalizer" in state:
-            if self._input_normalizer is None:
-                raise RuntimeError("input_normalizer is None")
+            input_columns = _to_list(config.input_columns)
 
-            self._input_normalizer.load_state_dict(
-                state.pop("input_normalizer")
+        if target_column is None:
+            if config.target_column is None:
+                raise ValueError(
+                    "Either target_column or config.target_column must be set."
+                )
+
+            target_column = config.target_column
+
+        return cls(
+            train_df=train_df,
+            val_df=val_df,
+            input_columns=input_columns,
+            target_column=target_column,
+            **cls.parse_config_kwargs(config, **kwargs),
+        )
+
+    @classmethod
+    def from_parquet(
+        cls: typing.Type[SameType],
+        config: BaseConfig,
+        train_dataset: str | typing.Sequence[str] | None = None,
+        val_dataset: str | typing.Sequence[str] | None = None,
+        input_columns: str | typing.Sequence[str] | None = None,
+        target_column: str | None = None,
+        **kwargs: typing.Any,
+    ) -> SameType:
+        """
+        Create a datamodule instance from a dataset on disk and a config.
+        This function does not need to be overridden by subclasses.
+
+        Parameters
+        ----------
+        config : BaseConfig
+            The config or config subclass instance to instanitate the datamodule with.
+        train_dataset : str | typing.Sequence[str] | None
+            Path to the training dataset, one path per dataframe. If None, the
+            path is taken from the config.
+        val_dataset : str | typing.Sequence[str] | None
+            Path to the validation dataset, one path per dataframe. If None, the
+            path is taken from the config.
+        kwargs : typing.Any
+            Additional keyword arguments to pass to the datamodule constructor.
+            These will override the values specified in the config.
+
+        Returns
+        -------
+        SameType
+            The datamodule created instance.
+        """
+        if train_dataset is None and val_dataset is None:
+            if config.train_dataset is None and config.val_dataset is None:
+                raise ValueError(
+                    "train_dataset and val_dataset must not be None."
+                )
+            train_dataset = config.train_dataset
+            val_dataset = config.val_dataset
+        elif train_dataset is None and val_dataset is not None:
+            raise ValueError(
+                "val_dataset must be None if train_dataset is None."
             )
-        if "target_normalizer" in state:
-            if self._target_normalizer is None:
-                raise RuntimeError("target_normalizer is None")
-
-            self._target_normalizer.load_state_dict(
-                state.pop("target_normalizer")
+        elif train_dataset is not None and val_dataset is None:
+            raise ValueError(
+                "train_dataset must be None if val_dataset is None."
             )
 
-        if "polynomial_transform" in state:
-            if self._polynomial_transform is None:
-                raise RuntimeError("polynomial_transform is None")
+        assert train_dataset is not None
+        assert val_dataset is not None
 
-            for col, transform in self._polynomial_transform.items():
-                transform.load_state_dict(state["polynomial_transform"][col])
-            state.pop("polynomial_transform")
+        train_dataset = _to_list(train_dataset)
+        val_dataset = _to_list(val_dataset)
 
-        super().load_state_dict(state)
+        train_df = [pd.read_parquet(pth) for pth in train_dataset]
+        val_df = [pd.read_parquet(pth) for pth in val_dataset]
+
+        return cls.from_dataframe(
+            config,
+            train_df,
+            val_df,
+            input_columns=input_columns,
+            target_column=target_column,
+            **kwargs,
+        )
+
+    @classmethod
+    def parse_config_kwargs(
+        cls, config: BaseConfig, **kwargs: typing.Any
+    ) -> dict[str, typing.Any]:
+        """
+        To be overridden by subclasses to parse other config subclasses.
+        """
+        default_kwargs = dict(
+            normalize=config.normalize,
+            seq_len=config.seq_len,
+            min_seq_len=config.min_seq_len,
+            randomize_seq_len=config.randomize_seq_len,
+            stride=config.stride,
+            downsample=config.downsample,
+            remove_polynomial=config.remove_polynomial,
+            polynomial_degree=config.polynomial_degree,
+            polynomial_iterations=config.polynomial_iterations,
+            batch_size=config.batch_size,
+            num_workers=config.num_workers,
+        )
+
+        default_kwargs.update(kwargs)
+
+        return default_kwargs
 
     def prepare_data(self, save: bool = True) -> None:
         """
@@ -196,38 +297,14 @@ class DataModuleBase(L.LightningDataModule):
 
         """
         # load all data into memory and then apply transforms
-        self._raw_train_df = list(
-            map(
-                self.preprocess_dataframe,
-                map(
-                    self._load_and_preprocess_data, self._train_data_pth or []
-                ),
-            )
-        )
-        self._raw_val_df = list(
-            map(
-                self.preprocess_dataframe,
-                map(self._load_and_preprocess_data, self._val_data_pth or []),
-            )
-        )
+        train_df = list(map(self.preprocess_dataframe, self._raw_train_df))
+        val_df = list(map(self.preprocess_dataframe, self._raw_val_df))
 
-        self._try_fit_polynomial_transform(pd.concat(self._raw_train_df))
+        if not self._scalers_fitted():
+            self._fit_transforms(pd.concat(train_df))
 
-        try:
-            self._try_scalers_fitted()
-        except sklearn.exceptions.NotFittedError:
-            if self._polynomial_transform is not None:
-                # must fit scalers on polynomial-removed data
-                self._fit_scalers(
-                    self._try_transform_polynomial(
-                        pd.concat(self._raw_train_df)
-                    )
-                )
-            else:
-                self._fit_scalers(pd.concat(self._train_df))
-
-        self._train_df = list(map(self.apply_transforms, self._raw_train_df))
-        self._val_df = list(map(self.apply_transforms, self._raw_val_df))
+        self._train_df = list(map(self.apply_transforms, train_df))
+        self._val_df = list(map(self.apply_transforms, val_df))
 
         if save:
             self.save_data(self._tmp_dir.name)
@@ -279,98 +356,6 @@ class DataModuleBase(L.LightningDataModule):
         else:
             raise ValueError(f"Unknown stage {stage}.")
 
-    def read_input(
-        self,
-        input_: np.ndarray | pd.Series | pd.DataFrame,
-        target: np.ndarray | pd.Series | pd.DataFrame | None = None,
-        timestamp: np.ndarray | pd.Series | pd.DataFrame | None = None,
-        input_columns: str | typing.Sequence[str] | None = None,
-        target_columns: str | typing.Sequence[str] | None = None,
-    ) -> pd.DataFrame:
-        """
-        Transforms the input data into a dataframe with the specified columns.
-
-        If the inputs and targets are numpy arrays, the columns will be named
-        ``input_0``, ``input_1``, ..., ``input_n`` and ``target_0``,
-        ``target_1``, ..., ``target_m``, if ``input_columns`` and
-        ``
-
-        Parameters
-        ----------
-        input_ : np.ndarray | pd.Series | pd.DataFrame
-            The input data.
-        target : np.ndarray | pd.Series | pd.DataFrame | None
-            The target data.
-        timestamp : np.ndarray | pd.Series | pd.DataFrame | None
-            The timestamps of the data.
-        """
-        # convert inputs to numpy
-        if isinstance(input_, pd.Series):
-            input_ = input_.to_numpy()
-        if target is not None and isinstance(target, pd.Series):
-            target = target.to_numpy()
-
-        # generate column names if necessary
-        if input_columns is None:
-            input_columns = self.hparams["input_columns"]
-        elif isinstance(input_columns, str):
-            input_columns = [input_columns]
-
-        if target is not None or isinstance(input_, pd.DataFrame):
-            if target_columns is None:
-                target_columns = self.hparams["target_columns"]
-            elif isinstance(target_columns, str):
-                target_columns = [target_columns]
-
-        # convert inputs to dataframe
-        assert isinstance(input_columns, (list, tuple))
-        assert isinstance(target_columns, (list, tuple))
-        if isinstance(input_, np.ndarray):
-            df_dict: dict[str, np.ndarray | pd.Series] = {
-                input_columns[i]: input_[:, i]
-                for i in range(len(input_columns))
-            }
-            if target is not None and target_columns is not None:
-                if isinstance(target, np.ndarray):
-                    for i in range(len(target_columns)):
-                        df_dict[target_columns[i]] = target[:, i]
-                elif isinstance(target, pd.DataFrame):
-                    for i, col in enumerate(target_columns):
-                        df_dict[col] = target.iloc[:, i]
-                else:
-                    raise TypeError(
-                        "Expected np.ndarray, pd.Series or pd.DataFrame, "
-                        f"got {type(target)}."
-                    )
-
-            if timestamp is not None:
-                if isinstance(timestamp, (np.ndarray, pd.Series)):
-                    df_dict[TIME] = timestamp
-                elif isinstance(timestamp, (int, float)):
-                    time = np.arange(len(input_)) + timestamp
-                    df_dict[TIME] = time
-                elif isinstance(timestamp, pd.DataFrame):
-                    df_dict[TIME] = timestamp.to_numpy()
-                else:
-                    time = np.arange(len(input_)) + 0.0  # for type checking
-                    df_dict[TIME] = time
-
-            df = pd.DataFrame.from_dict(df_dict)
-        elif isinstance(input_, pd.DataFrame):
-            df = input_.dropna(how="all", axis="columns")
-
-            if target_columns is not None:
-                col_filter = list(input_columns) + [
-                    col for col in target_columns if col in df.columns
-                ]
-                df = df[col_filter]
-        else:
-            raise TypeError(
-                f"Expected np.ndarray or pd.DataFrame, got {type(input_)}"
-            )
-
-        return df
-
     def preprocess_dataframe(
         self,
         df: pd.DataFrame,
@@ -418,22 +403,40 @@ class DataModuleBase(L.LightningDataModule):
         sklearn.exceptions.NotFittedError
             If the scaler has not been fitted.
         """
-        if (
-            self.hparams["remove_polynomial"]
-            and "polynomial" in self.TRANSFORMS
-        ):
-            df = self._try_transform_polynomial(df)
-        if self.hparams["normalize"] and "normalize" in self.TRANSFORMS:
-            df = self._try_scale_df(df, skip_target=skip_target)
-        return df
+        if not self._scalers_fitted():
+            raise RuntimeError("Scalers have not been fitted yet. ")
+
+        out = pd.DataFrame(df)
+        for col in self.hparams["input_columns"]:
+            out[col] = self._input_transforms[col].transform(
+                torch.from_numpy(df[col].to_numpy())
+            )
+
+        if skip_target:
+            return out
+
+        if self.hparams["target_depends_on"] is not None:
+            out[
+                self.hparams["target_column"]
+            ] = self._target_transform.transform(
+                torch.from_numpy(
+                    df[self.hparams["target_depends_on"]].to_numpy()
+                ),
+                torch.from_numpy(df[self.hparams["target_column"]].to_numpy()),
+            )
+        else:
+            out[
+                self.hparams["target_column"]
+            ] = self._target_transform.transform(
+                torch.from_numpy(df[self.hparams["target_column"]].to_numpy())
+            )
+
+        return out
 
     def transform_input(
         self,
-        input_: np.ndarray | pd.Series | pd.DataFrame,
-        target: np.ndarray | pd.Series | pd.DataFrame | None = None,
-        timestamp: np.ndarray | pd.Series | pd.DataFrame | None = None,
-        input_columns: str | typing.Sequence[str] | None = None,
-        target_columns: str | typing.Sequence[str] | None = None,
+        input_: pd.DataFrame,
+        timestamp: np.ndarray | pd.Series | str | None = None,
     ) -> pd.DataFrame:
         """
         Chains the ``read_input`` and ``preprocess_dataframe``, and
@@ -441,16 +444,10 @@ class DataModuleBase(L.LightningDataModule):
 
         Parameters
         ----------
-        input_ : np.ndarray | pd.Series | pd.DataFrame
+        input_ : pd.DataFrame
             The input data.
-        target : np.ndarray | pd.Series | pd.DataFrame | None
-            The target data.
-        timestamp : np.ndarray | pd.Series | pd.DataFrame | None
+        timestamp : np.ndarray | pd.Series | None
             The timestamps of the data.
-        input_columns : str | typing.Sequence[str] | None
-            The names of the input columns.
-        target_columns : str | typing.Sequence[str] | None
-            The names of the target columns.
 
         Returns
         -------
@@ -468,28 +465,25 @@ class DataModuleBase(L.LightningDataModule):
         """
         df = self.read_input(
             input_,
-            target,
             timestamp=timestamp,
-            input_columns=input_columns,
-            target_columns=target_columns,
+            input_columns=self.hparams["input_columns"],
+            target_column=self.hparams["target_column"],
         )
         df = self.preprocess_dataframe(df)
-        skip_target = not all(
-            [col in df.columns for col in self.hparams["target_columns"]]
-        )
+
+        skip_target = self.hparams["target_column"] not in df.columns
         df = self.apply_transforms(df, skip_target=skip_target)
+
         return df
 
     def make_dataset(
         self,
-        input_: np.ndarray | pd.Series | pd.DataFrame,
-        target: np.ndarray | pd.Series | pd.DataFrame | None = None,
-        timestamp: np.ndarray | pd.Series | pd.DataFrame | None = None,
+        df: pd.DataFrame,
+        timestamp: np.ndarray | pd.Series | str | None = None,
         predict: bool = False,
     ) -> TimeSeriesDataset:
         df = self.transform_input(
-            input_=input_,
-            target=target,
+            input_=df,
             timestamp=timestamp,
         )
 
@@ -498,38 +492,33 @@ class DataModuleBase(L.LightningDataModule):
     def _make_dataset_from_df(
         self, df: pd.DataFrame, predict: bool = False
     ) -> TimeSeriesDataset:
-        if all([col in df.columns for col in self.hparams["target_columns"]]):
-            target_data = df[self.hparams["target_columns"]].to_numpy()
-        else:
-            target_data = None
-
-        input_transforms, target_transforms = self.get_transforms()
+        target_data: np.ndarray | None = None
+        if self.hparams["target_column"] in df.columns:
+            target_data = df[self.hparams["target_column"]].to_numpy()
 
         return TimeSeriesDataset(
             input_data=df[self.hparams["input_columns"]].to_numpy(),
-            seq_len=self.hparams["seq_len"],
             target_data=target_data,
             stride=self.hparams["stride"],
-            predict=predict,
+            seq_len=self.hparams["seq_len"],
             min_seq_len=self.hparams["min_seq_len"] if not predict else None,
             randomize_seq_len=self.hparams["randomize_seq_len"]
             if not predict
             else False,
-            input_transforms=input_transforms,
-            target_transforms=target_transforms,
+            predict=predict,
+            target_transform=self.target_transform,
+            dtype=self.hparams["dtype"],
         )
 
     def make_dataloader(
         self,
-        input_: np.ndarray | pd.Series | pd.DataFrame,
-        target: np.ndarray | pd.Series | pd.DataFrame | None = None,
-        timestamp: np.ndarray | pd.Series | pd.DataFrame | None = None,
+        input_: pd.DataFrame,
+        timestamp: np.ndarray | pd.Series | str | None = None,
         predict: bool = False,
         **kwargs: typing.Any,
     ) -> torch.utils.data.DataLoader:
         dataset = self.make_dataset(
             input_,
-            target,
             timestamp=timestamp,
             predict=predict,
         )
@@ -556,11 +545,9 @@ class DataModuleBase(L.LightningDataModule):
             for df in self._train_df
         ]
         target_data = [
-            df[self.hparams["target_columns"]].to_numpy()
+            df[self.hparams["target_column"]].to_numpy()
             for df in self._train_df
         ]
-
-        input_transforms, target_transforms = self.get_transforms()
 
         return TimeSeriesDataset(
             input_data=input_data,
@@ -568,8 +555,8 @@ class DataModuleBase(L.LightningDataModule):
             target_data=target_data,
             stride=self.hparams["stride"],
             predict=False,
-            input_transforms=input_transforms,
-            target_transforms=target_transforms,
+            target_transform=self.target_transform,
+            dtype=self.hparams["dtype"],
         )
 
     @property
@@ -638,6 +625,34 @@ class DataModuleBase(L.LightningDataModule):
         save_parquet(self._train_df, "train")
         save_parquet(self._val_df, "val")
 
+    def state_dict(self) -> dict[str, typing.Any]:
+        state = super().state_dict()
+        if self._input_transforms is not None:
+            state["input_transforms"] = {
+                col: transform.state_dict()
+                for col, transform in self._input_transforms.items()
+            }
+        if self._target_transforms is not None:
+            state["target_transforms"] = self._target_transform.state_dict()
+
+        return state
+
+    def load_state_dict(self, state: dict[str, typing.Any]) -> None:
+        if "input_transforms" in state:
+            for col, transform in self._input_transforms.items():
+                if col not in state["input_transforms"]:
+                    log.warning(f"Could not find state for {col}.")
+                transform.load_state_dict(state["input_transforms"][col])
+
+            state.pop("input_transforms")
+
+        if "target_transform" in state:
+            self._target_transform.load_state_dict(state["target_transform"])
+
+            state.pop("target_transforms")
+
+        super().load_state_dict(state)
+
     def _tmp_data_paths(
         self,
         name: typing.Literal["train", "val", "test", "predict"],
@@ -682,146 +697,106 @@ class DataModuleBase(L.LightningDataModule):
 
                 return paths
 
-    def _load_and_preprocess_data(self, pth: str) -> pd.DataFrame:
-        """
-        Loads and preprocesses data dataframes.
+    def _scalers_fitted(self) -> bool:
+        fitted = all(
+            transform.__sklearn_is_fitted__()
+            for transform in self._input_transforms.values()
+        )
 
-        The dataframes are purposely *not* concatenated to keep
-        distinct data from different sources separate.
-        The data will be concatenated in :class:`HysteresisDataset`
-        after data has been split and samples created using the sliding window technique.
+        fitted &= self._target_transform.__sklearn_is_fitted__()
 
-        :return: List of processed dataframes.
-        """
+        return fitted
 
-        log.info(f"Reading data from {pth}.")
-        df = pd.read_parquet(pth)
+    def _fit_transforms(self, df: pd.DataFrame) -> None:
+        for col in self.hparams["input_columns"]:
+            log.info(f"Fitting input scaler for {col}.")
+            self._input_transforms[col].fit(
+                torch.from_numpy(df[col].to_numpy())
+            )
 
-        return self.read_input(df)
-
-    def _try_scalers_fitted(self) -> None:
-        if (
-            self._input_normalizer is not None
-            and self._target_normalizer is not None
-            and "normalize" in self.TRANSFORMS
-        ):
-            try:
-                sklearn.utils.validation.check_is_fitted(
-                    self._input_normalizer
-                )
-                sklearn.utils.validation.check_is_fitted(
-                    self._target_normalizer
-                )
-            except sklearn.exceptions.NotFittedError:
-                raise sklearn.exceptions.NotFittedError(
-                    "Scalers are not fitted yet. "
-                    "You should call prepare_data() first."
-                )
+        if self.hparams["target_depends_on"] is not None:
+            self._target_transform.fit(
+                torch.from_numpy(
+                    df[self.hparams["target_depends_on"]].to_numpy()
+                ),
+                torch.from_numpy(df[self.hparams["target_column"]].to_numpy()),
+            )
         else:
-            log.debug("No scalers to check.")
-
-    def _fit_scalers(self, df: pd.DataFrame) -> None:
-        if self._input_normalizer is None or self._target_normalizer is None:
-            log.debug("No scalers found, skipping fitting.")
-            return
-
-        self._input_normalizer.fit(
-            torch.from_numpy(df[self.hparams["input_columns"]].to_numpy())
-        )
-        self._target_normalizer.fit(
-            torch.from_numpy(df[self.hparams["target_columns"]].to_numpy())
-        )
-
-    def _try_scale_df(
-        self, df: pd.DataFrame, skip_target: bool = False
-    ) -> pd.DataFrame:
-        self._try_scalers_fitted()
-
-        if self._input_normalizer is None or (
-            not skip_target and self._target_normalizer is None
-        ):
-            log.debug("No scalers found, skipping scaling.")
-            return df
-
-        input_col_names = self.hparams["input_columns"]
-
-        out = pd.DataFrame()
-        out[input_col_names] = self._input_normalizer.transform(
-            torch.from_numpy(df[input_col_names].to_numpy())
-        )
-        if not skip_target:
-            assert self._target_normalizer is not None
-            target_col_names = self.hparams["target_columns"]
-            out[target_col_names] = self._target_normalizer.transform(
-                torch.from_numpy(df[target_col_names].to_numpy())
+            self._target_transform.fit(
+                torch.from_numpy(df[self.hparams["target_column"]].to_numpy())
             )
-
-        return out
-
-    def _try_fit_polynomial_transform(self, df: pd.DataFrame) -> None:
-        if (
-            self._polynomial_transform is not None
-            and "polynomial" in self.TRANSFORMS
-        ):
-            try:
-                for transform in self._polynomial_transform.values():
-                    sklearn.utils.validation.check_is_fitted(transform)
-                log.info("Polynomial transform already fitted.")
-            except sklearn.exceptions.NotFittedError:
-                log.info("Polynomial transform not fitted yet.")
-
-                if len(self.hparams["input_columns"]) > 1:
-                    raise ValueError(
-                        "Polynomial transform can only be used with a single input column."
-                    )
-
-                for col in self.hparams["target_columns"]:
-                    log.info(f"Fitting polynomial transform for {col}.")
-                    self._polynomial_transform[col].fit(
-                        df[self.hparams["input_columns"][0]].to_numpy(),
-                        df[col].to_numpy(),
-                    )
-
-    def _try_transform_polynomial(self, df: pd.DataFrame) -> pd.DataFrame:
-        self._try_fit_polynomial_transform(df)
-
-        if self._polynomial_transform is None:
-            log.debug("No polynomial transform found, skipping transform.")
-            return df
-
-        input_col_names = self.hparams["input_columns"]
-
-        if len(input_col_names) > 1:
-            raise ValueError(
-                "Polynomial transform can only be used with a single input column."
-            )
-
-        out = df.copy()
-        for col in self.hparams["target_columns"]:
-            if col not in df.columns:
-                continue
-            out[col] = (
-                self._polynomial_transform[col]
-                .transform(
-                    df[input_col_names[0]],
-                    df[col],
-                )
-                .numpy()
-            )
-
-        return out
 
     def get_transforms(
         self,
-    ) -> tuple[list[BaseTransform], list[BaseTransform]]:
-        input_transforms = []
-        if self._input_normalizer is not None:
-            input_transforms.append(self._input_normalizer)
+    ) -> tuple[dict[str, TransformCollection], TransformCollection]:
+        return (
+            self._input_transforms,
+            self._target_transform,
+        )
 
-        target_transforms: list[BaseTransform] = []
-        if self._polynomial_transform is not None:
-            target_transforms.extend(self._polynomial_transform.values())
-        if self._target_normalizer is not None:
-            target_transforms.append(self._target_normalizer)
+    @property
+    def input_transforms(self) -> dict[str, TransformCollection]:
+        return self._input_transforms
 
-        return input_transforms, target_transforms
+    @property
+    def target_transform(self) -> TransformCollection:
+        return self._target_transform
+
+    @staticmethod
+    def read_input(
+        df: pd.DataFrame,
+        input_columns: str | typing.Sequence[str],
+        target_column: str | None = None,
+        timestamp: np.ndarray | pd.Series | str | None = None,
+    ) -> pd.DataFrame:
+        """
+        Transforms the input data into a dataframe with the specified columns.
+
+        If the inputs and targets are numpy arrays, the columns will be named
+        ``input_0``, ``input_1``, ..., ``input_n`` and ``target_0``,
+        ``target_1``, ..., ``target_m``, if ``input_columns`` and
+        ``
+
+        Parameters
+        ----------
+        input_ : pd.DataFrame
+            The input data.
+        timestamp : np.ndarray | pd.Series | pd.DataFrame | str | None
+            The timestamps of the data.
+        """
+        input_columns = _to_list(input_columns)
+
+        df = df.dropna(how="all", axis="columns")
+
+        col_filter = input_columns
+        if target_column is not None:
+            col_filter = col_filter + _to_list(target_column)
+
+        df = df[col_filter]
+
+        if timestamp is not None:
+            if isinstance(timestamp, str):
+                df[TIME] = df[timestamp]
+            elif isinstance(timestamp, (np.ndarray, pd.Series)):
+                if len(timestamp) != len(df):
+                    raise ValueError(
+                        "The length of the timestamp must match the length of the data."
+                        f"Got {len(timestamp)} timestamps and {len(df)} rows."
+                    )
+                df[TIME] = timestamp
+        else:
+            df[TIME] = np.arange(len(df))
+
+        return df
+
+
+T = typing.TypeVar("T")
+
+
+def _to_list(x: T | typing.Sequence[T]) -> list[T]:
+    if isinstance(x, typing.Sequence) and not isinstance(
+        x, (str, pd.Series, np.ndarray, torch.Tensor, pd.DataFrame)
+    ):
+        return list(x)
+    else:
+        return typing.cast(list[T], [x])

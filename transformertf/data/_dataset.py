@@ -8,37 +8,21 @@ from __future__ import annotations
 
 import enum
 import logging
-import sys
 import typing
-import warnings
 
 import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
 
-if sys.version_info >= (3, 11):
-    from typing import NotRequired, TypedDict
-else:
-    from typing_extensions import TypedDict, NotRequired
-
+from ._sample_generator import TimeSeriesSample, TimeSeriesSampleGenerator
 from ._transform import BaseTransform
-from ._window_generator import WindowGenerator
 
-__all__ = ["TimeSeriesDataset", "TimeSeriesSample"]
+__all__ = ["TimeSeriesDataset"]
 
 
 log = logging.getLogger(__name__)
 
-TimeSeriesSample = TypedDict(
-    "TimeSeriesSample",
-    {
-        "input": torch.Tensor,
-        "target": NotRequired[torch.Tensor],
-        "initial": torch.Tensor,
-        "target_scale": NotRequired[torch.Tensor],
-    },
-)
 DATA_SOURCE = typing.Union[pd.Series, np.ndarray, torch.Tensor]
 
 
@@ -49,18 +33,20 @@ class DataSetType(enum.Enum):
 
 
 class TimeSeriesDataset(Dataset):
+    _input_data: list[torch.Tensor]
+    _target_data: list[torch.Tensor] | list[None]
+
     def __init__(
         self,
         input_data: DATA_SOURCE | list[DATA_SOURCE],
-        seq_len: int | None,
+        seq_len: int | None = None,
         target_data: DATA_SOURCE | list[DATA_SOURCE] | None = None,
         *,
         stride: int = 1,
         predict: bool = False,
         min_seq_len: int | None = None,
         randomize_seq_len: bool = False,
-        input_transforms: list[BaseTransform] | None = None,
-        target_transforms: list[BaseTransform] | None = None,
+        target_transform: BaseTransform | None = None,
         dtype: torch.dtype = torch.float32,
     ):
         """
@@ -86,18 +72,32 @@ class TimeSeriesDataset(Dataset):
             The length of the windows to create for the samples. If none, the
             entire dataset is used.
         stride : int
-            The offset between windows into the curve.
-        zero_pad : bool
-            Whether to zero-pad the input data to the length of the window
-            if the input data is shorter than the window length.
+            The offset between the start of each sliding window. Defaults to 1.
+        predict : bool
+            Whether the dataset is used for prediction or training. When predicting,
+            the stride is ignored and set to the length of the window, i.e. the
+            :attr:`seq_len` parameter.
+        output_seq_len : int, optional
+            The length of the output sequence. This is required when using
+            the dataset with models with a decoder, such as the Transformer.
+        min_seq_len : int, optional
+            The minimum length of the sliding window. This is used when
+            :attr:`randomize_seq_len` is True.
+        randomize_seq_len : bool
+            Randomize the length of the sliding window. The length is chosen
+            with uniform probability between :attr:`min_seq_len` and
+            :attr:`seq_len`. This is used to train the model to handle
+            sequences of different lengths.
+        target_transform : BaseTransform, optional
+            The transform that was used to transform the target data.
+            This is used to inverse transform the target data.
+            For the transforms for the input data, use the transforms
+            encapsulated in the :class:`DataModuleBase` class.
+        dtype : torch.dtype
+            The data type of the torch.Tensors returned by the dataset in the
+            __getitem__ method. Defaults to torch.float32.
         """
         super().__init__()
-
-        if predict:
-            if stride != 1:
-                warnings.warn("Stride is ignored when predicting.")
-            if seq_len is not None:
-                stride = seq_len
 
         if randomize_seq_len:
             if seq_len is None:
@@ -113,91 +113,94 @@ class TimeSeriesDataset(Dataset):
                     "min_seq_len must be less than or equal to seq_len."
                 )
 
-        self._seq_len = seq_len
-        self._min_seq_len = min_seq_len
-        self._randomize_seq_len = randomize_seq_len
-        self._stride = stride
-        self._predict = predict
-        self._dtype = dtype
+        self._input_data = convert_data(input_data, dtype=dtype)
 
-        def convert_data(
-            data: DATA_SOURCE | list[DATA_SOURCE],
-        ) -> list[np.ndarray]:
-            source = data if isinstance(data, list) else [data]
-
-            def to_numpy(
-                o: pd.Series | np.ndarray | torch.Tensor,
-            ) -> np.ndarray:
-                if isinstance(o, pd.Series):
-                    return o.to_numpy()
-                elif isinstance(o, np.ndarray):
-                    return o
-                elif isinstance(o, torch.Tensor):
-                    return o.numpy()
-                else:
-                    raise TypeError(f"Unsupported type {type(o)} for data")
-
-            return [to_numpy(o) for o in source]
-
-        self._input_data = convert_data(input_data)
-
-        self._target_data: typing.Sequence[np.ndarray | None]
         if target_data is not None:
-            self._target_data = convert_data(target_data)
+            self._target_data = convert_data(target_data, dtype=dtype)
+            self._check_label_data_length()
 
-            if len(self._input_data) != len(self._target_data):
-                raise ValueError(
-                    "The number of input and target data sources must be the same."
-                )
+            # if there is labeled data, it's either for training or validation
             if predict:
                 self._dataset_type = DataSetType.VAL_TEST
             else:
                 self._dataset_type = DataSetType.TRAIN
-        else:
-            self._target_data = [None] * len(self._input_data)
+
+        else:  # no label predict
+            if not predict:
+                raise ValueError(
+                    "Cannot use predict=False with no label data."
+                )
+
+            self._target_data = [None]
             self._dataset_type = DataSetType.PREDICT
 
-            if predict and len(self._input_data) != 1:
+            if len(self._input_data) > 1:
                 raise ValueError(
                     f"Predicting requires exactly one input data source. "
                     f"Got {len(self._input_data)}"
                 )
 
-        self._window_gen = [
-            WindowGenerator(
+        if seq_len is None:
+            if len(self._input_data) > 1:
+                raise ValueError(
+                    f"seq_len must be specified when using more than one input data source. "
+                    f"Got {len(self._input_data)} input data sources."
+                )
+            else:
+                seq_len = len(self._input_data[0])
+
+        if predict:
+            if stride != 1:
+                log.warning("Stride is ignored when predicting.")
+            stride = seq_len
+
+        self._seq_len = seq_len
+        self._min_seq_len = min_seq_len
+        self._randomize_seq_len = randomize_seq_len
+        self._stride = stride
+        self._predict = predict
+
+        self._target_transform = target_transform
+
+        self._sample_gen = [
+            TimeSeriesSampleGenerator(
                 input_data=input_,
-                in_window_size=seq_len or len(input_),
+                window_size=seq_len,
                 label_data=target,
-                label_seq_len=seq_len or len(input_),
-                stride=stride if seq_len is not None else len(input_),
+                stride=stride,
                 zero_pad=predict,
             )
             for input_, target in zip(self._input_data, self._target_data)
         ]
 
+        # needed to determine which dataframe to get samples from
         self._cum_num_samples = np.cumsum(
-            [wg.num_samples for wg in self._window_gen]
+            [len(gen) for gen in self._sample_gen]
         )
-
-        self._input_transforms = input_transforms or []
-        self._target_transforms = target_transforms or []
 
     @classmethod
     def from_dataframe(
         cls,
         dataframe: pd.DataFrame,
-        input_columns: typing.Sequence[str],
-        seq_len: int,
-        target_columns: typing.Sequence[str] | None = None,
+        input_columns: str | typing.Sequence[str],
+        target_column: str | None = None,
+        seq_len: int | None = None,
         stride: int = 1,
         predict: bool = False,
+        min_seq_len: int | None = None,
+        randomize_seq_len: bool = False,
+        target_transform: BaseTransform | None = None,
+        dtype: torch.dtype = torch.float32,
     ) -> TimeSeriesDataset:
+        if isinstance(input_columns, str):
+            input_columns = [input_columns]
+
         input_data = dataframe[list(input_columns)].to_numpy()
 
-        if target_columns is None:
+        if target_column is None:
             target_data = None
         else:
-            target_data = dataframe[list(target_columns)].to_numpy()
+            target_data = dataframe[list(target_column)].to_numpy()
 
         return cls(
             input_data=input_data,
@@ -205,11 +208,11 @@ class TimeSeriesDataset(Dataset):
             target_data=target_data,
             stride=stride,
             predict=predict,
+            min_seq_len=min_seq_len,
+            randomize_seq_len=randomize_seq_len,
+            target_transform=target_transform,
+            dtype=dtype,
         )
-
-    def __len__(self) -> int:
-        """Number of samples in the dataset."""
-        return self.num_samples
 
     @property
     def num_samples(self) -> int:
@@ -233,20 +236,9 @@ class TimeSeriesDataset(Dataset):
         """
         return int(np.sum([len(arr) for arr in self._input_data]))
 
-    def inverse_transform(
-        self,
-        input: torch.Tensor,
-        target: torch.Tensor,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        inv_input = input
-        for transform in reversed(self._input_transforms):
-            inv_input = transform.inverse_transform(inv_input)
-
-        inv_target = target
-        for transform in reversed(self._target_transforms):
-            inv_target = transform.inverse_transform(inv_input, inv_target)
-
-        return inv_input, inv_target
+    @property
+    def target_transform(self) -> BaseTransform | None:
+        return self._target_transform
 
     def __getitem__(self, idx: int) -> TimeSeriesSample:
         """
@@ -256,29 +248,16 @@ class TimeSeriesDataset(Dataset):
         :return: A tuple of the input and target torch.Tensors.
         """
         if self._dataset_type in (DataSetType.TRAIN, DataSetType.VAL_TEST):
-            x, y = self._create_sample(idx)
-            sample = {
-                "input": x,
-                "target": y,
-                "initial": torch.concatenate([x[0], y[0]], dim=0),
-            }
+            return self._create_sample(idx)
         elif self._dataset_type == DataSetType.PREDICT:
-            x = self._get_prediction_input(idx)
-            sample = {"input": x}  # TODO: add initial value
+            return self._get_prediction_input(idx)
         else:
             raise ValueError(f"Unknown dataset type {self._dataset_type}")
 
-        if (
-            self._target_transforms is not None
-            and len(self._target_transforms) > 0
-        ):
-            sample["target_scale"] = self._target_transforms[
-                -1
-            ].get_parameters()  # type: ignore
-
-        return typing.cast(TimeSeriesSample, sample)
-
     def _check_index(self, idx: int) -> int:
+        """
+        Checks if an index for __getitem__ is valid.
+        """
         if idx > self.num_samples or idx < -self.num_samples:
             raise IndexError(
                 f"Index {idx} is out of bounds for dataset with "
@@ -290,7 +269,15 @@ class TimeSeriesDataset(Dataset):
 
         return idx
 
-    def _create_sample(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
+    def __len__(self) -> int:
+        """Number of samples in the dataset."""
+        return self.num_samples
+
+    def __iter__(self) -> typing.Iterator[TimeSeriesSample]:
+        for i in range(len(self)):
+            yield self[i]
+
+    def _create_sample(self, idx: int) -> TimeSeriesSample:
         """
         Create a single sample from the dataset. Used internally by the __getitem__ method.
 
@@ -307,25 +294,25 @@ class TimeSeriesDataset(Dataset):
             idx - self._cum_num_samples[df_idx - 1] if df_idx > 0 else idx
         )
 
-        x, y = self._window_gen[df_idx].get_sample(shifted_idx)
-
-        if x.ndim == 1:
-            x = x.reshape(-1, 1)
-        if y.ndim == 1:
-            y = y.reshape(-1, 1)
-
-        x = torch.from_numpy(x).to(self._dtype)
-        y = torch.from_numpy(y).to(self._dtype)
+        sample = self._sample_gen[df_idx][shifted_idx]
 
         if self._randomize_seq_len:
             assert self._min_seq_len is not None
             random_len = np.random.randint(self._min_seq_len, self._seq_len)
-            x[random_len:] = 0.0
-            y[random_len:] = 0.0
+            sample["input"][random_len:] = 0.0
 
-        return x, y
+            if "target" in sample:
+                sample["target"][random_len:] = 0.0
 
-    def _get_prediction_input(self, idx: int) -> torch.Tensor:
+        # add dimension for num features
+        if sample["input"].ndim == 1:
+            sample["input"] = sample["input"][..., None]
+        if "target" in sample and sample["target"].ndim == 1:
+            sample["target"] = sample["target"][..., None]
+
+        return sample
+
+    def _get_prediction_input(self, idx: int) -> TimeSeriesSample:
         """
         Get a single prediction input from the dataset.
 
@@ -334,12 +321,53 @@ class TimeSeriesDataset(Dataset):
         """
         idx = self._check_index(idx)
 
-        x = self._window_gen[0].get_sample(idx)
-        x_to: torch.Tensor = torch.from_numpy(x).to(self._dtype)
+        x = self._sample_gen[0][idx]
 
         if self._randomize_seq_len:
             assert self._min_seq_len is not None
             random_len = np.random.randint(self._min_seq_len, self._seq_len)
-            x_to[random_len:] = 0.0
+            x["input"][random_len:] = 0.0
 
-        return x_to
+        return x
+
+    def _check_label_data_length(self) -> None:
+        """
+        This function checks the length of the label data sources
+        and raises an error if they are not the same.
+        This function should only be called when label data is
+        present.
+        """
+        if len(self._input_data) != len(self._target_data):
+            raise ValueError(
+                "The number of input and target data sources must be the same."
+            )
+        if not all(
+            [
+                target is not None and len(input_) == len(target)
+                for input_, target in zip(self._input_data, self._target_data)
+            ]
+        ):
+            raise ValueError(
+                "The number of samples in the input and target data "
+                "sources must be the same."
+            )
+
+
+def convert_data(
+    data: DATA_SOURCE | list[DATA_SOURCE], dtype: torch.dtype = torch.float32
+) -> list[torch.Tensor]:
+    source = data if isinstance(data, list) else [data]
+
+    def to_torch(
+        o: pd.Series | np.ndarray | torch.Tensor,
+    ) -> torch.Tensor:
+        if isinstance(o, pd.Series):
+            return torch.from_numpy(o.to_numpy())
+        elif isinstance(o, np.ndarray):
+            return torch.from_numpy(o)
+        elif isinstance(o, torch.Tensor):
+            return o
+        else:
+            raise TypeError(f"Unsupported type {type(o)} for data")
+
+    return [to_torch(o).to(dtype) for o in source]

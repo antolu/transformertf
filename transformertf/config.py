@@ -63,6 +63,9 @@ class BaseConfig:
     train_dataset: str | typing.Sequence[str] | None = None
     val_dataset: str | typing.Sequence[str] | None = None
 
+    input_columns: str | typing.Sequence[str] | None = None
+    target_column: str | None = None
+
     checkpoint_every: int = 50
     validate_every: int = 50
 

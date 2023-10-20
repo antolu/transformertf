@@ -282,9 +282,10 @@ class PhyLSTMModule(LightningModuleBase):
         target = batch.get("target")
         target_scale = batch.get("target_scale")
         assert target is not None
-        assert target_scale is not None
 
-        initial_state = typing.cast(PhyLSTM1States, {"lstm1": self.model.init_states(batch["initial"])})
+        initial_state = typing.cast(
+            PhyLSTM1States, {"lstm1": self.model.init_states(batch["initial_state"])}
+        )
         model_output = self.forward(batch["input"], hidden_state=initial_state)
 
         _, losses = self.criterion(
@@ -306,7 +307,7 @@ class PhyLSTMModule(LightningModuleBase):
 
         prev_hidden = self._val_hidden[dataloader_idx]
         if prev_hidden is None:
-            prev_hidden = {"lstm1": self.model.init_states(batch["initial"])}
+            prev_hidden = {"lstm1": self.model.init_states(batch["initial_state"])}
 
         loss, model_output, hidden = self.common_test_step(  # type: ignore[type-var]
             batch, batch_idx, prev_hidden
@@ -318,7 +319,8 @@ class PhyLSTMModule(LightningModuleBase):
 
         return typing.cast(
             STEP_OUTPUT,
-            loss | {
+            loss
+            | {
                 "state": ops.to_cpu(ops.detach(hidden)),
                 "output": ops.to_cpu(ops.detach(model_output)),
             },
@@ -345,7 +347,8 @@ class PhyLSTMModule(LightningModuleBase):
 
         return typing.cast(
             STEP_OUTPUT,
-            loss | {
+            loss
+            | {
                 "state": ops.to_cpu(ops.detach(hidden)),
                 "output": ops.to_cpu(ops.detach(model_output)),
             },

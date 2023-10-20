@@ -6,34 +6,34 @@ import pandas as pd
 import pytest
 import torch.utils.data
 
+from transformertf.config import BaseConfig
 from transformertf.data import DataModuleBase
 
 DF_PATH = str(Path(__file__).parent.parent / "sample_data.parquet")
 CURRENT = "I_meas_A"
 FIELD = "B_meas_T"
 
-
-def test_datamodule_base_create() -> None:
-    dm = DataModuleBase(input_columns=["a"], target_columns=["b"])
-    assert dm is not None
+config = BaseConfig()
 
 
 def test_datamodule_base_create_from_parquet() -> None:
-    dm = DataModuleBase(
+    dm = DataModuleBase.from_parquet(
+        config=config,
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
-        input_columns=[CURRENT],
-        target_columns=[FIELD],
+        input_columns=["a"],
+        target_column="b",
     )
     assert dm is not None
 
 
 def test_datamodule_base_prepare_data() -> None:
-    dm = DataModuleBase(
+    dm = DataModuleBase.from_parquet(
+        config=config,
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
         input_columns=[CURRENT],
-        target_columns=[FIELD],
+        target_column=FIELD,
     )
     dm.prepare_data()
 
@@ -41,11 +41,12 @@ def test_datamodule_base_prepare_data() -> None:
 
 
 def test_datamodule_base_setup_before_prepare_data() -> None:
-    dm = DataModuleBase(
+    dm = DataModuleBase.from_parquet(
+        config=config,
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
         input_columns=[CURRENT],
-        target_columns=[FIELD],
+        target_column=FIELD,
     )
     dm.setup()
 
@@ -60,11 +61,12 @@ def test_datamodule_base_setup_before_prepare_data() -> None:
 
 @pytest.fixture(scope="module")
 def datamodule_base() -> DataModuleBase:
-    dm = DataModuleBase(
+    dm = DataModuleBase.from_parquet(
+        config=config,
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
         input_columns=[CURRENT],
-        target_columns=[FIELD],
+        target_column=FIELD,
     )
     dm.prepare_data()
     dm.setup()
@@ -97,11 +99,12 @@ def test_datamodule_base_val_dataloader(
 
 
 def test_datamodule_base_prepare_twice() -> None:
-    dm = DataModuleBase(
+    dm = DataModuleBase.from_parquet(
+        config=config,
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
         input_columns=[CURRENT],
-        target_columns=[FIELD],
+        target_column=FIELD,
     )
     dm.prepare_data()
 
@@ -116,7 +119,9 @@ def df() -> pd.DataFrame:
 def test_datamodule_base_read_input(
     datamodule_base: DataModuleBase, df: pd.DataFrame
 ) -> None:
-    processed_df = datamodule_base.read_input(df)
+    processed_df = datamodule_base.read_input(
+        df, input_columns=[CURRENT], target_column=FIELD
+    )
 
     assert processed_df is not None
     assert isinstance(processed_df, pd.DataFrame)
@@ -124,7 +129,7 @@ def test_datamodule_base_read_input(
     assert CURRENT in processed_df.columns
     assert FIELD in processed_df.columns
 
-    assert len(processed_df.columns) == 2
+    assert len(processed_df.columns) == 3
 
 
 def test_datamodule_base_preprocess_dataframe(
@@ -164,7 +169,7 @@ def test_datamodule_base_transform_input(
     assert CURRENT in processed_df.columns
     assert FIELD in processed_df.columns
 
-    assert len(processed_df.columns) == 2
+    assert len(processed_df.columns) == 3
 
 
 def test_datamodule_base_make_dataset(

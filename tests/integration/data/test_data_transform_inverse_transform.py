@@ -1,25 +1,32 @@
 # type: ignore
+
 from __future__ import annotations
 
 import numpy as np
 import pandas as pd
 import pytest
+import torch
 
+from transformertf.config import BaseConfig
 from transformertf.data import DataModuleBase
-from transformertf.models.phylstm import PhyLSTMDataModule
+from transformertf.models.phylstm import PhyLSTMConfig, PhyLSTMDataModule
 from transformertf.utils import ops
 
 from ...conftest import CURRENT, DF_PATH, FIELD
 
+config = BaseConfig(input_columns=CURRENT, target_column=FIELD)
+
 
 @pytest.fixture(scope="module")
 def dm() -> DataModuleBase:
-    dm = DataModuleBase(
+    dm = DataModuleBase.from_parquet(
+        config=config,
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
         input_columns=[CURRENT],
-        target_columns=[FIELD],
+        target_column=FIELD,
         seq_len=500,
+        dtype=torch.float64,
     )
     dm.prepare_data()
     dm.setup()
@@ -50,7 +57,12 @@ def test_data_transform_inverse_transform(dm: DataModuleBase) -> None:
     assert len(x) == len(df)
     assert len(y) == len(df)
 
-    x, y = dataset.inverse_transform(x, y)
+    input_transform = dm.input_transforms[CURRENT]
+    target_transform = dm.target_transform
+
+    x = input_transform.inverse_transform(x)
+    y = target_transform.inverse_transform(x, y)
+
     x = x.numpy().flatten()
     y = y.numpy().flatten()
 
@@ -62,11 +74,14 @@ def test_data_transform_inverse_transform(dm: DataModuleBase) -> None:
 
 
 @pytest.fixture(scope="module")
-def physical_dm() -> PhyLSTMDataModule:
-    dm = PhyLSTMDataModule(
+def phylstm_dm() -> PhyLSTMDataModule:
+    config = PhyLSTMConfig(input_columns=CURRENT, target_column=FIELD)
+    dm = PhyLSTMDataModule.from_parquet(
+        config,
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
         polynomial_iterations=10,
+        dtype=torch.float64,
     )
     dm.prepare_data()
     dm.setup()
@@ -75,14 +90,14 @@ def physical_dm() -> PhyLSTMDataModule:
 
 
 def test_physical_data_transform_inverse_transform(
-    physical_dm: PhyLSTMDataModule,
+    phylstm_dm: PhyLSTMDataModule,
 ) -> None:
     df = pd.read_parquet(DF_PATH)
     df = df.dropna()
     df = df.reset_index(drop=True)
     df = df[[CURRENT, FIELD]]
 
-    dataset = physical_dm.val_dataset
+    dataset = phylstm_dm.val_dataset
 
     x = [dataset[i]["input"] for i in range(len(dataset))]
     y = [dataset[i]["target"] for i in range(len(dataset))]
@@ -99,7 +114,11 @@ def test_physical_data_transform_inverse_transform(
     assert len(x) == len(df)
     assert len(y) == len(df)
 
-    x, y = dataset.inverse_transform(x, y)
+    input_transform = phylstm_dm.input_transforms[CURRENT]
+    target_transform = phylstm_dm.target_transform
+
+    x = input_transform.inverse_transform(x)
+    y = target_transform.inverse_transform(x, y)
     x = x.numpy().flatten()
     y = y.numpy().flatten()
 

@@ -4,6 +4,7 @@ import logging
 import typing
 
 import pandas as pd
+import torch
 
 from transformertf.utils import signal
 
@@ -49,24 +50,24 @@ class PhyLSTMDataModule(DataModuleBase):
 
     def __init__(
         self,
-        train_dataset: str | typing.Sequence[str] | None = None,
-        val_dataset: str | typing.Sequence[str] | None = None,
+        train_df: pd.DataFrame | list[pd.DataFrame],
+        val_df: pd.DataFrame | list[pd.DataFrame],
         seq_len: int = 500,
         min_seq_len: int | None = None,
-        out_seq_len: int = 0,
         randomize_seq_len: bool = False,
         stride: int = 1,
+        downsample: int = 1,
         lowpass_filter: bool = False,
         mean_filter: bool = False,
-        downsample: int = 1,
         remove_polynomial: bool = True,
         polynomial_degree: int = 1,
         polynomial_iterations: int = 1000,
+        input_columns: str = CURRENT,
+        target_column: str = FIELD,
         batch_size: int = 128,
         num_workers: int = 0,
-        current_column: str = CURRENT,
-        field_column: str = FIELD,
         model_dir: str | None = None,
+        dtype: torch.dtype = torch.float32,
     ):
         """
         The raw dataset used to train the hysteresis model.
@@ -81,14 +82,13 @@ class PhyLSTMDataModule(DataModuleBase):
 
         """
         super().__init__(
-            input_columns=[current_column],
-            target_columns=[field_column],
-            train_dataset=train_dataset,
-            val_dataset=val_dataset,
+            train_df=train_df,
+            val_df=val_df,
+            input_columns=input_columns,
+            target_column=target_column,
             normalize=True,
             seq_len=seq_len,
             min_seq_len=min_seq_len,
-            out_seq_len=out_seq_len,
             randomize_seq_len=randomize_seq_len,
             stride=stride,
             remove_polynomial=remove_polynomial,
@@ -97,35 +97,26 @@ class PhyLSTMDataModule(DataModuleBase):
             batch_size=batch_size,
             num_workers=num_workers,
         )
-        self.save_hyperparameters(ignore=["current_column", "field_column"])
+        self.save_hyperparameters(ignore=["train_df", "val_df"])
 
     @classmethod
-    def from_config(  # type: ignore[override]
+    def parse_config_kwargs(  # type: ignore[override]
         cls,
         config: PhyLSTMConfig,
         **kwargs: typing.Any,
-    ) -> PhyLSTMDataModule:
-        default_kwargs = {
-            "train_dataset": config.train_dataset,
-            "val_dataset": config.val_dataset,
-            "seq_len": config.seq_len,
-            "min_seq_len": config.min_seq_len,
-            "randomize_seq_len": config.randomize_seq_len,
-            "stride": config.stride,
-            "downsample": config.downsample,
-            "batch_size": config.batch_size,
-            "num_workers": config.num_workers,
-            "model_dir": config.model_dir,
-            "lowpass_filter": config.lowpass_filter,
-            "mean_filter": config.mean_filter,
-            "remove_polynomial": config.remove_polynomial,
-            "polynomial_degree": config.polynomial_degree,
-            "polynomial_iterations": config.polynomial_iterations,
-        }
-        default_kwargs.update(kwargs)
-        return PhyLSTMDataModule(
-            **default_kwargs,  # type: ignore[arg-type]
+    ) -> dict[str, typing.Any]:
+        default_kwargs = super().parse_config_kwargs(config, **kwargs)
+        default_kwargs.update(
+            {
+                "lowpass_filter": config.lowpass_filter,
+                "mean_filter": config.mean_filter,
+            }
         )
+        for key in ("normalize",):
+            if key in default_kwargs:
+                del default_kwargs[key]
+
+        return default_kwargs
 
     def preprocess_dataframe(
         self,
@@ -148,7 +139,7 @@ class PhyLSTMDataModule(DataModuleBase):
         df = super().preprocess_dataframe(df)
 
         current: str = self.hparams["input_columns"][0]
-        field: str | None = self.hparams["target_columns"][0]
+        field: str | None = self.hparams["target_column"]
 
         # signal processing: lowpass filter
         if self.hparams["lowpass_filter"]:

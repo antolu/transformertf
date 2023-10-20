@@ -32,7 +32,7 @@ def phylstm_module(config: PhyLSTMConfig) -> PhyLSTMModule:
 
 @pytest.fixture
 def phylstm_datamodule(config: PhyLSTMConfig) -> PhyLSTMDataModule:
-    return PhyLSTMDataModule.from_config(config)
+    return PhyLSTMDataModule.from_parquet(config)
 
 
 def test_phylstm_forward_pass(
