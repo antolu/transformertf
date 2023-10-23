@@ -13,12 +13,24 @@ import typing
 import numpy as np
 import pandas as pd
 import torch
-from torch.utils.data import Dataset
 
-from ._sample_generator import TimeSeriesSample, TimeSeriesSampleGenerator
+from ._sample_generator import (
+    TimeSeriesSample,
+    TimeSeriesSampleGenerator,
+    TransformerSample,
+    TransformerSampleGenerator,
+)
 from ._transform import BaseTransform
 
-__all__ = ["TimeSeriesDataset"]
+
+if typing.TYPE_CHECKING:
+    SameType = typing.TypeVar("SameType", bound="AbstractTimeSeriesDataset")
+
+__all__ = [
+    "AbstractTimeSeriesDataset",
+    "TimeSeriesDataset",
+    "TransformerDataset",
+]
 
 
 log = logging.getLogger(__name__)
@@ -32,7 +44,31 @@ class DataSetType(enum.Enum):
     PREDICT = "predict"
 
 
-class TimeSeriesDataset(Dataset):
+class AbstractTimeSeriesDataset(torch.utils.data.Dataset):
+    _input_data: list[torch.Tensor]
+    _target_data: list[torch.Tensor] | list[None]
+    _target_transform: BaseTransform | None
+    _dataset_type: DataSetType
+
+
+    @property
+    def num_points(self) -> int:
+        """
+        The total number of points in the dataset.
+        This is different from :meth:`__len__` that gives the number of
+        samples in the dataset. This is the number of points in the original
+        dataframes.
+
+        :return: The number of points.
+        """
+        return int(np.sum([len(arr) for arr in self._input_data]))
+
+    @property
+    def target_transform(self) -> BaseTransform | None:
+        return self._target_transform
+
+
+class TimeSeriesDataset(AbstractTimeSeriesDataset):
     _input_data: list[torch.Tensor]
     _target_data: list[torch.Tensor] | list[None]
 
@@ -77,9 +113,6 @@ class TimeSeriesDataset(Dataset):
             Whether the dataset is used for prediction or training. When predicting,
             the stride is ignored and set to the length of the window, i.e. the
             :attr:`seq_len` parameter.
-        output_seq_len : int, optional
-            The length of the output sequence. This is required when using
-            the dataset with models with a decoder, such as the Transformer.
         min_seq_len : int, optional
             The minimum length of the sliding window. This is used when
             :attr:`randomize_seq_len` is True.
@@ -117,7 +150,7 @@ class TimeSeriesDataset(Dataset):
 
         if target_data is not None:
             self._target_data = convert_data(target_data, dtype=dtype)
-            self._check_label_data_length()
+            _check_label_data_length(self._input_data, self._target_data)
 
             # if there is labeled data, it's either for training or validation
             if predict:
@@ -214,32 +247,6 @@ class TimeSeriesDataset(Dataset):
             dtype=dtype,
         )
 
-    @property
-    def num_samples(self) -> int:
-        """
-        The total number of samples in the dataset.
-        :return: The number of samples.
-        """
-        return self._cum_num_samples[-1]
-
-    @property
-    def num_points(self) -> int:
-        """
-        The total number of points in the dataset.
-        This is different from :meth:`num_samples` that gives the number of
-        samples in the dataset. This is the number of points in the original
-        dataframes.
-
-        One element per internal dataframe.
-
-        :return: The number of points.
-        """
-        return int(np.sum([len(arr) for arr in self._input_data]))
-
-    @property
-    def target_transform(self) -> BaseTransform | None:
-        return self._target_transform
-
     def __getitem__(self, idx: int) -> TimeSeriesSample:
         """
         Get a single sample from the dataset.
@@ -254,24 +261,9 @@ class TimeSeriesDataset(Dataset):
         else:
             raise ValueError(f"Unknown dataset type {self._dataset_type}")
 
-    def _check_index(self, idx: int) -> int:
-        """
-        Checks if an index for __getitem__ is valid.
-        """
-        if idx > self.num_samples or idx < -self.num_samples:
-            raise IndexError(
-                f"Index {idx} is out of bounds for dataset with "
-                f" {self.num_samples} samples."
-            )
-
-        if idx < 0:
-            idx += self.num_samples
-
-        return idx
-
     def __len__(self) -> int:
         """Number of samples in the dataset."""
-        return self.num_samples
+        return self._cum_num_samples[-1]
 
     def __iter__(self) -> typing.Iterator[TimeSeriesSample]:
         for i in range(len(self)):
@@ -285,7 +277,7 @@ class TimeSeriesDataset(Dataset):
 
         :return: A tuple of the input and target torch.Tensors.
         """
-        idx = self._check_index(idx)
+        idx = _check_index(idx, len(self))
 
         # find which df to get samples from
         df_idx = np.argmax(self._cum_num_samples > idx)
@@ -319,7 +311,7 @@ class TimeSeriesDataset(Dataset):
         :param idx: The index of the sample to get.
         :return: A torch.Tensor.
         """
-        idx = self._check_index(idx)
+        idx = _check_index(idx, self.num_samples)
 
         x = self._sample_gen[0][idx]
 
@@ -330,27 +322,178 @@ class TimeSeriesDataset(Dataset):
 
         return x
 
-    def _check_label_data_length(self) -> None:
+
+class TransformerDataset(AbstractTimeSeriesDataset):
+    def __init__(
+        self,
+        input_data: DATA_SOURCE | list[DATA_SOURCE],
+        target_data: DATA_SOURCE | list[DATA_SOURCE],
+        ctx_seq_len: int,
+        tgt_seq_len: int,
+        *,
+        stride: int = 1,
+        predict: bool = False,
+        min_ctxt_seq_len: int | None = None,
+        min_tgt_seq_len: int | None = None,
+        randomize_seq_len: bool = False,
+        target_transform: BaseTransform | None = None,
+        dtype: torch.dtype = torch.float32,
+    ):
         """
-        This function checks the length of the label data sources
-        and raises an error if they are not the same.
-        This function should only be called when label data is
-        present.
+        Dataset to train a transformer
+
+        Parameters
+        ----------
+        input_data
+        target_data
+        ctx_seq_len
+        tgt_seq_len
+        stride
+        predict
+        min_ctxt_seq_len
+        min_tgt_seq_len
+        randomize_seq_len
+        target_transform
+        dtype
         """
-        if len(self._input_data) != len(self._target_data):
-            raise ValueError(
-                "The number of input and target data sources must be the same."
+        super().__init__()
+
+        if randomize_seq_len:
+            if min_tgt_seq_len is None:
+                raise ValueError(
+                    "min_tgt_seq_len must be specified when "
+                    "randomize_seq_len is True"
+                )
+            if min_ctxt_seq_len is None:
+                raise ValueError(
+                    "min_ctx_seq_len must be specified when "
+                    "randomize_seq_len is True"
+                )
+
+        self._input_data = convert_data(input_data, dtype=dtype)
+        self._target_data = convert_data(target_data, dtype=dtype)
+        _check_label_data_length(self._input_data, self._target_data)
+
+        self._dataset_type = (
+            DataSetType.VAL_TEST if predict else DataSetType.TRAIN
+        )
+
+        if predict:
+            if stride != 1:
+                log.warning("Stride is ignored when predicting.")
+                stride = tgt_seq_len
+            if randomize_seq_len:
+                # TODO: allow random seq len for validation purposes
+                log.warning("randomize_seq_len is ignored when predicting.")
+
+                randomize_seq_len = False
+
+        self._ctxt_seq_len = ctx_seq_len
+        self._tgt_seq_len = tgt_seq_len
+        self._predict = predict
+        self._stride = stride
+        self._randomize_seq_len = randomize_seq_len
+
+        self._target_transform = target_transform
+
+        self._sample_gen = [
+            TransformerSampleGenerator(
+                input_data=input_,
+                target_data=target_,
+                src_seq_len=ctx_seq_len,
+                tgt_seq_len=tgt_seq_len,
+                zero_pad=predict,
+                stride=stride,
             )
-        if not all(
-            [
-                target is not None and len(input_) == len(target)
-                for input_, target in zip(self._input_data, self._target_data)
-            ]
-        ):
-            raise ValueError(
-                "The number of samples in the input and target data "
-                "sources must be the same."
+            for input_, target_ in zip(
+                self._input_data,
+                self._target_data,
             )
+        ]
+
+        self._cum_num_samples = np.cumsum(
+            [len(gen) for gen in self._sample_gen]
+        )
+
+    @classmethod
+    def from_dataframe(
+        cls,
+        dataframe: pd.DataFrame,
+        input_columns: str | typing.Sequence[str],
+        target_column: str,
+        ctx_seq_len: int,
+        tgt_seq_len: int,
+        *,
+        stride: int = 1,
+        predict: bool = False,
+        min_ctxt_seq_len: int | None = None,
+        min_tgt_seq_len: int | None = None,
+        randomize_seq_len: bool = False,
+        target_transform: BaseTransform | None = None,
+        dtype: torch.dtype = torch.float32,
+    ) -> TransformerDataset:
+        if isinstance(input_columns, str):
+            input_columns = [input_columns]
+
+        input_data = dataframe[list(input_columns)].to_numpy()
+        target_data = dataframe[target_column].to_numpy()
+
+        return cls(
+            input_data=input_data,
+            target_data=target_data,
+            ctx_seq_len=ctx_seq_len,
+            tgt_seq_len=tgt_seq_len,
+            stride=stride,
+            predict=predict,
+            min_ctxt_seq_len=min_ctxt_seq_len,
+            min_tgt_seq_len=min_tgt_seq_len,
+            randomize_seq_len=randomize_seq_len,
+            target_transform=target_transform,
+            dtype=dtype,
+        )
+
+    def __getitem__(self, idx: int) -> TransformerSample:
+        """
+        Get a single sample from the dataset.
+
+        Parameters
+        ----------
+        idx
+
+        Returns
+        -------
+        TransformerSample
+        """
+        idx = _check_index(idx, len(self))
+
+        # find which df to get samples from
+        df_idx = np.argmax(self._cum_num_samples > idx)
+
+        shifted_idx = (
+            idx - self._cum_num_samples[df_idx - 1] if df_idx > 0 else idx
+        )
+
+        sample = self._sample_gen[df_idx][shifted_idx]
+
+        if self._randomize_seq_len:
+            assert self._min_ctxt_seq_len is not None
+            random_len = np.random.randint(
+                self._min_ctxt_seq_len, self._ctxt_seq_len
+            )
+            sample["encoder_input"][random_len:] = 0.0
+
+            random_len = np.random.randint(
+                self._min_tgt_seq_len, self._tgt_seq_len
+            )
+            sample["decoder_input"][random_len:] = 0.0
+
+            if "target" in sample:
+                sample["target"][random_len:] = 0.0
+
+        return sample
+
+    def __len__(self) -> int:
+        return self._cum_num_samples[-1]
 
 
 def convert_data(
@@ -371,3 +514,45 @@ def convert_data(
             raise TypeError(f"Unsupported type {type(o)} for data")
 
     return [to_torch(o).to(dtype) for o in source]
+
+
+def _check_index(idx: int, length: int) -> int:
+    """
+    Checks if an index for __getitem__ is valid.
+    """
+    if idx > length or idx < -length:
+        raise IndexError(
+            f"Index {idx} is out of bounds for dataset with "
+            f" {length} samples."
+        )
+
+    if idx < 0:
+        idx += length
+
+    return idx
+
+
+def _check_label_data_length(
+    input_data: list[torch.Tensor],
+    target_data: list[torch.Tensor] | list[None],
+) -> None:
+    """
+    This function checks the length of the label data sources
+    and raises an error if they are not the same.
+    This function should only be called when label data is
+    present.
+    """
+    if len(input_data) != len(target_data):
+        raise ValueError(
+            "The number of input and target data sources must be the same."
+        )
+    if not all(
+        [
+            target is not None and len(input_) == len(target)
+            for input_, target in zip(input_data, target_data)
+        ]
+    ):
+        raise ValueError(
+            "The number of samples in the input and target data "
+            "sources must be the same."
+        )
