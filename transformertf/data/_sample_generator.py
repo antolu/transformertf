@@ -224,6 +224,11 @@ class TransformerSampleGenerator(SampleGenerator[TransformerSample[T]]):
         src = self._input_data[src_slice]
         tgt = self._label_data[tgt_slice]
 
+        if src.ndim == 1:
+            src = src[..., None]
+        if tgt.ndim == 1:
+            tgt = tgt[..., None]
+
         return typing.cast(
             TransformerSample[T],
             {
