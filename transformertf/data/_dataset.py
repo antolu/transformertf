@@ -50,7 +50,6 @@ class AbstractTimeSeriesDataset(torch.utils.data.Dataset):
     _target_transform: BaseTransform | None
     _dataset_type: DataSetType
 
-
     @property
     def num_points(self) -> int:
         """
