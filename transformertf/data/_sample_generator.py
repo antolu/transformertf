@@ -68,7 +68,9 @@ class SampleGenerator(typing.Sequence[U]):
         else:
             return [
                 self._make_sample(i)
-                for i in range(idx.start, idx.stop, idx.step)
+                for i in range(
+                    idx.start or 0, idx.stop or len(self), idx.step or 1
+                )
             ]
 
     def __len__(self) -> int:

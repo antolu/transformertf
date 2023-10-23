@@ -81,6 +81,9 @@ def phylstm_dm() -> PhyLSTMDataModule:
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
         polynomial_iterations=10,
+        downsample=100,
+        lowpass_filter=False,
+        mean_filter=False,
         dtype=torch.float64,
     )
     dm.prepare_data()
@@ -89,13 +92,13 @@ def phylstm_dm() -> PhyLSTMDataModule:
     return dm
 
 
-def test_physical_data_transform_inverse_transform(
+def test_phylstm_data_transform_inverse_transform(
     phylstm_dm: PhyLSTMDataModule,
 ) -> None:
     df = pd.read_parquet(DF_PATH)
     df = df.dropna()
     df = df.reset_index(drop=True)
-    df = df[[CURRENT, FIELD]]
+    df = df[[CURRENT, FIELD]].iloc[:: phylstm_dm.hparams["downsample"]]
 
     dataset = phylstm_dm.val_dataset
 

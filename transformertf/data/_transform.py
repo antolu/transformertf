@@ -99,7 +99,7 @@ class BaseTransform(
         return str(self)
 
 
-class TransformCollection(BaseTransform):
+class TransformCollection(BaseTransform, typing.Sequence[BaseTransform]):
     def __init__(
         self,
         transforms: list[BaseTransform],
@@ -137,17 +137,17 @@ class TransformCollection(BaseTransform):
         y_transformed = _as_torch(y) if y is not None else None
 
         for transform in self.transforms:
-            if transform._transform_type == TransformType.X:
-                if self._transform_type == TransformType.X:
+            if self._transform_type == TransformType.X:
+                if transform._transform_type == TransformType.X:
                     x_transformed = transform.fit_transform(x_transformed)
-                elif self._transform_type == TransformType.XY:
+                elif transform._transform_type == TransformType.XY:
                     if y_transformed is None:
                         raise ValueError("Cannot fit Y when Y is None.")
                     y_transformed = transform.fit_transform(y_transformed)
-            elif transform._transform_type == TransformType.XY:
-                if self._transform_type == TransformType.X:
-                    x_transformed = transform.fit_transform(x_transformed, y_transformed)
-                elif self._transform_type == TransformType.XY:
+            elif self._transform_type == TransformType.XY:
+                if transform._transform_type == TransformType.X:
+                    y_transformed = transform.fit_transform(y_transformed)
+                elif transform._transform_type == TransformType.XY:
                     y_transformed = transform.fit_transform(
                         x_transformed, y_transformed
                     )
@@ -166,10 +166,10 @@ class TransformCollection(BaseTransform):
         y_transformed = _as_torch(y) if y is not None else None
 
         for transform in self.transforms:
-            if transform._transform_type == TransformType.X:
-                if self._transform_type == TransformType.X:
+            if self._transform_type == TransformType.X:
+                if transform._transform_type == TransformType.X:
                     x_transformed = transform.transform(x_transformed)
-                elif self._transform_type == TransformType.XY:
+                elif transform._transform_type == TransformType.XY:
                     if y_transformed is None:
                         raise ValueError("Cannot transform Y when Y is None.")
                     y_transformed = transform.transform(y_transformed)
@@ -178,10 +178,13 @@ class TransformCollection(BaseTransform):
                         f"Invalid transform type: {self._transform_type}"
                     )
 
-            elif transform._transform_type == TransformType.XY:
-                y_transformed = transform.transform(
-                    x_transformed, y_transformed
-                )
+            elif self._transform_type == TransformType.XY:
+                if transform._transform_type == TransformType.X:
+                    y_transformed = transform.transform(y_transformed)
+                elif transform._transform_type == TransformType.XY:
+                    y_transformed = transform.transform(
+                        x_transformed, y_transformed
+                    )
 
             else:
                 raise ValueError(
@@ -201,19 +204,25 @@ class TransformCollection(BaseTransform):
         x_transformed = _as_torch(x)
         y_transformed = _as_torch(y) if y is not None else None
 
+        if y is None and self._transform_type == TransformType.XY:
+            raise ValueError("Cannot transform Y when Y is None.")
+
         for transform in reversed(self.transforms):
-            if transform._transform_type == TransformType.X:
-                if self._transform_type == TransformType.X:
+            if self._transform_type == TransformType.X:
+                if transform._transform_type == TransformType.X:
                     x_transformed = transform.inverse_transform(x_transformed)
-                elif self._transform_type == TransformType.XY:
+                elif transform._transform_type == TransformType.XY:
                     if y_transformed is None:
                         raise ValueError("Cannot transform Y when Y is None.")
                     y_transformed = transform.inverse_transform(y_transformed)
 
-            elif transform._transform_type == TransformType.XY:
-                y_transformed = transform.inverse_transform(
-                    x_transformed, y_transformed
-                )
+            elif self._transform_type == TransformType.XY:
+                if transform._transform_type == TransformType.X:
+                    y_transformed = transform.inverse_transform(y_transformed)
+                elif transform._transform_type == TransformType.XY:
+                    y_transformed = transform.inverse_transform(
+                        x_transformed, y_transformed
+                    )
 
             else:
                 raise ValueError(
@@ -234,6 +243,22 @@ class TransformCollection(BaseTransform):
     # def load_state_dict(self, state_dict: dict[str, typing.Any]) -> None:
     #     for transform in self.transforms:
     #         transform.load_state_dict(state_dict[transform.__class__.__name__])
+
+    def __getitem__(
+        self, item: int | slice
+    ) -> BaseTransform | TransformCollection:
+        if isinstance(item, int):
+            return self.transforms[item]
+        else:
+            return TransformCollection(
+                self.transforms[item], transform_type=self._transform_type
+            )
+
+    def __len__(self) -> int:
+        return len(self.transforms)
+
+    def __iter__(self) -> typing.Iterator[BaseTransform]:
+        return iter(self.transforms)
 
     def __sklearn_is_fitted__(self) -> bool:
         return all(

@@ -105,13 +105,13 @@ class PhyLSTMDataModule(DataModuleBase):
         config: PhyLSTMConfig,
         **kwargs: typing.Any,
     ) -> dict[str, typing.Any]:
-        default_kwargs = super().parse_config_kwargs(config, **kwargs)
-        default_kwargs.update(
-            {
-                "lowpass_filter": config.lowpass_filter,
-                "mean_filter": config.mean_filter,
-            }
-        )
+        kwargs = super().parse_config_kwargs(config, **kwargs)
+        default_kwargs = {
+            "lowpass_filter": config.lowpass_filter,
+            "mean_filter": config.mean_filter,
+        }
+        default_kwargs.update(kwargs)
+
         for key in ("normalize",):
             if key in default_kwargs:
                 del default_kwargs[key]

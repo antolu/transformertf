@@ -99,7 +99,6 @@ class PhyLSTMLoss(nn.Module):
         y_hat: PhyLSTM1Output | PhyLSTM2Output | PhyLSTM3Output,
         targets: torch.torch.Tensor,
         weights: LossWeights | None = None,
-        target_scale: torch.Tensor | None = None,
         *,
         return_all: typing.Literal[False],
     ) -> torch.Tensor:
@@ -111,7 +110,6 @@ class PhyLSTMLoss(nn.Module):
         y_hat: PhyLSTM1Output | PhyLSTM2Output | PhyLSTM3Output,
         targets: torch.torch.Tensor,
         weights: LossWeights | None = None,
-        target_scale: torch.Tensor | None = None,
         *,
         return_all: typing.Literal[True],
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
@@ -123,7 +121,6 @@ class PhyLSTMLoss(nn.Module):
         y_hat: PhyLSTM1Output | PhyLSTM2Output | PhyLSTM3Output,
         targets: torch.torch.Tensor,
         weights: LossWeights | None = None,
-        target_scale: torch.Tensor | None = None,
         *,
         return_all: typing.Literal[False] = False,
     ) -> torch.Tensor:
@@ -134,7 +131,6 @@ class PhyLSTMLoss(nn.Module):
         y_hat: PhyLSTM1Output | PhyLSTM2Output | PhyLSTM3Output,
         targets: torch.torch.Tensor,
         weights: LossWeights | None = None,
-        target_scale: torch.Tensor | None = None,
         *,
         return_all: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]:
@@ -145,7 +141,6 @@ class PhyLSTMLoss(nn.Module):
         :param targets: The target values, i.e. the B field.
         :param weights: The weights for the loss terms.
         :param return_all: Whether to return all the loss terms.
-        :param target_scale: The scale of the target values.
 
         :return: The loss value. For mathematical formulation see the module documentation.
         """
@@ -156,7 +151,6 @@ class PhyLSTMLoss(nn.Module):
             dr_dt=y_hat.get("dr_dt"),
             gx=y_hat.get("g_gamma_x"),
             weights=weights,
-            target_scale=target_scale,
             return_all=return_all,
         )
 
@@ -169,7 +163,6 @@ class PhyLSTMLoss(nn.Module):
         gx: torch.Tensor | None,
         dr_dt: torch.Tensor | None,
         weights: LossWeights | None = None,
-        target_scale: torch.Tensor | None = None,
         *,
         return_all: typing.Literal[False],
     ) -> torch.Tensor:
@@ -184,7 +177,6 @@ class PhyLSTMLoss(nn.Module):
         gx: torch.Tensor | None,
         dr_dt: torch.Tensor | None,
         weights: LossWeights | None = None,
-        target_scale: torch.Tensor | None = None,
         *,
         return_all: typing.Literal[True],
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
@@ -199,7 +191,6 @@ class PhyLSTMLoss(nn.Module):
         gx: torch.Tensor | None,
         dr_dt: torch.Tensor | None,
         weights: LossWeights | None = None,
-        target_scale: torch.Tensor | None = None,
         *,
         return_all: typing.Literal[False] = False,
     ) -> torch.Tensor:
@@ -214,7 +205,6 @@ class PhyLSTMLoss(nn.Module):
         gx: torch.Tensor | None,
         dr_dt: torch.Tensor | None,
         weights: LossWeights | None = None,
-        target_scale: torch.Tensor | None = None,
         *,
         return_all: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]:
@@ -228,7 +218,6 @@ class PhyLSTMLoss(nn.Module):
         gx: torch.Tensor | None,
         dr_dt: torch.Tensor | None,
         weights: LossWeights | None = None,
-        target_scale: torch.Tensor | None = None,
         *,
         return_all: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]:
@@ -241,7 +230,6 @@ class PhyLSTMLoss(nn.Module):
         :param gx: The output of the MLP, computed from PhyLSTM2.
         :param dr_dt: The time derivative of the hysteretic parameter r, from PhyLSTM3.
         :param weights: The weights for the loss terms.
-        :param target_scale: The scale of the target values.
         :param return_all: Whether to return all the loss terms.
 
         :return: The loss value. For mathematical formulation see the module documentation.
@@ -274,18 +262,8 @@ class PhyLSTMLoss(nn.Module):
         loss_dict["loss2"] = beta * mse(z[..., 1], y_dot)  # ||z2 - y2||^2
 
         if dz_dt is not None and gx is not None:
-            if target_scale is None:
-                raise ValueError(
-                    "target_scale must be provided if PhyLSTM2 is used."
-                )
-
-            target_scale[..., 0]
-            target_scale[..., 1]
-
             # PhyLSTM2 loss
             loss_dict["loss3"] = gamma * mse(
-                # scale[:, 1, None] * z[..., 1] + center[:, 1, None],
-                # scale[:, 0, None] * dz_dt[..., 0],
                 z[..., 1],
                 dz_dt[..., 0],
             )  # ||dz1/dt - z2||^2

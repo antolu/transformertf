@@ -84,7 +84,7 @@ def test_phylstm_datamodule_hparams_correct() -> None:
     for key, value in correct_hparams.items():
         assert hparams.pop(key) == value
 
-    assert len(hparams) == 2
+    assert len(hparams) == 0
 
 
 def test_phylstm_datamodule_prepare_data() -> None:

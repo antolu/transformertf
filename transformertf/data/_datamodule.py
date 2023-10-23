@@ -428,7 +428,8 @@ class DataModuleBase(L.LightningDataModule):
             out[
                 self.hparams["target_column"]
             ] = self._target_transform.transform(
-                torch.from_numpy(df[self.hparams["target_column"]].to_numpy())
+                torch.tensor([]),
+                torch.from_numpy(df[self.hparams["target_column"]].to_numpy()),
             )
 
         return out
@@ -463,15 +464,17 @@ class DataModuleBase(L.LightningDataModule):
             This is caused by calling ``transform_input`` before ``prepare_data``,
             or using a datamodule that has previously not been trained on.
         """
+        skip_target = self.hparams["target_column"] not in input_.columns
         df = self.read_input(
             input_,
             timestamp=timestamp,
             input_columns=self.hparams["input_columns"],
-            target_column=self.hparams["target_column"],
+            target_column=self.hparams["target_column"]
+            if not skip_target
+            else None,
         )
         df = self.preprocess_dataframe(df)
 
-        skip_target = self.hparams["target_column"] not in df.columns
         df = self.apply_transforms(df, skip_target=skip_target)
 
         return df
@@ -723,7 +726,8 @@ class DataModuleBase(L.LightningDataModule):
             )
         else:
             self._target_transform.fit(
-                torch.from_numpy(df[self.hparams["target_column"]].to_numpy())
+                torch.tensor([]),
+                torch.from_numpy(df[self.hparams["target_column"]].to_numpy()),
             )
 
     def get_transforms(

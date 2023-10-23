@@ -252,9 +252,7 @@ class PhyLSTMModule(LightningModuleBase):
         hidden_state: HIDDEN_STATE | None = None,
     ) -> tuple[dict[str, torch.Tensor], PHYLSTM_OUTPUT, HIDDEN_STATE]:
         target = batch.get("target")
-        target_scale = batch.get("target_scale")
         assert target is not None
-        assert target_scale is not None
 
         hidden: HIDDEN_STATE
         output, hidden = self.forward(
@@ -265,9 +263,7 @@ class PhyLSTMModule(LightningModuleBase):
 
         hidden = ops.detach(hidden)
 
-        _, losses = self.criterion(
-            output, target, target_scale=target_scale, return_all=True
-        )
+        _, losses = self.criterion(output, target, return_all=True)
 
         # remove batch dimension
         assert output["z"].shape[0] == 1
@@ -280,17 +276,16 @@ class PhyLSTMModule(LightningModuleBase):
         self, batch: TimeSeriesSample, batch_idx: int
     ) -> dict[str, torch.Tensor]:
         target = batch.get("target")
-        target_scale = batch.get("target_scale")
+        batch.get("target_scale")
         assert target is not None
 
         initial_state = typing.cast(
-            PhyLSTM1States, {"lstm1": self.model.init_states(batch["initial_state"])}
+            PhyLSTM1States,
+            {"lstm1": self.model.init_states(batch["initial_state"])},
         )
         model_output = self.forward(batch["input"], hidden_state=initial_state)
 
-        _, losses = self.criterion(
-            model_output, target, target_scale=target_scale, return_all=True
-        )
+        _, losses = self.criterion(model_output, target, return_all=True)
 
         self.common_log_step(losses, "train")
 
@@ -307,7 +302,9 @@ class PhyLSTMModule(LightningModuleBase):
 
         prev_hidden = self._val_hidden[dataloader_idx]
         if prev_hidden is None:
-            prev_hidden = {"lstm1": self.model.init_states(batch["initial_state"])}
+            prev_hidden = {
+                "lstm1": self.model.init_states(batch["initial_state"])
+            }
 
         loss, model_output, hidden = self.common_test_step(  # type: ignore[type-var]
             batch, batch_idx, prev_hidden
