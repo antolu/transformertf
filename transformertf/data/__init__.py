@@ -1,5 +1,5 @@
 from .._mod_replace import replace_modname
-from ._datamodule import TimeSeriesDataModule, TransformerDataModule
+from .datamodule import TimeSeriesDataModule, TransformerDataModule
 from ._dataset import (
     TimeSeriesDataset,
     AbstractTimeSeriesDataset,
@@ -20,8 +20,6 @@ from ._transform import (
 from ._window_generator import WindowGenerator
 
 for _mod in (
-    TransformerDataModule,
-    TimeSeriesDataModule,
     WindowGenerator,
     TimeSeriesDataset,
     TimeSeriesSample,
