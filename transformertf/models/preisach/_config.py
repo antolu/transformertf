@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from ...config import BaseConfig
+from ...config import TimeSeriesBaseConfig
 
 
-class PreisachConfig(BaseConfig):
+class PreisachConfig(TimeSeriesBaseConfig):
     """Configuration for Preisach model."""
 
+    # set defaults
     polynomial_degree: int = 1
-    polynomial_bias: bool = True
-
     current_column: str = "I_meas_A"
     field_column: str = "B_meas_T"

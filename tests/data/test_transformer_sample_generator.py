@@ -126,11 +126,11 @@ def test_transformer_sample_generator_keys_xy_1d(
         "target",
     }
 
-    assert wg[0]["encoder_input"].shape == (3,)
-    assert wg[0]["encoder_mask"].shape == (3,)
-    assert wg[0]["decoder_input"].shape == (1,)
-    assert wg[0]["decoder_mask"].shape == (1,)
-    assert wg[0]["target"].shape == (1,)
+    assert wg[0]["encoder_input"].shape == (3, 1)
+    assert wg[0]["encoder_mask"].shape == (3, 1)
+    assert wg[0]["decoder_input"].shape == (1, 1)
+    assert wg[0]["decoder_mask"].shape == (1, 1)
+    assert wg[0]["target"].shape == (1, 1)
 
     assert all(wg[0]["encoder_mask"] == 1)
     assert all(wg[0]["decoder_mask"] == 1)

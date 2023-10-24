@@ -6,9 +6,9 @@ import typing
 import pandas as pd
 import torch
 
-from transformertf.utils import signal
+from ...utils import signal
+from ...data import TimeSeriesDataModule
 
-from ...data import DataModuleBase
 from ._config import PhyLSTMConfig
 
 __all__ = [
@@ -28,7 +28,7 @@ FIELD = "B_meas_T"
 log = logging.getLogger(__name__)
 
 
-class PhyLSTMDataModule(DataModuleBase):
+class PhyLSTMDataModule(TimeSeriesDataModule):
     """
     A convenience class created to load and do low level preprocessing of the data.
 

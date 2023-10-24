@@ -3,23 +3,30 @@ from __future__ import annotations
 import logging
 import typing
 
-from ...data import DataModuleBase
+from ...data import TimeSeriesDataModule
 from ._config import PreisachConfig
 
 log = logging.getLogger(__name__)
+
+
+if typing.TYPE_CHECKING:
+    import torch
+    import pandas as pd
 
 
 CURRENT = "I_meas_A"
 FIELD = "B_meas_T"
 
 
-class PreisachDataModule(DataModuleBase):
+class PreisachDataModule(TimeSeriesDataModule):
     TRANSFORMS = ["polynomial", "normalize"]
 
     def __init__(
         self,
-        train_dataset: str | typing.Sequence[str] | None = None,
-        val_dataset: str | typing.Sequence[str] | None = None,
+        train_df: pd.DataFrame | list[pd.DataFrame],
+        val_df: pd.DataFrame | list[pd.DataFrame],
+        input_columns: str | typing.Sequence[str] = (CURRENT,),
+        target_column: str = FIELD,
         lowpass_filter: bool = False,
         mean_filter: bool = False,
         downsample: int = 1,
@@ -27,45 +34,31 @@ class PreisachDataModule(DataModuleBase):
         polynomial_degree: int = 1,
         polynomial_iterations: int = 1000,
         num_workers: int = 0,
-        current_column: str = CURRENT,
-        field_column: str = FIELD,
         model_dir: str | None = None,
     ):
         super().__init__(
-            input_columns=[current_column],
-            target_columns=[field_column],
-            train_dataset=train_dataset,
-            val_dataset=val_dataset,
-            normalize=True,
-            seq_len=None,
-            randomize_seq_len=False,
-            min_seq_len=None,
-            batch_size=1,
+            train_df=train_df,
+            val_df=val_df,
+            input_columns=input_columns,
+            target_column=target_column,
+            normalize=False,
             downsample=downsample,
-            remove_polynomial=remove_polynomial,
+            remove_polynomial=False,
             polynomial_degree=polynomial_degree,
             polynomial_iterations=polynomial_iterations,
+            target_depends_on=input_columns[0],
+            batch_size=1,
             num_workers=num_workers,
+            dtype=torch.float64,
         )
-        super().save_hyperparameters(ignore=["current_column", "field_column"])
+        super().save_hyperparameters(ignore=["train_df", "val_df"])
 
     @classmethod
-    def from_config(cls, config: PreisachConfig, **kwargs: typing.Any) -> PreisachDataModule:  # type: ignore[override]
-        default_kwargs = {
-            "train_dataset": config.train_dataset,
-            "val_dataset": config.val_dataset,
-            "seq_len": config.seq_len,
-            "downsample": config.downsample,
-            "num_workers": config.num_workers,
-            "model_dir": config.model_dir,
-            "lowpass_filter": config.lowpass_filter,
-            "mean_filter": config.mean_filter,
-            "remove_polynomial": config.remove_polynomial,
-            "polynomial_degree": config.polynomial_degree,
-            "polynomial_iterations": config.polynomial_iterations,
-            "current_column": config.current_column,
-            "field_column": config.field_column,
-        }
+    def parse_config_kwargs(
+        cls, config: PreisachConfig, **kwargs: typing.Any  # type: ignore[override]
+    ) -> dict[str, typing.Any]:
+        kwargs = super().parse_config_kwargs(config, **kwargs)
+        default_kwargs = {}
         default_kwargs.update(kwargs)
 
-        return cls(**default_kwargs) # type: ignore[call-arg,arg-type]
+        return default_kwargs

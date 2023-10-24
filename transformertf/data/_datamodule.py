@@ -13,8 +13,8 @@ import pandas as pd
 import torch
 import torch.utils.data
 
-from ..config import BaseConfig
-from ._dataset import TimeSeriesDataset
+from ..config import BaseConfig, TimeSeriesBaseConfig, TransformerBaseConfig
+from ._dataset import TimeSeriesDataset, TransformerDataset
 from ._transform import (
     BaseTransform,
     PolynomialTransform,
@@ -23,19 +23,20 @@ from ._transform import (
     TransformType,
 )
 
-__all__ = ["DataModuleBase"]
+__all__ = ["TimeSeriesDataModule", "TransformerDataModule"]
 
 log = logging.getLogger(__name__)
 
 if typing.TYPE_CHECKING:
-    SameType = typing.TypeVar("SameType", bound="DataModuleBase")
+    SameType = typing.TypeVar("SameType", bound="_DataModuleBase")
 
 TIME = "time_ms"
 
 
-class DataModuleBase(L.LightningDataModule):
+class _DataModuleBase(L.LightningDataModule):
     """
-    Abstract base class for all data modules.
+    Abstract base class for all data modules, handles the bulk transformations
+    of data, but does not construct the datasets
 
     Don't forget to call :meth:`save_hyperparameters` in your
     subclass constructor.
@@ -54,10 +55,6 @@ class DataModuleBase(L.LightningDataModule):
         input_columns: str | typing.Sequence[str],
         target_column: str,
         normalize: bool = True,
-        seq_len: int | None = None,
-        min_seq_len: int | None = None,
-        randomize_seq_len: bool = False,
-        stride: int = 1,
         downsample: int = 1,
         remove_polynomial: bool = False,
         polynomial_degree: int = 1,
@@ -69,7 +66,6 @@ class DataModuleBase(L.LightningDataModule):
     ):
         super().__init__()
         input_columns = _to_list(input_columns)
-        min_seq_len = min_seq_len or seq_len
 
         self.save_hyperparameters(ignore=["train_df", "val_df"])
 
@@ -83,6 +79,39 @@ class DataModuleBase(L.LightningDataModule):
         self._val_df: list[pd.DataFrame] = []
 
         self._tmp_dir = tempfile.TemporaryDirectory()
+
+    """ Override the following in subclasses """
+
+    def _make_dataset_from_arrays(
+        self,
+        input_data: np.ndarray,
+        target_data: np.ndarray | None = None,
+        predict: bool = False,
+    ) -> torch.utils.data.Dataset:
+        raise NotImplementedError
+
+    @classmethod
+    def parse_config_kwargs(
+        cls, config: BaseConfig, **kwargs: typing.Any
+    ) -> dict[str, typing.Any]:
+        """
+        To be overridden by subclasses to parse other config subclasses.
+        """
+        default_kwargs = dict(
+            normalize=config.normalize,
+            downsample=config.downsample,
+            remove_polynomial=config.remove_polynomial,
+            polynomial_degree=config.polynomial_degree,
+            polynomial_iterations=config.polynomial_iterations,
+            batch_size=config.batch_size,
+            num_workers=config.num_workers,
+        )
+
+        default_kwargs.update(kwargs)
+
+        return default_kwargs
+
+    """ End override """
 
     def _create_transforms(self) -> None:
         """
@@ -255,31 +284,6 @@ class DataModuleBase(L.LightningDataModule):
             target_column=target_column,
             **kwargs,
         )
-
-    @classmethod
-    def parse_config_kwargs(
-        cls, config: BaseConfig, **kwargs: typing.Any
-    ) -> dict[str, typing.Any]:
-        """
-        To be overridden by subclasses to parse other config subclasses.
-        """
-        default_kwargs = dict(
-            normalize=config.normalize,
-            seq_len=config.seq_len,
-            min_seq_len=config.min_seq_len,
-            randomize_seq_len=config.randomize_seq_len,
-            stride=config.stride,
-            downsample=config.downsample,
-            remove_polynomial=config.remove_polynomial,
-            polynomial_degree=config.polynomial_degree,
-            polynomial_iterations=config.polynomial_iterations,
-            batch_size=config.batch_size,
-            num_workers=config.num_workers,
-        )
-
-        default_kwargs.update(kwargs)
-
-        return default_kwargs
 
     def prepare_data(self, save: bool = True) -> None:
         """
@@ -479,6 +483,19 @@ class DataModuleBase(L.LightningDataModule):
 
         return df
 
+    def _make_dataset_from_df(
+        self, df: pd.DataFrame, predict: bool = False
+    ) -> torch.utils.data.Dataset:
+        target_data: np.ndarray | None = None
+        if self.hparams["target_column"] in df.columns:
+            target_data = df[self.hparams["target_column"]].to_numpy()
+
+        return self._make_dataset_from_arrays(
+            input_data=df[self.hparams["input_columns"]].to_numpy(),
+            target_data=target_data,
+            predict=predict,
+        )
+
     def make_dataset(
         self,
         df: pd.DataFrame,
@@ -491,27 +508,6 @@ class DataModuleBase(L.LightningDataModule):
         )
 
         return self._make_dataset_from_df(df, predict=predict)
-
-    def _make_dataset_from_df(
-        self, df: pd.DataFrame, predict: bool = False
-    ) -> TimeSeriesDataset:
-        target_data: np.ndarray | None = None
-        if self.hparams["target_column"] in df.columns:
-            target_data = df[self.hparams["target_column"]].to_numpy()
-
-        return TimeSeriesDataset(
-            input_data=df[self.hparams["input_columns"]].to_numpy(),
-            target_data=target_data,
-            stride=self.hparams["stride"],
-            seq_len=self.hparams["seq_len"],
-            min_seq_len=self.hparams["min_seq_len"] if not predict else None,
-            randomize_seq_len=self.hparams["randomize_seq_len"]
-            if not predict
-            else False,
-            predict=predict,
-            target_transform=self.target_transform,
-            dtype=self.hparams["dtype"],
-        )
 
     def make_dataloader(
         self,
@@ -539,33 +535,31 @@ class DataModuleBase(L.LightningDataModule):
         )
 
     @property
-    def train_dataset(self) -> TimeSeriesDataset:
+    def train_dataset(self) -> torch.utils.data.Dataset:
         if self._train_df is None or len(self._train_df) == 0:
             raise ValueError("No training data available.")
 
-        input_data = [
-            df[self.hparams["input_columns"]].to_numpy()
-            for df in self._train_df
-        ]
-        target_data = [
-            df[self.hparams["target_column"]].to_numpy()
-            for df in self._train_df
-        ]
+        input_data = np.concatenate(
+            [
+                df[self.hparams["input_columns"]].to_numpy()
+                for df in self._train_df
+            ]
+        )
+        target_data = np.concatenate(
+            [
+                df[self.hparams["target_column"]].to_numpy()
+                for df in self._train_df
+            ]
+        )
 
-        return TimeSeriesDataset(
-            input_data=input_data,
-            seq_len=self.hparams["seq_len"],
-            target_data=target_data,
-            stride=self.hparams["stride"],
-            predict=False,
-            target_transform=self.target_transform,
-            dtype=self.hparams["dtype"],
+        return self._make_dataset_from_arrays(
+            input_data, target_data, predict=False
         )
 
     @property
     def val_dataset(
         self,
-    ) -> TimeSeriesDataset | typing.Sequence[TimeSeriesDataset]:
+    ) -> torch.utils.data.Dataset | typing.Sequence[torch.utils.data.Dataset]:
         if self._val_df is None or len(self._val_df) == 0:
             raise ValueError("No validation data available.")
 
@@ -792,6 +786,162 @@ class DataModuleBase(L.LightningDataModule):
             df[TIME] = np.arange(len(df))
 
         return df
+
+
+class TimeSeriesDataModule(_DataModuleBase):
+    def __init__(
+        self,
+        train_df: pd.DataFrame | list[pd.DataFrame],
+        val_df: pd.DataFrame | list[pd.DataFrame],
+        input_columns: str | typing.Sequence[str],
+        target_column: str,
+        normalize: bool = True,
+        seq_len: int | None = None,
+        min_seq_len: int | None = None,
+        randomize_seq_len: bool = False,
+        stride: int = 1,
+        downsample: int = 1,
+        remove_polynomial: bool = False,
+        polynomial_degree: int = 1,
+        polynomial_iterations: int = 1000,
+        target_depends_on: str | None = None,
+        batch_size: int = 128,
+        num_workers: int = 0,
+        dtype: torch.dtype = torch.float32,
+    ):
+        super().__init__(
+            train_df=train_df,
+            val_df=val_df,
+            input_columns=input_columns,
+            target_column=target_column,
+            normalize=normalize,
+            downsample=downsample,
+            remove_polynomial=remove_polynomial,
+            polynomial_degree=polynomial_degree,
+            polynomial_iterations=polynomial_iterations,
+            target_depends_on=target_depends_on,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            dtype=dtype,
+        )
+
+        self.save_hyperparameters(ignore=["train_df", "val_df"])
+
+    @classmethod
+    def parse_config_kwargs(
+        cls, config: TimeSeriesBaseConfig, **kwargs: typing.Any  # type: ignore[override]
+    ) -> dict[str, typing.Any]:
+        kwargs = super().parse_config_kwargs(config, **kwargs)
+        default_kwargs = {
+            "seq_len": config.seq_len,
+            "min_seq_len": config.min_seq_len,
+            "randomize_seq_len": config.randomize_seq_len,
+            "stride": config.stride,
+        }
+        default_kwargs.update(kwargs)
+
+        return default_kwargs
+
+    def _make_dataset_from_arrays(
+        self,
+        input_data: np.ndarray,
+        target_data: np.ndarray | None = None,
+        predict: bool = False,
+    ) -> TimeSeriesDataset:
+        return TimeSeriesDataset(
+            input_data=input_data,
+            target_data=target_data,
+            stride=self.hparams["stride"],
+            seq_len=self.hparams["seq_len"],
+            min_seq_len=self.hparams["min_seq_len"] if not predict else None,
+            randomize_seq_len=self.hparams["randomize_seq_len"]
+            if not predict
+            else False,
+            predict=predict,
+            target_transform=self.target_transform,
+            dtype=self.hparams["dtype"],
+        )
+
+
+class TransformerDataModule(_DataModuleBase):
+    def __init__(
+        self,
+        train_df: pd.DataFrame | list[pd.DataFrame],
+        val_df: pd.DataFrame | list[pd.DataFrame],
+        input_columns: str | typing.Sequence[str],
+        target_column: str,
+        normalize: bool = True,
+        ctxt_seq_len: int = 500,
+        tgt_seq_len: int = 300,
+        min_ctxt_seq_len: int | None = None,
+        min_tgt_seq_len: int | None = None,
+        randomize_seq_len: bool = False,
+        stride: int = 1,
+        downsample: int = 1,
+        remove_polynomial: bool = False,
+        polynomial_degree: int = 1,
+        polynomial_iterations: int = 1000,
+        target_depends_on: str | None = None,
+        batch_size: int = 128,
+        num_workers: int = 0,
+        dtype: torch.dtype = torch.float32,
+    ):
+        super().__init__(
+            train_df=train_df,
+            val_df=val_df,
+            input_columns=input_columns,
+            target_column=target_column,
+            normalize=normalize,
+            downsample=downsample,
+            remove_polynomial=remove_polynomial,
+            polynomial_degree=polynomial_degree,
+            polynomial_iterations=polynomial_iterations,
+            target_depends_on=target_depends_on,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            dtype=dtype,
+        )
+
+        self.save_hyperparameters(ignore=["train_df", "val_df"])
+
+    @classmethod
+    def parse_config_kwargs(
+        cls, config: TransformerBaseConfig, **kwargs: typing.Any  # type: ignore[override]
+    ) -> dict[str, typing.Any]:
+        kwargs = super().parse_config_kwargs(config, **kwargs)
+        default_kwargs = {
+            "ctxt_seq_len": config.ctxt_seq_len,
+            "tgt_seq_len": config.tgt_seq_len,
+            "min_ctxt_seq_len": config.min_ctxt_seq_len,
+            "min_tgt_seq_len": config.min_tgt_seq_len,
+            "randomize_seq_len": config.randomize_seq_len,
+            "stride": config.stride,
+        }
+        default_kwargs.update(kwargs)
+
+        return default_kwargs
+
+    def _make_dataset_from_arrays(  # type: ignore[override]
+        self,
+        input_data: np.ndarray,
+        target_data: np.ndarray,
+        predict: bool = False,
+    ) -> TransformerDataset:
+        return TransformerDataset(
+            input_data=input_data,
+            target_data=target_data,
+            ctx_seq_len=self.hparams["ctxt_seq_len"],
+            tgt_seq_len=self.hparams["tgt_seq_len"],
+            min_ctxt_seq_len=self.hparams["min_ctxt_seq_len"],
+            min_tgt_seq_len=self.hparams["min_tgt_seq_len"],
+            stride=self.hparams["stride"],
+            randomize_seq_len=self.hparams["randomize_seq_len"]
+            if not predict
+            else False,
+            predict=predict,
+            target_transform=self.target_transform,
+            dtype=self.hparams["dtype"],
+        )
 
 
 T = typing.TypeVar("T")

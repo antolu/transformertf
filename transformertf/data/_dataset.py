@@ -310,7 +310,7 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
         :param idx: The index of the sample to get.
         :return: A torch.Tensor.
         """
-        idx = _check_index(idx, self.num_samples)
+        idx = _check_index(idx, len(self))
 
         x = self._sample_gen[0][idx]
 

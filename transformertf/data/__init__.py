@@ -1,5 +1,5 @@
 from .._mod_replace import replace_modname
-from ._datamodule import DataModuleBase
+from ._datamodule import TimeSeriesDataModule, TransformerDataModule
 from ._dataset import (
     TimeSeriesDataset,
     AbstractTimeSeriesDataset,
@@ -20,7 +20,8 @@ from ._transform import (
 from ._window_generator import WindowGenerator
 
 for _mod in (
-    DataModuleBase,
+    TransformerDataModule,
+    TimeSeriesDataModule,
     WindowGenerator,
     TimeSeriesDataset,
     TimeSeriesSample,
@@ -41,13 +42,14 @@ del _mod
 __all__ = [
     "AbstractTimeSeriesDataset",
     "BaseTransform",
-    "DataModuleBase",
     "PolynomialTransform",
     "RunningNormalizer",
+    "TimeSeriesDataModule",
     "TimeSeriesDataset",
     "TimeSeriesSample",
     "TimeSeriesSampleGenerator",
     "TransformCollection",
+    "TransformerDataModule",
     "TransformerDataset",
     "TransformerSample",
     "TransformerSampleGenerator",

@@ -7,19 +7,19 @@ import pandas as pd
 import pytest
 import torch
 
-from transformertf.config import BaseConfig
-from transformertf.data import DataModuleBase
+from transformertf.config import TimeSeriesBaseConfig
+from transformertf.data import TimeSeriesDataModule
 from transformertf.models.phylstm import PhyLSTMConfig, PhyLSTMDataModule
 from transformertf.utils import ops
 
 from ...conftest import CURRENT, DF_PATH, FIELD
 
-config = BaseConfig(input_columns=CURRENT, target_column=FIELD)
+config = TimeSeriesBaseConfig(input_columns=CURRENT, target_column=FIELD)
 
 
 @pytest.fixture(scope="module")
-def dm() -> DataModuleBase:
-    dm = DataModuleBase.from_parquet(
+def dm() -> TimeSeriesDataModule:
+    dm = TimeSeriesDataModule.from_parquet(
         config=config,
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
@@ -34,7 +34,7 @@ def dm() -> DataModuleBase:
     return dm
 
 
-def test_data_transform_inverse_transform(dm: DataModuleBase) -> None:
+def test_data_transform_inverse_transform(dm: TimeSeriesDataModule) -> None:
     df = pd.read_parquet(DF_PATH)
     df = df.dropna()
     df = df.reset_index(drop=True)
