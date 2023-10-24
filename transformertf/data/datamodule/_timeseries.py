@@ -14,24 +14,24 @@ if typing.TYPE_CHECKING:
 
 class TimeSeriesDataModule(_DataModuleBase):
     def __init__(
-            self,
-            train_df: pd.DataFrame | list[pd.DataFrame],
-            val_df: pd.DataFrame | list[pd.DataFrame],
-            input_columns: str | typing.Sequence[str],
-            target_column: str,
-            normalize: bool = True,
-            seq_len: int | None = None,
-            min_seq_len: int | None = None,
-            randomize_seq_len: bool = False,
-            stride: int = 1,
-            downsample: int = 1,
-            remove_polynomial: bool = False,
-            polynomial_degree: int = 1,
-            polynomial_iterations: int = 1000,
-            target_depends_on: str | None = None,
-            batch_size: int = 128,
-            num_workers: int = 0,
-            dtype: torch.dtype = torch.float32,
+        self,
+        train_df: pd.DataFrame | list[pd.DataFrame],
+        val_df: pd.DataFrame | list[pd.DataFrame],
+        input_columns: str | typing.Sequence[str],
+        target_column: str,
+        normalize: bool = True,
+        seq_len: int | None = None,
+        min_seq_len: int | None = None,
+        randomize_seq_len: bool = False,
+        stride: int = 1,
+        downsample: int = 1,
+        remove_polynomial: bool = False,
+        polynomial_degree: int = 1,
+        polynomial_iterations: int = 1000,
+        target_depends_on: str | None = None,
+        batch_size: int = 128,
+        num_workers: int = 0,
+        dtype: torch.dtype = torch.float32,
     ):
         super().__init__(
             train_df=train_df,
@@ -53,7 +53,7 @@ class TimeSeriesDataModule(_DataModuleBase):
 
     @classmethod
     def parse_config_kwargs(
-            cls, config: TimeSeriesBaseConfig, **kwargs: typing.Any  # type: ignore[override]
+        cls, config: TimeSeriesBaseConfig, **kwargs: typing.Any  # type: ignore[override]
     ) -> dict[str, typing.Any]:
         kwargs = super().parse_config_kwargs(config, **kwargs)
         default_kwargs = {
@@ -67,10 +67,10 @@ class TimeSeriesDataModule(_DataModuleBase):
         return default_kwargs
 
     def _make_dataset_from_arrays(
-            self,
-            input_data: np.ndarray,
-            target_data: np.ndarray | None = None,
-            predict: bool = False,
+        self,
+        input_data: np.ndarray,
+        target_data: np.ndarray | None = None,
+        predict: bool = False,
     ) -> TimeSeriesDataset:
         return TimeSeriesDataset(
             input_data=input_data,
