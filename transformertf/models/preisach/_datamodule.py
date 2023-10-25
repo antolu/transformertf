@@ -10,7 +10,6 @@ log = logging.getLogger(__name__)
 
 
 if typing.TYPE_CHECKING:
-    import torch
     import pandas as pd
 
 
@@ -49,7 +48,7 @@ class PreisachDataModule(TimeSeriesDataModule):
             target_depends_on=input_columns[0],
             batch_size=1,
             num_workers=num_workers,
-            dtype=torch.float64,
+            dtype="float64",
         )
         super().save_hyperparameters(ignore=["train_df", "val_df"])
 

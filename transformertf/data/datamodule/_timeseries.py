@@ -1,6 +1,5 @@
 from __future__ import annotations
 import typing
-import torch
 
 
 from ._base import _DataModuleBase
@@ -31,7 +30,7 @@ class TimeSeriesDataModule(_DataModuleBase):
         target_depends_on: str | None = None,
         batch_size: int = 128,
         num_workers: int = 0,
-        dtype: torch.dtype = torch.float32,
+        dtype: str = "float32",
     ):
         super().__init__(
             train_df=train_df,

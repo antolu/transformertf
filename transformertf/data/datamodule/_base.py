@@ -63,7 +63,7 @@ class _DataModuleBase(L.LightningDataModule):
         target_depends_on: str | None = None,
         batch_size: int = 128,
         num_workers: int = 0,
-        dtype: torch.dtype = torch.float32,
+        dtype: str = "float32",
     ):
         super().__init__()
         input_columns = _to_list(input_columns)
@@ -603,10 +603,10 @@ class _DataModuleBase(L.LightningDataModule):
             num_workers=self.hparams["num_workers"],
             shuffle=False,
         )
-        if isinstance(self.val_dataset, TimeSeriesDataset):
-            return make_dataloader(self.val_dataset)
+        if len(self._val_df) == 1:
+            return make_dataloader(self.val_dataset)  # type: ignore[arg-type]
         else:
-            return [make_dataloader(ds) for ds in self.val_dataset]
+            return [make_dataloader(ds) for ds in self.val_dataset]  # type: ignore[arg-type]
 
     def save_data(self, save_dir: typing.Optional[str] = None) -> None:
         """

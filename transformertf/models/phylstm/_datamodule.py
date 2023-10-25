@@ -4,7 +4,6 @@ import logging
 import typing
 
 import pandas as pd
-import torch
 
 from ...utils import signal
 from ...data import TimeSeriesDataModule
@@ -67,7 +66,7 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
         batch_size: int = 128,
         num_workers: int = 0,
         model_dir: str | None = None,
-        dtype: torch.dtype = torch.float32,
+        dtype: str = "float32",
     ):
         """
         The raw dataset used to train the hysteresis model.
