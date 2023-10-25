@@ -136,7 +136,7 @@ class VanillaTransformerModule(LightningModuleBase):
         return {"loss": loss}
 
     def validation_step(
-        self, batch: TransformerSample, batch_idx: int
+        self, batch: TransformerSample, batch_idx: int, dataloader_idx: int = 0
     ) -> dict[str, torch.Tensor]:
         assert "target" in batch
         target = batch["target"].squeeze(-1)
@@ -147,4 +147,4 @@ class VanillaTransformerModule(LightningModuleBase):
 
         self.common_log_step({"loss": loss}, "validation")
 
-        return {"loss": loss}
+        return {"loss": loss, "output": model_output}
