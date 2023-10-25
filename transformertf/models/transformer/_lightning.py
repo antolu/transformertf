@@ -117,17 +117,17 @@ class VanillaTransformerModule(LightningModuleBase):
         return self.model(
             source=x["encoder_input"],
             target=x["decoder_input"],
-            src_mask=x.get("encoder_mask"),
-            tgt_mask=x.get("decoder_mask"),
+            # src_mask=x.get("encoder_mask"),
+            # tgt_mask=x.get("decoder_mask"),
         )
 
     def training_step(
         self, batch: TransformerSample, batch_idx: int
     ) -> dict[str, torch.Tensor]:
         assert "target" in batch
-        target = batch["target"]
+        target = batch["target"].squeeze(-1)
 
-        model_output = self.model(batch)
+        model_output = self(batch)
 
         loss = typing.cast(torch.Tensor, self.criterion(model_output, target))
 
@@ -139,9 +139,9 @@ class VanillaTransformerModule(LightningModuleBase):
         self, batch: TransformerSample, batch_idx: int
     ) -> dict[str, torch.Tensor]:
         assert "target" in batch
-        target = batch["target"]
+        target = batch["target"].squeeze(-1)
 
-        model_output = self.model(batch)
+        model_output = self(batch)
 
         loss = typing.cast(torch.Tensor, self.criterion(model_output, target))
 
