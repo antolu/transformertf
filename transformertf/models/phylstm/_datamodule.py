@@ -169,7 +169,4 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
                     threshold=6e-6,
                 )
 
-        # downsample
-        df = df.iloc[:: self.hparams["downsample"]].reset_index()
-
         return df

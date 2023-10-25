@@ -22,6 +22,7 @@ from .._transform import (
     TransformCollection,
     TransformType,
 )
+from .._downsample import downsample
 
 __all__ = ["_DataModuleBase"]
 
@@ -304,6 +305,13 @@ class _DataModuleBase(L.LightningDataModule):
         train_df = list(map(self.preprocess_dataframe, self._raw_train_df))
         val_df = list(map(self.preprocess_dataframe, self._raw_val_df))
 
+        # downsample after preprocessing, but before transforming data
+        ds = functools.partial(
+            downsample, downsample=self.hparams["downsample"]
+        )
+        train_df = list(map(ds, train_df))
+        val_df = list(map(ds, val_df))
+
         if not self._scalers_fitted():
             self._fit_transforms(pd.concat(train_df))
 
@@ -478,6 +486,7 @@ class _DataModuleBase(L.LightningDataModule):
             else None,
         )
         df = self.preprocess_dataframe(df)
+        df = downsample(df, downsample=self.hparams["downsample"])
 
         df = self.apply_transforms(df, skip_target=skip_target)
 
