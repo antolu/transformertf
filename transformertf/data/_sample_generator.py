@@ -222,7 +222,10 @@ class TransformerSampleGenerator(SampleGenerator[TransformerSample[T]]):
         tgt_slice = slice(sl.start + self._src_seq_len, sl.stop)
 
         src = stack(self._input_data[src_slice], self._label_data[src_slice])
-        tgt = stack(self._input_data[tgt_slice], zeros_like(self._input_data[tgt_slice]))
+        tgt = stack(
+            self._input_data[tgt_slice],
+            zeros_like(self._input_data[tgt_slice]),
+        )
         label = self._label_data[tgt_slice]
 
         if label.ndim == 1:
