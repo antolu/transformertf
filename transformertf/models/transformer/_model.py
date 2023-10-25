@@ -60,8 +60,10 @@ class VanillaTransformer(torch.nn.Module):
             torch.nn.Linear(self.fc_dim, output_dim),
         )
 
-        self.mask = generate_mask(self.seq_len)
-        self.tgt_mask = generate_mask(self.out_seq_len)
+        self.src_mask: torch.Tensor
+        self.tgt_mask: torch.Tensor
+        self.register_buffer("src_mask", generate_mask(self.seq_len))
+        self.register_buffer("tgt_mask", generate_mask(self.out_seq_len))
 
     def forward(
         self,
@@ -77,7 +79,7 @@ class VanillaTransformer(torch.nn.Module):
         t = self.pos_encoder(t)
 
         if src_mask is None:
-            src_mask = self.mask
+            src_mask = self.src_mask
         if tgt_mask is None:
             tgt_mask = self.tgt_mask
 
