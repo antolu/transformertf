@@ -41,9 +41,31 @@ class LightningModuleBase(L.LightningModule):
 
     @classmethod
     def from_config(
-        cls: typing.Type[SameType], config: BaseConfig
+        cls: typing.Type[SameType], config: BaseConfig, **kwargs: typing.Any
     ) -> SameType:
-        raise NotImplementedError
+        return cls(**cls.parse_config_kwargs(config, **kwargs))
+
+    @classmethod
+    def parse_config_kwargs(
+        cls, config: BaseConfig, **kwargs: typing.Any
+    ) -> dict[str, typing.Any]:
+        default_kwargs = dict(
+            optimizer=config.optimizer,
+            optimizer_kwargs=config.optimizer_kwargs,
+            lr_scheduler=config.lr_scheduler,
+            lr_scheduler_interval=config.lr_scheduler_interval,
+            max_epochs=config.num_epochs,
+            reduce_on_plateau_patience=config.patience,
+            log_grad_norm=config.log_grad_norm,
+            lr=config.lr,
+            weight_decay=config.weight_decay,
+            momentum=config.momentum,
+            validate_every_n_epochs=config.validate_every,
+        )
+
+        default_kwargs.update(kwargs)
+
+        return default_kwargs
 
     def on_train_start(self) -> None:
         self._train_outputs = []

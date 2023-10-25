@@ -72,11 +72,9 @@ class VanillaTransformer(torch.nn.Module):
     ) -> torch.Tensor:
         x = self.feature_embedding(source)
         x = self.pos_encoder(x)
-        print(x.shape)
 
         t = self.feature_embedding(target)
         t = self.pos_encoder(t)
-        print(t.shape)
 
         if src_mask is None:
             src_mask = self.mask

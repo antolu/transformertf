@@ -74,6 +74,13 @@ class PreisachModule(LightningModuleBase):
 
         return cls(**kwargs)
 
+    @classmethod
+    def parse_config_kwargs(
+        cls, config: PreisachConfig, **kwargs: typing.Any  # type: ignore[override]
+    ) -> dict[str, typing.Any]:
+        # no need for custom implementation
+        return super().parse_config_kwargs(config, **kwargs)
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)
 

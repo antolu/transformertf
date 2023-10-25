@@ -182,18 +182,11 @@ class PhyLSTMModule(LightningModuleBase):
         )
 
     @classmethod
-    def from_config(  # type: ignore[override]
-        cls: typing.Type[SameType],
-        config: PhyLSTMConfig,
-        criterion: PhyLSTMLoss | None = None,
-        lr_scheduler: str
-        | typing.Type[torch.optim.lr_scheduler.LRScheduler]
-        | partial
-        | None = None,
-        datamodule: L.LightningDataModule | None = None,
-        **kwargs: typing.Any,
-    ) -> SameType:
-        new_kwargs = dict(
+    def parse_config_kwargs(
+        cls, config: PhyLSTMConfig, **kwargs: typing.Any  # type: ignore[override]
+    ) -> dict[str, typing.Any]:
+        kwargs = super().parse_config_kwargs(config, **kwargs)
+        default_kwargs = dict(
             phylstm=config.phylstm,
             num_layers=config.num_layers,
             sequence_length=config.seq_len,
@@ -206,14 +199,14 @@ class PhyLSTMModule(LightningModuleBase):
             optimizer_kwargs=config.optimizer_kwargs,
             validate_every_n_epochs=config.validate_every,
             log_grad_norm=config.log_grad_norm,
-            criterion=criterion or PhyLSTMLoss.from_config(config),
-            lr_scheduler=lr_scheduler or config.lr_scheduler,
+            criterion=PhyLSTMLoss.from_config(config),
+            lr_scheduler=config.lr_scheduler,
             lr_scheduler_interval=config.lr_scheduler_interval,
-            datamodule=datamodule,
         )
 
-        kwargs.update(new_kwargs)
-        return cls(**kwargs)
+        default_kwargs.update(kwargs)
+
+        return default_kwargs
 
     @property
     def validation_outputs(self) -> list[STEP_OUTPUT]:
