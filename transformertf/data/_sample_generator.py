@@ -223,7 +223,7 @@ class TransformerSampleGenerator(SampleGenerator[TransformerSample[T]]):
 
         src = concat(
             self._input_data[src_slice],
-            self._label_data[src_slice][..., 0],
+            self._label_data[src_slice][..., None],
             dim=-1,
         )
         tgt = concat(
