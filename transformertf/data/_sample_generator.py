@@ -221,22 +221,21 @@ class TransformerSampleGenerator(SampleGenerator[TransformerSample[T]]):
         src_slice = slice(sl.start, sl.start + self._src_seq_len)
         tgt_slice = slice(sl.start + self._src_seq_len, sl.stop)
 
-        src = self._input_data[src_slice]
-        tgt = self._label_data[tgt_slice]
+        src = stack(self._input_data[src_slice], self._label_data[src_slice])
+        tgt = stack(self._input_data[tgt_slice], zeros_like(self._input_data[tgt_slice]))
+        label = self._label_data[tgt_slice]
 
-        if src.ndim == 1:
-            src = src[..., None]
-        if tgt.ndim == 1:
-            tgt = tgt[..., None]
+        if label.ndim == 1:
+            label = label[..., None]
 
         return typing.cast(
             TransformerSample[T],
             {
                 "encoder_input": src,
                 "encoder_mask": ones_like(src),
-                "decoder_input": zeros_like(tgt),
-                "decoder_mask": ones_like(tgt),
-                "target": tgt,
+                "decoder_input": tgt,
+                "decoder_mask": ones_like(label),
+                "target": label,
             },
         )
 
