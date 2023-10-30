@@ -638,8 +638,8 @@ class _DataModuleBase(L.LightningDataModule):
                 col: transform.state_dict()
                 for col, transform in self._input_transforms.items()
             }
-        if self._target_transforms is not None:
-            state["target_transforms"] = self._target_transform.state_dict()
+        if self._target_transform is not None:
+            state["target_transform"] = self._target_transform.state_dict()
 
         return state
 
@@ -655,7 +655,7 @@ class _DataModuleBase(L.LightningDataModule):
         if "target_transform" in state:
             self._target_transform.load_state_dict(state["target_transform"])
 
-            state.pop("target_transforms")
+            state.pop("target_transform")
 
         super().load_state_dict(state)
 

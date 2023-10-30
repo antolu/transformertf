@@ -396,7 +396,7 @@ class TransformerDataset(AbstractTimeSeriesDataset):
         if predict:
             if stride != 1:
                 log.warning("Stride is ignored when predicting.")
-                stride = tgt_seq_len
+            stride = tgt_seq_len
             if randomize_seq_len:
                 # TODO: allow random seq len for validation purposes
                 log.warning("randomize_seq_len is ignored when predicting.")
