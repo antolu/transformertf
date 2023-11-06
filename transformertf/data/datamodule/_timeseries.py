@@ -81,6 +81,7 @@ class TimeSeriesDataModule(_DataModuleBase):
             if not predict
             else False,
             predict=predict,
+            input_transform=self.input_transforms,
             target_transform=self.target_transform,
             dtype=self.hparams["dtype"],
         )

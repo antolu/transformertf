@@ -246,10 +246,8 @@ def configure_lr_scheduler(
     return typing.cast(
         LR_SCHEDULER_DICT,
         {
-            "lr_scheduler": {
-                "scheduler": scheduler,
-                "monitor": monitor,
-                "interval": scheduler_interval,
-            },
+            "scheduler": scheduler,
+            "monitor": monitor,
+            "interval": scheduler_interval,
         },
     )

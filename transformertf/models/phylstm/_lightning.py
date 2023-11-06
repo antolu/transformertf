@@ -111,7 +111,19 @@ class PhyLSTMModule(LightningModuleBase):
         :param datamodule: The data module to be get the dataloaders from,
             if a Trainer is not attached.
         """
-        super().__init__()
+        super().__init__(
+            lr=lr,
+            weight_decay=weight_decay,
+            momentum=momentum,
+            optimizer=optimizer,
+            optimizer_kwargs=optimizer_kwargs,
+            reduce_on_plateau_patience=reduce_on_plateau_patience,
+            max_epochs=max_epochs,
+            validate_every_n_epochs=validate_every_n_epochs,
+            log_grad_norm=log_grad_norm,
+            lr_scheduler_interval=lr_scheduler_interval,
+            lr_scheduler=lr_scheduler,
+        )
         self.save_hyperparameters(
             ignore=["criterion", "lr_scheduler", "datamodule"]
         )

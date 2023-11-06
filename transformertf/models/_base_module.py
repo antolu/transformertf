@@ -29,8 +29,24 @@ class LightningModuleBase(L.LightningModule):
         torch.optim.lr_scheduler.LRScheduler
     ] | functools.partial | None
 
-    def __init__(self) -> None:
+    def __init__(self,
+                    optimizer: str | typing.Type[torch.optim.Optimizer],
+                    optimizer_kwargs: dict[str, typing.Any],
+                    lr_scheduler: str | typing.Type[
+                        torch.optim.lr_scheduler.LRScheduler
+                    ] | functools.partial,
+                    lr_scheduler_interval: str,
+                    max_epochs: int,
+                    reduce_on_plateau_patience: int,
+                    log_grad_norm: bool,
+                    lr: float,
+                    weight_decay: float,
+                    momentum: float,
+                    validate_every_n_epochs: int,
+                    **kwargs: typing.Any,
+                 ) -> None:
         super().__init__()
+        self.save_hyperparameters(ignore=["lr_scheduler"])
 
         self._train_outputs: list[MODEL_OUTPUT] = []
         self._val_outputs: list[MODEL_OUTPUT] = []

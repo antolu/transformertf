@@ -63,6 +63,7 @@ class DataSetType(enum.Enum):
 class AbstractTimeSeriesDataset(torch.utils.data.Dataset):
     _input_data: list[torch.Tensor]
     _target_data: list[torch.Tensor] | list[None]
+    _input_transform: dict[str, BaseTransform]
     _target_transform: BaseTransform | None
     _dataset_type: DataSetType
 
@@ -77,6 +78,10 @@ class AbstractTimeSeriesDataset(torch.utils.data.Dataset):
         :return: The number of points.
         """
         return int(np.sum([len(arr) for arr in self._input_data]))
+
+    @property
+    def input_transform(self) -> dict[str, BaseTransform]:
+        return self._input_transform
 
     @property
     def target_transform(self) -> BaseTransform | None:
@@ -97,6 +102,7 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
         predict: bool = False,
         min_seq_len: int | None = None,
         randomize_seq_len: bool = False,
+        input_transform: dict[str, BaseTransform] | None = None,
         target_transform: BaseTransform | None = None,
         dtype: torch.dtype = torch.float32,
     ):
@@ -208,6 +214,7 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
         self._stride = stride
         self._predict = predict
 
+        self._input_transform = input_transform or {}
         self._target_transform = target_transform
 
         self._sample_gen = [
