@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import sys
 import typing
-from functools import partial
 
 if sys.version_info >= (3, 10):
     from typing import NotRequired
@@ -69,18 +68,15 @@ class PhyLSTMModule(LightningModuleBase):
         lr: float = 1e-3,
         weight_decay: float = 1e-4,
         momentum: float = 0.9,
-        optimizer: str | None = None,
-        optimizer_kwargs: dict | None = None,
+        optimizer: str | typing.Callable[[tuple[typing.Any, ...]], torch.optim.Optimizer] = "adam",
+        optimizer_kwargs: dict[str, typing.Any] | None = None,
         reduce_on_plateau_patience: int = 200,
         max_epochs: int = 1000,
         phylstm: typing.Literal[1, 2, 3] | None = 3,
         validate_every_n_epochs: int = 50,
         log_grad_norm: bool = False,
         criterion: PhyLSTMLoss | None = None,
-        lr_scheduler: str
-        | typing.Type[torch.optim.lr_scheduler.LRScheduler]
-        | partial
-        | None = None,
+        lr_scheduler: str | typing.Callable[[tuple[typing.Any, ...]], torch.optim.lr_scheduler.LRScheduler] | None = None,
         lr_scheduler_interval: typing.Literal["epoch", "step"] = "epoch",
         datamodule: L.LightningDataModule | None = None,
     ):
@@ -116,7 +112,7 @@ class PhyLSTMModule(LightningModuleBase):
             weight_decay=weight_decay,
             momentum=momentum,
             optimizer=optimizer,
-            optimizer_kwargs=optimizer_kwargs,
+            optimizer_kwargs=optimizer_kwargs or {},
             reduce_on_plateau_patience=reduce_on_plateau_patience,
             max_epochs=max_epochs,
             validate_every_n_epochs=validate_every_n_epochs,

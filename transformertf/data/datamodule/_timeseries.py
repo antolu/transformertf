@@ -14,8 +14,8 @@ if typing.TYPE_CHECKING:
 class TimeSeriesDataModule(_DataModuleBase):
     def __init__(
         self,
-        train_df: pd.DataFrame | list[pd.DataFrame],
-        val_df: pd.DataFrame | list[pd.DataFrame],
+        train_df: pd.DataFrame | list[pd.DataFrame] | None,
+        val_df: pd.DataFrame | list[pd.DataFrame] | None,
         input_columns: str | typing.Sequence[str],
         target_column: str,
         normalize: bool = True,

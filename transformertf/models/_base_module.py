@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import functools
 import typing
 
 import lightning as L
@@ -25,16 +24,12 @@ if typing.TYPE_CHECKING:
 
 
 class LightningModuleBase(L.LightningModule):
-    _lr_scheduler: str | typing.Type[
-        torch.optim.lr_scheduler.LRScheduler
-    ] | functools.partial | None
+    _lr_scheduler: str | typing.Callable[[tuple[typing.Any, ...]], torch.optim.lr_scheduler.LRScheduler] | None
 
     def __init__(self,
-                    optimizer: str | typing.Type[torch.optim.Optimizer],
+                    optimizer: str | typing.Callable[[tuple[typing.Any, ...]], torch.optim.Optimizer],
                     optimizer_kwargs: dict[str, typing.Any],
-                    lr_scheduler: str | typing.Type[
-                        torch.optim.lr_scheduler.LRScheduler
-                    ] | functools.partial,
+                    lr_scheduler: str | typing.Callable[[tuple[typing.Any, ...]], torch.optim.lr_scheduler.LRScheduler] | None,
                     lr_scheduler_interval: str,
                     max_epochs: int,
                     reduce_on_plateau_patience: int,

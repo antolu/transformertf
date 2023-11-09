@@ -49,8 +49,8 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
 
     def __init__(
         self,
-        train_df: pd.DataFrame | list[pd.DataFrame],
-        val_df: pd.DataFrame | list[pd.DataFrame],
+        train_df: pd.DataFrame | list[pd.DataFrame] | None,
+        val_df: pd.DataFrame | list[pd.DataFrame] | None,
         seq_len: int = 500,
         min_seq_len: int | None = None,
         randomize_seq_len: bool = False,

@@ -125,7 +125,7 @@ class TransformCollection(BaseTransform, typing.Sequence[BaseTransform]):
             fitted to the Y data.
         """
         super().__init__()
-        self.transforms = transforms
+        self.transforms = torch.nn.ModuleList(transforms)
         self._transform_type = transform_type
 
     def fit(
@@ -233,16 +233,6 @@ class TransformCollection(BaseTransform, typing.Sequence[BaseTransform]):
             return x_transformed
 
         return y_transformed
-
-    # def state_dict(self) -> dict[str, typing.Any]:
-    #     return {
-    #         transform.__class__.__name__: transform.state_dict()
-    #         for transform in self.transforms
-    #     }
-
-    # def load_state_dict(self, state_dict: dict[str, typing.Any]) -> None:
-    #     for transform in self.transforms:
-    #         transform.load_state_dict(state_dict[transform.__class__.__name__])
 
     def __getitem__(
         self, item: int | slice

@@ -51,8 +51,8 @@ class _DataModuleBase(L.LightningDataModule):
 
     def __init__(
         self,
-        train_df: pd.DataFrame | list[pd.DataFrame],
-        val_df: pd.DataFrame | list[pd.DataFrame],
+        train_df: pd.DataFrame | list[pd.DataFrame] | None,
+        val_df: pd.DataFrame | list[pd.DataFrame] | None,
         input_columns: str | typing.Sequence[str],
         target_column: str,
         normalize: bool = True,
@@ -72,8 +72,20 @@ class _DataModuleBase(L.LightningDataModule):
 
         self._create_transforms()
 
-        self._raw_train_df: list[pd.DataFrame] = _to_list(train_df)
-        self._raw_val_df: list[pd.DataFrame] = _to_list(val_df)
+        if train_df is None and val_df is None:
+            self._raw_train_df: list[pd.DataFrame] = []
+            self._raw_val_df: list[pd.DataFrame] = []
+        elif train_df is None and val_df is not None:
+            raise ValueError(
+                "val_df must be None if train_df is None."
+            )
+        elif train_df is not None and val_df is None:
+            raise ValueError(
+                "train_df must be None if val_df is None."
+            )
+        else:
+            self._raw_train_df = _to_list(train_df)
+            self._raw_val_df = _to_list(val_df)
 
         # these will be set by prepare_data
         self._train_df: list[pd.DataFrame] = []
