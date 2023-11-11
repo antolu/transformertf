@@ -2,7 +2,7 @@
 name = "transformertf"
 dynamic = ["version", "readme"]
 description = "Package description"
-license = {text = "Other/Proprietary License"}
+license = { text = "Other/Proprietary License" }
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
@@ -16,19 +16,19 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 dependencies = [
-    "einops ~= 0.6.0",
-    "lightning ~= 2.0.0",
+    "einops ~= 0.7.0",
+    "lightning ~= 2.1.0",
     "matplotlib ~= 3.6",
-    "numba ~= 0.57",
-    "numpy ~= 1.24",
-    "pandas ~= 2.0",
-    "pyarrow ~= 11.0.0",
-    "pytorch-optimizer ~= 2.5.2",
+    "numba ~= 0.58.1",
+    "numpy ~= 1.26.1",
+    "pandas ~= 2.0.1",
+    "pyarrow ~= 14.0.1",
+    "pytorch-optimizer ~= 2.12.0",
     "pytorch-forecasting ~= 1.0.0",
-    "rich ~= 13.3.5",
-    "scikit-learn ~= 1.2.2",
-    "scipy ~= 1.10.1",
-    "torch ~= 2.0.0",
+    "rich ~= 13.6",
+    "scikit-learn ~= 1.3.2",
+    "scipy ~= 1.11.3",
+    "torch ~= 2.1.0",
 ]
 
 [[project.authors]]
@@ -36,27 +36,12 @@ name = "Anton Lu"
 email = "anton.lu@cern.ch"
 
 [project.optional-dependencies]
-test = [
-    "pytest",
-    "pytest-cov"
-]
-doc = [
-    "acc-py-sphinx",
-    "myst-parser",
-    "sphinx-copybutton",
-]
-dev = [
-    "pre-commit",
-    "ruff",
-    "mypy",
-]
+test = ["pytest", "pytest-cov"]
+doc = ["acc-py-sphinx", "myst-parser", "sphinx-copybutton"]
+dev = ["pre-commit", "ruff", "mypy"]
 
 [build-system]
-requires = [
-    "setuptools >= 61",
-    "setuptools-scm[toml] ~= 6.0",
-    "wheel",
-]
+requires = ["setuptools >= 61", "setuptools-scm[toml] ~= 6.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 # keep this for dynamic versioning
@@ -65,7 +50,7 @@ write_to = "transformertf/_version.py"
 local_scheme = "no-local-version"
 
 [tool.setuptools.dynamic]
-readme = {file = ["README.md"], content-type = "text/markdown"}
+readme = { file = ["README.md"], content-type = "text/markdown" }
 
 [tool.setuptools]
 packages = ["transformertf"]
@@ -134,9 +119,7 @@ disallow_untyped_defs = true
 plugins = "numpy.typing.mypy_plugin"
 
 [[tool.mypy.overrides]]
-module = [
-    "matplotlib.*",
-]
+module = ["matplotlib.*"]
 ignore_missing_imports = true
 
 # for pyright LSP
