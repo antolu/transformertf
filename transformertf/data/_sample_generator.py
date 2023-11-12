@@ -221,20 +221,23 @@ class TransformerSampleGenerator(SampleGenerator[TransformerSample[T]]):
         src_slice = slice(sl.start, sl.start + self._src_seq_len)
         tgt_slice = slice(sl.start + self._src_seq_len, sl.stop)
 
+        def to_2dim(arr: T) -> T:
+            if arr.ndim == 1:
+                return arr[..., None]
+            else:
+                return arr
+
         src = concat(
-            self._input_data[src_slice],
-            self._label_data[src_slice][..., None],
+            to_2dim(self._input_data[src_slice]),
+            to_2dim(self._label_data[src_slice]),
             dim=-1,
         )
         tgt = concat(
-            self._input_data[tgt_slice],
-            zeros_like(self._input_data[tgt_slice]),
+            to_2dim(self._input_data[tgt_slice]),
+            to_2dim(zeros_like(self._input_data[tgt_slice])),
             dim=-1,
         )
-        label = self._label_data[tgt_slice]
-
-        if label.ndim == 1:
-            label = label[..., None]
+        label = to_2dim(self._label_data[tgt_slice])
 
         return typing.cast(
             TransformerSample[T],
@@ -242,7 +245,7 @@ class TransformerSampleGenerator(SampleGenerator[TransformerSample[T]]):
                 "encoder_input": src,
                 "encoder_mask": ones_like(src),
                 "decoder_input": tgt,
-                "decoder_mask": ones_like(label),
+                "decoder_mask": ones_like(tgt),
                 "target": label,
             },
         )

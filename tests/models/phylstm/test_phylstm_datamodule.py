@@ -77,7 +77,7 @@ def test_phylstm_datamodule_hparams_correct() -> None:
         "polynomial_degree": 2,
         "polynomial_iterations": 2000,
         "target_depends_on": None,
-        "dtype": torch.float32,
+        "dtype": "float32",
     }
 
     hparams = dict(dm.hparams)
