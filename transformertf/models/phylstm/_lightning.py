@@ -13,7 +13,7 @@ import torch
 
 from ...data import TimeSeriesSample
 from ...utils import ops
-from .._base_module import LightningModuleBase
+from .._base_module import LightningModuleBase, OPT_CALL_TYPE, LR_CALL_TYPE
 from ._loss import PhyLSTMLoss
 from ._model import PhyLSTM1, PhyLSTM2, PhyLSTM3
 from ._output import (
@@ -68,7 +68,7 @@ class PhyLSTMModule(LightningModuleBase):
         lr: float = 1e-3,
         weight_decay: float = 1e-4,
         momentum: float = 0.9,
-        optimizer: str | typing.Callable[[tuple[typing.Any, ...]], torch.optim.Optimizer] = "adam",
+        optimizer: str | OPT_CALL_TYPE = "ranger",
         optimizer_kwargs: dict[str, typing.Any] | None = None,
         reduce_on_plateau_patience: int = 200,
         max_epochs: int = 1000,
@@ -76,7 +76,7 @@ class PhyLSTMModule(LightningModuleBase):
         validate_every_n_epochs: int = 50,
         log_grad_norm: bool = False,
         criterion: PhyLSTMLoss | None = None,
-        lr_scheduler: str | typing.Callable[[tuple[typing.Any, ...]], torch.optim.lr_scheduler.LRScheduler] | None = None,
+        lr_scheduler: str | LR_CALL_TYPE | None = None,
         lr_scheduler_interval: typing.Literal["epoch", "step"] = "epoch",
         datamodule: L.LightningDataModule | None = None,
     ):

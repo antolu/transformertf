@@ -17,6 +17,13 @@ MODEL_STATES = typing.Union[torch.Tensor, dict[str, torch.Tensor]]
 STEP_OUTPUT = typing.Union[MODEL_OUTPUT, dict[str, MODEL_OUTPUT]]
 EPOCH_OUTPUT = list[STEP_OUTPUT]
 
+OPT_CALL_TYPE = typing.Callable[
+    [tuple[typing.Any, ...]], torch.optim.Optimizer
+]
+LR_CALL_TYPE = typing.Callable[
+    [tuple[typing.Any, ...]], torch.optim.lr_scheduler.LRScheduler
+]
+
 
 if typing.TYPE_CHECKING:
     SameType = typing.TypeVar("SameType", bound="LightningModuleBase")
@@ -24,22 +31,25 @@ if typing.TYPE_CHECKING:
 
 
 class LightningModuleBase(L.LightningModule):
-    _lr_scheduler: str | typing.Callable[[tuple[typing.Any, ...]], torch.optim.lr_scheduler.LRScheduler] | None
+    _lr_scheduler: str | typing.Callable[
+        [tuple[typing.Any, ...]], torch.optim.lr_scheduler.LRScheduler
+    ] | None
 
-    def __init__(self,
-                    optimizer: str | typing.Callable[[tuple[typing.Any, ...]], torch.optim.Optimizer],
-                    optimizer_kwargs: dict[str, typing.Any],
-                    lr_scheduler: str | typing.Callable[[tuple[typing.Any, ...]], torch.optim.lr_scheduler.LRScheduler] | None,
-                    lr_scheduler_interval: str,
-                    max_epochs: int,
-                    reduce_on_plateau_patience: int,
-                    log_grad_norm: bool,
-                    lr: float,
-                    weight_decay: float,
-                    momentum: float,
-                    validate_every_n_epochs: int,
-                    **kwargs: typing.Any,
-                 ) -> None:
+    def __init__(
+        self,
+        optimizer: str | OPT_CALL_TYPE,
+        optimizer_kwargs: dict[str, typing.Any],
+        lr_scheduler: str | LR_CALL_TYPE | None,
+        lr_scheduler_interval: str,
+        max_epochs: int,
+        reduce_on_plateau_patience: int,
+        log_grad_norm: bool,
+        lr: float,
+        weight_decay: float,
+        momentum: float,
+        validate_every_n_epochs: int,
+        **kwargs: typing.Any,
+    ) -> None:
         super().__init__()
         self.save_hyperparameters(ignore=["lr_scheduler"])
 

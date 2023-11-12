@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from .._base_module import LightningModuleBase
+from .._base_module import LightningModuleBase, OPT_CALL_TYPE, LR_CALL_TYPE
 from ._config import VanillaTransformerConfig
 from ._model import VanillaTransformer
 import typing
 from pytorch_forecasting.metrics import QuantileLoss
 import torch
-from functools import partial
 
 from ...data import TransformerSample
 
@@ -31,20 +30,29 @@ class VanillaTransformerModule(LightningModuleBase):
         lr: float = 1e-3,
         weight_decay: float = 1e-4,
         momentum: float = 0.9,
-        optimizer: str | None = None,
-        optimizer_kwargs: dict | None = None,
+        optimizer: str | OPT_CALL_TYPE = "adam",
+        optimizer_kwargs: dict[str, typing.Any] | None = None,
         reduce_on_plateau_patience: int = 200,
         max_epochs: int = 1000,
         validate_every_n_epochs: int = 50,
         log_grad_norm: bool = False,
         criterion: QuantileLoss | None = None,
-        lr_scheduler: str
-        | typing.Type[torch.optim.lr_scheduler.LRScheduler]
-        | partial
-        | None = None,
+        lr_scheduler: str | LR_CALL_TYPE | None = None,
         lr_scheduler_interval: typing.Literal["epoch", "step"] = "epoch",
     ):
-        super().__init__()
+        super().__init__(
+            lr=lr,
+            weight_decay=weight_decay,
+            momentum=momentum,
+            optimizer=optimizer,
+            optimizer_kwargs=optimizer_kwargs or {},
+            reduce_on_plateau_patience=reduce_on_plateau_patience,
+            max_epochs=max_epochs,
+            validate_every_n_epochs=validate_every_n_epochs,
+            log_grad_norm=log_grad_norm,
+            lr_scheduler=lr_scheduler,
+            lr_scheduler_interval=lr_scheduler_interval,
+        )
         self.save_hyperparameters(ignore=["lr_scheduler", "criterion"])
 
         self._lr_scheduler = lr_scheduler

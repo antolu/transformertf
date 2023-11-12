@@ -7,7 +7,7 @@ import torch
 
 from ...data import TimeSeriesSample
 from ...hysteresis.base import BaseHysteresis
-from .._base_module import LightningModuleBase
+from .._base_module import LightningModuleBase, OPT_CALL_TYPE, LR_CALL_TYPE
 from ._config import PreisachConfig
 
 if typing.TYPE_CHECKING:
@@ -20,13 +20,10 @@ class PreisachModule(LightningModuleBase):
         lr: float = 1e-3,
         weight_decay: float = 0.0,
         momentum: float = 0.0,
-        optimizer: str = "adam",
+        optimizer: str | OPT_CALL_TYPE = "adam",
         optimizer_kwargs: dict[str, typing.Any] | None = None,
         reduce_on_plateau_patience: int = 50,
-        lr_scheduler: str
-        | typing.Type[torch.optim.lr_scheduler.LRScheduler]
-        | functools.partial
-        | None = None,
+        lr_scheduler: str | LR_CALL_TYPE | None = None,
         lr_scheduler_interval: typing.Literal["epoch", "step"] = "epoch",
         max_epochs: int = 1000,
         log_grad_norm: bool = False,
@@ -37,7 +34,19 @@ class PreisachModule(LightningModuleBase):
         This module implements a PyTorch Lightning module for the
         Differentiable Preisach Model.
         """
-        super().__init__()
+        super().__init__(
+            lr=lr,
+            weight_decay=weight_decay,
+            momentum=momentum,
+            optimizer=optimizer,
+            optimizer_kwargs=optimizer_kwargs or {},
+            reduce_on_plateau_patience=reduce_on_plateau_patience,
+            max_epochs=max_epochs,
+            validate_every_n_epochs=validate_every_n_epochs,
+            log_grad_norm=log_grad_norm,
+            lr_scheduler=lr_scheduler,
+            lr_scheduler_interval=lr_scheduler_interval,
+        )
         super().save_hyperparameters(ignore=["lr_scheduler", "criterion"])
 
         self._lr_scheduler = lr_scheduler
