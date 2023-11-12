@@ -6,34 +6,34 @@ import pandas as pd
 import pytest
 import torch.utils.data
 
-from transformertf.data import DataModuleBase
+from transformertf.config import TimeSeriesBaseConfig
+from transformertf.data import TimeSeriesDataModule
 
 DF_PATH = str(Path(__file__).parent.parent / "sample_data.parquet")
 CURRENT = "I_meas_A"
 FIELD = "B_meas_T"
 
-
-def test_datamodule_base_create() -> None:
-    dm = DataModuleBase(input_columns=["a"], target_columns=["b"])
-    assert dm is not None
+config = TimeSeriesBaseConfig()
 
 
 def test_datamodule_base_create_from_parquet() -> None:
-    dm = DataModuleBase(
+    dm = TimeSeriesDataModule.from_parquet(
+        config=config,
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
-        input_columns=[CURRENT],
-        target_columns=[FIELD],
+        input_columns=["a"],
+        target_column="b",
     )
     assert dm is not None
 
 
 def test_datamodule_base_prepare_data() -> None:
-    dm = DataModuleBase(
+    dm = TimeSeriesDataModule.from_parquet(
+        config=config,
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
         input_columns=[CURRENT],
-        target_columns=[FIELD],
+        target_column=FIELD,
     )
     dm.prepare_data()
 
@@ -41,11 +41,12 @@ def test_datamodule_base_prepare_data() -> None:
 
 
 def test_datamodule_base_setup_before_prepare_data() -> None:
-    dm = DataModuleBase(
+    dm = TimeSeriesDataModule.from_parquet(
+        config=config,
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
         input_columns=[CURRENT],
-        target_columns=[FIELD],
+        target_column=FIELD,
     )
     dm.setup()
 
@@ -59,12 +60,13 @@ def test_datamodule_base_setup_before_prepare_data() -> None:
 
 
 @pytest.fixture(scope="module")
-def datamodule_base() -> DataModuleBase:
-    dm = DataModuleBase(
+def datamodule_base() -> TimeSeriesDataModule:
+    dm = TimeSeriesDataModule.from_parquet(
+        config=config,
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
         input_columns=[CURRENT],
-        target_columns=[FIELD],
+        target_column=FIELD,
     )
     dm.prepare_data()
     dm.setup()
@@ -73,7 +75,7 @@ def datamodule_base() -> DataModuleBase:
 
 
 def test_datamodule_base_train_dataloader(
-    datamodule_base: DataModuleBase,
+    datamodule_base: TimeSeriesDataModule,
 ) -> None:
     dataset = datamodule_base.train_dataset
     assert dataset is not None
@@ -85,7 +87,7 @@ def test_datamodule_base_train_dataloader(
 
 
 def test_datamodule_base_val_dataloader(
-    datamodule_base: DataModuleBase,
+    datamodule_base: TimeSeriesDataModule,
 ) -> None:
     dataset = datamodule_base.val_dataset
     assert dataset is not None
@@ -97,16 +99,16 @@ def test_datamodule_base_val_dataloader(
 
 
 def test_datamodule_base_prepare_twice() -> None:
-    dm = DataModuleBase(
+    dm = TimeSeriesDataModule.from_parquet(
+        config=config,
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
         input_columns=[CURRENT],
-        target_columns=[FIELD],
+        target_column=FIELD,
     )
     dm.prepare_data()
 
-    with pytest.raises(RuntimeError):
-        dm.prepare_data()
+    dm.prepare_data()
 
 
 @pytest.fixture(scope="module")
@@ -115,9 +117,11 @@ def df() -> pd.DataFrame:
 
 
 def test_datamodule_base_read_input(
-    datamodule_base: DataModuleBase, df: pd.DataFrame
+    datamodule_base: TimeSeriesDataModule, df: pd.DataFrame
 ) -> None:
-    processed_df = datamodule_base.read_input(df)
+    processed_df = datamodule_base.read_input(
+        df, input_columns=[CURRENT], target_column=FIELD
+    )
 
     assert processed_df is not None
     assert isinstance(processed_df, pd.DataFrame)
@@ -125,11 +129,11 @@ def test_datamodule_base_read_input(
     assert CURRENT in processed_df.columns
     assert FIELD in processed_df.columns
 
-    assert len(processed_df.columns) == 2
+    assert len(processed_df.columns) == 3
 
 
 def test_datamodule_base_preprocess_dataframe(
-    datamodule_base: DataModuleBase, df: pd.DataFrame
+    datamodule_base: TimeSeriesDataModule, df: pd.DataFrame
 ) -> None:
     processed_df = datamodule_base.preprocess_dataframe(df)
 
@@ -143,7 +147,7 @@ def test_datamodule_base_preprocess_dataframe(
 
 
 def test_datamodule_base_normalize_dataframe(
-    datamodule_base: DataModuleBase, df: pd.DataFrame
+    datamodule_base: TimeSeriesDataModule, df: pd.DataFrame
 ) -> None:
     processed_df = datamodule_base.apply_transforms(df)
 
@@ -155,7 +159,7 @@ def test_datamodule_base_normalize_dataframe(
 
 
 def test_datamodule_base_transform_input(
-    datamodule_base: DataModuleBase, df: pd.DataFrame
+    datamodule_base: TimeSeriesDataModule, df: pd.DataFrame
 ) -> None:
     processed_df = datamodule_base.transform_input(df)
 
@@ -165,11 +169,11 @@ def test_datamodule_base_transform_input(
     assert CURRENT in processed_df.columns
     assert FIELD in processed_df.columns
 
-    assert len(processed_df.columns) == 2
+    assert len(processed_df.columns) == 4
 
 
 def test_datamodule_base_make_dataset(
-    datamodule_base: DataModuleBase, df: pd.DataFrame
+    datamodule_base: TimeSeriesDataModule, df: pd.DataFrame
 ) -> None:
     dataset = datamodule_base.make_dataset(df)
 
@@ -178,7 +182,7 @@ def test_datamodule_base_make_dataset(
 
 
 def test_datamodule_base_make_dataset_predict(
-    datamodule_base: DataModuleBase, df: pd.DataFrame
+    datamodule_base: TimeSeriesDataModule, df: pd.DataFrame
 ) -> None:
     dataset = datamodule_base.make_dataset(df, predict=True)
 

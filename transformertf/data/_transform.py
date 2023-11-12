@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import enum
 import logging
 import typing
 
@@ -10,36 +11,263 @@ import torch
 import torch.nn as nn
 import tqdm
 
+if typing.TYPE_CHECKING:
+    SameType = typing.TypeVar("SameType", bound="BaseTransform")
+
 log = logging.getLogger(__name__)
 
 
-__all__ = ["BaseTransform", "PolynomialTransform", "RunningNormalizer"]
+__all__ = [
+    "BaseTransform",
+    "PolynomialTransform",
+    "RunningNormalizer",
+    "TransformCollection",
+]
 
 
-class BaseTransform(sklearn.base.BaseEstimator, sklearn.base.TransformerMixin):
+class TransformType(enum.Enum):
+    X = "X"
+    XY = "XY"
+    COLLECTION = "COLLECTION"
+    UNSPECIFIED = "UNSPECIFIED"
+
+
+class BaseTransform(
+    sklearn.base.BaseEstimator, sklearn.base.TransformerMixin, nn.Module
+):
+    _transform_type: TransformType = TransformType.UNSPECIFIED
+
     def __init__(self) -> None:
         sklearn.base.BaseEstimator.__init__(self)
         sklearn.base.TransformerMixin.__init__(self)
+        nn.Module.__init__(self)
 
-    def inverse_transform(
+    @typing.overload
+    def fit(self: SameType, x: torch.Tensor | np.ndarray) -> SameType:
+        ...
+
+    @typing.overload
+    def fit(
+        self: SameType,
+        x: torch.Tensor | np.ndarray,
+        y: torch.Tensor | np.ndarray,
+    ) -> SameType:
+        ...
+
+    @typing.overload
+    def fit(
+        self: SameType,
+        x: torch.Tensor | np.ndarray,
+        y: torch.Tensor | np.ndarray | None = None,
+    ) -> SameType:
+        ...
+
+    def fit(
+        self: SameType,
+        x: torch.Tensor | np.ndarray,
+        y: torch.Tensor | np.ndarray | None = None,
+    ) -> SameType:
+        raise NotImplementedError
+
+    def transform(
         self,
         x: torch.Tensor | np.ndarray,
         y: torch.Tensor | np.ndarray | None = None,
     ) -> torch.Tensor:
         raise NotImplementedError
 
+    def inverse_transform(
+        self,
+        x: torch.Tensor | np.ndarray,
+        y: torch.Tensor | np.ndarray | None = None,
+    ) -> torch.Tensor:
+        """
+        Applies the inverse transformation on the input data.
+        If y is None, then the inverse transform is applied to x.
+        This is useful for when the target transform is dependent
+        also on the input data.
+        """
+        raise NotImplementedError
 
-class PolynomialTransform(nn.Module, BaseTransform):
+    def __sklearn_is_fitted__(self) -> bool:
+        raise NotImplementedError
+
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}()"
+
+    def __repr__(self) -> str:
+        return str(self)
+
+
+class TransformCollection(BaseTransform, typing.Sequence[BaseTransform]):
+    def __init__(
+        self,
+        transforms: list[BaseTransform],
+        transform_type: TransformType = TransformType.X,
+    ):
+        """
+        A collection of transforms that can be applied to the data.
+        Depending on the transform type, the transforms are fitted/transformed
+        to x or y, but dependent on x.
+
+        This can be useful if the transformation on the target data is dependent
+        on the input data, e.g. a polynomial transform.
+
+        Parameters
+        ----------
+        transforms : list[BaseTransform]
+            A list of transforms to apply to the data.
+        transform_type : TransformType, optional
+            The transform type of the collection, by default TransformType.X
+            i.e. the transforms are fitted/transformed to x.
+            If TransformType.XY, then the transforms are fitted/transformed to y.
+            If there are transforms of both types, then the X-only transforms are
+            fitted to the Y data.
+        """
+        super().__init__()
+        self.transforms = torch.nn.ModuleList(transforms)
+        self._transform_type = transform_type
+
+    def fit(
+        self,
+        x: torch.Tensor | np.ndarray,
+        y: torch.Tensor | np.ndarray | None = None,
+    ) -> TransformCollection:
+        x_transformed = _as_torch(x)
+        y_transformed = _as_torch(y) if y is not None else None
+
+        for transform in self.transforms:
+            if self._transform_type == TransformType.X:
+                if transform._transform_type == TransformType.X:
+                    x_transformed = transform.fit_transform(x_transformed)
+                elif transform._transform_type == TransformType.XY:
+                    if y_transformed is None:
+                        raise ValueError("Cannot fit Y when Y is None.")
+                    y_transformed = transform.fit_transform(y_transformed)
+            elif self._transform_type == TransformType.XY:
+                if transform._transform_type == TransformType.X:
+                    y_transformed = transform.fit_transform(y_transformed)
+                elif transform._transform_type == TransformType.XY:
+                    y_transformed = transform.fit_transform(
+                        x_transformed, y_transformed
+                    )
+            else:
+                raise ValueError(
+                    f"Invalid transform type: {transform._transform_type}"
+                )
+        return self
+
+    def transform(
+        self,
+        x: torch.Tensor | np.ndarray,
+        y: torch.Tensor | np.ndarray | None = None,
+    ) -> torch.Tensor:
+        x_transformed = _as_torch(x)
+        y_transformed = _as_torch(y) if y is not None else None
+
+        for transform in self.transforms:
+            if self._transform_type == TransformType.X:
+                if transform._transform_type == TransformType.X:
+                    x_transformed = transform.transform(x_transformed)
+                elif transform._transform_type == TransformType.XY:
+                    if y_transformed is None:
+                        raise ValueError("Cannot transform Y when Y is None.")
+                    y_transformed = transform.transform(y_transformed)
+                else:
+                    raise ValueError(
+                        f"Invalid transform type: {self._transform_type}"
+                    )
+
+            elif self._transform_type == TransformType.XY:
+                if transform._transform_type == TransformType.X:
+                    y_transformed = transform.transform(y_transformed)
+                elif transform._transform_type == TransformType.XY:
+                    y_transformed = transform.transform(
+                        x_transformed, y_transformed
+                    )
+
+            else:
+                raise ValueError(
+                    f"Invalid transform type: {transform._transform_type}"
+                )
+
+        if y_transformed is None:
+            return x_transformed
+
+        return y_transformed
+
+    def inverse_transform(
+        self,
+        x: torch.Tensor | np.ndarray,
+        y: torch.Tensor | np.ndarray | None = None,
+    ) -> torch.Tensor:
+        x_transformed = _as_torch(x)
+        y_transformed = _as_torch(y) if y is not None else None
+
+        if y is None and self._transform_type == TransformType.XY:
+            raise ValueError("Cannot transform Y when Y is None.")
+
+        for transform in reversed(self.transforms):
+            if self._transform_type == TransformType.X:
+                if transform._transform_type == TransformType.X:
+                    x_transformed = transform.inverse_transform(x_transformed)
+                elif transform._transform_type == TransformType.XY:
+                    if y_transformed is None:
+                        raise ValueError("Cannot transform Y when Y is None.")
+                    y_transformed = transform.inverse_transform(y_transformed)
+
+            elif self._transform_type == TransformType.XY:
+                if transform._transform_type == TransformType.X:
+                    y_transformed = transform.inverse_transform(y_transformed)
+                elif transform._transform_type == TransformType.XY:
+                    y_transformed = transform.inverse_transform(
+                        x_transformed, y_transformed
+                    )
+
+            else:
+                raise ValueError(
+                    f"Invalid transform type: {transform._transform_type}"
+                )
+
+        if y_transformed is None:
+            return x_transformed
+
+        return y_transformed
+
+    def __getitem__(
+        self, item: int | slice
+    ) -> BaseTransform | TransformCollection:
+        if isinstance(item, int):
+            return self.transforms[item]
+        else:
+            return TransformCollection(
+                self.transforms[item], transform_type=self._transform_type
+            )
+
+    def __len__(self) -> int:
+        return len(self.transforms)
+
+    def __iter__(self) -> typing.Iterator[BaseTransform]:
+        return iter(self.transforms)
+
+    def __sklearn_is_fitted__(self) -> bool:
+        return all(
+            transform.__sklearn_is_fitted__() for transform in self.transforms
+        )
+
+
+class PolynomialTransform(BaseTransform):
     """
     Removes a polynomial fit from the data.
     """
+
+    _transform_type = TransformType.XY
 
     weights: torch.Tensor
     bias: torch.Tensor
     p: torch.Tensor
 
     def __init__(self, degree: int, num_iterations: int = 1000):
-        nn.Module.__init__(self)
         BaseTransform.__init__(self)
 
         self.degree = degree
@@ -64,11 +292,15 @@ class PolynomialTransform(nn.Module, BaseTransform):
         )
 
     def fit(
-        self, x: torch.Tensor | np.ndarray, y: torch.Tensor | np.ndarray
-    ) -> None:
+        self,
+        x: torch.Tensor | np.ndarray,
+        y: torch.Tensor | np.ndarray | None = None,
+    ) -> PolynomialTransform:
         """
         Fits the polynomial to the data.
         """
+        if y is None:
+            raise ValueError("PolynomialTransform requires y.")
         x_tensor = _as_torch(x)
         y_tensor = _as_torch(y)
 
@@ -97,12 +329,19 @@ class PolynomialTransform(nn.Module, BaseTransform):
 
         self.eval()
 
+        return self
+
     def transform(
-        self, x: torch.Tensor | np.ndarray, y: torch.Tensor | np.ndarray
+        self,
+        x: torch.Tensor | np.ndarray,
+        y: torch.Tensor | np.ndarray | None = None,
     ) -> torch.Tensor:
         """
         Removes the polynomial fit from the data.
         """
+        if y is None:
+            raise ValueError("PolynomialTransform requires y.")
+
         x_tensor = _as_torch(x)
         y_tensor = _as_torch(y)
 
@@ -118,7 +357,7 @@ class PolynomialTransform(nn.Module, BaseTransform):
         Adds the polynomial fit back to the data.
         """
         if y is None:
-            raise ValueError("y cannot be None.")
+            raise ValueError("PolynomialTransform requires y.")
 
         x_tensor = _as_torch(x)
         y_tensor = _as_torch(y)
@@ -161,8 +400,11 @@ class PolynomialTransform(nn.Module, BaseTransform):
             torch.all(self.weights == 0.0) and torch.all(self.bias == 0.0)
         )
 
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}(degree={self.degree})"
 
-class RunningNormalizer(nn.Module, BaseTransform):
+
+class RunningNormalizer(BaseTransform):
     """
     RunningNormalizer class
 
@@ -211,15 +453,17 @@ class RunningNormalizer(nn.Module, BaseTransform):
 
     """
 
+    _transform_type = TransformType.X
+
     center_: torch.Tensor
     scale_: torch.Tensor
     n_samples_seen_: torch.Tensor
 
     def __init__(
         self,
-        num_features: int = 1,
-        center: torch.Tensor | float = 0.0,
-        scale: torch.Tensor | float = 1.0,
+        num_features_: int = 1,
+        center_: torch.Tensor | float = 0.0,
+        scale_: torch.Tensor | float = 1.0,
     ):
         """
         Parameters
@@ -234,11 +478,10 @@ class RunningNormalizer(nn.Module, BaseTransform):
             The scale value for normalization. Default is 1.0.
 
         """
-        nn.Module.__init__(self)
         BaseTransform.__init__(self)
 
-        center_ = torch.zeros(num_features, requires_grad=False) + center
-        scale_ = torch.zeros(num_features, requires_grad=False) + scale
+        center_ = torch.zeros(num_features_, requires_grad=False) + center_
+        scale_ = torch.zeros(num_features_, requires_grad=False) + scale_
         n_samples_seen_ = torch.tensor(
             [0], requires_grad=False, dtype=torch.long
         )
@@ -255,6 +498,7 @@ class RunningNormalizer(nn.Module, BaseTransform):
         """
         Inverse transform data.
         """
+        y = _as_torch(y)
         if target_scale is None:
             target_scale = self.get_parameters()
 
@@ -284,13 +528,16 @@ class RunningNormalizer(nn.Module, BaseTransform):
 
         :return: The fitted normalizer (self).
         """
+        x = _as_torch(x)
+
         self._set_parameters(y_center=x, y_scale=x)
         return self
 
     @typing.overload
     def transform(
         self,
-        y: torch.Tensor,
+        x: torch.Tensor | np.ndarray,
+        y: None = None,
         return_scales: typing.Literal[False] = False,
         target_scale: torch.Tensor | None = None,
     ) -> torch.Tensor:
@@ -299,27 +546,32 @@ class RunningNormalizer(nn.Module, BaseTransform):
     @typing.overload
     def transform(
         self,
-        y: torch.Tensor,
-        return_scales: typing.Literal[True],
+        x: torch.Tensor | np.ndarray,
+        y: torch.Tensor | np.ndarray | None = None,
+        return_scales: typing.Literal[True] = True,
         target_scale: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         ...
 
     def transform(
         self,
-        y: torch.Tensor,
+        x: torch.Tensor | np.ndarray,
+        y: torch.Tensor | np.ndarray | None = None,
         return_scales: bool = False,
         target_scale: torch.Tensor | None = None,
     ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """
         Rescale data.
 
+        :param x: The data to rescale.
         :param y: The data to rescale.
         :param return_scales: Whether to return the rescaling factors.
         :param target_scale: The target scale to rescale to.
 
         :return: The rescaled data.
         """
+        if y is None:
+            y = x
         y = _as_torch(y)
 
         if target_scale is None:
@@ -397,6 +649,9 @@ class RunningNormalizer(nn.Module, BaseTransform):
 
     def __sklearn_is_fitted__(self) -> bool:
         return self.n_samples_seen_.item() > 0
+
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}()"
 
 
 def _view_as_y(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:

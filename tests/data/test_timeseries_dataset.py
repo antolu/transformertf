@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import pytest
 import numpy as np
+import pytest
 
 from transformertf.data import TimeSeriesDataset
 
@@ -203,27 +203,29 @@ def test_dataset_predict_2d_multiple(x1_2d: np.ndarray) -> None:
 
 
 def test_dataset_num_points_1d_single(x1_1d: np.ndarray) -> None:
-    dataset = TimeSeriesDataset(input_data=x1_1d, seq_len=3)
+    with pytest.raises(ValueError):
+        dataset = TimeSeriesDataset(input_data=x1_1d, seq_len=3)
+    dataset = TimeSeriesDataset(input_data=x1_1d, seq_len=3, predict=True)
 
     assert dataset.num_points == 10
 
 
 def test_dataset_num_points_1d_multiple(x1_1d: np.ndarray) -> None:
-    dataset = TimeSeriesDataset(input_data=[x1_1d, x1_1d], seq_len=3)
-
-    assert dataset.num_points == 20
+    with pytest.raises(ValueError):
+        TimeSeriesDataset(input_data=[x1_1d, x1_1d], seq_len=3)
 
 
 def test_dataset_num_points_2d_single(x1_2d: np.ndarray) -> None:
-    dataset = TimeSeriesDataset(input_data=x1_2d, seq_len=3)
+    with pytest.raises(ValueError):
+        dataset = TimeSeriesDataset(input_data=x1_2d, seq_len=3)
 
+    dataset = TimeSeriesDataset(input_data=x1_2d, seq_len=3, predict=True)
     assert dataset.num_points == 9
 
 
 def test_dataset_num_points_2d_multiple(x1_2d: np.ndarray) -> None:
-    dataset = TimeSeriesDataset(input_data=[x1_2d, x1_2d], seq_len=3)
-
-    assert dataset.num_points == 18
+    with pytest.raises(ValueError):
+        TimeSeriesDataset(input_data=[x1_2d, x1_2d], seq_len=3)
 
 
 def test_dataset_randomize_seq_len_1d_single(
@@ -240,3 +242,27 @@ def test_dataset_randomize_seq_len_1d_single(
     assert len(dataset) == 8
     assert dataset[0]["input"].shape == (3, 1)
     assert dataset[0]["target"].shape == (3, 1)
+
+
+def test_dataset_seq_len_none(x1_1d: np.ndarray, y1_1d: np.ndarray) -> None:
+    dataset = TimeSeriesDataset(
+        input_data=x1_1d, target_data=y1_1d, seq_len=None
+    )
+
+    assert len(dataset) == 1
+    assert dataset.num_points == 10
+
+
+def test_dataset_seq_len_none_2x(x1_1d: np.ndarray, y1_1d: np.ndarray) -> None:
+    with pytest.raises(ValueError):
+        dataset = TimeSeriesDataset(
+            input_data=[x1_1d, x1_1d], target_data=[y1_1d, y1_1d], seq_len=None
+        )
+
+    dataset = TimeSeriesDataset(
+        input_data=[x1_1d, x1_1d],
+        target_data=[y1_1d, y1_1d],
+        seq_len=len(x1_1d),
+    )
+    assert len(dataset) == 2
+    assert dataset.num_points == 20

@@ -7,25 +7,26 @@ from transformertf.models.phylstm import PhyLSTMConfig, PhyLSTMDataModule
 
 from ...conftest import CURRENT, DF_PATH, FIELD
 
+config = PhyLSTMConfig(input_columns=CURRENT, target_column=FIELD)
+
 
 def test_phylstm_datamodule_create() -> None:
-    dm = PhyLSTMDataModule(
+    dm = PhyLSTMDataModule.from_parquet(
+        config=config,
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
         seq_len=500,
-        out_seq_len=0,
         stride=1,
     )
     assert dm is not None
 
 
 def test_phylstm_datamodule_create_with_config() -> None:
-    config = PhyLSTMConfig()
-
-    dm = PhyLSTMDataModule.from_config(config)
+    dm = PhyLSTMDataModule.from_parquet(
+        config, train_dataset=DF_PATH, val_dataset=DF_PATH
+    )
 
     assert dm.hparams["seq_len"] == 500
-    assert dm.hparams["out_seq_len"] == 0
     assert dm.hparams["stride"] == 1
     assert dm.hparams["lowpass_filter"] is True
     assert dm.hparams["mean_filter"] is True
@@ -35,11 +36,8 @@ def test_phylstm_datamodule_create_with_config() -> None:
 
 
 def test_phylstm_datamodule_hparams_correct() -> None:
-    dm = PhyLSTMDataModule(
-        train_dataset=DF_PATH,
-        val_dataset="val_data.parquet",
+    kwargs = dict(
         seq_len=500,
-        out_seq_len=0,
         stride=1,
         lowpass_filter=True,
         mean_filter=True,
@@ -49,18 +47,22 @@ def test_phylstm_datamodule_hparams_correct() -> None:
         remove_polynomial=True,
         polynomial_degree=2,
         polynomial_iterations=2000,
-        current_column="a",
-        field_column="b",
+        input_columns=["a"],
+        target_column="b",
         model_dir="model_dir",
     )
 
+    dm = PhyLSTMDataModule.from_parquet(
+        config,
+        train_dataset=DF_PATH,
+        val_dataset=DF_PATH,
+        **kwargs,  # type: ignore[arg-type]
+    )
+
     correct_hparams = {
-        "train_dataset": DF_PATH,
-        "val_dataset": "val_data.parquet",
         "seq_len": 500,
         "min_seq_len": None,
         "randomize_seq_len": False,
-        "out_seq_len": 0,
         "stride": 1,
         "lowpass_filter": True,
         "mean_filter": True,
@@ -68,56 +70,38 @@ def test_phylstm_datamodule_hparams_correct() -> None:
         "batch_size": 32,
         "num_workers": 4,
         "input_columns": ["a"],
-        "target_columns": ["b"],
+        "target_column": "b",
         "model_dir": "model_dir",
         "normalize": True,
         "remove_polynomial": True,
         "polynomial_degree": 2,
         "polynomial_iterations": 2000,
+        "target_depends_on": None,
+        "dtype": "float32",
     }
 
     hparams = dict(dm.hparams)
     for key, value in correct_hparams.items():
         assert hparams.pop(key) == value
 
-    assert len(hparams) == 2
+    assert len(hparams) == 0
 
 
 def test_phylstm_datamodule_prepare_data() -> None:
-    dm = PhyLSTMDataModule(
+    dm = PhyLSTMDataModule.from_parquet(
+        config=config,
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
-        seq_len=500,
-        out_seq_len=0,
-        stride=1,
-        lowpass_filter=True,
-        mean_filter=True,
-        downsample=50,
-        batch_size=128,
-        num_workers=4,
-        current_column=CURRENT,
-        field_column=FIELD,
-        model_dir="model_dir",
     )
 
     dm.prepare_data()
 
 
 def test_phylstm_datamodule_setup_before_prepare() -> None:
-    dm = PhyLSTMDataModule(
+    dm = PhyLSTMDataModule.from_parquet(
+        config=config,
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
-        seq_len=500,
-        out_seq_len=0,
-        stride=1,
-        lowpass_filter=True,
-        mean_filter=True,
-        downsample=50,
-        batch_size=128,
-        num_workers=4,
-        current_column=CURRENT,
-        field_column=FIELD,
-        model_dir="model_dir",
     )
 
     dm.setup()
@@ -131,19 +115,17 @@ def test_phylstm_datamodule_setup_before_prepare() -> None:
 
 @pytest.fixture(scope="module")
 def phylstm_datamodule() -> PhyLSTMDataModule:
-    dm = PhyLSTMDataModule(
+    dm = PhyLSTMDataModule.from_parquet(
+        config=config,
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
         seq_len=500,
-        out_seq_len=0,
         stride=1,
         lowpass_filter=True,
         mean_filter=True,
         downsample=50,
         batch_size=128,
         num_workers=4,
-        current_column=CURRENT,
-        field_column=FIELD,
         model_dir="model_dir",
     )
 

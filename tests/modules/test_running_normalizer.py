@@ -4,7 +4,7 @@ from transformertf.data import RunningNormalizer
 
 
 def test_running_normalizer_single_feature() -> None:
-    normalizer = RunningNormalizer(num_features=1)
+    normalizer = RunningNormalizer(num_features_=1)
 
     x = torch.tensor([1.0, 2.0, 3.0, 4.0, 5.0])
     x_transformed = normalizer.fit_transform(x)
@@ -26,7 +26,7 @@ def test_running_normalizer_single_feature() -> None:
 
 
 def test_running_normalizer_multi_feature() -> None:
-    normalizer = RunningNormalizer(num_features=2)
+    normalizer = RunningNormalizer(num_features_=2)
 
     # add batch dimension
     x = torch.tensor([[1.0, 2.0], [2.0, 3.0], [3.0, 4.0], [4.0, 5.0]])[
