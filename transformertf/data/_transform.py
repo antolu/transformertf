@@ -89,6 +89,10 @@ class BaseTransform(
         """
         raise NotImplementedError
 
+    @property
+    def transform_type(self) -> TransformType:
+        return self._transform_type
+
     def __sklearn_is_fitted__(self) -> bool:
         raise NotImplementedError
 
