@@ -627,8 +627,8 @@ class RunningNormalizer(BaseTransform):
         eps = torch.finfo(y_center.dtype).eps
 
         dim = tuple(range(y_center.ndim - 1)) if y_center.ndim > 1 else 0
-        new_mean = torch.mean(y_center, dim=dim)
-        new_scale = torch.std(y_scale, dim=dim) + eps
+        new_mean = torch.mean(y_center, dim=dim, keepdim=True)
+        new_scale = torch.std(y_scale, dim=dim, keepdim=True) + eps
 
         n_samples = y_center.shape[0]
 
