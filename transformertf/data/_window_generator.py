@@ -73,7 +73,7 @@ class WindowGenerator(typing.Sequence[slice]):
 
         if zero_pad:
             # extend input and label data to fit stride
-            self._source_len = num_points + (stride - (num_points % stride))
+            self._source_len = stride * self._num_samples + (window_size - stride)
         else:
             self._source_len = num_points
 
