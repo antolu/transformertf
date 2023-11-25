@@ -436,9 +436,7 @@ class FixedPolynomialTransform(PolynomialTransform):
                 f"weights must have shape ({degree},), got {weights.shape}."
             )
         if bias.shape != (1,):
-            raise ValueError(
-                f"bias must have shape (1,), got {bias.shape}."
-            )
+            raise ValueError(f"bias must have shape (1,), got {bias.shape}.")
 
         self.weights.data = weights
         self.bias.data = bias
