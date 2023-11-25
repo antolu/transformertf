@@ -13,7 +13,6 @@ import pandas as pd
 import torch
 import torch.utils.data
 
-from ...config import BaseConfig
 from .._dataset import TimeSeriesDataset
 from .._transform import (
     BaseTransform,
@@ -23,6 +22,9 @@ from .._transform import (
     TransformType,
 )
 from .._downsample import downsample
+
+if typing.TYPE_CHECKING:
+    from ...config import BaseConfig
 
 __all__ = ["_DataModuleBase"]
 
@@ -61,6 +63,7 @@ class _DataModuleBase(L.LightningDataModule):
         polynomial_degree: int = 1,
         polynomial_iterations: int = 1000,
         target_depends_on: str | None = None,
+        extra_transforms: dict[str, list[BaseTransform]] | None = None,
         batch_size: int = 128,
         num_workers: int = 0,
         dtype: str = "float32",
@@ -76,13 +79,9 @@ class _DataModuleBase(L.LightningDataModule):
             self._raw_train_df: list[pd.DataFrame] = []
             self._raw_val_df: list[pd.DataFrame] = []
         elif train_df is None and val_df is not None:
-            raise ValueError(
-                "val_df must be None if train_df is None."
-            )
+            raise ValueError("val_df must be None if train_df is None.")
         elif train_df is not None and val_df is None:
-            raise ValueError(
-                "train_df must be None if val_df is None."
-            )
+            raise ValueError("train_df must be None if val_df is None.")
         else:
             self._raw_train_df = _to_list(train_df)
             self._raw_val_df = _to_list(val_df)
@@ -110,12 +109,15 @@ class _DataModuleBase(L.LightningDataModule):
         """
         To be overridden by subclasses to parse other config subclasses.
         """
+
         default_kwargs = dict(
             normalize=config.normalize,
             downsample=config.downsample,
             remove_polynomial=config.remove_polynomial,
             polynomial_degree=config.polynomial_degree,
             polynomial_iterations=config.polynomial_iterations,
+            target_depends_on=config.target_depends_on,
+            extra_transforms=config.extra_transforms,
             batch_size=config.batch_size,
             num_workers=config.num_workers,
         )
@@ -141,6 +143,18 @@ class _DataModuleBase(L.LightningDataModule):
         # input transforms
         input_transforms: dict[str, list[BaseTransform]]
         input_transforms = {col: [] for col in self.hparams["input_columns"]}
+
+        if self.hparams["extra_transforms"] is not None:
+            for col, transforms in self.hparams["extra_transforms"].items():
+                if (
+                    col not in input_transforms
+                    and col != self.hparams["target_column"]
+                ):
+                    raise ValueError(
+                        f"Unknown column {col} in extra_transforms."
+                    )
+                input_transforms[col].extend(transforms)
+
         for input_col in self.hparams["input_columns"]:
             if normalize:
                 input_transforms[input_col].append(
@@ -153,15 +167,36 @@ class _DataModuleBase(L.LightningDataModule):
         }
 
         target_transform = []
+        if self.hparams["extra_transforms"] is not None:
+            if (
+                self.hparams["target_column"]
+                in self.hparams["extra_transforms"]
+            ):
+                target_transform.extend(
+                    self.hparams["extra_transforms"][
+                        self.hparams["target_column"]
+                    ]
+                )
         if normalize:
             target_transform.append(RunningNormalizer(num_features_=1))
         if polynomial:
             if self.hparams["target_depends_on"] is not None:
+                if (
+                    self.hparams["target_depends_on"]
+                    not in self.hparams["input_columns"]
+                ):
+                    raise ValueError(
+                        "Polynomial transform requires target_depends_on to be in input_columns."
+                    )
                 target_transform.append(
                     PolynomialTransform(
                         self.hparams["polynomial_degree"],
                         self.hparams["polynomial_iterations"],
                     )
+                )
+            else:
+                raise ValueError(
+                    "Polynomial transform requires target_depends_on to be set."
                 )
 
         self._target_transform = TransformCollection(

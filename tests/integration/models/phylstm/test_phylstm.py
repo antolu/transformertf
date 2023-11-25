@@ -12,7 +12,7 @@ from transformertf.models.phylstm import (
     PhyLSTMDataModule,
 )
 
-from ....conftest import DF_PATH, FIELD
+from ....conftest import DF_PATH, FIELD, CURRENT
 
 
 @pytest.fixture(scope="module")
@@ -21,6 +21,7 @@ def config() -> PhyLSTMConfig:
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
         num_workers=0,
+        target_depends_on=CURRENT,
     )
     return config
 

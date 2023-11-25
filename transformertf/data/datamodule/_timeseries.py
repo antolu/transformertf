@@ -4,11 +4,12 @@ import typing
 
 from ._base import _DataModuleBase
 from .._dataset import TimeSeriesDataset
-from ...config import TimeSeriesBaseConfig
 
 if typing.TYPE_CHECKING:
     import pandas as pd
     import numpy as np
+    from ...config import TimeSeriesBaseConfig
+    from .._transform import BaseTransform
 
 
 class TimeSeriesDataModule(_DataModuleBase):
@@ -28,6 +29,7 @@ class TimeSeriesDataModule(_DataModuleBase):
         polynomial_degree: int = 1,
         polynomial_iterations: int = 1000,
         target_depends_on: str | None = None,
+        extra_transforms: dict[str, list[BaseTransform]] | None = None,
         batch_size: int = 128,
         num_workers: int = 0,
         dtype: str = "float32",
@@ -43,6 +45,7 @@ class TimeSeriesDataModule(_DataModuleBase):
             polynomial_degree=polynomial_degree,
             polynomial_iterations=polynomial_iterations,
             target_depends_on=target_depends_on,
+            extra_transforms=extra_transforms,
             batch_size=batch_size,
             num_workers=num_workers,
             dtype=dtype,

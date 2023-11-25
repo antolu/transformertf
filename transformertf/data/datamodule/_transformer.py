@@ -4,11 +4,12 @@ import typing
 
 from ._base import _DataModuleBase
 from .._dataset import TransformerDataset
-from ...config import TransformerBaseConfig
 
 if typing.TYPE_CHECKING:
     import pandas as pd
     import numpy as np
+    from ...config import TransformerBaseConfig
+    from .._transform import BaseTransform
 
 
 class TransformerDataModule(_DataModuleBase):
@@ -32,6 +33,7 @@ class TransformerDataModule(_DataModuleBase):
         polynomial_degree: int = 1,
         polynomial_iterations: int = 1000,
         target_depends_on: str | None = None,
+        extra_transforms: dict[str, list[BaseTransform]] | None = None,
         batch_size: int = 128,
         num_workers: int = 0,
         dtype: str = "float32",

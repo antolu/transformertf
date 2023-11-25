@@ -76,6 +76,13 @@ class BaseTransform(
     ) -> torch.Tensor:
         raise NotImplementedError
 
+    def fit_transform(
+        self,
+        x: torch.Tensor | np.ndarray,
+        y: torch.Tensor | np.ndarray | None = None,
+    ) -> torch.Tensor:
+        return self.fit(x, y).transform(x, y)
+
     def inverse_transform(
         self,
         x: torch.Tensor | np.ndarray,

@@ -231,7 +231,7 @@ class TransformerSampleGenerator(SampleGenerator[TransformerSample[T]]):
             to_2dim(self._input_data[src_slice]),
             to_2dim(self._label_data[src_slice]),
             dim=-1,
-        )
+        )  # [bs, seq_len, num_features]
         tgt = concat(
             to_2dim(self._input_data[tgt_slice]),
             to_2dim(zeros_like(self._input_data[tgt_slice])),
