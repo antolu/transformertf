@@ -19,6 +19,7 @@ log = logging.getLogger(__name__)
 
 __all__ = [
     "BaseTransform",
+    "FixedPolynomialTransform",
     "PolynomialTransform",
     "RunningNormalizer",
     "TransformCollection",
@@ -413,6 +414,41 @@ class PolynomialTransform(BaseTransform):
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(degree={self.degree})"
+
+
+class FixedPolynomialTransform(PolynomialTransform):
+    """
+    A polynomial transform that is pre-fitted to the data.
+
+    The .fit() method will not do anything.
+    """
+
+    def __init__(
+        self,
+        degree: int,
+        weights: torch.Tensor,
+        bias: torch.Tensor = torch.zeros(1),
+    ):
+        super().__init__(degree=degree)
+
+        if weights.shape != (degree,):
+            raise ValueError(
+                f"weights must have shape ({degree},), got {weights.shape}."
+            )
+        if bias.shape != (1,):
+            raise ValueError(
+                f"bias must have shape (1,), got {bias.shape}."
+            )
+
+        self.weights.data = weights
+        self.bias.data = bias
+
+    def fit(
+        self,
+        x: torch.Tensor | np.ndarray,
+        y: torch.Tensor | np.ndarray | None = None,
+    ) -> PolynomialTransform:
+        return self
 
 
 class RunningNormalizer(BaseTransform):

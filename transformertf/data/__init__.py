@@ -16,6 +16,7 @@ from ._transform import (
     PolynomialTransform,
     RunningNormalizer,
     TransformCollection,
+    FixedPolynomialTransform,
 )
 from ._window_generator import WindowGenerator
 
@@ -24,6 +25,7 @@ for _mod in (
     TimeSeriesDataset,
     TimeSeriesSample,
     BaseTransform,
+    FixedPolynomialTransform,
     PolynomialTransform,
     RunningNormalizer,
     TransformCollection,
@@ -40,6 +42,7 @@ del _mod
 __all__ = [
     "AbstractTimeSeriesDataset",
     "BaseTransform",
+    "FixedPolynomialTransform",
     "PolynomialTransform",
     "RunningNormalizer",
     "TimeSeriesDataModule",
