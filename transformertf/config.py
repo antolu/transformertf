@@ -91,6 +91,7 @@ class TimeSeriesBaseConfig(BaseConfig):
     """Adds additional parameters for generating time series datasets"""
 
     seq_len: int = 500
+    out_seq_len: int = 300
     min_seq_len: int | None = None
     randomize_seq_len: bool = False
     stride: int = 1
