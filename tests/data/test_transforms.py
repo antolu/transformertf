@@ -5,7 +5,7 @@ from sklearn.utils.validation import check_is_fitted
 import pytest
 import torch
 
-from transformertf.data import PolynomialTransform
+from transformertf.data import PolynomialTransform, FixedPolynomialTransform
 
 
 @pytest.fixture
@@ -144,3 +144,14 @@ def test_polynomial_transform_inverse_transform(df: pd.DataFrame) -> None:
     )
 
     assert inverse_transformed.shape == (len(df),)
+
+
+def test_fixed_polynomial_transform_line() -> None:
+    transform = FixedPolynomialTransform(degree=1, weights=[2.0], bias=1.0)
+
+    x = torch.ones(2) * 2
+
+    y = transform(x)
+    assert y.shape == (2,)
+
+    assert torch.eq(y, torch.ones(2) * 5.0).all()

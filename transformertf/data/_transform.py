@@ -426,10 +426,16 @@ class FixedPolynomialTransform(PolynomialTransform):
     def __init__(
         self,
         degree: int,
-        weights: torch.Tensor,
-        bias: torch.Tensor = torch.zeros(1),
+        weights: list[float] | np.ndarray | torch.Tensor,
+        bias: float | np.ndarray | torch.Tensor = torch.zeros(1),
     ):
         super().__init__(degree=degree)
+        weights = _as_torch(weights)
+
+        if isinstance(bias, float):
+            bias = torch.zeros(1) + bias
+        else:
+            bias = _as_torch(bias)
 
         if weights.shape != (degree,):
             raise ValueError(
@@ -705,8 +711,12 @@ def _view_as_y(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     return x
 
 
-def _as_torch(x: pd.Series | np.ndarray | torch.Tensor) -> torch.Tensor:
-    if isinstance(x, pd.Series):
+def _as_torch(
+    x: list[float] | pd.Series | np.ndarray | torch.Tensor,
+) -> torch.Tensor:
+    if isinstance(x, list):
+        x = torch.tensor(x)
+    elif isinstance(x, pd.Series):
         x = x.to_numpy()
     if isinstance(x, np.ndarray):
         return torch.from_numpy(x)
