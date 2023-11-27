@@ -11,12 +11,13 @@ from ._sample_generator import (
     TransformerSample,
     TransformerSampleGenerator,
 )
-from ._transform import (
+from .transform import (
     BaseTransform,
     PolynomialTransform,
     RunningNormalizer,
     TransformCollection,
     FixedPolynomialTransform,
+    DiscreteFunctionTransform,
 )
 from ._window_generator import WindowGenerator
 
@@ -24,11 +25,8 @@ for _mod in (
     WindowGenerator,
     TimeSeriesDataset,
     TimeSeriesSample,
-    BaseTransform,
     FixedPolynomialTransform,
-    PolynomialTransform,
     RunningNormalizer,
-    TransformCollection,
     TimeSeriesSampleGenerator,
     TransformerSampleGenerator,
     AbstractTimeSeriesDataset,
@@ -42,6 +40,7 @@ del _mod
 __all__ = [
     "AbstractTimeSeriesDataset",
     "BaseTransform",
+    "DiscreteFunctionTransform",
     "FixedPolynomialTransform",
     "PolynomialTransform",
     "RunningNormalizer",

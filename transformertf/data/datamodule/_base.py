@@ -14,10 +14,10 @@ import torch
 import torch.utils.data
 
 from .._dataset import TimeSeriesDataset
-from .._transform import (
+from ..transform import (
     BaseTransform,
     PolynomialTransform,
-    RunningNormalizer,
+    StandardScaler,
     TransformCollection,
     TransformType,
 )
@@ -146,10 +146,9 @@ class _DataModuleBase(L.LightningDataModule):
 
         if self.hparams["extra_transforms"] is not None:
             for col, transforms in self.hparams["extra_transforms"].items():
-                if (
-                    col not in input_transforms
-                    and col != self.hparams["target_column"]
-                ):
+                if col == self.hparams["target_column"]:
+                    continue
+                if col not in input_transforms:
                     raise ValueError(
                         f"Unknown column {col} in extra_transforms."
                     )
@@ -158,7 +157,7 @@ class _DataModuleBase(L.LightningDataModule):
         for input_col in self.hparams["input_columns"]:
             if normalize:
                 input_transforms[input_col].append(
-                    RunningNormalizer(num_features_=1)
+                    StandardScaler(num_features_=1)
                 )
 
         self._input_transforms = {
@@ -178,7 +177,7 @@ class _DataModuleBase(L.LightningDataModule):
                     ]
                 )
         if normalize:
-            target_transform.append(RunningNormalizer(num_features_=1))
+            target_transform.append(StandardScaler(num_features_=1))
         if polynomial:
             if self.hparams["target_depends_on"] is not None:
                 if (

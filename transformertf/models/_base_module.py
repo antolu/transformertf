@@ -53,10 +53,10 @@ class LightningModuleBase(L.LightningModule):
         super().__init__()
         self.save_hyperparameters(ignore=["lr_scheduler"])
 
-        self._train_outputs: list[MODEL_OUTPUT] = []
-        self._val_outputs: list[MODEL_OUTPUT] = []
-        self._test_outputs: list[MODEL_OUTPUT] = []
-        self._inference_outputs: list[MODEL_OUTPUT] = []
+        self._train_outputs: dict[int, list[MODEL_OUTPUT]] = {}
+        self._val_outputs: dict[int, list[MODEL_OUTPUT]] = {}
+        self._test_outputs: dict[int, list[MODEL_OUTPUT]] = {}
+        self._inference_outputs: dict[int, list[MODEL_OUTPUT]] = {}
 
         self._lr_scheduler = None
 
@@ -89,10 +89,10 @@ class LightningModuleBase(L.LightningModule):
         return default_kwargs
 
     def on_train_start(self) -> None:
-        self._train_outputs = []
+        self._train_outputs = {}
 
     def on_validation_epoch_start(self) -> None:
-        self._val_outputs = []
+        self._val_outputs = {}
 
         super().on_validation_epoch_start()
 
@@ -103,10 +103,14 @@ class LightningModuleBase(L.LightningModule):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
-        self._val_outputs.append(ops.to_cpu(ops.detach(outputs)))
+        if dataloader_idx not in self._val_outputs:
+            self._val_outputs[dataloader_idx] = []
+        self._val_outputs[dataloader_idx].append(
+            ops.to_cpu(ops.detach(outputs))
+        )
 
     def on_test_epoch_start(self) -> None:
-        self._test_outputs = []
+        self._test_outputs = {}
 
         super().on_test_epoch_start()
 
@@ -117,10 +121,14 @@ class LightningModuleBase(L.LightningModule):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
-        self._test_outputs.append(ops.to_cpu(ops.detach(outputs)))
+        if dataloader_idx not in self._test_outputs:
+            self._test_outputs[dataloader_idx] = []
+        self._test_outputs[dataloader_idx].append(
+            ops.to_cpu(ops.detach(outputs))
+        )
 
     def on_predict_epoch_start(self) -> None:
-        self._inference_outputs = []
+        self._inference_outputs = {}
 
         super().on_predict_epoch_start()
 
@@ -131,7 +139,11 @@ class LightningModuleBase(L.LightningModule):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
-        self._inference_outputs.append(ops.to_cpu(ops.detach(outputs)))
+        if dataloader_idx not in self._inference_outputs:
+            self._inference_outputs[dataloader_idx] = []
+        self._inference_outputs[dataloader_idx].append(
+            ops.to_cpu(ops.detach(outputs))
+        )
 
     def common_log_step(
         self,

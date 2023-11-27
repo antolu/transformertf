@@ -9,7 +9,7 @@ if typing.TYPE_CHECKING:
     import pandas as pd
     import numpy as np
     from ...config import TransformerBaseConfig
-    from .._transform import BaseTransform
+    from ..transform import BaseTransform
 
 
 class TransformerDataModule(_DataModuleBase):
