@@ -40,7 +40,7 @@ class VanillaTransformer(torch.nn.Module):
 
         self.feature_embedding = torch.nn.Linear(
             self.num_features, self.n_dim_model
-        )
+        )  # [bs, seq_len, n_dim_model]
         self.pos_encoder = SimplePositionalEncoding(
             dim_model=self.n_dim_model, dropout=self.dropout
         )
@@ -58,7 +58,7 @@ class VanillaTransformer(torch.nn.Module):
             torch.nn.Dropout(self.dropout),
             torch.nn.ReLU(),
             torch.nn.Linear(self.fc_dim, output_dim),
-        )
+        )  # [bs, seq_len, output_dim]
 
         self.src_mask: torch.Tensor
         self.tgt_mask: torch.Tensor

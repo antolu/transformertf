@@ -85,6 +85,7 @@ def phylstm_dm() -> PhyLSTMDataModule:
         lowpass_filter=False,
         mean_filter=False,
         dtype=torch.float64,
+        target_depends_on=CURRENT,
     )
     dm.prepare_data()
     dm.setup()

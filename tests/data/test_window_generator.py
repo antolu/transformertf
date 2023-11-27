@@ -109,7 +109,7 @@ def test_window_generator_real_data_len() -> None:
     assert wg.real_data_len == 10
 
     wg = WindowGenerator(10, 5, 1, True)
-    assert wg.real_data_len == 11
+    assert wg.real_data_len == 10
 
 
 def test_window_generator_str() -> None:

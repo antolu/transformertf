@@ -9,6 +9,8 @@ from functools import partial
 import torch
 from torch.optim.lr_scheduler import LRScheduler
 
+from .data import BaseTransform
+
 __all__ = [
     "BaseConfig",
     "TimeSeriesBaseConfig",
@@ -53,11 +55,15 @@ class BaseConfig:
     downsample: int = 1
     remove_polynomial: bool = False
 
+    target_depends_on: str | None = None
     polynomial_degree: int = 1
     polynomial_iterations: int = 1000
 
     lowpass_filter: bool = False
     mean_filter: bool = False
+
+    # extra transforms, map from column name to transform
+    extra_transforms: dict[str, BaseTransform] = field(default_factory=dict)
 
     # Data source
     dataset: str | None = None  # do not use this one in the code

@@ -7,7 +7,9 @@ from transformertf.models.phylstm import PhyLSTMConfig, PhyLSTMDataModule
 
 from ...conftest import CURRENT, DF_PATH, FIELD
 
-config = PhyLSTMConfig(input_columns=CURRENT, target_column=FIELD)
+config = PhyLSTMConfig(
+    input_columns=CURRENT, target_column=FIELD, target_depends_on=CURRENT
+)
 
 
 def test_phylstm_datamodule_create() -> None:
@@ -49,6 +51,7 @@ def test_phylstm_datamodule_hparams_correct() -> None:
         polynomial_iterations=2000,
         input_columns=["a"],
         target_column="b",
+        target_depends_on="a",
         model_dir="model_dir",
     )
 
@@ -76,7 +79,7 @@ def test_phylstm_datamodule_hparams_correct() -> None:
         "remove_polynomial": True,
         "polynomial_degree": 2,
         "polynomial_iterations": 2000,
-        "target_depends_on": None,
+        "target_depends_on": "a",
         "dtype": "float32",
     }
 
@@ -84,7 +87,7 @@ def test_phylstm_datamodule_hparams_correct() -> None:
     for key, value in correct_hparams.items():
         assert hparams.pop(key) == value
 
-    assert len(hparams) == 0
+    assert len(hparams) == 1 and "extra_transforms" in hparams
 
 
 def test_phylstm_datamodule_prepare_data() -> None:

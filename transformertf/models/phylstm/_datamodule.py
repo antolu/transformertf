@@ -8,7 +8,9 @@ import pandas as pd
 from ...utils import signal
 from ...data import TimeSeriesDataModule
 
-from ._config import PhyLSTMConfig
+if typing.TYPE_CHECKING:
+    from ...data import BaseTransform
+    from ._config import PhyLSTMConfig
 
 __all__ = [
     "PhyLSTMDataModule",
@@ -61,6 +63,8 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
         remove_polynomial: bool = True,
         polynomial_degree: int = 1,
         polynomial_iterations: int = 1000,
+        target_depends_on: str | None = None,
+        extra_transforms: dict[str, list[BaseTransform]] | None = None,
         input_columns: str = CURRENT,
         target_column: str = FIELD,
         batch_size: int = 128,
@@ -93,6 +97,8 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
             remove_polynomial=remove_polynomial,
             polynomial_degree=polynomial_degree,
             polynomial_iterations=polynomial_iterations,
+            target_depends_on=target_depends_on,
+            extra_transforms=extra_transforms,
             batch_size=batch_size,
             num_workers=num_workers,
         )

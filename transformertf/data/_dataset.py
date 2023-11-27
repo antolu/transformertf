@@ -20,7 +20,7 @@ from ._sample_generator import (
     TransformerSample,
     TransformerSampleGenerator,
 )
-from ._transform import BaseTransform
+from .transform import BaseTransform
 
 
 if typing.TYPE_CHECKING:

@@ -11,6 +11,7 @@ log = logging.getLogger(__name__)
 
 if typing.TYPE_CHECKING:
     import pandas as pd
+    from ...data import BaseTransform
 
 
 CURRENT = "I_meas_A"
@@ -32,6 +33,8 @@ class PreisachDataModule(TimeSeriesDataModule):
         remove_polynomial: bool = True,
         polynomial_degree: int = 1,
         polynomial_iterations: int = 1000,
+        target_depends_on: str | None = None,
+        extra_transforms: dict[str, list[BaseTransform]] | None = None,
         num_workers: int = 0,
         model_dir: str | None = None,
     ):
@@ -45,7 +48,8 @@ class PreisachDataModule(TimeSeriesDataModule):
             remove_polynomial=False,
             polynomial_degree=polynomial_degree,
             polynomial_iterations=polynomial_iterations,
-            target_depends_on=input_columns[0],
+            target_depends_on=target_depends_on or input_columns[0],
+            extra_transforms=extra_transforms,
             batch_size=1,
             num_workers=num_workers,
             dtype="float64",
