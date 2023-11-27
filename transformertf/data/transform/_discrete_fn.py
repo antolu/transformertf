@@ -107,3 +107,6 @@ class DiscreteFunctionTransform(BaseTransform):
             The inverse of the function.
         """
         return DiscreteFunctionTransform(self.ys, self.xs)
+
+    def __sklearn_is_fitted__(self) -> bool:
+        return True
