@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from .._base_module import LightningModuleBase, OPT_CALL_TYPE, LR_CALL_TYPE
-from ._config import TSMixerConfig
-from ._model import TSMixer
 import typing
-from pytorch_forecasting.metrics import QuantileLoss
+
 import torch
 
 from ...data import TimeSeriesSample
+from ...nn import QuantileLoss
+from .._base_module import LR_CALL_TYPE, OPT_CALL_TYPE, LightningModuleBase
+from ._config import TSMixerConfig
+from ._model import TSMixer
 
 if typing.TYPE_CHECKING:
     SameType = typing.TypeVar("SameType", bound="TSMixerModule")

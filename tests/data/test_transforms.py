@@ -1,11 +1,13 @@
 from __future__ import annotations
-from ..conftest import CURRENT, FIELD
+
 import pandas as pd
-from sklearn.utils.validation import check_is_fitted
 import pytest
 import torch
+from sklearn.utils.validation import check_is_fitted
 
-from transformertf.data import PolynomialTransform, FixedPolynomialTransform
+from transformertf.data import FixedPolynomialTransform, PolynomialTransform
+
+from ..conftest import CURRENT, FIELD
 
 
 @pytest.fixture

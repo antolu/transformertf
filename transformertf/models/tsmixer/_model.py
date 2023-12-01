@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import torch
-import einops
 import typing
+
+import einops
+import torch
 
 
 class ResidualBlock(torch.nn.Module):

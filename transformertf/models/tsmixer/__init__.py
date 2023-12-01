@@ -1,7 +1,6 @@
 from ..._mod_replace import replace_modname
-
-from ._lightning import TSMixerModule
 from ._config import TSMixerConfig
+from ._lightning import TSMixerModule
 from ._model import TSMixer
 
 for _mod in [TSMixerModule, TSMixerConfig, TSMixer]:

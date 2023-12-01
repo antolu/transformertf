@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from ...config import TimeSeriesBaseConfig
 import dataclasses
+
+from ...config import TimeSeriesBaseConfig
 
 
 @dataclasses.dataclass

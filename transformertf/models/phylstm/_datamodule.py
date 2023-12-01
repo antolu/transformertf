@@ -5,8 +5,8 @@ import typing
 
 import pandas as pd
 
-from ...utils import signal
 from ...data import TimeSeriesDataModule
+from ...utils import signal
 
 if typing.TYPE_CHECKING:
     from ...data import BaseTransform

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import logging
-import torch
-from .base import BaseHysteresis
 
+import torch
+
+from .base import BaseHysteresis
 
 log = logging.getLogger(__name__)
 

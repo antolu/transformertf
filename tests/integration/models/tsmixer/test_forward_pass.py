@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-
 import pytest
 import torch
-from transformertf.models.tsmixer import TSMixerModule, TSMixerConfig
+
+from transformertf.models.tsmixer import TSMixerConfig, TSMixerModule
 
 
 @pytest.fixture(scope="module")

@@ -1,9 +1,8 @@
 from ..._mod_replace import replace_modname
-
-from ._base import BaseTransform, TransformType, TransformCollection
-from ._polynomial import PolynomialTransform, FixedPolynomialTransform
-from ._scaler import RunningNormalizer
+from ._base import BaseTransform, TransformCollection, TransformType
 from ._discrete_fn import DiscreteFunctionTransform
+from ._polynomial import FixedPolynomialTransform, PolynomialTransform
+from ._scaler import RunningNormalizer
 
 StandardScaler = RunningNormalizer
 

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import numpy as np
+import pytest
+import torch
 
 from transformertf.utils import ops
-import numpy as np
-import torch
-import pytest
 
 
 @pytest.fixture(scope="module")

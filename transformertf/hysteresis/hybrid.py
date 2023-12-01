@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import typing
+
 import torch
 from botorch.models import SingleTaskGP
 from botorch.models.transforms import Normalize, Standardize
 from botorch.posteriors import GPyTorchPosterior
 from gpytorch.models import GP
 
-from .base import HysteresisError, BaseHysteresis
-from .modes import ModeModule, FITTING, NEXT
+from .base import BaseHysteresis, HysteresisError
+from .modes import FITTING, NEXT, ModeModule
 
 
 class ExactHybridGP(ModeModule, GP):

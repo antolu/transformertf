@@ -1,13 +1,14 @@
 from __future__ import annotations
+
 import typing
 
-
-from ._base import _DataModuleBase
 from .._dataset import TransformerDataset
+from ._base import _DataModuleBase
 
 if typing.TYPE_CHECKING:
-    import pandas as pd
     import numpy as np
+    import pandas as pd
+
     from ...config import TransformerBaseConfig
     from ..transform import BaseTransform
 

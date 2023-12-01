@@ -2,8 +2,10 @@
 Tests for the transformertf.data.TimeSeriesSamplesGenerator class.
 """
 from __future__ import annotations
-import pytest
+
 import numpy as np
+import pytest
+
 from transformertf.data import TimeSeriesSampleGenerator
 
 

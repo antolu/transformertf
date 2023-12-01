@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from .._base_module import LightningModuleBase, OPT_CALL_TYPE, LR_CALL_TYPE
-from ._config import VanillaTransformerConfig
-from ._model import VanillaTransformer
-from ...nn import QuantileLoss
 import typing
+
 import torch
 
 from ...data import TransformerSample
+from ...nn import QuantileLoss
+from .._base_module import LR_CALL_TYPE, OPT_CALL_TYPE, LightningModuleBase
+from ._config import VanillaTransformerConfig
+from ._model import VanillaTransformer
 
 if typing.TYPE_CHECKING:
     SameType = typing.TypeVar("SameType", bound="VanillaTransformerModule")

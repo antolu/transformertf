@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from ._base import BaseTransform, TransformType
-
 import numpy as np
 import torch
 import tqdm
 
+from ._base import BaseTransform, TransformType
 from ._utils import _as_torch
 
 

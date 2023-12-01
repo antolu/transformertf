@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import logging
-from copy import deepcopy
 import typing
+from copy import deepcopy
 
 import torch
 

@@ -14,14 +14,9 @@ import torch
 import torch.utils.data
 
 from .._dataset import TimeSeriesDataset
-from ..transform import (
-    BaseTransform,
-    PolynomialTransform,
-    StandardScaler,
-    TransformCollection,
-    TransformType,
-)
 from .._downsample import downsample
+from ..transform import (BaseTransform, PolynomialTransform, StandardScaler,
+                         TransformCollection, TransformType)
 
 if typing.TYPE_CHECKING:
     from ...config import BaseConfig

@@ -14,14 +14,9 @@ import numpy as np
 import pandas as pd
 import torch
 
-from ._sample_generator import (
-    TimeSeriesSample,
-    TimeSeriesSampleGenerator,
-    TransformerSample,
-    TransformerSampleGenerator,
-)
+from ._sample_generator import (TimeSeriesSample, TimeSeriesSampleGenerator,
+                                TransformerSample, TransformerSampleGenerator)
 from .transform import BaseTransform
-
 
 if typing.TYPE_CHECKING:
     SameType = typing.TypeVar("SameType", bound="AbstractTimeSeriesDataset")

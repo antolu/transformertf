@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 from torch.nn import Module
 
 FITTING = 0

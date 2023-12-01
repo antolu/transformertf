@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import typing
+
 import numpy as np
 import torch
 from torch.nn import Module
-
 
 if typing.TYPE_CHECKING:
     from .hysteresis import HysteresisMagnet
