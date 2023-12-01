@@ -237,4 +237,4 @@ def isnamedtupleinstance(x: typing.Any) -> bool:
     f = getattr(t, "_fields", None)
     if not isinstance(f, tuple):
         return False
-    return all(type(n) == str for n in f)
+    return all(isinstance(n, str) for n in f)

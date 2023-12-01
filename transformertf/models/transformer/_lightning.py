@@ -3,8 +3,8 @@ from __future__ import annotations
 from .._base_module import LightningModuleBase, OPT_CALL_TYPE, LR_CALL_TYPE
 from ._config import VanillaTransformerConfig
 from ._model import VanillaTransformer
+from ...nn import QuantileLoss
 import typing
-from pytorch_forecasting.metrics import QuantileLoss
 import torch
 
 from ...data import TransformerSample
