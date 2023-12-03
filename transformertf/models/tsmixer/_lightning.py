@@ -8,7 +8,7 @@ from ...data import TimeSeriesSample
 from ...nn import QuantileLoss
 from .._base_module import LR_CALL_TYPE, OPT_CALL_TYPE, LightningModuleBase
 from ._config import TSMixerConfig
-from ._model import TSMixer
+from ._model import BasicTSMixer
 
 if typing.TYPE_CHECKING:
     SameType = typing.TypeVar("SameType", bound="TSMixerModule")
@@ -55,7 +55,7 @@ class TSMixerModule(LightningModuleBase):
 
         self.criterion = criterion or torch.nn.MSELoss()
 
-        self.model = TSMixer(
+        self.model = BasicTSMixer(
             num_features=num_features,
             seq_len=seq_len,
             out_seq_len=out_seq_len,

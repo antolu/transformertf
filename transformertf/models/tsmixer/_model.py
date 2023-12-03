@@ -1,3 +1,7 @@
+"""
+Implementation of the TSMixer model from
+http://arxiv.org/abs/2303.06053
+"""
 from __future__ import annotations
 
 import typing
@@ -6,92 +10,37 @@ import einops
 import torch
 
 
-class ResidualBlock(torch.nn.Module):
+from ._modules import (
+    MixerBlock,
+    ConditionalFeatureMixer,
+    ConditionalMixerBlock,
+    TemporalProjection,
+)
+
+
+class BasicTSMixer(torch.nn.Module):
+    """
+    This TSMixer model is a basic implementation of the TSMixer model, that takes
+    no auxiliary information in time series forecasting.
+    """
+
     def __init__(
         self,
         num_features: int,
         seq_len: int,
-        norm: typing.Literal["batch", "layer"],
-        activation: typing.Literal["relu", "gelu"],
-        dropout: float,
-        fc_dim: int,
-    ):
-        super().__init__()
-
-        if norm == "batch":
-            norm_type = torch.nn.BatchNorm2d
-        elif norm == "layer":
-            norm_type = torch.nn.LayerNorm
-        else:
-            raise ValueError(f"norm must be 'batch' or 'layer', not {norm}")
-
-        if activation == "relu":
-            activation_mod = torch.nn.ReLU
-        elif activation == "gelu":
-            activation_mod = torch.nn.GELU
-        else:
-            raise ValueError(
-                f"activation must be 'relu' or 'gelu', not {activation}"
-            )
-
-        self.dropout = torch.nn.Dropout(dropout)
-        self.activation = activation_mod()
-
-        self.temp_norm = norm_type(1)
-        self.fc1 = torch.nn.Linear(num_features, num_features)
-
-        self.feat_norm = norm_type(1)
-        self.feat_fc1 = torch.nn.Linear(num_features, fc_dim)
-        self.feat_fc2 = torch.nn.Linear(fc_dim, num_features)
-
-    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        # Temporal Linear
-        # need to rearrange to get the features in the right place
-        x = einops.rearrange(inputs, "b l f -> b 1 l f")
-        x = self.temp_norm(x)
-        x = einops.rearrange(x, "b 1 l f -> b l f")
-
-        x = self.fc1(x)
-        x = self.activation(x)
-        # x = einops.rearrange(x, "b l c -> b c l")
-        x = self.dropout(x)
-        res = x + inputs
-
-        # Feature Linear
-        # need to rearrange to get the features in the right place
-        x = einops.rearrange(res, "b l f -> b 1 l f")
-        x = self.feat_norm(x)
-        x = einops.rearrange(x, "b 1 l f -> b l f")
-
-        x = self.feat_fc1(x)
-        x = self.activation(x)
-        x = self.dropout(x)
-        x = self.feat_fc2(x)
-        x = self.dropout(x)
-        x = x + res
-
-        return x
-
-
-class TSMixer(torch.nn.Module):
-    def __init__(
-        self,
-        num_features: int,
-        seq_len: int,
-        out_seq_len: int,
-        dropout: float,
-        activation: typing.Literal["relu", "gelu"],
-        fc_dim: int,
-        norm: typing.Literal["batch", "layer"] = "batch",
+        out_seq_len: int | typing.Literal["headless"],
         num_blocks: int = 4,
+        fc_dim: int = 512,
+        dropout: float = 0.2,
+        activation: typing.Literal["relu", "gelu"] = "relu",
+        norm: typing.Literal["batch", "layer"] = "batch",
     ):
         super().__init__()
 
         self.residual_blocks = torch.nn.Sequential(
             *[
-                ResidualBlock(
+                MixerBlock(
                     num_features=num_features,
-                    seq_len=seq_len,
                     dropout=dropout,
                     activation=activation,
                     fc_dim=fc_dim,
@@ -101,7 +50,10 @@ class TSMixer(torch.nn.Module):
             ]
         )
 
-        self.fc = torch.nn.Linear(seq_len, out_seq_len)
+        if out_seq_len == "headless":
+            self.fc = None
+        else:
+            self.fc = TemporalProjection(seq_len, out_seq_len)
 
     def forward(
         self, x: torch.Tensor, target_slice: int | None = None
@@ -109,10 +61,96 @@ class TSMixer(torch.nn.Module):
         x = self.residual_blocks(x)
 
         if target_slice is not None:
-            x = x[:, :target_slice]
+            x = x[..., :target_slice]
 
-        x = einops.rearrange(x, "b l c -> b c l")
-        x = self.fc(x)
-        x = einops.rearrange(x, "b c l -> b l c")
+        if self.fc is not None:
+            x = einops.rearrange(x, "b l c -> b c l")
+            x = self.fc(x)
+            x = einops.rearrange(x, "b c l -> b l c")
 
         return x
+
+
+class TSMixer(torch.nn.Module):
+    """
+    This TSMixer model is a full implementation of the TSMixer model, that takes
+    static and continuous auxiliary information in time series forecasting.
+    """
+
+    def __init__(
+        self,
+        num_features: int,
+        num_static_features: int = 0,
+        seq_len: int = 512,
+        out_seq_len: int = 128,
+        dropout: float = 0.2,
+        activation: typing.Literal["relu", "gelu"] = "relu",
+        fc_dim: int = 512,
+        norm: typing.Literal["batch", "layer"] = "batch",
+        num_blocks: int = 4,
+    ):
+        super().__init__()
+
+        self.num_features = num_features
+        self.num_static_features = num_static_features
+
+        self.future_mixer = ConditionalFeatureMixer(
+            num_features=num_features,
+            num_static_features=num_static_features,
+            dropout=dropout,
+            activation=activation,
+            fc_dim=fc_dim,
+            norm=norm,
+        )
+
+        residual_blocks = [
+            ConditionalMixerBlock(
+                num_features=2 * num_features,
+                num_static_features=num_static_features,
+                dropout=dropout,
+                activation=activation,
+                fc_dim=fc_dim,
+                norm=norm,
+                out_num_features=num_features,
+            )
+        ]
+        residual_blocks += [
+            ConditionalMixerBlock(
+                num_features=num_features,
+                num_static_features=num_static_features,
+                dropout=dropout,
+                activation=activation,
+                fc_dim=fc_dim,
+                norm=norm,
+            )
+            for _ in range(num_blocks - 1)
+        ]
+        self.residual_blocks = torch.nn.Sequential(*residual_blocks)
+
+        self.fc = TemporalProjection(num_features, out_seq_len)
+
+    def forward(
+        self,
+        past_covariates: torch.Tensor,
+        future_covariates: torch.Tensor,
+        static_covariates: torch.Tensor | None = None,
+        target_slice: int | slice | None = None,
+    ) -> torch.Tensor:
+        if static_covariates is None:
+            static_covariates = torch.zeros(
+                (past_covariates.size(0), self.num_static_features)
+            )
+
+        x_p = past_covariates
+        z_p = self.future_mixer(future_covariates, static_covariates)
+
+        y = self.residual_blocks(torch.cat([x_p, z_p], dim=-1))
+
+        if target_slice is not None:
+            y = y[..., target_slice]
+
+        y = einops.rearrange(y, "b l c -> b c l")
+        y = self.fc(y)
+        y = einops.rearrange(y, "b c l -> b l c")
+
+        return y
