@@ -108,15 +108,6 @@ class PhyLSTM1(nn.Module):
                 ]
             )
         )
-        self.fc_init = nn.Sequential(
-            collections.OrderedDict(
-                [
-                    ("fc_init1", nn.Linear(2, hidden_dim_fc_)),
-                    ("lrelu_init", nn.ReLU()),
-                    ("fc_init2", nn.Linear(hidden_dim_fc_, hidden_dim_)),
-                ]
-            )
-        )
 
         self.apply(self.weights_init)
 
