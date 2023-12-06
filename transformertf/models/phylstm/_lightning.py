@@ -280,11 +280,7 @@ class PhyLSTMModule(LightningModuleBase):
         batch.get("target_scale")
         assert target is not None
 
-        initial_state = typing.cast(
-            PhyLSTM1States,
-            {"lstm1": self.model.init_states(batch["initial_state"])},
-        )
-        model_output = self.forward(batch["input"], hidden_state=initial_state)
+        model_output = self.forward(batch["input"])
 
         _, losses = self.criterion(model_output, target, return_all=True)
 
@@ -302,10 +298,6 @@ class PhyLSTMModule(LightningModuleBase):
             self._val_hidden.append(None)
 
         prev_hidden = self._val_hidden[dataloader_idx]
-        if prev_hidden is None:
-            prev_hidden = {
-                "lstm1": self.model.init_states(batch["initial_state"])
-            }
 
         loss, model_output, hidden = self.common_test_step(  # type: ignore[type-var]
             batch, batch_idx, prev_hidden
