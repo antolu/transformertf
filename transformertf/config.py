@@ -63,7 +63,9 @@ class BaseConfig:
     mean_filter: bool = False
 
     # extra transforms, map from column name to transform
-    extra_transforms: dict[str, BaseTransform] = field(default_factory=dict)
+    extra_transforms: dict[str, BaseTransform | list[BaseTransform]] = field(
+        default_factory=dict
+    )
 
     # Data source
     dataset: str | None = None  # do not use this one in the code

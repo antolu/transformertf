@@ -2,7 +2,7 @@ from __future__ import annotations
 
 
 import torch
-from ._commons import NUM_FEATURES
+from .conftest import NUM_FEATURES
 from transformertf.models.tsmixer import MixerBlock
 
 

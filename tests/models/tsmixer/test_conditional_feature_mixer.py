@@ -2,7 +2,7 @@ from __future__ import annotations
 
 
 import torch
-from ._commons import (
+from .conftest import (
     NUM_STATIC_FEATURES,
     NUM_FEATURES,
 )

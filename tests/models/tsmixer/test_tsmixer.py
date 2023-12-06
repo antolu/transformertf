@@ -2,7 +2,7 @@ from __future__ import annotations
 
 
 import torch
-from ._commons import (
+from .conftest import (
     NUM_FEATURES,
     SEQ_LEN,
     BATCH_SIZE,
@@ -53,7 +53,11 @@ def test_tsmixer(
 #     assert out.shape == sample.shape
 
 
-def test_basic_tsmixer_target_slice(sample: torch.Tensor) -> None:
+def test_tsmixer_target_slice(
+    sample: torch.Tensor,
+    future_covariates: torch.Tensor,
+    static_covariates: torch.Tensor,
+) -> None:
     mixer = TSMixer(
         num_features=NUM_FEATURES,
         num_blocks=3,

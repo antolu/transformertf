@@ -94,6 +94,7 @@ class TSMixer(torch.nn.Module):
         self.num_features = num_features
         self.num_static_features = num_static_features
 
+        # self.past_mixer = ConditionalMixerBlock()
         self.future_mixer = ConditionalFeatureMixer(
             num_features=num_features,
             num_static_features=num_static_features,
