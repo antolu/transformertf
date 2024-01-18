@@ -14,8 +14,12 @@ import numpy as np
 import pandas as pd
 import torch
 
-from ._sample_generator import (TimeSeriesSample, TimeSeriesSampleGenerator,
-                                TransformerSample, TransformerSampleGenerator)
+from ._sample_generator import (
+    TimeSeriesSample,
+    TimeSeriesSampleGenerator,
+    TransformerSample,
+    TransformerSampleGenerator,
+)
 from .transform import BaseTransform
 
 if typing.TYPE_CHECKING:
@@ -239,6 +243,7 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
         predict: bool = False,
         min_seq_len: int | None = None,
         randomize_seq_len: bool = False,
+        input_transform: dict[str, BaseTransform] | None = None,
         target_transform: BaseTransform | None = None,
         dtype: torch.dtype = torch.float32,
     ) -> TimeSeriesDataset:
@@ -260,6 +265,7 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
             predict=predict,
             min_seq_len=min_seq_len,
             randomize_seq_len=randomize_seq_len,
+            input_transform=input_transform,
             target_transform=target_transform,
             dtype=dtype,
         )
@@ -353,6 +359,7 @@ class TransformerDataset(AbstractTimeSeriesDataset):
         min_ctxt_seq_len: int | None = None,
         min_tgt_seq_len: int | None = None,
         randomize_seq_len: bool = False,
+        input_transform: dict[str, BaseTransform] | None = None,
         target_transform: BaseTransform | None = None,
         dtype: torch.dtype = torch.float32,
     ):
@@ -411,6 +418,7 @@ class TransformerDataset(AbstractTimeSeriesDataset):
         self._stride = stride
         self._randomize_seq_len = randomize_seq_len
 
+        self._input_transform = input_transform or {}
         self._target_transform = target_transform
 
         self._sample_gen = [
