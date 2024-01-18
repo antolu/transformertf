@@ -150,16 +150,14 @@ class LightningModuleBase(L.LightningModule):
         loss: dict[str, torch.Tensor],
         stage: typing.Literal["train", "validation", "test", "inference"],
     ) -> dict[str, torch.Tensor]:
-        log_dict = {k + f"/{stage}": v for k, v in loss.items() if k != "loss"}
+        log_dict = {k + f"/{stage}": v for k, v in loss.items()}
 
         if self.logger is not None:
-            self.log(
-                f"loss/{stage}",
-                loss["loss"],
+            self.log_dict(
+                log_dict,
                 on_step=stage == "train",
                 prog_bar=stage == "train",
             )
-            self.log_dict(log_dict)
 
         return log_dict
 
@@ -200,3 +198,15 @@ class LightningModuleBase(L.LightningModule):
         )
 
         return {"optimizer": optimizer, "lr_scheduler": scheduler_dict}
+
+    @property
+    def validation_outputs(self) -> dict[int, list[MODEL_OUTPUT]]:
+        return self._val_outputs
+
+    @property
+    def test_outputs(self) -> dict[int, list[MODEL_OUTPUT]]:
+        return self._test_outputs
+
+    @property
+    def inference_outputs(self) -> dict[int, list[MODEL_OUTPUT]]:
+        return self._inference_outputs
