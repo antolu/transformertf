@@ -216,10 +216,6 @@ class PhyLSTMModule(LightningModuleBase):
 
         return default_kwargs
 
-    @property
-    def validation_outputs(self) -> dict[int, list[STEP_OUTPUT]]:
-        return typing.cast(dict[int, list[STEP_OUTPUT]], self._val_outputs)
-
     def on_validation_epoch_start(self) -> None:
         """Reset the hidden states"""
         self._val_hidden = [None]  # type: ignore[assignment]
