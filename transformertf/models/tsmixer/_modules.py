@@ -92,7 +92,7 @@ class TimeMixer(torch.nn.Module):
 
         Parameters
         ----------
-        x : torch.Tensor
+        inputs : torch.Tensor
             Input tensor of shape [batch_size, seq_len, num_features]
 
         Returns
@@ -145,7 +145,8 @@ class FeatureMixer(torch.nn.Module):
         self.fc1 = torch.nn.Linear(num_features, fc_dim)
         self.fc2 = torch.nn.Linear(fc_dim, out_num_features or num_features)
 
-        if out_num_features is not None:
+        # reduce dimensionality of residual connection
+        if out_num_features is not None and out_num_features != num_features:
             self.fc3 = torch.nn.Linear(num_features, out_num_features)
         else:
             self.fc3 = None
@@ -189,10 +190,12 @@ class FeatureMixer(torch.nn.Module):
 
 
 class ConditionalFeatureMixer(torch.nn.Module):
+    fr: FeatureMixer | None
     def __init__(
         self,
         num_features: int,
         num_static_features: int,
+        hidden_dim: int | None = None,
         fc_dim: int = 512,
         dropout: float = 0.2,
         norm: typing.Literal["batch", "layer"] = "batch",
@@ -211,17 +214,28 @@ class ConditionalFeatureMixer(torch.nn.Module):
         """
         super().__init__()
 
-        self.fr = FeatureMixer(
-            num_features=num_static_features,
-            fc_dim=fc_dim,
-            dropout=dropout,
-            norm=norm,
-            activation=activation,
-            out_num_features=out_num_features or num_features,
-        )
+        self.num_static_features = num_static_features
+
+        hidden_dim = hidden_dim or num_features
+
+        if num_static_features > 0:
+            self.fr = FeatureMixer(
+                num_features=num_static_features,
+                fc_dim=fc_dim,
+                dropout=dropout,
+                norm=norm,
+                activation=activation,
+                out_num_features=hidden_dim,
+            )
+
+            cfm_num_features = num_features + hidden_dim
+        else:
+            self.fr = None
+
+            cfm_num_features = num_features
 
         self.fm = FeatureMixer(
-            num_features=(out_num_features or num_features) + num_features,
+            num_features=cfm_num_features,
             fc_dim=fc_dim,
             dropout=dropout,
             norm=norm,
@@ -230,7 +244,7 @@ class ConditionalFeatureMixer(torch.nn.Module):
         )
 
     def forward(
-        self, x: torch.Tensor, static_features: torch.Tensor
+        self, x: torch.Tensor, static_features: torch.Tensor | None = None
     ) -> torch.Tensor:
         """
 
@@ -251,6 +265,12 @@ class ConditionalFeatureMixer(torch.nn.Module):
         -------
 
         """
+        if self.fr is None:
+            return self.fm(x)
+
+        if static_features is None:
+            raise ValueError("static_features must be provided")
+
         v = self.fr(
             einops.repeat(static_features, "b s -> b l s", l=x.shape[1])
         )
@@ -336,6 +356,7 @@ class ConditionalMixerBlock(torch.nn.Module):
         self,
         num_features: int,
         num_static_features: int,
+        hidden_dim: int | None = None,
         norm: typing.Literal["batch", "layer"] = "batch",
         activation: typing.Literal["relu", "gelu"] = "relu",
         fc_dim: int = 512,
@@ -369,6 +390,7 @@ class ConditionalMixerBlock(torch.nn.Module):
         self.fm = ConditionalFeatureMixer(
             num_features=num_features,
             num_static_features=num_static_features,
+            hidden_dim=hidden_dim,
             fc_dim=fc_dim,
             dropout=dropout,
             norm=norm,
@@ -377,7 +399,7 @@ class ConditionalMixerBlock(torch.nn.Module):
         )
 
     def forward(
-        self, inputs: torch.Tensor, static_features: torch.Tensor
+        self, inputs: torch.Tensor, static_features: torch.Tensor | None = None
     ) -> torch.Tensor:
         """
         Parameters

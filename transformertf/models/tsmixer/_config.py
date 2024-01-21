@@ -1,15 +1,20 @@
 from __future__ import annotations
 
 import dataclasses
+import typing
 
-from ...config import TimeSeriesBaseConfig
+from ...config import TransformerBaseConfig
 
 
 @dataclasses.dataclass
-class TSMixerConfig(TimeSeriesBaseConfig):
+class TSMixerConfig(TransformerBaseConfig):
+    fc_dim: int = 512
+    num_blocks: int = 4
+
+    num_static_features: int = 0
+    hidden_dim: int | None = None
+    """ Hidden dim of TSMixer blocks, if None, defaults to num_features. """
+
     dropout: float = 0.1
-
     activation: str = "relu"
-
-    fc_dim: int = 1024
-    output_dim: int = 7
+    norm: typing.Literal["batch", "layer"] = "batch"

@@ -4,11 +4,11 @@ import typing
 
 import torch
 
-from ...data import TimeSeriesSample
+from ...data import TransformerSample
 from ...nn import QuantileLoss
 from .._base_module import LR_CALL_TYPE, OPT_CALL_TYPE, LightningModuleBase
 from ._config import TSMixerConfig
-from ._model import BasicTSMixer
+from ._model import TSMixer
 
 if typing.TYPE_CHECKING:
     SameType = typing.TypeVar("SameType", bound="TSMixerModule")
@@ -18,11 +18,14 @@ class TSMixerModule(LightningModuleBase):
     def __init__(
         self,
         num_features: int,
+        num_static_features: int = 0,
         seq_len: int = 500,
         out_seq_len: int = 300,
+        fc_dim: int = 1024,
+        num_blocks: int = 4,
         dropout: float = 0.1,
         activation: typing.Literal["relu", "gelu"] = "relu",
-        fc_dim: int = 1024,
+        norm: typing.Literal["batch", "layer"] = "batch",
         lr: float = 1e-3,
         weight_decay: float = 1e-4,
         momentum: float = 0.9,
@@ -55,13 +58,22 @@ class TSMixerModule(LightningModuleBase):
 
         self.criterion = criterion or torch.nn.MSELoss()
 
-        self.model = BasicTSMixer(
-            num_features=num_features,
+        out_dim = 1
+        if isinstance(self.criterion, QuantileLoss):
+            out_dim = self.criterion.num_quantiles
+
+        self.model = TSMixer(
+            num_feat=num_features,
+            num_future_feat=num_features - 1,
+            num_static_real_feat=num_static_features,
             seq_len=seq_len,
             out_seq_len=out_seq_len,
-            dropout=dropout,
-            activation=activation,
             fc_dim=fc_dim,
+            num_blocks=num_blocks,
+            dropout=dropout,
+            norm=norm,
+            activation=activation,
+            out_dim=out_dim,
         )
 
     @classmethod
@@ -79,11 +91,14 @@ class TSMixerModule(LightningModuleBase):
         default_kwargs.update(
             dict(
                 num_features=num_features,
-                seq_len=config.seq_len,
-                out_seq_len=config.out_seq_len,
+                num_static_features=config.num_static_features,
+                seq_len=config.ctxt_seq_len,
+                out_seq_len=config.tgt_seq_len,
                 dropout=config.dropout,
                 activation=config.activation,
                 fc_dim=config.fc_dim,
+                num_blocks=config.num_blocks,
+                norm=config.norm,
             )
         )
 
@@ -98,20 +113,17 @@ class TSMixerModule(LightningModuleBase):
 
         return default_kwargs
 
-    def forward(self, x: TimeSeriesSample) -> torch.Tensor:
+    def forward(self, x: TransformerSample) -> torch.Tensor:
         return self.model(
-            x["input"],
-            # source=x["encoder_input"],
-            # target=x["decoder_input"],
-            # src_mask=x.get("encoder_mask"),
-            # tgt_mask=x.get("decoder_mask"),
+            past_covariates=x["encoder_input"],
+            future_covariates=x["decoder_input"][..., :-1],
         )
 
     def training_step(
-        self, batch: TimeSeriesSample, batch_idx: int
+        self, batch: TransformerSample, batch_idx: int
     ) -> dict[str, torch.Tensor]:
         assert "target" in batch
-        target = batch["target"].squeeze(-1)
+        target = batch["target"]
 
         model_output = self(batch)
 
@@ -122,10 +134,10 @@ class TSMixerModule(LightningModuleBase):
         return {"loss": loss}
 
     def validation_step(
-        self, batch: TimeSeriesSample, batch_idx: int, dataloader_idx: int = 0
+        self, batch: TransformerSample, batch_idx: int, dataloader_idx: int = 0
     ) -> dict[str, torch.Tensor]:
         assert "target" in batch
-        target = batch["target"].squeeze(-1)
+        target = batch["target"]
 
         model_output = self(batch)
 

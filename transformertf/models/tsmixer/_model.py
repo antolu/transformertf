@@ -72,6 +72,7 @@ class BasicTSMixer(torch.nn.Module):
 
 
 class TSMixer(torch.nn.Module):
+    fc: TemporalProjection | None
     """
     This TSMixer model is a full implementation of the TSMixer model, that takes
     static and continuous auxiliary information in time series forecasting.
@@ -79,67 +80,79 @@ class TSMixer(torch.nn.Module):
 
     def __init__(
         self,
-        num_features: int,
-        num_static_features: int = 0,
-        seq_len: int = 512,
-        out_seq_len: int = 128,
-        dropout: float = 0.2,
-        activation: typing.Literal["relu", "gelu"] = "relu",
+        seq_len: int,
+        out_seq_len: int,
+        num_feat: int,
+        num_future_feat: int = 0,
+        num_static_real_feat: int = 0,
+        hidden_dim: int | None = None,
         fc_dim: int = 512,
+        dropout: float = 0.2,
         norm: typing.Literal["batch", "layer"] = "batch",
+        activation: typing.Literal["relu", "gelu"] = "relu",
         num_blocks: int = 4,
+        out_dim: int | None = None,
     ):
         super().__init__()
 
-        self.num_features = num_features
-        self.num_static_features = num_static_features
+        self.seq_len = seq_len
+        self.out_seq_len = out_seq_len
 
-        # self.past_mixer = ConditionalMixerBlock()
-        self.future_mixer = ConditionalFeatureMixer(
-            num_features=num_features,
-            num_static_features=num_static_features,
+        self.num_features = num_feat
+        self.num_future_features = num_future_feat
+        self.num_static_real_feat = num_static_real_feat
+        self.hidden_dim = hidden_dim or num_feat
+        hidden_dim = self.hidden_dim
+
+        self.past_mixer = ConditionalMixerBlock(
+            num_features=num_feat,
+            num_static_features=num_static_real_feat,
             dropout=dropout,
             activation=activation,
             fc_dim=fc_dim,
             norm=norm,
+            out_num_features=hidden_dim,
+        )
+        self.future_mixer = ConditionalFeatureMixer(
+            num_features=num_future_feat,
+            num_static_features=num_static_real_feat,
+            hidden_dim=hidden_dim,
+            dropout=dropout,
+            activation=activation,
+            fc_dim=fc_dim,
+            norm=norm,
+            out_num_features=hidden_dim,
         )
 
         residual_blocks = [
             ConditionalMixerBlock(
-                num_features=2 * num_features,
-                num_static_features=num_static_features,
+                num_features=2 * hidden_dim if i == 0 else num_feat,
+                num_static_features=num_static_real_feat,
+                hidden_dim=hidden_dim,
                 dropout=dropout,
                 activation=activation,
                 fc_dim=fc_dim,
                 norm=norm,
-                out_num_features=num_features,
+                out_num_features=hidden_dim,
             )
-        ]
-        residual_blocks += [
-            ConditionalMixerBlock(
-                num_features=num_features,
-                num_static_features=num_static_features,
-                dropout=dropout,
-                activation=activation,
-                fc_dim=fc_dim,
-                norm=norm,
-            )
-            for _ in range(num_blocks - 1)
+            for i in range(num_blocks)
         ]
         self.residual_blocks = torch.nn.Sequential(*residual_blocks)
 
-        self.fc = TemporalProjection(num_features, out_seq_len)
+        if out_dim is not None:
+            self.fc = TemporalProjection(hidden_dim, out_dim)
+        else:
+            self.fc = None
 
     def forward(
         self,
         past_covariates: torch.Tensor,
         future_covariates: torch.Tensor,
         static_covariates: torch.Tensor | None = None,
-        target_slice: int | slice | None = None,
     ) -> torch.Tensor:
         if static_covariates is None:
             static_covariates = torch.zeros(
-                (past_covariates.size(0), self.num_static_features)
+                (past_covariates.size(0), self.num_static_real_feat)
             )
 
         x_p = past_covariates
@@ -147,11 +160,7 @@ class TSMixer(torch.nn.Module):
 
         y = self.residual_blocks(torch.cat([x_p, z_p], dim=-1))
 
-        if target_slice is not None:
-            y = y[..., target_slice]
-
-        y = einops.rearrange(y, "b l c -> b c l")
-        y = self.fc(y)
-        y = einops.rearrange(y, "b c l -> b l c")
+        if self.fc is not None:
+            y = self.fc(y)
 
         return y

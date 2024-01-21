@@ -20,8 +20,8 @@ def test_tsmixer(
     static_covariates: torch.Tensor,
 ) -> None:
     mixer = TSMixer(
-        num_features=NUM_FEATURES,
-        num_static_features=NUM_STATIC_FEATURES,
+        num_feat=NUM_FEATURES,
+        num_static_real_feat=NUM_STATIC_FEATURES,
         num_blocks=3,
         fc_dim=64,
         dropout=0.1,
@@ -59,7 +59,7 @@ def test_tsmixer_target_slice(
     static_covariates: torch.Tensor,
 ) -> None:
     mixer = TSMixer(
-        num_features=NUM_FEATURES,
+        num_feat=NUM_FEATURES,
         num_blocks=3,
         fc_dim=64,
         dropout=0.1,
