@@ -12,8 +12,8 @@ def tsmixer_module() -> TSMixerModule:
 
 
 def test_tsmixer_forward_pass(tsmixer_module: TSMixerModule) -> None:
-    x = torch.rand(1, TSMixerConfig.seq_len, 1)
+    x = torch.rand(1, TSMixerConfig.ctxt_seq_len, 1)
 
     y = tsmixer_module.model(x)
 
-    assert y.shape == (1, TSMixerConfig.out_seq_len, 1)
+    assert y.shape == (1, TSMixerConfig.tgt_seq_len, 1)
