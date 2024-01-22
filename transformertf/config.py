@@ -48,7 +48,7 @@ class BaseConfig:
 
     # CUDA
     precision: PRECISION = "32-true"
-    device: torch.device | str | None = None
+    device: torch.device | str | None = "auto"
 
     # bulk data processing parameters
     normalize: bool = True

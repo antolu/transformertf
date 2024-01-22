@@ -18,3 +18,5 @@ class TSMixerConfig(TransformerBaseConfig):
     dropout: float = 0.1
     activation: str = "relu"
     norm: typing.Literal["batch", "layer"] = "batch"
+
+    loss_fn: typing.Literal["mse", "quantile"] = "mse"

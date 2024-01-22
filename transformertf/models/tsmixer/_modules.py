@@ -191,6 +191,7 @@ class FeatureMixer(torch.nn.Module):
 
 class ConditionalFeatureMixer(torch.nn.Module):
     fr: FeatureMixer | None
+
     def __init__(
         self,
         num_features: int,
