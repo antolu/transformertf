@@ -60,7 +60,7 @@ class TSMixerModule(LightningModuleBase):
 
         out_dim = 1
         if isinstance(self.criterion, QuantileLoss):
-            out_dim = self.criterion.num_quantiles
+            out_dim = len(self.criterion.quantiles)
 
         self.model = TSMixer(
             num_feat=num_features,

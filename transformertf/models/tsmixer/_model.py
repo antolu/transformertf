@@ -104,7 +104,8 @@ class TSMixer(torch.nn.Module):
         self.hidden_dim = hidden_dim or num_feat
         hidden_dim = self.hidden_dim
 
-        self.past_mixer = ConditionalMixerBlock(
+        self.past_proj = TemporalProjection(seq_len, out_seq_len)
+        self.past_mixer = ConditionalFeatureMixer(
             num_features=num_feat,
             num_static_features=num_static_real_feat,
             dropout=dropout,
@@ -137,7 +138,7 @@ class TSMixer(torch.nn.Module):
             )
             for i in range(num_blocks)
         ]
-        self.residual_blocks = torch.nn.Sequential(*residual_blocks)
+        self.residual_blocks = torch.nn.ModuleList(residual_blocks)
 
         if out_dim is not None:
             self.fc = TemporalProjection(hidden_dim, out_dim)
@@ -155,10 +156,17 @@ class TSMixer(torch.nn.Module):
                 (past_covariates.size(0), self.num_static_real_feat)
             )
 
-        x_p = past_covariates
+        # project past covariates to target sequence length
+        past_covariates = einops.rearrange(past_covariates, "b l c -> b c l")
+        past_covariates = self.past_proj(past_covariates)
+        past_covariates = einops.rearrange(past_covariates, "b c l -> b l c")
+
+        x_p = self.past_mixer(past_covariates, static_covariates)
         z_p = self.future_mixer(future_covariates, static_covariates)
 
-        y = self.residual_blocks(torch.cat([x_p, z_p], dim=-1))
+        y = torch.cat([x_p, z_p], dim=-1)
+        for block in self.residual_blocks:
+            y = block(y, static_features=static_covariates)
 
         if self.fc is not None:
             y = self.fc(y)
