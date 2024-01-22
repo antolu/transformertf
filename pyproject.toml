@@ -62,6 +62,7 @@ readme = { file = ["README.md"], content-type = "text/markdown" }
 [tool.setuptools.packages.find]
 include = ["transformertf*"]
 namespaces = false
+exclude = ["tests", "tests.*", "build"]
 
 [project.scripts]
 # project endpoints here
