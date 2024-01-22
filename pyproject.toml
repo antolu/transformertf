@@ -59,8 +59,9 @@ local_scheme = "no-local-version"
 [tool.setuptools.dynamic]
 readme = { file = ["README.md"], content-type = "text/markdown" }
 
-[tool.setuptools]
-packages = ["transformertf"]
+[tool.setuptools.packages.find]
+include = ["transformertf*"]
+namespaces = false
 
 [project.scripts]
 # project endpoints here
