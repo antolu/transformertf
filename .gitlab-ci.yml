@@ -14,10 +14,16 @@ variables:
 
 build_sdist:
   extends: .acc_py_build_sdist
+  before_script:
+    - !reference [.acc_py_build_sdist, before_script]
+    - git lfs install --skip-smudge
 
 
 build_wheel:
   extends: .acc_py_build_wheel
+  before_script:
+    - !reference [.acc_py_build_wheel, before_script]
+    - git lfs install --skip-smudge
 
 
 ._install_git_lfs:
