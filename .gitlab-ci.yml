@@ -12,19 +12,24 @@ variables:
 
 # ========================= Build =========================
 
+._install_git_lfs:
+  before_script:
+    - yum install -y git-lfs
+    - git lfs update --force
+    - git lfs install --skip-smudge
+
 build_sdist:
   extends: .acc_py_build_sdist
+  before_script:
+    - !reference [.acc_py_build_sdist, before_script]
+    - !reference [._install_git_lfs, before_script]
 
 
 build_wheel:
   extends: .acc_py_build_wheel
-
-
-._install_git_lfs:
   before_script:
-    - yum install -y git-lfs
-    - git lfs install --skip-smudge
-
+    - !reference [.acc_py_build_wheel, before_script]
+    - !reference [._install_git_lfs, before_script]
 
 # A development installation of the package tested with pytest.
 test_dev:

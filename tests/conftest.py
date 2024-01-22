@@ -1,10 +1,10 @@
-import numpy
 import random
-import torch
-import pandas as pd
-
-import pytest
 from pathlib import Path
+
+import numpy
+import pandas as pd
+import pytest
+import torch
 
 
 @pytest.fixture(scope="session")

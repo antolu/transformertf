@@ -6,13 +6,10 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
-from transformertf.models.phylstm import (
-    PhyLSTMModule,
-    PhyLSTMConfig,
-    PhyLSTMDataModule,
-)
+from transformertf.models.phylstm import (PhyLSTMConfig, PhyLSTMDataModule,
+                                          PhyLSTMModule)
 
-from ....conftest import DF_PATH, FIELD, CURRENT
+from ....conftest import CURRENT, DF_PATH, FIELD
 
 
 @pytest.fixture(scope="module")

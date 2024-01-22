@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from ...config import TransformerBaseConfig
 import dataclasses
+
+from ...config import TransformerBaseConfig
 
 
 @dataclasses.dataclass

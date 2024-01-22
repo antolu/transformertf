@@ -1,25 +1,13 @@
 from .._mod_replace import replace_modname
-from .datamodule import TimeSeriesDataModule, TransformerDataModule
-from ._dataset import (
-    TimeSeriesDataset,
-    AbstractTimeSeriesDataset,
-    TransformerDataset,
-)
-from ._sample_generator import (
-    TimeSeriesSample,
-    TimeSeriesSampleGenerator,
-    TransformerSample,
-    TransformerSampleGenerator,
-)
-from .transform import (
-    BaseTransform,
-    PolynomialTransform,
-    RunningNormalizer,
-    TransformCollection,
-    FixedPolynomialTransform,
-    DiscreteFunctionTransform,
-)
+from ._dataset import (AbstractTimeSeriesDataset, TimeSeriesDataset,
+                       TransformerDataset)
+from ._sample_generator import (TimeSeriesSample, TimeSeriesSampleGenerator,
+                                TransformerSample, TransformerSampleGenerator)
 from ._window_generator import WindowGenerator
+from .datamodule import TimeSeriesDataModule, TransformerDataModule
+from .transform import (BaseTransform, DiscreteFunctionTransform,
+                        FixedPolynomialTransform, PolynomialTransform,
+                        RunningNormalizer, TransformCollection)
 
 for _mod in (
     WindowGenerator,

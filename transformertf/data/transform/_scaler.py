@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import typing
 
-import torch
 import numpy as np
+import torch
 
 from ._base import BaseTransform, TransformType
 from ._utils import _as_torch, _view_as_y

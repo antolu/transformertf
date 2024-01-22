@@ -4,7 +4,6 @@ import torch
 
 from ._pos_enc import SimplePositionalEncoding
 
-
 __all__ = ["VanillaTransformer"]
 
 

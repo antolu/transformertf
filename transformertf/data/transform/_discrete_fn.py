@@ -4,7 +4,7 @@ import numpy as np
 import torch
 
 from ._base import BaseTransform, TransformType
-from ._utils import _as_torch, _as_numpy
+from ._utils import _as_numpy, _as_torch
 
 
 class DiscreteFunctionTransform(BaseTransform):

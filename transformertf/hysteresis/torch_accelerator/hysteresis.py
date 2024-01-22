@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import typing
 from abc import ABC, abstractmethod
-from torch.nn import Module, Parameter
+
 import torch
-from .first_order import TorchQuad, TorchAccelerator
-from ..modes import ModeModule, CURRENT
+from torch.nn import Module, Parameter
+
 from ..base import BaseHysteresis
+from ..modes import CURRENT, ModeModule
+from .first_order import TorchAccelerator, TorchQuad
 
 
 class HysteresisMagnet(ModeModule, ABC):

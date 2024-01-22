@@ -7,7 +7,7 @@ import torch
 
 from ...data import TimeSeriesSample
 from ...hysteresis.base import BaseHysteresis
-from .._base_module import LightningModuleBase, OPT_CALL_TYPE, LR_CALL_TYPE
+from .._base_module import LR_CALL_TYPE, OPT_CALL_TYPE, LightningModuleBase
 from ._config import PreisachConfig
 
 if typing.TYPE_CHECKING:

@@ -1,9 +1,7 @@
 from ..._mod_replace import replace_modname
-
 from ._base import _DataModuleBase
-from ._transformer import TransformerDataModule
 from ._timeseries import TimeSeriesDataModule
-
+from ._transformer import TransformerDataModule
 
 for _mod in (_DataModuleBase, TransformerDataModule, TimeSeriesDataModule):
     replace_modname(_mod, __name__)

@@ -13,7 +13,7 @@ import torch
 
 from ...data import TimeSeriesSample
 from ...utils import ops
-from .._base_module import LightningModuleBase, OPT_CALL_TYPE, LR_CALL_TYPE
+from .._base_module import LR_CALL_TYPE, OPT_CALL_TYPE, LightningModuleBase
 from ._loss import PhyLSTMLoss
 from ._model import PhyLSTM1, PhyLSTM2, PhyLSTM3
 from ._output import (
@@ -215,18 +215,6 @@ class PhyLSTMModule(LightningModuleBase):
         default_kwargs.update(kwargs)
 
         return default_kwargs
-
-    @property
-    def validation_outputs(self) -> list[STEP_OUTPUT]:
-        return typing.cast(list[STEP_OUTPUT], self._val_outputs)
-
-    @property
-    def test_outputs(self) -> list[STEP_OUTPUT]:
-        return typing.cast(list[STEP_OUTPUT], self._test_outputs)
-
-    @property
-    def predict_outputs(self) -> list[PREDICT_OUTPUT]:
-        return typing.cast(list[PREDICT_OUTPUT], self._predict_outputs)
 
     def on_validation_epoch_start(self) -> None:
         """Reset the hidden states"""

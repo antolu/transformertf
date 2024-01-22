@@ -48,7 +48,7 @@ class BaseConfig:
 
     # CUDA
     precision: PRECISION = "32-true"
-    device: torch.device | str | None = None
+    device: torch.device | str | None = "auto"
 
     # bulk data processing parameters
     normalize: bool = True
@@ -63,7 +63,9 @@ class BaseConfig:
     mean_filter: bool = False
 
     # extra transforms, map from column name to transform
-    extra_transforms: dict[str, BaseTransform] = field(default_factory=dict)
+    extra_transforms: dict[str, BaseTransform | list[BaseTransform]] = field(
+        default_factory=dict
+    )
 
     # Data source
     dataset: str | None = None  # do not use this one in the code
@@ -91,6 +93,7 @@ class TimeSeriesBaseConfig(BaseConfig):
     """Adds additional parameters for generating time series datasets"""
 
     seq_len: int = 500
+    out_seq_len: int = 300
     min_seq_len: int | None = None
     randomize_seq_len: bool = False
     stride: int = 1

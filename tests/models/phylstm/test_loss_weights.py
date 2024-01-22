@@ -1,5 +1,6 @@
 from transformertf.models.phylstm import LossWeights
 
+
 class TestLossWeights:
     #  Tests that a default instance of LossWeights is created with the correct default values
     def test_default_instance(self) -> None:

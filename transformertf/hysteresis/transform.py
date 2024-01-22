@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import typing
+
 import torch
 from torch.nn import Module
+
 from .polynomial import Polynomial
 from .training import train_MSE
 

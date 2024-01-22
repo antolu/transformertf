@@ -6,8 +6,9 @@ import matplotlib.pyplot as plt
 import torch
 
 if typing.TYPE_CHECKING:
-    from .base import BaseHysteresis
     from matplotlib.axes import Axes
+
+    from .base import BaseHysteresis
 
 
 def plot_hysterion_density(

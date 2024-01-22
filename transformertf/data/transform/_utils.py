@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import torch
 import numpy as np
 import pandas as pd
+import torch
 
 
 def _view_as_y(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:

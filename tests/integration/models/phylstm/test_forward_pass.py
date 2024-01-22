@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-
 import pytest
 import torch
-from transformertf.models.phylstm import PhyLSTMModule, PhyLSTMConfig
+
+from transformertf.models.phylstm import PhyLSTMConfig, PhyLSTMModule
 
 
 @pytest.fixture(scope="module")
