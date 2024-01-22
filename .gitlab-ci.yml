@@ -15,6 +15,7 @@ variables:
 ._install_git_lfs:
   before_script:
     - yum install -y git-lfs
+    - git lfs update --force
     - git lfs install --skip-smudge
 
 build_sdist:
