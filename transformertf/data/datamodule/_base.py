@@ -54,6 +54,7 @@ class _DataModuleBase(L.LightningDataModule):
         target_column: str,
         normalize: bool = True,
         downsample: int = 1,
+        downsample_method: typing.Literal["interval", "average", "convolve"] = "interval",
         remove_polynomial: bool = False,
         polynomial_degree: int = 1,
         polynomial_iterations: int = 1000,
@@ -108,6 +109,7 @@ class _DataModuleBase(L.LightningDataModule):
         default_kwargs = dict(
             normalize=config.normalize,
             downsample=config.downsample,
+            downsample_method=config.downsample_method,
             remove_polynomial=config.remove_polynomial,
             polynomial_degree=config.polynomial_degree,
             polynomial_iterations=config.polynomial_iterations,
@@ -527,7 +529,7 @@ class _DataModuleBase(L.LightningDataModule):
             else None,
         )
         df = self.preprocess_dataframe(df)
-        df = downsample(df, downsample=self.hparams["downsample"])
+        df = downsample(df, downsample=self.hparams["downsample"], method=self.hparams["downsample_method"])
 
         df = self.apply_transforms(df, skip_target=skip_target)
 
