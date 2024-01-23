@@ -32,8 +32,62 @@ def get_norm_layer(
         raise ValueError(f"norm must be 'batch' or 'layer', not {norm_type}")
 
 
-class TemporalProjection(torch.nn.Linear):
+class FeatureProjection(torch.nn.Linear):
     ...
+
+
+class TemporalProjection(torch.nn.Module):
+    activation: torch.nn.Module | None
+
+    def __init__(
+        self,
+        input_len: int,
+        output_len: int,
+        activation: typing.Literal["relu", "gelu"] | None = "relu",
+        dropout: float = 0.2,
+    ):
+        """
+        Project past covariates to future covariates length.
+
+        Parameters
+        ----------
+        input_len : int
+            Length of the input sequence.
+        output_len : int
+            Length of the output sequence.
+        activation : typing.Literal["relu", "gelu"]
+            Type of activation to use. Either "relu" or "gelu", corresponding
+            to `torch.nn.ReLU` and `torch.nn.GELU`
+        dropout : float
+            Dropout probability to use. Must be between 0 and 1.
+        """
+        super().__init__()
+
+        self.fc = torch.nn.Linear(input_len, output_len)
+        self.activation = (
+            None if activation is None else get_activation(activation)
+        )
+        self.dropout = torch.nn.Dropout(dropout)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Parameters
+        ----------
+        x : torch.Tensor
+            Input tensor of shape [batch_size, seq_len, num_features]
+
+        Returns
+        -------
+        torch.Tensor
+            Output tensor of shape [batch_size, seq_len, num_features]
+        """
+        x = einops.rearrange(x, "b l f -> b f l")
+        x = self.fc(x)
+        x = einops.rearrange(x, "b f l -> b l f")
+        x = self.activation(x) if self.activation is not None else x
+        x = self.dropout(x)
+
+        return x
 
 
 class BatchNorm2D(torch.nn.Module):
@@ -66,18 +120,21 @@ class TimeMixer(torch.nn.Module):
 
     def __init__(
         self,
-        num_features: int,
+        input_len: int,
         dropout: float = 0.2,
         norm: typing.Literal["batch", "layer"] = "batch",
         activation: typing.Literal["relu", "gelu"] = "relu",
     ):
         super().__init__()
 
-        self.dropout = torch.nn.Dropout(dropout)
-        self.activation = get_activation(activation)
+        self.temporal_linear = TemporalProjection(
+            input_len=input_len,
+            output_len=input_len,
+            activation=activation,
+            dropout=dropout,
+        )
 
         self.norm = get_norm_layer(norm, num_features=1)
-        self.fc = torch.nn.Linear(num_features, num_features)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         """
@@ -100,12 +157,9 @@ class TimeMixer(torch.nn.Module):
         torch.Tensor
             Output tensor of shape [batch_size, seq_len, num_features]
         """
-        x = self.norm(inputs)
-
-        x = self.fc(x)
-        x = self.activation(x)
-        x = self.dropout(x)
+        x = self.temporal_linear(inputs)
         res = x + inputs
+        res = self.norm(res)
 
         return res
 
@@ -289,6 +343,7 @@ class MixerBlock(torch.nn.Module):
 
     def __init__(
         self,
+        input_len: int,
         num_features: int,
         norm: typing.Literal["batch", "layer"] = "batch",
         activation: typing.Literal["relu", "gelu"] = "relu",
@@ -315,7 +370,7 @@ class MixerBlock(torch.nn.Module):
         super().__init__()
 
         self.tm = TimeMixer(
-            num_features=num_features,
+            input_len=input_len,
             dropout=dropout,
             norm=norm,
             activation=activation,
@@ -355,6 +410,7 @@ class ConditionalMixerBlock(torch.nn.Module):
 
     def __init__(
         self,
+        input_len: int,
         num_features: int,
         num_static_features: int,
         hidden_dim: int | None = None,
@@ -383,7 +439,7 @@ class ConditionalMixerBlock(torch.nn.Module):
         super().__init__()
 
         self.tm = TimeMixer(
-            num_features=num_features,
+            input_len=input_len,
             dropout=dropout,
             norm=norm,
             activation=activation,

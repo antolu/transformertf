@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import torch
 from .conftest import (
+    SEQ_LEN,
     NUM_STATIC_FEATURES,
     NUM_FEATURES,
 )
@@ -13,6 +14,7 @@ def test_conditional_feature_mixer(
     sample: torch.Tensor, static_covariates: torch.Tensor
 ) -> None:
     tm = ConditionalMixerBlock(
+        input_len=SEQ_LEN,
         num_features=NUM_FEATURES,
         num_static_features=NUM_STATIC_FEATURES,
         fc_dim=64,
@@ -30,6 +32,7 @@ def test_feature_mixer_out_features(
     sample: torch.Tensor, static_covariates: torch.Tensor
 ) -> None:
     tm = ConditionalMixerBlock(
+        input_len=SEQ_LEN,
         num_features=NUM_FEATURES,
         num_static_features=NUM_STATIC_FEATURES,
         fc_dim=64,

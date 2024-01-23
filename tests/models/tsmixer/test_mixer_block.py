@@ -2,12 +2,13 @@ from __future__ import annotations
 
 
 import torch
-from .conftest import NUM_FEATURES
+from .conftest import NUM_FEATURES, SEQ_LEN
 from transformertf.models.tsmixer import MixerBlock
 
 
 def test_mixer_block(sample: torch.Tensor) -> None:
     mixer = MixerBlock(
+        input_len=SEQ_LEN,
         num_features=NUM_FEATURES,
         fc_dim=64,
         dropout=0.1,
@@ -21,6 +22,7 @@ def test_mixer_block(sample: torch.Tensor) -> None:
 
 def test_mixer_block_out_features(sample: torch.Tensor) -> None:
     tm = MixerBlock(
+        input_len=SEQ_LEN,
         num_features=NUM_FEATURES,
         fc_dim=64,
         dropout=0.1,

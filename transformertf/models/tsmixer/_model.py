@@ -15,6 +15,7 @@ from ._modules import (
     ConditionalFeatureMixer,
     ConditionalMixerBlock,
     TemporalProjection,
+    FeatureProjection,
 )
 
 
@@ -40,6 +41,7 @@ class BasicTSMixer(torch.nn.Module):
         self.residual_blocks = torch.nn.Sequential(
             *[
                 MixerBlock(
+                    input_len=seq_len,
                     num_features=num_features,
                     dropout=dropout,
                     activation=activation,
@@ -53,7 +55,7 @@ class BasicTSMixer(torch.nn.Module):
         if out_seq_len == "headless":
             self.fc = None
         else:
-            self.fc = TemporalProjection(seq_len, out_seq_len)
+            self.fc = FeatureProjection(seq_len, out_seq_len)
 
     def forward(
         self, x: torch.Tensor, target_slice: int | None = None
@@ -72,7 +74,7 @@ class BasicTSMixer(torch.nn.Module):
 
 
 class TSMixer(torch.nn.Module):
-    fc: TemporalProjection | None
+    fc: FeatureProjection | None
     """
     This TSMixer model is a full implementation of the TSMixer model, that takes
     static and continuous auxiliary information in time series forecasting.
@@ -127,6 +129,7 @@ class TSMixer(torch.nn.Module):
 
         residual_blocks = [
             ConditionalMixerBlock(
+                input_len=out_seq_len,
                 num_features=2 * hidden_dim if i == 0 else hidden_dim,
                 num_static_features=num_static_real_feat,
                 hidden_dim=hidden_dim,
@@ -141,7 +144,7 @@ class TSMixer(torch.nn.Module):
         self.residual_blocks = torch.nn.ModuleList(residual_blocks)
 
         if out_dim is not None:
-            self.fc = TemporalProjection(hidden_dim, out_dim)
+            self.fc = FeatureProjection(hidden_dim, out_dim)
         else:
             self.fc = None
 
@@ -157,9 +160,7 @@ class TSMixer(torch.nn.Module):
             )
 
         # project past covariates to target sequence length
-        past_covariates = einops.rearrange(past_covariates, "b l c -> b c l")
         past_covariates = self.past_proj(past_covariates)
-        past_covariates = einops.rearrange(past_covariates, "b c l -> b l c")
 
         x_p = self.past_mixer(past_covariates, static_covariates)
         z_p = self.future_mixer(future_covariates, static_covariates)
