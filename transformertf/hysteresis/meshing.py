@@ -8,33 +8,33 @@ import pygmsh
 
 
 def constant_mesh_size(
-        x: np.ndarray, y: np.ndarray, mesh_scale: float
+    x: np.ndarray, y: np.ndarray, mesh_scale: float
 ) -> np.ndarray:
     return np.array(mesh_scale)
 
 
 def default_mesh_size(
-        x: np.ndarray, y: np.ndarray, mesh_scale: float
+    x: np.ndarray, y: np.ndarray, mesh_scale: float
 ) -> np.ndarray:
     return mesh_scale * (0.2 * (np.abs(x - y)) + 0.05)
 
 
 def exponential_mesh(
-        x: np.ndarray,
-        y: np.ndarray,
-        mesh_scale: float,
-        min_density: float = 0.001,
-        ls: float = 0.05,
+    x: np.ndarray,
+    y: np.ndarray,
+    mesh_scale: float,
+    min_density: float = 0.001,
+    ls: float = 0.05,
 ) -> np.ndarray:
     return mesh_scale * (1.0 - np.exp(-np.abs(x - y) / ls)) + min_density
 
 
 def create_triangle_mesh(
-        mesh_scale: float,
-        mesh_density_function: typing.Callable[
-                                   [np.ndarray, np.ndarray, float], np.ndarray
-                               ]
-                               | None = None,
+    mesh_scale: float,
+    mesh_density_function: typing.Callable[
+        [np.ndarray, np.ndarray, float], np.ndarray
+    ]
+    | None = None,
 ) -> np.ndarray:
     mesh_density_function = mesh_density_function or default_mesh_size
     with pygmsh.geo.Geometry() as geom:

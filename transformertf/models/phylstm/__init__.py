@@ -4,8 +4,14 @@ from ._datamodule import PhyLSTMDataModule
 from ._lightning import STEP_OUTPUT, PhyLSTMModule
 from ._loss import LossWeights, PhyLSTMLoss
 from ._model import PhyLSTM1, PhyLSTM2, PhyLSTM3
-from ._output import (PhyLSTM1Output, PhyLSTM1States, PhyLSTM2Output,
-                      PhyLSTM2States, PhyLSTM3Output, PhyLSTM3States)
+from ._output import (
+    PhyLSTM1Output,
+    PhyLSTM1States,
+    PhyLSTM2Output,
+    PhyLSTM2States,
+    PhyLSTM3Output,
+    PhyLSTM3States,
+)
 
 for _mod in (
     PhyLSTMLoss,

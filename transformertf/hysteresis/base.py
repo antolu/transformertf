@@ -310,9 +310,7 @@ class BaseHysteresis(Module, ModeModule):
 
         elif self._mode == REGRESSION:
             norm_h, _ = self.transformer.transform(x)
-            states = get_states(
-                norm_h, self.mesh_points, temp=self.temp
-            )
+            states = get_states(norm_h, self.mesh_points, temp=self.temp)
 
         elif self.mode == CURRENT:
             if not hasattr(self, "history_h"):

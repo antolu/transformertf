@@ -14,7 +14,9 @@ class Polynomial(Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         xx = x.unsqueeze(-1).pow(self.p.to(x))
-        return self.bias.to(x) + self.weights.to(x) @ torch.transpose(xx, -1, -2)
+        return self.bias.to(x) + self.weights.to(x) @ torch.transpose(
+            xx, -1, -2
+        )
 
 
 if __name__ == "__main__":
@@ -22,7 +24,7 @@ if __name__ == "__main__":
     from training import train_MSE
 
     x = torch.linspace(0, 2, 10)
-    y = x ** 3 - 2.0 * x + 1.0
+    y = x**3 - 2.0 * x + 1.0
     poly = Polynomial(degree=3)
 
     # fit
