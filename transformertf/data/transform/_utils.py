@@ -23,10 +23,12 @@ def _as_torch(
     return x
 
 
-def _as_numpy(x: np.ndarray | torch.Tensor) -> np.ndarray:
+def _as_numpy(x: np.ndarray | torch.Tensor | pd.Series) -> np.ndarray:
     if isinstance(x, np.ndarray):
         return x
     elif isinstance(x, torch.Tensor):
         return x.numpy()
+    elif isinstance(x, pd.Series):
+        return x.to_numpy()
     else:
         raise TypeError(f"Unsupported type: {type(x)}")
