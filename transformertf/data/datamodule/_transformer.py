@@ -30,6 +30,9 @@ class TransformerDataModule(_DataModuleBase):
         randomize_seq_len: bool = False,
         stride: int = 1,
         downsample: int = 1,
+        downsample_method: typing.Literal[
+            "interval", "average", "convolve"
+        ] = "interval",
         remove_polynomial: bool = False,
         polynomial_degree: int = 1,
         polynomial_iterations: int = 1000,
@@ -46,6 +49,7 @@ class TransformerDataModule(_DataModuleBase):
             target_column=target_column,
             normalize=normalize,
             downsample=downsample,
+            downsample_method=downsample_method,
             remove_polynomial=remove_polynomial,
             polynomial_degree=polynomial_degree,
             polynomial_iterations=polynomial_iterations,
