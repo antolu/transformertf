@@ -15,8 +15,13 @@ import torch.utils.data
 
 from .._dataset import TimeSeriesDataset
 from .._downsample import downsample
-from ..transform import (BaseTransform, PolynomialTransform, StandardScaler,
-                         TransformCollection, TransformType)
+from ..transform import (
+    BaseTransform,
+    PolynomialTransform,
+    StandardScaler,
+    TransformCollection,
+    TransformType,
+)
 
 if typing.TYPE_CHECKING:
     from ...config import BaseConfig
@@ -54,7 +59,9 @@ class _DataModuleBase(L.LightningDataModule):
         target_column: str,
         normalize: bool = True,
         downsample: int = 1,
-        downsample_method: typing.Literal["interval", "average", "convolve"] = "interval",
+        downsample_method: typing.Literal[
+            "interval", "average", "convolve"
+        ] = "interval",
         remove_polynomial: bool = False,
         polynomial_degree: int = 1,
         polynomial_iterations: int = 1000,
@@ -529,7 +536,11 @@ class _DataModuleBase(L.LightningDataModule):
             else None,
         )
         df = self.preprocess_dataframe(df)
-        df = downsample(df, downsample=self.hparams["downsample"], method=self.hparams["downsample_method"])
+        df = downsample(
+            df,
+            downsample=self.hparams["downsample"],
+            method=self.hparams["downsample_method"],
+        )
 
         df = self.apply_transforms(df, skip_target=skip_target)
 

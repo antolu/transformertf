@@ -41,13 +41,17 @@ def downsample(
         else:
             df = value.iloc[::downsample].reset_index()
             for col in df.columns:
-                df[col] = downsample_array(value[col], downsample, method=method)
+                df[col] = downsample_array(
+                    value[col], downsample, method=method
+                )
     else:
         raise TypeError(f"Unsupported type: {type(value)}")
 
 
 def downsample_array(
-    v: np.ndarray | torch.Tensor | pd.Series, factor: int, method: typing.Literal["interval", "average", "convolve"] = "interval"
+    v: np.ndarray | torch.Tensor | pd.Series,
+    factor: int,
+    method: typing.Literal["interval", "average", "convolve"] = "interval",
 ) -> np.ndarray:
     """
     Downsamples a 1D array by taking the mean of each block.
