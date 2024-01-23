@@ -22,6 +22,7 @@ class TSMixerModule(LightningModuleBase):
         seq_len: int = 500,
         out_seq_len: int = 300,
         fc_dim: int = 1024,
+        hidden_dim: int | None = None,
         num_blocks: int = 4,
         dropout: float = 0.1,
         activation: typing.Literal["relu", "gelu"] = "relu",
@@ -69,6 +70,7 @@ class TSMixerModule(LightningModuleBase):
             seq_len=seq_len,
             out_seq_len=out_seq_len,
             fc_dim=fc_dim,
+            hidden_dim=hidden_dim,
             num_blocks=num_blocks,
             dropout=dropout,
             norm=norm,
@@ -97,6 +99,7 @@ class TSMixerModule(LightningModuleBase):
                 dropout=config.dropout,
                 activation=config.activation,
                 fc_dim=config.fc_dim,
+                hidden_dim=config.hidden_dim,
                 num_blocks=config.num_blocks,
                 norm=config.norm,
             )

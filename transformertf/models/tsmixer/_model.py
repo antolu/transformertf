@@ -127,7 +127,7 @@ class TSMixer(torch.nn.Module):
 
         residual_blocks = [
             ConditionalMixerBlock(
-                num_features=2 * hidden_dim if i == 0 else num_feat,
+                num_features=2 * hidden_dim if i == 0 else hidden_dim,
                 num_static_features=num_static_real_feat,
                 hidden_dim=hidden_dim,
                 dropout=dropout,
