@@ -5,7 +5,6 @@ import torch
 from transformertf.models.tsmixer import BatchNorm2D
 
 
-
 def test_batch_norm_2d(sample: torch.Tensor) -> None:
     bn = BatchNorm2D(num_features=1)
 

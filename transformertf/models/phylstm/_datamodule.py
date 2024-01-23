@@ -58,7 +58,9 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
         randomize_seq_len: bool = False,
         stride: int = 1,
         downsample: int = 1,
-        downsample_method: typing.Literal["interval", "average", "convolve"] = "interval",
+        downsample_method: typing.Literal[
+            "interval", "average", "convolve"
+        ] = "interval",
         lowpass_filter: bool = False,
         mean_filter: bool = False,
         remove_polynomial: bool = True,
