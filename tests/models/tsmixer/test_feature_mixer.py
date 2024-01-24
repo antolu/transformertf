@@ -3,11 +3,13 @@ from __future__ import annotations
 
 import torch
 from transformertf.models.tsmixer import FeatureMixer
+from .conftest import SEQ_LEN, NUM_FEATURES
 
 
 def test_feature_mixer(sample: torch.Tensor) -> None:
     tm = FeatureMixer(
-        num_features=3,
+        input_len=SEQ_LEN,
+        num_features=NUM_FEATURES,
         fc_dim=64,
         dropout=0.1,
         norm="batch",
@@ -20,7 +22,8 @@ def test_feature_mixer(sample: torch.Tensor) -> None:
 
 def test_feature_mixer_out_features(sample: torch.Tensor) -> None:
     tm = FeatureMixer(
-        num_features=3,
+        input_len=SEQ_LEN,
+        num_features=NUM_FEATURES,
         fc_dim=64,
         dropout=0.1,
         norm="batch",

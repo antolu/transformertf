@@ -108,6 +108,7 @@ class TSMixer(torch.nn.Module):
 
         self.past_proj = TemporalProjection(seq_len, out_seq_len)
         self.past_mixer = ConditionalFeatureMixer(
+            input_len=out_seq_len,
             num_features=num_feat,
             num_static_features=num_static_real_feat,
             dropout=dropout,
@@ -117,6 +118,7 @@ class TSMixer(torch.nn.Module):
             out_num_features=hidden_dim,
         )
         self.future_mixer = ConditionalFeatureMixer(
+            input_len=out_seq_len,
             num_features=num_future_feat,
             num_static_features=num_static_real_feat,
             hidden_dim=hidden_dim,
