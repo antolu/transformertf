@@ -215,7 +215,7 @@ class FeatureMixer(torch.nn.Module):
         self.norm = get_norm_layer(
             norm,
             num_features=1,
-            normalized_shape=(input_len, num_features),
+            normalized_shape=(input_len, out_num_features or num_features),
         )
         self.fc1 = torch.nn.Linear(num_features, fc_dim)
         self.fc2 = torch.nn.Linear(fc_dim, out_num_features or num_features)
