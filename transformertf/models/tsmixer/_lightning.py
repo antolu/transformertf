@@ -150,11 +150,15 @@ class TSMixerModule(LightningModuleBase):
         loss = typing.cast(torch.Tensor, self.criterion(model_output, target))
         loss_dict = {"loss": loss}
 
+        point_prediction = model_output
+        if isinstance(self.criterion, QuantileLoss):
+            point_prediction = self.criterion.point_prediction(model_output)
+
         if not isinstance(self.criterion, torch.nn.MSELoss):
-            loss_mse = torch.nn.MSELoss()(model_output, target)
+            loss_mse = torch.nn.MSELoss()(point_prediction, target)
             loss_dict["loss_MSE"] = loss_mse
 
-        loss_mae = torch.nn.L1Loss()(model_output, target)
+        loss_mae = torch.nn.L1Loss()(point_prediction, target)
         loss_dict["loss_MAE"] = loss_mae
 
         self.common_log_step(loss_dict, "validation")
