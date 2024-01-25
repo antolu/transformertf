@@ -152,7 +152,7 @@ class TSMixerModule(LightningModuleBase):
 
         point_prediction = model_output
         if isinstance(self.criterion, QuantileLoss):
-            point_prediction = self.criterion.point_prediction(model_output)
+            point_prediction = self.criterion.point_prediction(model_output).unsqueeze(-1)
 
         if not isinstance(self.criterion, torch.nn.MSELoss):
             loss_mse = torch.nn.MSELoss()(point_prediction, target)
