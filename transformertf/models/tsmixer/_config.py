@@ -19,4 +19,4 @@ class TSMixerConfig(TransformerBaseConfig):
     activation: str = "relu"
     norm: typing.Literal["batch", "layer"] = "batch"
 
-    loss_fn: typing.Literal["mse", "quantile"] = "mse"
+    loss_fn: typing.Literal["mse", "quantile", "huber"] = "mse"

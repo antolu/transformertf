@@ -36,7 +36,7 @@ class TSMixerModule(LightningModuleBase):
         max_epochs: int = 1000,
         validate_every_n_epochs: int = 50,
         log_grad_norm: bool = False,
-        criterion: QuantileLoss | torch.nn.MSELoss | None = None,
+        criterion: QuantileLoss | torch.nn.MSELoss | torch.nn.HuberLoss | None = None,
         lr_scheduler: str | LR_CALL_TYPE | None = None,
         lr_scheduler_interval: typing.Literal["epoch", "step"] = "epoch",
     ):
@@ -145,7 +145,15 @@ class TSMixerModule(LightningModuleBase):
         model_output = self(batch)
 
         loss = typing.cast(torch.Tensor, self.criterion(model_output, target))
+        loss_dict = {"loss": loss}
 
-        self.common_log_step({"loss": loss}, "validation")
+        if not isinstance(self.criterion, torch.nn.MSELoss):
+            loss_mse = torch.nn.MSELoss()(model_output, target)
+            loss_dict["loss_MSE"] = loss_mse
+
+        loss_mae = torch.nn.L1Loss()(model_output, target)
+        loss_dict["loss_MAE"] = loss_mae
+
+        self.common_log_step(loss_dict, "validation")
 
         return {"loss": loss, "output": model_output}
