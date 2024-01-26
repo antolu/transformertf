@@ -58,7 +58,7 @@ class LightningModuleBase(L.LightningModule):
         self._test_outputs: dict[int, list[MODEL_OUTPUT]] = {}
         self._inference_outputs: dict[int, list[MODEL_OUTPUT]] = {}
 
-        self._lr_scheduler = None
+        self._lr_scheduler = lr_scheduler
 
     @classmethod
     def from_config(
