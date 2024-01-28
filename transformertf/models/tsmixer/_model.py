@@ -4,6 +4,7 @@ http://arxiv.org/abs/2303.06053
 """
 from __future__ import annotations
 
+import collections
 import typing
 
 import einops
@@ -148,11 +149,11 @@ class TSMixer(torch.nn.Module):
         if out_dim is not None:
             # use MLP for final prediction
             self.fc = torch.nn.Sequential(
-                {
+                collections.OrderedDict({
                     "fc1": torch.nn.Linear(hidden_dim, fc_dim),
                     "relu": torch.nn.ReLU(),
                     "fc2": torch.nn.Linear(fc_dim, out_dim),
-                }
+                })
             )
         else:
             self.fc = None
