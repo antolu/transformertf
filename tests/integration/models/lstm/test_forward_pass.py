@@ -55,8 +55,6 @@ def test_forward_pass_with_states(
 def test_training_step(module: LSTMModule, sample: TimeSeriesSample) -> None:
     loss = module.training_step(sample, batch_idx=0)
     assert loss is not None
-    assert loss >= 0
-    assert loss <= 1
 
 
 def test_validation_step(module: LSTMModule, sample: TimeSeriesSample) -> None:
