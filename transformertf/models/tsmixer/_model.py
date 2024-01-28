@@ -148,11 +148,11 @@ class TSMixer(torch.nn.Module):
         if out_dim is not None:
             # use MLP for final prediction
             self.fc = torch.nn.Sequential(
-                [
-                    torch.nn.Linear(hidden_dim, fc_dim),
-                    torch.nn.ReLU(),
-                    torch.nn.Linear(fc_dim, out_dim),
-                ]
+                {
+                    "fc1": torch.nn.Linear(hidden_dim, fc_dim),
+                    "relu": torch.nn.ReLU(),
+                    "fc2": torch.nn.Linear(fc_dim, out_dim),
+                }
             )
         else:
             self.fc = None
