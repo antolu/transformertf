@@ -74,7 +74,7 @@ class BasicTSMixer(torch.nn.Module):
 
 
 class TSMixer(torch.nn.Module):
-    fc: FeatureProjection | None
+    fc: torch.nn.Module | None
     """
     This TSMixer model is a full implementation of the TSMixer model, that takes
     static and continuous auxiliary information in time series forecasting.
@@ -146,7 +146,12 @@ class TSMixer(torch.nn.Module):
         self.residual_blocks = torch.nn.ModuleList(residual_blocks)
 
         if out_dim is not None:
-            self.fc = FeatureProjection(hidden_dim, out_dim)
+            # use MLP for final prediction
+            self.fc = torch.nn.Sequential([
+                torch.nn.Linear(hidden_dim, fc_dim),
+                torch.nn.ReLU(),
+                torch.nn.Linear(fc_dim, out_dim),
+            ])
         else:
             self.fc = None
 
