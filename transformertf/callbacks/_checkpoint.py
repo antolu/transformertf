@@ -43,7 +43,9 @@ class CheckpointEvery(L.pytorch.callbacks.checkpoint.Checkpoint):
                 val_loss = -1
 
             trainer.save_checkpoint(
-                f"{self._checkpoint_dir}/model_every_epoch={trainer.current_epoch + 1}_val_loss={val_loss}.pt"
+                f"{self._checkpoint_dir}/"
+                f"model_every_epoch={trainer.current_epoch + 1}_"
+                f"val_loss={val_loss}.ckpt"
             )
 
     def state_dict(self) -> dict[str, typing.Any]:
