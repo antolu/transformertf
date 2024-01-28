@@ -3,6 +3,18 @@ import typing
 import lightning as L
 
 
+def resolve_validation_metric(trainer: L.Trainer, *metric_name: str) -> float:
+    for name in metric_name:
+        if name in trainer.callback_metrics:
+            return trainer.callback_metrics[name]
+        elif name in trainer.logged_metrics:
+            return trainer.logged_metrics[name]
+
+    raise ValueError(
+        f"Could not find metric {metric_name} in trainer metrics."
+    )
+
+
 class CheckpointEvery(L.pytorch.callbacks.checkpoint.Checkpoint):
     def __init__(
         self,
@@ -20,18 +32,18 @@ class CheckpointEvery(L.pytorch.callbacks.checkpoint.Checkpoint):
     ) -> None:
         super().on_validation_end(trainer, pl_module)
 
-        if trainer.current_epoch % self._checkpoint_every == 0:
-            metric_name = "loss/validation"
-
-            if metric_name in trainer.callback_metrics:
-                val_loss = trainer.callback_metrics[metric_name]
-            elif metric_name in trainer.logged_metrics:
-                val_loss = trainer.logged_metrics[metric_name]
-            else:
+        if (trainer.current_epoch + 1) % self._checkpoint_every == 0:
+            try:
+                val_loss = resolve_validation_metric(
+                    trainer,
+                    "loss/validation",
+                    "loss/validation/dataloader_idx_0",
+                )
+            except ValueError:
                 val_loss = -1
 
             trainer.save_checkpoint(
-                f"{self._checkpoint_dir}/model_every_epoch={trainer.current_epoch}_val_loss={val_loss}.pt"
+                f"{self._checkpoint_dir}/model_every_epoch={trainer.current_epoch + 1}_val_loss={val_loss}.pt"
             )
 
     def state_dict(self) -> dict[str, typing.Any]:
