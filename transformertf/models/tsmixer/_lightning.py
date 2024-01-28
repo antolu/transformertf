@@ -156,9 +156,8 @@ class TSMixerModule(LightningModuleBase):
                 model_output
             ).unsqueeze(-1)
 
-        if not isinstance(self.criterion, torch.nn.MSELoss):
-            loss_mse = torch.nn.MSELoss()(point_prediction, target)
-            loss_dict["loss_MSE"] = loss_mse
+        loss_mse = torch.nn.MSELoss()(point_prediction, target)
+        loss_dict["loss_MSE"] = loss_mse
 
         loss_mae = torch.nn.L1Loss()(point_prediction, target)
         loss_dict["loss_MAE"] = loss_mae
