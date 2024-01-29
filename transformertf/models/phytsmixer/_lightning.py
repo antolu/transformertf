@@ -8,7 +8,7 @@ from ...data import TransformerSample
 from .._base_module import LR_CALL_TYPE, OPT_CALL_TYPE, LightningModuleBase
 from ._config import PhyTSMixerConfig
 from ._model import PhyTSMixer
-from ..phylstm import LossWeights, PhyLSTMLoss, PhyLSTM3Output
+from ..phylstm import PhyLSTMLoss, PhyLSTM3Output
 
 if typing.TYPE_CHECKING:
     SameType = typing.TypeVar("SameType", bound="PhyTSMixerModule")
@@ -36,7 +36,7 @@ class PhyTSMixerModule(LightningModuleBase):
         max_epochs: int = 1000,
         validate_every_n_epochs: int = 50,
         log_grad_norm: bool = False,
-        loss_weights: LossWeights | None = None,
+        criterion: PhyLSTMLoss | None = None,
         lr_scheduler: str | LR_CALL_TYPE | None = None,
         lr_scheduler_interval: typing.Literal["epoch", "step"] = "epoch",
     ):
@@ -57,7 +57,7 @@ class PhyTSMixerModule(LightningModuleBase):
 
         self._lr_scheduler = lr_scheduler
 
-        self.criterion = PhyLSTMLoss(loss_weights=loss_weights)
+        self.criterion = criterion or PhyLSTMLoss()
 
         self.model = PhyTSMixer(
             num_features=num_features,
@@ -96,7 +96,6 @@ class PhyTSMixerModule(LightningModuleBase):
                 hidden_dim=config.hidden_dim,
                 num_blocks=config.num_blocks,
                 norm=config.norm,
-                loss_weights=config.loss_weights,
             )
         )
 
