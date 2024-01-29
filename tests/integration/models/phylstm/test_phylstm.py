@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import pandas as pd
 import pytest
+import torch
 
 from transformertf.models.phylstm import (
     PhyLSTMConfig,
@@ -51,7 +52,8 @@ def test_phylstm_forward_pass(
     phylstm_module.on_train_start()
     phylstm_module.on_train_epoch_start()
 
-    losses = phylstm_module.training_step(batch, 0)
+    with torch.no_grad():
+        losses = phylstm_module.training_step(batch, 0)
 
     for key in ("loss", "loss1", "loss2", "loss3", "loss4", "loss5"):
         assert key in losses
@@ -67,7 +69,8 @@ def test_phylstm_forward_pass(
     phylstm_module.on_validation_start()
     phylstm_module.on_validation_epoch_start()
 
-    outputs = phylstm_module.validation_step(batch, 0)
+    with torch.no_grad():
+        outputs = phylstm_module.validation_step(batch, 0)
 
     phylstm_module.on_validation_epoch_end()
     phylstm_module.on_validation_end()
