@@ -86,10 +86,10 @@ class PhyTSMixer(torch.nn.Module):
         )
 
         self.g_plus_x = torch.nn.Sequential(
-            torch.nn.Linear(2, hidden_dim),
-            torch.nn.LayerNorm(hidden_dim),
+            torch.nn.Linear(2, hidden_dim_2),
+            torch.nn.LayerNorm(hidden_dim_2),
             torch.nn.ReLU(),
-            torch.nn.Linear(hidden_dim, 1),
+            torch.nn.Linear(hidden_dim_2, 1),
         )
 
         self.ts3 = TSMixer(
