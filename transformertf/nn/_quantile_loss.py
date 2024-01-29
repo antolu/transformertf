@@ -36,6 +36,8 @@ class QuantileLoss(torch.nn.Module):
 
     def loss(self, y_pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         # calculate quantile loss
+        if target.ndim == 2:
+            target = target.unsqueeze(-1)
         error = (
             einops.repeat(target, "... 1 -> ... n", n=len(self.quantiles))
             - y_pred

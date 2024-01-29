@@ -41,9 +41,13 @@ def downsample(
         else:
             df = value.iloc[::downsample].reset_index()
             for col in df.columns:
-                df[col] = downsample_array(
-                    value[col], downsample, method=method
-                )
+                if pd.api.types.is_datetime64_any_dtype(df[col].dtype):
+                    continue
+                else:
+                    df[col] = downsample_array(
+                        value[col], downsample, method=method
+                    )
+            return df
     else:
         raise TypeError(f"Unsupported type: {type(value)}")
 
