@@ -40,7 +40,7 @@ class PhyTSMixer(torch.nn.Module):
             num_future_feat=num_future_features,
             seq_len=input_len,
             out_seq_len=output_len,
-            out_dim=hidden_dim_2,
+            out_dim=None,
             fc_dim=fc_dim,
             hidden_dim=hidden_dim,
             num_blocks=num_blocks,
@@ -54,7 +54,7 @@ class PhyTSMixer(torch.nn.Module):
                 [
                     (
                         "fc11",
-                        torch.nn.Linear(hidden_dim_2 or num_features, fc_dim),
+                        torch.nn.Linear(hidden_dim_2, fc_dim),
                     ),
                     ("lrelu1", torch.nn.LeakyReLU()),
                     ("ln1", torch.nn.LayerNorm(fc_dim)),
@@ -62,6 +62,8 @@ class PhyTSMixer(torch.nn.Module):
                 ]
             )
         )
+
+        hidden_dim_2 //= 4
 
         self.ts2 = BasicTSMixer(
             num_features=3,
