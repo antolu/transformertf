@@ -30,30 +30,33 @@ class BasicTSMixer(torch.nn.Module):
         self,
         num_features: int,
         seq_len: int,
-        out_seq_len: int | typing.Literal["headless"],
+        out_seq_len: int | None = None,
         num_blocks: int = 4,
         fc_dim: int = 512,
+        hidden_dim: int | None = None,
         dropout: float = 0.2,
         activation: typing.Literal["relu", "gelu"] = "relu",
         norm: typing.Literal["batch", "layer"] = "batch",
     ):
         super().__init__()
+        hidden_dim = hidden_dim or num_features
 
         self.residual_blocks = torch.nn.Sequential(
             *[
                 MixerBlock(
                     input_len=seq_len,
-                    num_features=num_features,
+                    num_features=num_features if i == 0 else hidden_dim,
                     dropout=dropout,
                     activation=activation,
                     fc_dim=fc_dim,
                     norm=norm,
+                    out_num_features=hidden_dim,
                 )
-                for _ in range(num_blocks)
+                for i in range(num_blocks)
             ]
         )
 
-        if out_seq_len == "headless":
+        if out_seq_len is None:
             self.fc = None
         else:
             self.fc = FeatureProjection(seq_len, out_seq_len)

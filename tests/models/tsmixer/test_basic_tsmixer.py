@@ -35,7 +35,7 @@ def test_basic_tsmixer_headless(sample: torch.Tensor) -> None:
         norm="batch",
         activation="relu",
         seq_len=SEQ_LEN,
-        out_seq_len="headless",
+        out_seq_len=None,
     )
 
     out = mixer(sample)
