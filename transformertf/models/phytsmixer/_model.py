@@ -24,7 +24,7 @@ class PhyTSMixer(torch.nn.Module):
         output_len: int = 200,
         fc_dim: int = 1024,
         hidden_dim: int | None = None,
-        hidden_dim_2: int = 256,
+        hidden_dim_2: int = 64,
         num_blocks: int = 8,
         dropout: float = 0.1,
         norm: typing.Literal["batch", "layer"] = "batch",
@@ -33,7 +33,7 @@ class PhyTSMixer(torch.nn.Module):
         super().__init__()
 
         self.output_len = output_len
-        hidden_dim = hidden_dim or num_future_features
+        hidden_dim = hidden_dim_2 or num_future_features
 
         self.ts1 = TSMixer(
             num_feat=num_features,
