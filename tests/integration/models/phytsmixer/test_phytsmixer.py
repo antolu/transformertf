@@ -3,7 +3,6 @@ This module contains complete tests for the PhyLSTM model.
 """
 from __future__ import annotations
 
-import pandas as pd
 import pytest
 import torch
 
@@ -39,7 +38,6 @@ def datamodule(config: PhyTSMixerConfig) -> TransformerDataModule:
 def test_phytsmixer_forward_pass(
     phytsmixer_module: PhyTSMixerModule,
     datamodule: TransformerDataModule,
-    df: pd.DataFrame,
 ) -> None:
     datamodule.prepare_data()
     datamodule.setup()

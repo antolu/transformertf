@@ -64,8 +64,8 @@ class PhyTSMixer(torch.nn.Module):
         )
 
         self.ts2 = BasicTSMixer(
-            num_features=num_features,
-            seq_len=input_len,
+            num_features=3,
+            seq_len=output_len,
             fc_dim=fc_dim,
             hidden_dim=hidden_dim_2,
             num_blocks=num_blocks,
@@ -98,10 +98,10 @@ class PhyTSMixer(torch.nn.Module):
         )
 
         self.ts3 = BasicTSMixer(
-            num_features=num_features,
-            seq_len=input_len,
+            num_features=2,
+            seq_len=output_len,
             fc_dim=fc_dim,
-            hidden_dim=hidden_dim,
+            hidden_dim=hidden_dim_2,
             num_blocks=num_blocks,
             dropout=dropout,
             norm=norm,
