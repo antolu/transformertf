@@ -41,7 +41,11 @@ def downsample(
         else:
             df = value.iloc[::downsample].reset_index()
             for col in df.columns:
-                if pd.api.types.is_datetime64_any_dtype(df[col].dtype):
+                if (
+                    pd.api.types.is_datetime64_any_dtype(df[col].dtype)
+                    or pd.api.types.is_timedelta64_dtype(df[col].dtype)
+                    or pd.api.types.is_string_dtype(df[col].dtype)
+                ):
                     continue
                 else:
                     df[col] = downsample_array(

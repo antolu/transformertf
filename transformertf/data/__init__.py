@@ -20,6 +20,7 @@ from .transform import (
     RunningNormalizer,
     TransformCollection,
 )
+from ._downsample import downsample
 
 for _mod in (
     WindowGenerator,
@@ -31,6 +32,7 @@ for _mod in (
     TransformerSampleGenerator,
     AbstractTimeSeriesDataset,
     TransformerDataset,
+    downsample,
 ):
     replace_modname(_mod, __name__)
 
@@ -54,4 +56,5 @@ __all__ = [
     "TransformerSample",
     "TransformerSampleGenerator",
     "WindowGenerator",
+    "downsample",
 ]

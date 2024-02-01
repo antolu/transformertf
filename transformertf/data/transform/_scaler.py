@@ -88,6 +88,7 @@ class RunningNormalizer(BaseTransform):
         """
         super().__init__()
 
+        self.num_features_ = num_features_
         center_ = torch.zeros(num_features_, requires_grad=False) + center_
         scale_ = torch.zeros(num_features_, requires_grad=False) + scale_
         n_samples_seen_ = torch.tensor(
