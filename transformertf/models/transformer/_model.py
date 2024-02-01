@@ -54,8 +54,8 @@ class VanillaTransformer(torch.nn.Module):
         )
         self.fc = torch.nn.Sequential(
             torch.nn.Linear(self.n_dim_model, self.fc_dim),
-            torch.nn.Dropout(self.dropout),
             torch.nn.ReLU(),
+            torch.nn.Dropout(self.dropout),
             torch.nn.Linear(self.fc_dim, output_dim),
         )  # [bs, seq_len, output_dim]
 
