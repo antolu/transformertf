@@ -140,9 +140,18 @@ class VanillaTransformerModule(LightningModuleBase):
 
         loss = typing.cast(torch.Tensor, self.criterion(model_output, target))
 
-        self.common_log_step({"loss": loss}, "train")
+        loss_dict = {"loss": loss}
+        point_prediction = model_output
+        if isinstance(self.criterion, QuantileLoss):
+            point_prediction = self.criterion.point_prediction(model_output)
 
-        return {"loss": loss}
+        loss["loss_MSE"] = torch.nn.functional.mse_loss(
+            point_prediction, target
+        )
+
+        self.common_log_step(loss_dict, "train")
+
+        return loss_dict
 
     def validation_step(
         self, batch: TransformerSample, batch_idx: int, dataloader_idx: int = 0
@@ -154,6 +163,15 @@ class VanillaTransformerModule(LightningModuleBase):
 
         loss = typing.cast(torch.Tensor, self.criterion(model_output, target))
 
-        self.common_log_step({"loss": loss}, "validation")
+        loss_dict = {"loss": loss}
+        point_prediction = model_output
+        if isinstance(self.criterion, QuantileLoss):
+            point_prediction = self.criterion.point_prediction(model_output)
 
-        return {"loss": loss, "output": model_output}
+        loss["loss_MSE"] = torch.nn.functional.mse_loss(
+            point_prediction, target
+        )
+
+        self.common_log_step(loss_dict, "validation")
+
+        return {**loss_dict, "output": model_output}
