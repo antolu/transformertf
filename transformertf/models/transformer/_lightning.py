@@ -145,7 +145,7 @@ class VanillaTransformerModule(LightningModuleBase):
         if isinstance(self.criterion, QuantileLoss):
             point_prediction = self.criterion.point_prediction(model_output)
 
-        loss["loss_MSE"] = torch.nn.functional.mse_loss(
+        loss_dict["loss_MSE"] = torch.nn.functional.mse_loss(
             point_prediction, target
         )
 
@@ -168,7 +168,7 @@ class VanillaTransformerModule(LightningModuleBase):
         if isinstance(self.criterion, QuantileLoss):
             point_prediction = self.criterion.point_prediction(model_output)
 
-        loss["loss_MSE"] = torch.nn.functional.mse_loss(
+        loss_dict["loss_MSE"] = torch.nn.functional.mse_loss(
             point_prediction, target
         )
 
