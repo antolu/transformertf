@@ -13,17 +13,12 @@ import torch
 
 from ...data import TimeSeriesSample
 from ...utils import ops
-from .._base_module import LR_CALL_TYPE, OPT_CALL_TYPE, LightningModuleBase
+from .._base_module import LightningModuleBase
+from ..typing import LR_CALL_TYPE, OPT_CALL_TYPE
 from ._loss import PhyLSTMLoss
 from ._model import PhyLSTM1, PhyLSTM2, PhyLSTM3
-from ._output import (
-    PhyLSTM1Output,
-    PhyLSTM1States,
-    PhyLSTM2Output,
-    PhyLSTM2States,
-    PhyLSTM3Output,
-    PhyLSTM3States,
-)
+from ._output import (PhyLSTM1Output, PhyLSTM1States, PhyLSTM2Output,
+                      PhyLSTM2States, PhyLSTM3Output, PhyLSTM3States)
 
 if typing.TYPE_CHECKING:
     from ._config import PhyLSTMConfig

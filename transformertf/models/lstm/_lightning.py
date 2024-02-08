@@ -12,7 +12,8 @@ import torch
 
 from ...data import TimeSeriesSample
 from ...utils import ops
-from .._base_module import LR_CALL_TYPE, OPT_CALL_TYPE, LightningModuleBase
+from .._base_module import LightningModuleBase
+from ..typing import LR_CALL_TYPE, OPT_CALL_TYPE
 
 if typing.TYPE_CHECKING:
     from ._config import LSTMConfig

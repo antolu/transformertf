@@ -30,7 +30,7 @@ def sample(batch: tuple[torch.Tensor, torch.Tensor]) -> TimeSeriesSample:
 
 @pytest.fixture
 def module() -> LSTMModule:
-    config = LSTMConfig()
+    config = LSTMConfig(hidden_size=10, hidden_size_fc=16, num_layers=1)
     module = LSTMModule.from_config(config)
     assert module is not None
     return module
@@ -40,7 +40,8 @@ def test_forward_pass(
     module: LSTMModule, batch: tuple[torch.Tensor, torch.Tensor]
 ) -> None:
     x, y = batch
-    y_hat = module(x)
+    with torch.no_grad():
+        y_hat = module(x)
     assert y_hat.shape == y.shape
 
 
@@ -48,17 +49,20 @@ def test_forward_pass_with_states(
     module: LSTMModule, batch: tuple[torch.Tensor, torch.Tensor]
 ) -> None:
     x, y = batch
-    y_hat, _ = module(x, return_states=True)
+    with torch.no_grad():
+        y_hat, _ = module(x, return_states=True)
     assert y_hat.shape == y.shape
 
 
 def test_training_step(module: LSTMModule, sample: TimeSeriesSample) -> None:
-    loss = module.training_step(sample, batch_idx=0)
+    with torch.no_grad():
+        loss = module.training_step(sample, batch_idx=0)
     assert loss is not None
 
 
 def test_validation_step(module: LSTMModule, sample: TimeSeriesSample) -> None:
-    loss = module.validation_step(sample, batch_idx=0)
+    with torch.no_grad():
+        loss = module.validation_step(sample, batch_idx=0)
     assert loss is not None
     assert isinstance(loss, dict)
     for key in ("loss", "output", "state"):

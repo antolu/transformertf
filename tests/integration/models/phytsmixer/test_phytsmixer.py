@@ -7,7 +7,7 @@ import pytest
 import torch
 
 from transformertf.models.phytsmixer import PhyTSMixerConfig, PhyTSMixerModule
-from transformertf.data import TransformerDataModule
+from transformertf.data import EncoderDecoderDataModule
 
 from ....conftest import CURRENT, DF_PATH
 
@@ -31,13 +31,13 @@ def phytsmixer_module(config: PhyTSMixerConfig) -> PhyTSMixerModule:
 
 
 @pytest.fixture
-def datamodule(config: PhyTSMixerConfig) -> TransformerDataModule:
-    return TransformerDataModule.from_parquet(config)
+def datamodule(config: PhyTSMixerConfig) -> EncoderDecoderDataModule:
+    return EncoderDecoderDataModule.from_parquet(config)
 
 
 def test_phytsmixer_forward_pass(
     phytsmixer_module: PhyTSMixerModule,
-    datamodule: TransformerDataModule,
+    datamodule: EncoderDecoderDataModule,
 ) -> None:
     datamodule.prepare_data()
     datamodule.setup()

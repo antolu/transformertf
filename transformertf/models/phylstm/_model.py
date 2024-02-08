@@ -14,14 +14,8 @@ except ImportError:
     from torch.optim.lr_scheduler import _LRScheduler as LRScheduler  # noqa
 
 from ...utils import ops
-from ._output import (
-    PhyLSTM1Output,
-    PhyLSTM1States,
-    PhyLSTM2Output,
-    PhyLSTM2States,
-    PhyLSTM3Output,
-    PhyLSTM3States,
-)
+from ._output import (PhyLSTM1Output, PhyLSTM1States, PhyLSTM2Output,
+                      PhyLSTM2States, PhyLSTM3Output, PhyLSTM3States)
 
 __all__ = ["PhyLSTM1", "PhyLSTM2", "PhyLSTM3"]
 

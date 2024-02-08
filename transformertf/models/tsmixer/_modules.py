@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import typing
-import torch
+
 import einops
+import torch
 
 from ...utils import get_activation
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import typing
 
-from .._dataset import TransformerDataset
+from .._dataset import EncoderDataset, EncoderDecoderDataset
 from ._base import _DataModuleBase
 
 if typing.TYPE_CHECKING:
@@ -78,18 +78,55 @@ class TransformerDataModule(_DataModuleBase):
 
         return default_kwargs
 
-    def _make_dataset_from_arrays(  # type: ignore[override]
+
+class EncoderDecoderDataModule(TransformerDataModule):
+    def _make_dataset_from_arrays(
         self,
         input_data: np.ndarray,
-        target_data: np.ndarray,
+        target_data: np.ndarray | None = None,
         predict: bool = False,
-    ) -> TransformerDataset:
-        return TransformerDataset(
+    ) -> EncoderDecoderDataset:
+        if target_data is None:
+            raise ValueError(
+                "Target data must be provided for an encoder-decoder model."
+            )
+
+        return EncoderDecoderDataset(
             input_data=input_data,
             target_data=target_data,
             ctx_seq_len=self.hparams["ctxt_seq_len"],
             tgt_seq_len=self.hparams["tgt_seq_len"],
             min_ctxt_seq_len=self.hparams["min_ctxt_seq_len"],
+            min_tgt_seq_len=self.hparams["min_tgt_seq_len"],
+            stride=self.hparams["stride"],
+            randomize_seq_len=self.hparams["randomize_seq_len"]
+            if not predict
+            else False,
+            predict=predict,
+            input_transform=self.input_transforms,
+            target_transform=self.target_transform,
+            dtype=self.hparams["dtype"],
+        )
+
+
+class EncoderDataModule(TransformerDataModule):
+    def _make_dataset_from_arrays(
+        self,
+        input_data: np.ndarray,
+        target_data: np.ndarray | None = None,
+        predict: bool = False,
+    ) -> EncoderDataset:
+        if target_data is None:
+            raise ValueError(
+                "Target data should not be provided for an encoder model."
+            )
+
+        return EncoderDataset(
+            input_data=input_data,
+            target_data=target_data,
+            ctx_seq_len=self.hparams["ctxt_seq_len"],
+            min_ctxt_seq_len=self.hparams["min_ctxt_seq_len"],
+            tgt_seq_len=self.hparams["tgt_seq_len"],
             min_tgt_seq_len=self.hparams["min_tgt_seq_len"],
             stride=self.hparams["stride"],
             randomize_seq_len=self.hparams["randomize_seq_len"]
