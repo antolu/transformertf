@@ -9,7 +9,12 @@ from transformertf.models.phytsmixer import PhyTSMixerConfig, PhyTSMixerModule
 @pytest.fixture(scope="module")
 def phytsmixer_module() -> PhyTSMixerModule:
     return PhyTSMixerModule.from_config(
-        PhyTSMixerConfig(input_columns=["I_meas_A"], target_column="B_meas_T")
+        PhyTSMixerConfig(
+            num_blocks=2,
+            fc_dim=16,
+            input_columns=["I_meas_A"],
+            target_column="B_meas_T",
+        )
     )
 
 

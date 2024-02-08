@@ -30,7 +30,7 @@ def sample(batch: tuple[torch.Tensor, torch.Tensor]) -> TimeSeriesSample:
 
 @pytest.fixture
 def module() -> LSTMModule:
-    config = LSTMConfig()
+    config = LSTMConfig(hidden_size=10, hidden_size_fc=16, num_layers=1)
     module = LSTMModule.from_config(config)
     assert module is not None
     return module

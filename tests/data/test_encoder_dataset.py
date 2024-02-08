@@ -73,8 +73,8 @@ def test_dataset_train_1d_single(x1_1d: np.ndarray, y1_1d: np.ndarray) -> None:
 
     assert len(dataset) == 6
     assert isinstance(dataset[0], dict)
-    assert dataset[0]["encoder_input"].shape == (6, 1)
-    assert dataset[0]["encoder_mask"].shape == (6, 1)
+    assert dataset[0]["encoder_input"].shape == (5, 2)
+    assert dataset[0]["encoder_mask"].shape == (5, 2)
     assert dataset[0]["target"].shape == (5, 1)
 
 

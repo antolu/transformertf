@@ -518,12 +518,7 @@ class EncoderDataset(AbstractTimeSeriesDataset):
 
         target = torch.concat((target_old, sample["target"]), dim=0)
         encoder_input = torch.concat(
-            (
-                target_old,
-                torch.flatten(sample["encoder_input"][..., :-1], end_dim=-1)[
-                    ..., None
-                ],
-            ),
+            (sample["encoder_input"], sample["decoder_input"]),
             dim=0,
         )
 

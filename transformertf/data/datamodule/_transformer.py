@@ -116,7 +116,7 @@ class EncoderDataModule(TransformerDataModule):
         target_data: np.ndarray | None = None,
         predict: bool = False,
     ) -> EncoderDataset:
-        if target_data is not None:
+        if target_data is None:
             raise ValueError(
                 "Target data should not be provided for an encoder model."
             )

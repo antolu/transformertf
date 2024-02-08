@@ -5,8 +5,9 @@ import typing
 import torch
 
 from ...data import EncoderDecoderSample
-from .._base_module import LR_CALL_TYPE, OPT_CALL_TYPE, LightningModuleBase
+from .._base_module import LightningModuleBase
 from ..phylstm import PhyLSTM3Output, PhyLSTMLoss
+from ..typing import LR_CALL_TYPE, OPT_CALL_TYPE
 from ._config import PhyTSMixerConfig
 from ._model import PhyTSMixer
 

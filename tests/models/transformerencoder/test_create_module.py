@@ -4,6 +4,6 @@ from transformertf.models.transformerencoder import TransformerEncoder
 
 
 def test_create_transformer_encoder() -> None:
-    model = TransformerEncoder(seq_len=100, out_seq_len=10)
+    model = TransformerEncoder(num_features=1, seq_len=100)
 
     assert model is not None
