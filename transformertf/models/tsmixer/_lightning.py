@@ -4,7 +4,7 @@ import typing
 
 import torch
 
-from ...data import TransformerSample
+from ...data import EncoderDecoderSample
 from ...nn import QuantileLoss
 from .._base_module import LR_CALL_TYPE, OPT_CALL_TYPE, LightningModuleBase
 from ._config import TSMixerConfig
@@ -119,14 +119,14 @@ class TSMixerModule(LightningModuleBase):
 
         return default_kwargs
 
-    def forward(self, x: TransformerSample) -> torch.Tensor:
+    def forward(self, x: EncoderDecoderSample) -> torch.Tensor:
         return self.model(
             past_covariates=x["encoder_input"],
             future_covariates=x["decoder_input"][..., :-1],
         )
 
     def training_step(
-        self, batch: TransformerSample, batch_idx: int
+        self, batch: EncoderDecoderSample, batch_idx: int
     ) -> dict[str, torch.Tensor]:
         assert "target" in batch
         target = batch["target"]
@@ -140,7 +140,10 @@ class TSMixerModule(LightningModuleBase):
         return {"loss": loss}
 
     def validation_step(
-        self, batch: TransformerSample, batch_idx: int, dataloader_idx: int = 0
+        self,
+        batch: EncoderDecoderSample,
+        batch_idx: int,
+        dataloader_idx: int = 0,
     ) -> dict[str, torch.Tensor]:
         assert "target" in batch
         target = batch["target"]

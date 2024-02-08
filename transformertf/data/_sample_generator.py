@@ -25,7 +25,8 @@ __all__ = [
     "TimeSeriesSample",
     "TimeSeriesSampleGenerator",
     "SampleGenerator",
-    "TransformerSample",
+    "EncoderSample",
+    "EncoderDecoderSample",
     "TransformerSampleGenerator",
 ]
 
@@ -160,21 +161,24 @@ class TimeSeriesSampleGenerator(SampleGenerator[TimeSeriesSample[T]]):
         return self._window_generator.num_samples
 
 
-class TransformerSample(TypedDict, typing.Generic[T]):
+class EncoderSample(TypedDict, typing.Generic[T]):
     encoder_input: T
     """ Source sequence to encoder. """
     encoder_mask: NotRequired[T]
     """ Source sequence mask to encoder. Typically should all be ones. """
-    decoder_input: T
-    """ Target sequence input to transformer. Typically should all be zeros. """
-    decoder_mask: NotRequired[T]
-    """ Target mask. Typically should all be ones. """
 
     target: T
     """ Target / ground truth sequence."""
 
 
-class TransformerSampleGenerator(SampleGenerator[TransformerSample[T]]):
+class EncoderDecoderSample(EncoderSample, typing.Generic[T]):
+    decoder_input: T
+    """ Target sequence input to transformer. Typically should all be zeros. """
+    decoder_mask: NotRequired[T]
+    """ Target mask. Typically should all be ones. """
+
+
+class TransformerSampleGenerator(SampleGenerator[EncoderDecoderSample[T]]):
     _input_data: T
     _label_data: T
 
@@ -213,7 +217,7 @@ class TransformerSampleGenerator(SampleGenerator[TransformerSample[T]]):
                 self._label_data, self._window_generator.real_data_len
             )
 
-    def _make_sample(self, idx: int) -> TransformerSample[T]:
+    def _make_sample(self, idx: int) -> EncoderDecoderSample[T]:
         idx = check_index(idx, len(self))
 
         sl = self._window_generator[idx]
@@ -240,7 +244,7 @@ class TransformerSampleGenerator(SampleGenerator[TransformerSample[T]]):
         label = to_2dim(self._label_data[tgt_slice])
 
         return typing.cast(
-            TransformerSample[T],
+            EncoderDecoderSample[T],
             {
                 "encoder_input": src,
                 "encoder_mask": ones_like(src),

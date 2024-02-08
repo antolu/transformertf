@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import typing
 
-from .._dataset import TransformerDataset
+from .._dataset import EncoderDecoderDataset
 from ._base import _DataModuleBase
 
 if typing.TYPE_CHECKING:
@@ -83,8 +83,8 @@ class TransformerDataModule(_DataModuleBase):
         input_data: np.ndarray,
         target_data: np.ndarray,
         predict: bool = False,
-    ) -> TransformerDataset:
-        return TransformerDataset(
+    ) -> EncoderDecoderDataset:
+        return EncoderDecoderDataset(
             input_data=input_data,
             target_data=target_data,
             ctx_seq_len=self.hparams["ctxt_seq_len"],

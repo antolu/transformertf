@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import numpy as np
+import typing
 import pytest
 
-from transformertf.data import TransformerDataset
+from transformertf.data import EncoderDecoderDataset
 
 
 @pytest.fixture
@@ -67,11 +68,12 @@ def y2_2d() -> np.ndarray:
 
 
 def test_dataset_train_1d_single(x1_1d: np.ndarray, y1_1d: np.ndarray) -> None:
-    dataset = TransformerDataset(
+    dataset = EncoderDecoderDataset(
         input_data=x1_1d, target_data=y1_1d, ctx_seq_len=3, tgt_seq_len=2
     )
 
     assert len(dataset) == 6
+    dataset = typing.cast(EncoderDecoderDataset, dataset)
     assert isinstance(dataset[0], dict)
     assert dataset[0]["encoder_input"].shape == (3, 2)
     assert dataset[0]["encoder_mask"].shape == (3, 2)
@@ -83,7 +85,7 @@ def test_dataset_train_1d_single(x1_1d: np.ndarray, y1_1d: np.ndarray) -> None:
 def test_dataset_train_1d_multiple(
     x1_1d: np.ndarray, y1_1d: np.ndarray
 ) -> None:
-    dataset = TransformerDataset(
+    dataset = EncoderDecoderDataset(
         input_data=[x1_1d, x1_1d],
         target_data=[y1_1d, y1_1d],
         ctx_seq_len=3,

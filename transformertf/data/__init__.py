@@ -2,12 +2,14 @@ from .._mod_replace import replace_modname
 from ._dataset import (
     AbstractTimeSeriesDataset,
     TimeSeriesDataset,
-    TransformerDataset,
+    EncoderDataset,
+    EncoderDecoderDataset,
 )
 from ._sample_generator import (
     TimeSeriesSample,
     TimeSeriesSampleGenerator,
-    TransformerSample,
+    EncoderSample,
+    EncoderDecoderSample,
     TransformerSampleGenerator,
 )
 from ._window_generator import WindowGenerator
@@ -31,7 +33,8 @@ for _mod in (
     TimeSeriesSampleGenerator,
     TransformerSampleGenerator,
     AbstractTimeSeriesDataset,
-    TransformerDataset,
+    EncoderDataset,
+    EncoderDecoderDataset,
     downsample,
 ):
     replace_modname(_mod, __name__)
@@ -52,8 +55,10 @@ __all__ = [
     "TimeSeriesSampleGenerator",
     "TransformCollection",
     "TransformerDataModule",
-    "TransformerDataset",
-    "TransformerSample",
+    "EncoderDataset",
+    "EncoderDecoderDataset",
+    "EncoderSample",
+    "EncoderDecoderSample",
     "TransformerSampleGenerator",
     "WindowGenerator",
     "downsample",

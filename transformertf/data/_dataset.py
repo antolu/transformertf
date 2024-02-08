@@ -17,7 +17,8 @@ import torch
 from ._sample_generator import (
     TimeSeriesSample,
     TimeSeriesSampleGenerator,
-    TransformerSample,
+    EncoderSample,
+    EncoderDecoderSample,
     TransformerSampleGenerator,
 )
 from .transform import BaseTransform
@@ -28,7 +29,8 @@ if typing.TYPE_CHECKING:
 __all__ = [
     "AbstractTimeSeriesDataset",
     "TimeSeriesDataset",
-    "TransformerDataset",
+    "EncoderDataset",
+    "EncoderDecoderDataset",
 ]
 
 
@@ -346,7 +348,7 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
         return x
 
 
-class TransformerDataset(AbstractTimeSeriesDataset):
+class EncoderDataset(AbstractTimeSeriesDataset):
     def __init__(
         self,
         input_data: DATA_SOURCE | list[DATA_SOURCE],
@@ -456,7 +458,7 @@ class TransformerDataset(AbstractTimeSeriesDataset):
         randomize_seq_len: bool = False,
         target_transform: BaseTransform | None = None,
         dtype: torch.dtype = torch.float32,
-    ) -> TransformerDataset:
+    ) -> EncoderDecoderDataset:
         if isinstance(input_columns, str):
             input_columns = [input_columns]
 
@@ -477,7 +479,7 @@ class TransformerDataset(AbstractTimeSeriesDataset):
             dtype=dtype,
         )
 
-    def __getitem__(self, idx: int) -> TransformerSample:
+    def __getitem__(self, idx: int) -> EncoderSample:
         """
         Get a single sample from the dataset.
 
@@ -487,7 +489,72 @@ class TransformerDataset(AbstractTimeSeriesDataset):
 
         Returns
         -------
-        TransformerSample
+        EncoderSample
+        """
+        idx = _check_index(idx, len(self))
+
+        # find which df to get samples from
+        df_idx = np.argmax(self._cum_num_samples > idx)
+
+        shifted_idx = (
+            idx - self._cum_num_samples[df_idx - 1] if df_idx > 0 else idx
+        )
+
+        sample = self._sample_gen[df_idx][shifted_idx]
+
+        if self._randomize_seq_len:
+            assert self._min_ctxt_seq_len is not None
+            random_len = np.random.randint(
+                self._min_ctxt_seq_len, self._ctxt_seq_len
+            )
+            sample["encoder_input"][random_len:] = 0.0
+
+            random_len = np.random.randint(
+                self._min_tgt_seq_len, self._tgt_seq_len
+            )
+            sample["decoder_input"][random_len:] = 0.0
+
+            if "target" in sample:
+                sample["target"][random_len:] = 0.0
+
+        # concatenate input and target data
+        target_old = sample["encoder_input"][..., -1, None]
+
+        target = torch.concat((target_old, sample["target"]), dim=0)
+        encoder_input = torch.concat(
+            (
+                target_old,
+                torch.flatten(sample["encoder_input"][..., :-1], end_dim=-1)[
+                    ..., None
+                ],
+            ),
+            dim=0,
+        )
+
+        sample = {
+            "encoder_input": encoder_input,
+            "encoder_mask": torch.ones_like(encoder_input),
+            "target": target,
+        }
+
+        return sample
+
+    def __len__(self) -> int:
+        return self._cum_num_samples[-1]
+
+
+class EncoderDecoderDataset(EncoderDataset):
+    def __getitem__(self, idx: int) -> EncoderDecoderSample:
+        """
+        Get a single sample from the dataset.
+
+        Parameters
+        ----------
+        idx
+
+        Returns
+        -------
+        EncoderDecoderSample
         """
         idx = _check_index(idx, len(self))
 
@@ -516,9 +583,6 @@ class TransformerDataset(AbstractTimeSeriesDataset):
                 sample["target"][random_len:] = 0.0
 
         return sample
-
-    def __len__(self) -> int:
-        return self._cum_num_samples[-1]
 
 
 def convert_data(
