@@ -8,7 +8,8 @@ from ...data import EncoderSample
 from ...nn import QuantileLoss
 from ...utils import ACTIVATIONS
 from ...utils.loss import get_loss
-from .._base_module import LR_CALL_TYPE, OPT_CALL_TYPE, LightningModuleBase
+from ..typing import LR_CALL_TYPE, OPT_CALL_TYPE
+from .._base_module import LightningModuleBase
 from ._config import TransformerEncoderConfig
 from ._model import TransformerEncoder
 
@@ -19,7 +20,6 @@ if typing.TYPE_CHECKING:
 class TransformerEncoderModule(LightningModuleBase):
     def __init__(
         self,
-        num_features: int,
         ctxt_seq_len: int,
         tgt_seq_len: int,
         n_dim_model: int = 128,
@@ -84,7 +84,6 @@ class TransformerEncoderModule(LightningModuleBase):
         self.criterion = criterion
 
         self.model = TransformerEncoder(
-            num_features=num_features,
             seq_len=ctxt_seq_len,
             out_seq_len=tgt_seq_len,
             n_dim_model=n_dim_model,
@@ -115,11 +114,15 @@ class TransformerEncoderModule(LightningModuleBase):
                 "pass in a different value for num_features."
             )
 
+        past_ctxt_seq_len = (
+            config.ctxt_seq_len * num_features
+            + config.tgt_seq_len * (num_features - 1)
+        )
+        tgt_seq_len = config.ctxt_seq_len + config.tgt_seq_len
         default_kwargs.update(
             dict(
-                num_features=num_features,
-                ctxt_seq_len=config.ctxt_seq_len * (num_features + 1),
-                tgt_seq_len=config.tgt_seq_len,
+                ctxt_seq_len=past_ctxt_seq_len,
+                tgt_seq_len=tgt_seq_len,
                 n_dim_model=config.n_dim_model,
                 num_heads=config.num_heads,
                 num_encoder_layers=config.num_encoder_layers,
@@ -132,7 +135,9 @@ class TransformerEncoderModule(LightningModuleBase):
 
         default_kwargs.update(kwargs)
 
-        if isinstance(default_kwargs["criterion"], str):
+        if "criterion" in default_kwargs and isinstance(
+            default_kwargs["criterion"], str
+        ):
             default_kwargs["criterion"] = get_loss(default_kwargs["criterion"])  # type: ignore[arg-type]
 
         return default_kwargs

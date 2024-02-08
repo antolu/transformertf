@@ -13,7 +13,6 @@ __all__ = ["TransformerEncoder"]
 class TransformerEncoder(torch.nn.Module):
     def __init__(
         self,
-        num_features: int,
         seq_len: int,
         out_seq_len: int | None = None,
         n_dim_model: int = 128,
@@ -28,7 +27,6 @@ class TransformerEncoder(torch.nn.Module):
         if out_seq_len is None:
             out_seq_len = seq_len
 
-        self.num_features = num_features
         self.seq_len = seq_len
         self.out_seq_len = out_seq_len
         self.n_dim_model = n_dim_model
@@ -39,7 +37,7 @@ class TransformerEncoder(torch.nn.Module):
         self.fc_dim = fc_dim
 
         self.feature_embedding = torch.nn.Linear(
-            self.num_features, self.n_dim_model
+            1, self.n_dim_model
         )  # [bs, seq_len, n_dim_model]
         self.pos_encoder = SimplePositionalEncoding(
             dim_model=self.n_dim_model, dropout=self.dropout
@@ -74,10 +72,7 @@ class TransformerEncoder(torch.nn.Module):
         x = self.feature_embedding(source)
         x = self.pos_encoder(x)
 
-        if src_mask is None:
-            src_mask = self.src_mask
-
-        encoded = self.transformer(x, src_mask=src_mask)
+        encoded = self.transformer(x)
 
         out = self.fc(encoded)
 
