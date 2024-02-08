@@ -13,7 +13,12 @@ from ._sample_generator import (
     TransformerSampleGenerator,
 )
 from ._window_generator import WindowGenerator
-from .datamodule import TimeSeriesDataModule, TransformerDataModule
+from .datamodule import (
+    TimeSeriesDataModule,
+    TransformerDataModule,
+    EncoderDataModule,
+    EncoderDecoderDataModule,
+)
 from .transform import (
     BaseTransform,
     DiscreteFunctionTransform,
@@ -55,6 +60,8 @@ __all__ = [
     "TimeSeriesSampleGenerator",
     "TransformCollection",
     "TransformerDataModule",
+    "EncoderDataModule",
+    "EncoderDecoderDataModule",
     "EncoderDataset",
     "EncoderDecoderDataset",
     "EncoderSample",
