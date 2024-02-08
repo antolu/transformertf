@@ -530,6 +530,18 @@ class EncoderDataset(AbstractTimeSeriesDataset):
 
         return sample
 
+    @property
+    def ctxt_seq_len(self) -> int:
+        return self._ctxt_seq_len
+
+    @property
+    def tgt_seq_len(self) -> int:
+        return self._tgt_seq_len
+
+    @property
+    def stride(self) -> int:
+        return self._stride
+
     def __len__(self) -> int:
         return self._cum_num_samples[-1]
 
