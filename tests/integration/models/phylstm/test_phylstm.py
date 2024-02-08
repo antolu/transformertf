@@ -96,7 +96,8 @@ def test_phylstm_forward_pass(
     phylstm_module.on_predict_start()
     phylstm_module.on_predict_epoch_start()
 
-    outputs_ = phylstm_module.predict_step(batch, 0)
+    with torch.no_grad():
+        outputs_ = phylstm_module.predict_step(batch, 0)
 
     phylstm_module.on_predict_epoch_end()
     phylstm_module.on_predict_end()

@@ -14,6 +14,7 @@ def phylstm_module() -> PhyLSTMModule:
 def test_phylstm_forward_pass(phylstm_module: PhyLSTMModule) -> None:
     x = torch.rand(1, PhyLSTMConfig.seq_len, 1)
 
-    y = phylstm_module(x)
+    with torch.no_grad():
+        y = phylstm_module(x)
 
     assert y["z"].shape == (1, PhyLSTMConfig.seq_len, 3)

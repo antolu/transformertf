@@ -22,6 +22,7 @@ def test_phytsmixer_forward_pass(phytsmixer_module: PhyTSMixerModule) -> None:
         decoder_input=torch.cat([x_future, x_future], dim=-1),
     )
 
-    y = phytsmixer_module(batch)
+    with torch.no_grad():
+        y = phytsmixer_module(batch)
 
     assert y["z"].shape == (1, PhyTSMixerConfig.tgt_seq_len, 3)

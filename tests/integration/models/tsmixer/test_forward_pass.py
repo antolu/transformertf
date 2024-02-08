@@ -17,6 +17,7 @@ def test_tsmixer_forward_pass(tsmixer_module: TSMixerModule) -> None:
     past_covariates = torch.rand(1, TSMixerConfig.ctxt_seq_len, 2)
     future_covariates = torch.rand(1, TSMixerConfig.tgt_seq_len, 1)
 
-    y = tsmixer_module.model(past_covariates, future_covariates)
+    with torch.no_grad():
+        y = tsmixer_module.model(past_covariates, future_covariates)
 
     assert y.shape == (1, TSMixerConfig.tgt_seq_len, 1)
