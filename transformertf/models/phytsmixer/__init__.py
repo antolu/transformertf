@@ -1,7 +1,7 @@
 from ..._mod_replace import replace_modname
-from ._model import PhyTSMixer
 from ._config import PhyTSMixerConfig
 from ._lightning import PhyTSMixerModule
+from ._model import PhyTSMixer
 
 for _mod in (
     PhyTSMixer,

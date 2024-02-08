@@ -1,6 +1,6 @@
 import typing
-import torch
 
+import torch
 
 MODEL_INPUT = typing.Union[torch.Tensor, dict[str, torch.Tensor]]
 MODEL_OUTPUT = typing.Union[torch.Tensor, dict[str, torch.Tensor]]

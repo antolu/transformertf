@@ -4,11 +4,11 @@ Activation function factory
 from __future__ import annotations
 
 import typing
+
 import torch
 
-
 ACTIVATIONS = typing.Literal["relu", "gelu"]
-ACTIVATION_MAP: dict[ACTIVATIONS, torch.nn.Module] = {
+ACTIVATION_MAP: dict[ACTIVATIONS, typing.Type[torch.nn.Module]] = {
     "relu": torch.nn.ReLU,
     "gelu": torch.nn.GELU,
 }
@@ -23,4 +23,4 @@ def get_activation(
             f"activation must be one of {list(ACTIVATION_MAP)}, not {activation}"
         )
 
-    return ACTIVATION_MAP[activation](**actiation_kwargs)
+    return ACTIVATION_MAP[activation](**actiation_kwargs)  # type: ignore[call-arg]

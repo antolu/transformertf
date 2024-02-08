@@ -10,16 +10,10 @@ from ..config import BaseConfig
 from ..data import TimeSeriesSample
 from ..utils import configure_lr_scheduler, configure_optimizers, ops
 
-
 if typing.TYPE_CHECKING:
     SameType = typing.TypeVar("SameType", bound="LightningModuleBase")
     from ..utils import OPTIMIZER_DICT
-    from .typing import (
-        LR_CALL_TYPE,
-        MODEL_OUTPUT,
-        OPT_CALL_TYPE,
-        STEP_OUTPUT,
-    )
+    from .typing import LR_CALL_TYPE, MODEL_OUTPUT, OPT_CALL_TYPE, STEP_OUTPUT
 
 
 class LightningModuleBase(L.LightningModule):

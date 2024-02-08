@@ -10,9 +10,8 @@ import typing
 import einops
 import torch
 
-
-from ..tsmixer import TSMixer, BasicTSMixer
 from ..phylstm import PhyLSTM3Output
+from ..tsmixer import BasicTSMixer, TSMixer
 
 
 class PhyTSMixer(torch.nn.Module):

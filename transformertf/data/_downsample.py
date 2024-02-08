@@ -4,8 +4,8 @@ import typing
 
 import numpy as np
 import pandas as pd
-import torch
 import scipy.ndimage
+import torch
 
 from .transform._utils import _as_numpy  # type: ignore[import]
 

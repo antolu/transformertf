@@ -6,9 +6,9 @@ import torch
 
 from ...data import EncoderDecoderSample
 from .._base_module import LR_CALL_TYPE, OPT_CALL_TYPE, LightningModuleBase
+from ..phylstm import PhyLSTM3Output, PhyLSTMLoss
 from ._config import PhyTSMixerConfig
 from ._model import PhyTSMixer
-from ..phylstm import PhyLSTMLoss, PhyLSTM3Output
 
 if typing.TYPE_CHECKING:
     SameType = typing.TypeVar("SameType", bound="PhyTSMixerModule")

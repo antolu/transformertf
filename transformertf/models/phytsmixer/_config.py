@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import dataclasses
 
-from ..tsmixer import TSMixerConfig
 from ..phylstm import LossWeights
+from ..tsmixer import TSMixerConfig
 
 
 @dataclasses.dataclass
