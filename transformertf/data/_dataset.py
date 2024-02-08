@@ -14,9 +14,13 @@ import numpy as np
 import pandas as pd
 import torch
 
-from ._sample_generator import (EncoderDecoderSample, EncoderSample,
-                                TimeSeriesSample, TimeSeriesSampleGenerator,
-                                TransformerSampleGenerator)
+from ._sample_generator import (
+    EncoderDecoderSample,
+    EncoderSample,
+    TimeSeriesSample,
+    TimeSeriesSampleGenerator,
+    TransformerSampleGenerator,
+)
 from .transform import BaseTransform
 
 if typing.TYPE_CHECKING:
