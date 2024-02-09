@@ -415,7 +415,9 @@ class EncoderDataset(AbstractTimeSeriesDataset):
                 randomize_seq_len = False
 
         self._ctxt_seq_len = ctx_seq_len
+        self._min_ctxt_seq_len = min_ctxt_seq_len
         self._tgt_seq_len = tgt_seq_len
+        self._min_tgt_seq_len = min_tgt_seq_len
         self._predict = predict
         self._stride = stride
         self._randomize_seq_len = randomize_seq_len
@@ -504,6 +506,7 @@ class EncoderDataset(AbstractTimeSeriesDataset):
 
         if self._randomize_seq_len:
             assert self._min_ctxt_seq_len is not None
+            assert self._min_tgt_seq_len is not None
             random_len = np.random.randint(
                 self._min_ctxt_seq_len, self._ctxt_seq_len
             )
@@ -576,6 +579,7 @@ class EncoderDecoderDataset(EncoderDataset):
 
         if self._randomize_seq_len:
             assert self._min_ctxt_seq_len is not None
+            assert self._min_tgt_seq_len is not None
             random_len = np.random.randint(
                 self._min_ctxt_seq_len, self._ctxt_seq_len
             )
