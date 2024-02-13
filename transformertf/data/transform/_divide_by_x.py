@@ -51,3 +51,6 @@ class DivideByXTransform(BaseTransform):
         y = _as_torch(y)
 
         return y * x
+
+    def __sklearn_is_fitted__(self) -> bool:
+        return True

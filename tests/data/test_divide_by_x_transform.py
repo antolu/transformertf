@@ -32,3 +32,12 @@ def test_divide_by_x_transform_numpy() -> None:
     y_mult_x = transform.inverse_transform(x, y_div_x)
     assert np.allclose(y_mult_x, y)
     assert isinstance(y_mult_x, torch.Tensor)
+
+
+def test_divide_by_x_transform_fitted() -> None:
+    transform = DivideByXTransform()
+
+    # verify with sklearn
+    import sklearn.utils.validation
+
+    sklearn.utils.validation.check_is_fitted(transform)
