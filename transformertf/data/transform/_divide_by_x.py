@@ -31,7 +31,9 @@ class DivideByXTransform(BaseTransform):
         return self
 
     def transform(
-        self, x: torch.Tensor | np.ndarray, y: torch.Tensor | np.ndarray | None = None
+        self,
+        x: torch.Tensor | np.ndarray,
+        y: torch.Tensor | np.ndarray | None = None,
     ) -> torch.Tensor:
         if y is None:
             raise ValueError("y cannot be None for DivideByXTransform")
@@ -42,7 +44,9 @@ class DivideByXTransform(BaseTransform):
         return y / x
 
     def inverse_transform(
-        self, x: torch.Tensor | np.ndarray, y: torch.Tensor | np.ndarray | None = None
+        self,
+        x: torch.Tensor | np.ndarray,
+        y: torch.Tensor | np.ndarray | None = None,
     ) -> torch.Tensor:
         if y is None:
             raise ValueError("y cannot be None for DivideByXTransform")
