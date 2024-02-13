@@ -238,7 +238,7 @@ class TransformerSampleGenerator(SampleGenerator[EncoderDecoderSample[T]]):
         )  # [bs, seq_len, num_features]
         tgt = concat(
             to_2dim(self._input_data[tgt_slice]),
-            to_2dim(zeros_like(self._input_data[tgt_slice])),
+            to_2dim(zeros_like(self._label_data[tgt_slice])),
             dim=-1,
         )
         label = to_2dim(self._label_data[tgt_slice])
