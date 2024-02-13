@@ -3,6 +3,7 @@ from ._base import BaseTransform, TransformCollection, TransformType
 from ._discrete_fn import DiscreteFunctionTransform
 from ._polynomial import FixedPolynomialTransform, PolynomialTransform
 from ._scaler import RunningNormalizer
+from ._divide_by_x import DivideByXTransform
 
 StandardScaler = RunningNormalizer
 
@@ -15,6 +16,7 @@ for _mod in [
     FixedPolynomialTransform,
     RunningNormalizer,
     DiscreteFunctionTransform,
+    DivideByXTransform,
 ]:
     replace_modname(_mod, __name__)
 
@@ -31,4 +33,5 @@ __all__ = [
     "RunningNormalizer",
     "StandardScaler",
     "DiscreteFunctionTransform",
+    "DivideByXTransform",
 ]
