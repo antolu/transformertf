@@ -1,8 +1,11 @@
 from ..._mod_replace import replace_modname
 from ._base import _DataModuleBase
 from ._timeseries import TimeSeriesDataModule
-from ._transformer import (EncoderDataModule, EncoderDecoderDataModule,
-                           TransformerDataModule)
+from ._transformer import (
+    EncoderDataModule,
+    EncoderDecoderDataModule,
+    TransformerDataModule,
+)
 
 for _mod in (
     _DataModuleBase,

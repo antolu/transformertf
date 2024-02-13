@@ -10,8 +10,13 @@ import typing
 import einops
 import torch
 
-from ._modules import (ConditionalFeatureMixer, ConditionalMixerBlock,
-                       FeatureProjection, MixerBlock, TemporalProjection)
+from ._modules import (
+    ConditionalFeatureMixer,
+    ConditionalMixerBlock,
+    FeatureProjection,
+    MixerBlock,
+    TemporalProjection,
+)
 
 
 class BasicTSMixer(torch.nn.Module):

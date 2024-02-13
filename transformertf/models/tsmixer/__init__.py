@@ -2,9 +2,14 @@ from ..._mod_replace import replace_modname
 from ._config import TSMixerConfig
 from ._lightning import TSMixerModule
 from ._model import BasicTSMixer, TSMixer
-from ._modules import (BatchNorm2D, ConditionalFeatureMixer,
-                       ConditionalMixerBlock, FeatureMixer, MixerBlock,
-                       TimeMixer)
+from ._modules import (
+    BatchNorm2D,
+    ConditionalFeatureMixer,
+    ConditionalMixerBlock,
+    FeatureMixer,
+    MixerBlock,
+    TimeMixer,
+)
 
 for _mod in (
     MixerBlock,

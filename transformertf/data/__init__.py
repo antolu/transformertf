@@ -1,16 +1,33 @@
 from .._mod_replace import replace_modname
-from ._dataset import (AbstractTimeSeriesDataset, EncoderDataset,
-                       EncoderDecoderDataset, TimeSeriesDataset)
+from ._dataset import (
+    AbstractTimeSeriesDataset,
+    EncoderDataset,
+    EncoderDecoderDataset,
+    TimeSeriesDataset,
+)
 from ._downsample import downsample
-from ._sample_generator import (EncoderDecoderSample, EncoderSample,
-                                TimeSeriesSample, TimeSeriesSampleGenerator,
-                                TransformerSampleGenerator)
+from ._sample_generator import (
+    EncoderDecoderSample,
+    EncoderSample,
+    TimeSeriesSample,
+    TimeSeriesSampleGenerator,
+    TransformerSampleGenerator,
+)
 from ._window_generator import WindowGenerator
-from .datamodule import (EncoderDataModule, EncoderDecoderDataModule,
-                         TimeSeriesDataModule, TransformerDataModule)
-from .transform import (BaseTransform, DiscreteFunctionTransform,
-                        FixedPolynomialTransform, PolynomialTransform,
-                        RunningNormalizer, TransformCollection)
+from .datamodule import (
+    EncoderDataModule,
+    EncoderDecoderDataModule,
+    TimeSeriesDataModule,
+    TransformerDataModule,
+)
+from .transform import (
+    BaseTransform,
+    DiscreteFunctionTransform,
+    FixedPolynomialTransform,
+    PolynomialTransform,
+    RunningNormalizer,
+    TransformCollection,
+)
 
 for _mod in (
     WindowGenerator,

@@ -7,10 +7,16 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from ._submodules import (AdaptiveEmbedding, DecoderLayer, LogUniformSampler,
-                          PositionalEmbedding, ProjectedAdaptiveLogSoftmax,
-                          RelLearnableDecoderLayer,
-                          RelPartialLearnableDecoderLayer, sample_logits)
+from ._submodules import (
+    AdaptiveEmbedding,
+    DecoderLayer,
+    LogUniformSampler,
+    PositionalEmbedding,
+    ProjectedAdaptiveLogSoftmax,
+    RelLearnableDecoderLayer,
+    RelPartialLearnableDecoderLayer,
+    sample_logits,
+)
 
 log = logging.getLogger(__name__)
 
