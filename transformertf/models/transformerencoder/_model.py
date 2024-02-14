@@ -20,7 +20,7 @@ class TransformerEncoder(torch.nn.Module):
         num_encoder_layers: int = 6,
         dropout: float = 0.1,
         activation: ACTIVATIONS = "relu",
-        fc_dim: int = 1024,
+        fc_dim: int | tuple[int, ...] = 1024,
         output_dim: int = 7,
     ):
         super().__init__()

@@ -3,6 +3,7 @@ from __future__ import annotations
 import torch
 
 from ._pos_enc import SimplePositionalEncoding
+from ...nn import MLP
 
 __all__ = ["VanillaTransformer"]
 
@@ -19,7 +20,7 @@ class VanillaTransformer(torch.nn.Module):
         num_decoder_layers: int = 6,
         dropout: float = 0.1,
         activation: str = "relu",
-        fc_dim: int = 1024,
+        fc_dim: int | tuple[int, ...] = 1024,
         output_dim: int = 7,
     ):
         super().__init__()
@@ -52,11 +53,12 @@ class VanillaTransformer(torch.nn.Module):
             activation=self.activation,
             batch_first=True,
         )
-        self.fc = torch.nn.Sequential(
-            torch.nn.Linear(self.n_dim_model, self.fc_dim),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(self.dropout),
-            torch.nn.Linear(self.fc_dim, output_dim),
+        self.fc = MLP(
+            input_dim=self.n_dim_model,
+            hidden_dim=self.fc_dim,
+            output_dim=output_dim,
+            dropout=self.dropout,
+            activation=self.activation, # type: ignore[arg-type]
         )  # [bs, seq_len, output_dim]
 
         self.src_mask: torch.Tensor

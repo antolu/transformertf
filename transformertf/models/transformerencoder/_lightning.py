@@ -27,7 +27,7 @@ class TransformerEncoderModule(LightningModuleBase):
         num_encoder_layers: int = 6,
         dropout: float = 0.1,
         activation: ACTIVATIONS = "relu",
-        fc_dim: int = 1024,
+        fc_dim: int | tuple[int, ...] = 1024,
         output_dim: int = 7,
         lr: float = 1e-3,
         weight_decay: float = 1e-4,
