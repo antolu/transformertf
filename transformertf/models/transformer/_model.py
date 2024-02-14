@@ -58,7 +58,7 @@ class VanillaTransformer(torch.nn.Module):
             hidden_dim=self.fc_dim,
             output_dim=output_dim,
             dropout=self.dropout,
-            activation=self.activation, # type: ignore[arg-type]
+            activation=self.activation,  # type: ignore[arg-type]
         )  # [bs, seq_len, output_dim]
 
         self.src_mask: torch.Tensor

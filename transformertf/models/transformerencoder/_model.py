@@ -48,8 +48,11 @@ class TransformerEncoder(torch.nn.Module):
             activation=self.activation,
             batch_first=True,
         )
+        norm = torch.nn.LayerNorm(self.n_dim_model)
         self.transformer = torch.nn.TransformerEncoder(
-            encoder_layer=encoder_layer, num_layers=self.num_encoder_layers
+            encoder_layer=encoder_layer,
+            num_layers=self.num_encoder_layers,
+            norm=norm,
         )
         self.fc = MLP(
             input_dim=self.n_dim_model,
