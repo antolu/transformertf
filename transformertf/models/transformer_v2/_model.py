@@ -15,18 +15,17 @@ class LSTMEmbedding(torch.nn.Module):
     def __init__(
         self,
         input_dim: int,
-        hidden_dim: int,
         output_dim: int,
         dropout: float,
     ):
         super().__init__()
         self.lstm = torch.nn.LSTM(
             input_size=input_dim,
-            hidden_size=hidden_dim,
+            hidden_size=output_dim,
             batch_first=True,
         )
         self.dropout = torch.nn.Dropout(dropout)
-        self.fc = torch.nn.Linear(hidden_dim, output_dim)
+        self.fc = GatedLinearUnit(output_dim)
         self.norm = torch.nn.LayerNorm(output_dim)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -73,7 +72,6 @@ class TransformerV2(torch.nn.Module):
         if embedding == "lstm":
             self.feature_embedding = LSTMEmbedding(
                 input_dim=self.num_features,
-                hidden_dim=self.lstm_hidden_dim,
                 output_dim=self.n_dim_model,
                 dropout=self.dropout,
             )

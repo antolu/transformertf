@@ -54,7 +54,7 @@ def test_transformer_v2_forward_pass_simple(
     x_future = torch.rand(
         1,
         TransformerV2Config.tgt_seq_len,
-        1,
+        2,
     )
 
     batch = dict(
