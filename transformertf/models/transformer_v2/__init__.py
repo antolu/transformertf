@@ -1,7 +1,7 @@
 from ..._mod_replace import replace_modname
-from ._model import TransformerV2
 from ._config import TransformerV2Config
 from ._lightning import TransformerV2Module
+from ._model import TransformerV2
 
 for _mod in (
     TransformerV2,

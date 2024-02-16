@@ -4,7 +4,7 @@ import typing
 
 import torch
 
-from ...nn import MLP, GatedLinearUnit, GatedResidualNetwork, AddAndNorm
+from ...nn import MLP, AddAndNorm, GatedLinearUnit, GatedResidualNetwork
 from ..transformer._model import generate_mask
 from ..transformer._pos_enc import SimplePositionalEncoding
 

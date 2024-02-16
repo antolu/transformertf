@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import torch
 
-from ._pos_enc import SimplePositionalEncoding
 from ...nn import MLP
+from ._pos_enc import SimplePositionalEncoding
 
 __all__ = ["VanillaTransformer"]
 
