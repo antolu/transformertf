@@ -19,7 +19,6 @@ def config() -> TransformerV2Config:
         num_encoder_layers=2,
         num_decoder_layers=2,
         embedding="lstm",
-        lstm_hidden_dim=16,
         num_heads=2,
         train_dataset=[DF_PATH],
         val_dataset=[DF_PATH],
