@@ -7,9 +7,7 @@ import torch
 
 
 class AddAndNorm(torch.nn.Module):
-    def __init__(
-        self, input_dim: int, residual_block: torch.nn.Module | None = None
-    ):
+    def __init__(self, input_dim: int):
         """
         Add and Normalize module, based on the equation:
 
@@ -22,12 +20,9 @@ class AddAndNorm(torch.nn.Module):
         ----------
         input_dim: int
             Input dimension
-        residual_block: torch.nn.Module, default=None
-            Residual block to be applied to `y` before adding it to `x`
         """
         super().__init__()
         self.norm = torch.nn.LayerNorm(input_dim)
-        self.residual_block = residual_block
 
     def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         """
@@ -43,5 +38,4 @@ class AddAndNorm(torch.nn.Module):
         torch.Tensor
             Output tensor of shape (batch_size, input_dim, n_features)
         """
-        y = y if self.residual_block is None else self.residual_block(y)
         return self.norm(x + y)

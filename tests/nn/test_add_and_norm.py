@@ -19,12 +19,3 @@ def test_add_and_norm(sample: torch.Tensor) -> None:
 
     assert model is not None
     assert output.shape == sample.shape
-
-
-def test_add_and_norm_residual(sample: torch.Tensor) -> None:
-    model = AddAndNorm(100, residual_block=torch.nn.Identity())
-
-    output = model(sample, sample)
-
-    assert model is not None
-    assert output.shape == sample.shape

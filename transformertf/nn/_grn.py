@@ -54,7 +54,7 @@ class GatedResidualNetwork(torch.nn.Module):
 
         self.dropout = torch.nn.Dropout(dropout)
         self.glu1 = GatedLinearUnit(output_dim)
-        self.norm = AddAndNorm(input_dim, self.glu1)
+        self.norm = AddAndNorm(input_dim)
 
         self.activation = get_activation(activation)
 
@@ -84,6 +84,7 @@ class GatedResidualNetwork(torch.nn.Module):
         x = self.activation(x)
         x = self.fc2(x)
         x = self.dropout(x)
-        x = self.norm(residual, x)
+        x = self.glu1(x)
+        x = self.norm(x, residual)
 
         return x

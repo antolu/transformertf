@@ -104,7 +104,7 @@ class TransformerV2(torch.nn.Module):
             activation=self.activation,  # type: ignore[arg-type]
         )
         self.glu3 = GatedLinearUnit(self.n_dim_model)
-        self.norm3 = AddAndNorm(self.n_dim_model, self.glu3)
+        self.norm3 = AddAndNorm(self.n_dim_model)
         self.fc = MLP(
             input_dim=self.n_dim_model,
             hidden_dim=None,
@@ -139,7 +139,8 @@ class TransformerV2(torch.nn.Module):
 
         decoding = self.transformer(x, t, src_mask=src_mask, tgt_mask=tgt_mask)
         decoding = self.grn3(decoding)
-        decoding = self.norm3(target_emb, decoding)
+        decoding = self.glu3(decoding)
+        decoding = self.norm3(decoding, target_emb)
 
         out = self.fc(decoding)
 
