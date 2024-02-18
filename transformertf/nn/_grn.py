@@ -9,7 +9,6 @@ from __future__ import annotations
 import torch
 
 from ..utils import ACTIVATIONS, get_activation
-from ._add_and_norm import AddAndNorm
 from ._glu import GatedLinearUnit
 
 
@@ -54,7 +53,7 @@ class GatedResidualNetwork(torch.nn.Module):
 
         self.dropout = torch.nn.Dropout(dropout)
         self.glu1 = GatedLinearUnit(output_dim)
-        self.norm = AddAndNorm(input_dim)
+        self.norm = torch.nn.LayerNorm(input_dim)
 
         self.activation = get_activation(activation)
 
@@ -85,6 +84,6 @@ class GatedResidualNetwork(torch.nn.Module):
         x = self.fc2(x)
         x = self.dropout(x)
         x = self.glu1(x)
-        x = self.norm(x, residual)
+        x = self.norm(x + residual)
 
         return x
