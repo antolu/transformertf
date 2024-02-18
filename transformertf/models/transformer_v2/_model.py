@@ -50,7 +50,6 @@ class TransformerV2(torch.nn.Module):
         activation: str = "relu",
         fc_dim: int | tuple[int, ...] = 1024,
         embedding: typing.Literal["mlp", "lstm"] = "mlp",
-        lstm_hidden_dim: int = 128,
         output_dim: int = 7,  # quantile loss
     ):
         super().__init__()
@@ -66,7 +65,6 @@ class TransformerV2(torch.nn.Module):
         self.num_decoder_layers = num_decoder_layers
         self.dropout = dropout
         self.activation = activation
-        self.lstm_hidden_dim = lstm_hidden_dim
         self.fc_dim = fc_dim
 
         if embedding == "lstm":

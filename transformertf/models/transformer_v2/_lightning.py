@@ -30,7 +30,6 @@ class TransformerV2Module(LightningModuleBase):
         activation: str = "relu",
         embedding: typing.Literal["mlp", "lstm"] = "mlp",
         fc_dim: int | tuple[int, ...] = 1024,
-        lstm_hidden_dim: int = 128,
         output_dim: int = 7,
         lr: float = 1e-3,
         weight_decay: float = 1e-4,
@@ -79,7 +78,6 @@ class TransformerV2Module(LightningModuleBase):
             activation=activation,
             embedding=embedding,
             fc_dim=fc_dim,
-            lstm_hidden_dim=lstm_hidden_dim,
             output_dim=output_dim,
         )
 
@@ -108,7 +106,6 @@ class TransformerV2Module(LightningModuleBase):
                 activation=config.activation,
                 embedding=config.embedding,
                 fc_dim=config.fc_dim,
-                lstm_hidden_dim=config.lstm_hidden_dim,
                 output_dim=config.output_dim,
             )
         )

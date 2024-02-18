@@ -15,7 +15,6 @@ class TransformerV2Config(TransformerBaseConfig):
     dropout: float = 0.1
 
     embedding: typing.Literal["mlp", "lstm"] = "mlp"
-    lstm_hidden_dim: int = 128
 
     activation: str = "relu"
 
