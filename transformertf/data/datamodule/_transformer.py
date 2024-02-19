@@ -3,7 +3,7 @@ from __future__ import annotations
 import typing
 
 from .._dataset import EncoderDataset, EncoderDecoderDataset
-from ._base import _DataModuleBase
+from ._base import DataModuleBase
 
 if typing.TYPE_CHECKING:
     import numpy as np
@@ -13,7 +13,7 @@ if typing.TYPE_CHECKING:
     from ..transform import BaseTransform
 
 
-class TransformerDataModule(_DataModuleBase):
+class TransformerDataModule(DataModuleBase):
     TRANSFORMS = ["normalize", "polynomial"]
 
     def __init__(

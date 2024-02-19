@@ -3,7 +3,7 @@ from __future__ import annotations
 import typing
 
 from .._dataset import TimeSeriesDataset
-from ._base import _DataModuleBase
+from ._base import DataModuleBase
 
 if typing.TYPE_CHECKING:
     import numpy as np
@@ -13,7 +13,7 @@ if typing.TYPE_CHECKING:
     from ..transform import BaseTransform
 
 
-class TimeSeriesDataModule(_DataModuleBase):
+class TimeSeriesDataModule(DataModuleBase):
     def __init__(
         self,
         train_df: pd.DataFrame | list[pd.DataFrame] | None,

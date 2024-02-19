@@ -26,17 +26,17 @@ from ..transform import (
 if typing.TYPE_CHECKING:
     from ...config import BaseConfig
 
-__all__ = ["_DataModuleBase"]
+__all__ = ["DataModuleBase"]
 
 log = logging.getLogger(__name__)
 
 if typing.TYPE_CHECKING:
-    SameType = typing.TypeVar("SameType", bound="_DataModuleBase")
+    SameType = typing.TypeVar("SameType", bound="DataModuleBase")
 
 TIME = "time_ms"
 
 
-class _DataModuleBase(L.LightningDataModule):
+class DataModuleBase(L.LightningDataModule):
     """
     Abstract base class for all data modules, handles the bulk transformations
     of data, but does not construct the datasets

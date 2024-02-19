@@ -1,5 +1,5 @@
 from ..._mod_replace import replace_modname
-from ._base import _DataModuleBase
+from ._base import DataModuleBase
 from ._timeseries import TimeSeriesDataModule
 from ._transformer import (
     EncoderDataModule,
@@ -8,11 +8,11 @@ from ._transformer import (
 )
 
 for _mod in (
-    _DataModuleBase,
-    TransformerDataModule,
-    TimeSeriesDataModule,
-    EncoderDataModule,
-    EncoderDecoderDataModule,
+        DataModuleBase,
+        TransformerDataModule,
+        TimeSeriesDataModule,
+        EncoderDataModule,
+        EncoderDecoderDataModule,
 ):
     replace_modname(_mod, __name__)
 
@@ -20,7 +20,7 @@ del replace_modname
 del _mod
 
 __all__ = [
-    "_DataModuleBase",
+    "DataModuleBase",
     "TransformerDataModule",
     "TimeSeriesDataModule",
     "EncoderDataModule",
