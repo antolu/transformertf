@@ -8,11 +8,11 @@ from ._transformer import (
 )
 
 for _mod in (
-        DataModuleBase,
-        TransformerDataModule,
-        TimeSeriesDataModule,
-        EncoderDataModule,
-        EncoderDecoderDataModule,
+    DataModuleBase,
+    TransformerDataModule,
+    TimeSeriesDataModule,
+    EncoderDataModule,
+    EncoderDecoderDataModule,
 ):
     replace_modname(_mod, __name__)
 
