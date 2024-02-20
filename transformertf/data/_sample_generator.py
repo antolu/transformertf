@@ -277,7 +277,7 @@ class TransformerPredictionSampleGenerator(
         self,
         past_covariates: T,
         future_covariates: T,
-        past_target: T,
+        past_targets: T,
         context_length: int,
         prediction_length: int,
     ) -> None:
@@ -285,10 +285,10 @@ class TransformerPredictionSampleGenerator(
 
         self._num_points = len(future_covariates)
 
-        if len(past_covariates) != len(past_target):
+        if len(past_covariates) != len(past_targets):
             raise ValueError(
                 "Past covariates and past target must have the same length: "
-                f"({len(past_covariates)}) and ({len(past_target)})"
+                f"({len(past_covariates)}) and ({len(past_targets)})"
             )
         if len(past_covariates) != context_length:
             raise ValueError(
@@ -303,6 +303,7 @@ class TransformerPredictionSampleGenerator(
 
         self._context_length = context_length
         self._prediction_length = prediction_length
+        self._total_context = len(future_covariates)
 
         self._window_generator = WindowGenerator(
             len(past_covariates) + len(future_covariates),
@@ -314,9 +315,11 @@ class TransformerPredictionSampleGenerator(
         future_covariates = zero_pad_(
             future_covariates, self._window_generator.real_data_len
         )
-        self._covariates = concat(past_covariates, future_covariates, dim=0)
+        self._covariates = to_2dim(
+            concat(past_covariates, future_covariates, dim=0)
+        )
 
-        self._past_target = copy(past_target)
+        self._past_target = to_2dim(copy(past_targets))
 
     def add_target_context(self, future_target: T) -> None:
         """
@@ -324,7 +327,7 @@ class TransformerPredictionSampleGenerator(
         """
         if (
             len(future_target) + len(self._past_target)
-            > len(self._covariates) - self._prediction_length
+            > self._total_context + self._context_length
         ):
             raise ValueError(
                 "Future target length plus past target length must be "
@@ -332,7 +335,9 @@ class TransformerPredictionSampleGenerator(
                 "since there can be no further predictions "
             )
 
-        self._past_target = concat(self._past_target, future_target, dim=0)
+        self._past_target = concat(
+            self._past_target, to_2dim(future_target), dim=0
+        )
 
     def _make_sample(self, idx: int) -> EncoderDecoderSample[T]:
         idx = check_index(idx, len(self))
@@ -344,7 +349,7 @@ class TransformerPredictionSampleGenerator(
         tgt_slice = slice(ctxt_stop, sl.stop)
 
         if ctxt_stop > len(self._past_target):
-            raise ValueError(
+            raise IndexError(
                 f"No context data available for index {idx}. "
                 f"The context has ended at length {len(self._past_target)}, "
                 f"but the index {idx} requires a length of {ctxt_stop}. "
@@ -359,6 +364,7 @@ class TransformerPredictionSampleGenerator(
         tgt = concat(
             to_2dim(self._covariates[tgt_slice]),
             to_2dim(zeros_like(self._covariates[tgt_slice][..., 0])),
+            dim=-1,
         )
 
         return typing.cast(
@@ -454,7 +460,9 @@ def concat(*arrs: T, dim: int = 0) -> T:
 
 
 def to_2dim(arr: T) -> T:
-    if arr.ndim == 1:
+    if arr.ndim == 0:
+        return arr[None, None]
+    elif arr.ndim == 1:
         return arr[..., None]
     else:
         return arr
