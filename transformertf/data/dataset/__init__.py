@@ -1,10 +1,10 @@
 from ..._mod_replace import replace_modname
-from ._dataset import (
+from ._base import (
     AbstractTimeSeriesDataset,
-    EncoderDataset,
-    EncoderDecoderDataset,
-    TimeSeriesDataset,
 )
+from ._encoder import EncoderDataset
+from ._encoder_decoder import EncoderDecoderDataset
+from ._timeseries import TimeSeriesDataset
 
 
 for _mod in (
