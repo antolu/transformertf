@@ -15,8 +15,8 @@ import pandas as pd
 import torch
 
 from ._sample_generator import (
-    EncoderDecoderSample,
-    EncoderSample,
+    EncoderDecoderTargetSample,
+    EncoderTargetSample,
     TimeSeriesSample,
     TimeSeriesSampleGenerator,
     TransformerSampleGenerator,
@@ -481,7 +481,7 @@ class EncoderDataset(AbstractTimeSeriesDataset):
             dtype=dtype,
         )
 
-    def __getitem__(self, idx: int) -> EncoderSample:
+    def __getitem__(self, idx: int) -> EncoderTargetSample:
         """
         Get a single sample from the dataset.
 
@@ -491,7 +491,7 @@ class EncoderDataset(AbstractTimeSeriesDataset):
 
         Returns
         -------
-        EncoderSample
+        EncoderTargetSample
         """
         idx = _check_index(idx, len(self))
 
@@ -554,7 +554,7 @@ class EncoderDataset(AbstractTimeSeriesDataset):
 
 
 class EncoderDecoderDataset(EncoderDataset):
-    def __getitem__(self, idx: int) -> EncoderDecoderSample:
+    def __getitem__(self, idx: int) -> EncoderDecoderTargetSample:  # type: ignore[override]
         """
         Get a single sample from the dataset.
 
@@ -564,7 +564,7 @@ class EncoderDecoderDataset(EncoderDataset):
 
         Returns
         -------
-        EncoderDecoderSample
+        EncoderDecoderTargetSample
         """
         idx = _check_index(idx, len(self))
 

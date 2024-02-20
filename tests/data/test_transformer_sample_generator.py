@@ -4,19 +4,8 @@ Tests for the transformertf.data.TransformerSampleGenerator class.
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from transformertf.data import TransformerSampleGenerator
-
-
-@pytest.fixture(scope="module")
-def x_data() -> np.ndarray:
-    return np.array([1, 2, 3, 4, 5, 6, 7, 8, 9])
-
-
-@pytest.fixture(scope="module")
-def y_data() -> np.ndarray:
-    return np.array([10, 20, 30, 40, 50, 60, 70, 80, 90])
 
 
 def test_create_window_generator_xy_1d(

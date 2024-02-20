@@ -7,14 +7,15 @@ from ._dataset import (
 )
 from ._downsample import downsample
 from ._sample_generator import (
-    EncoderDecoderSample,
-    EncoderSample,
+    EncoderDecoderTargetSample,
+    EncoderTargetSample,
     TimeSeriesSample,
     TimeSeriesSampleGenerator,
     TransformerSampleGenerator,
 )
 from ._window_generator import WindowGenerator
 from .datamodule import (
+    DataModuleBase,
     EncoderDataModule,
     EncoderDecoderDataModule,
     TimeSeriesDataModule,
@@ -60,12 +61,13 @@ __all__ = [
     "TimeSeriesSampleGenerator",
     "TransformCollection",
     "TransformerDataModule",
+    "DataModuleBase",
     "EncoderDataModule",
     "EncoderDecoderDataModule",
     "EncoderDataset",
     "EncoderDecoderDataset",
-    "EncoderSample",
-    "EncoderDecoderSample",
+    "EncoderTargetSample",
+    "EncoderDecoderTargetSample",
     "TransformerSampleGenerator",
     "WindowGenerator",
     "downsample",

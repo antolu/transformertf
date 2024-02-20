@@ -4,7 +4,7 @@ import typing
 
 import torch
 
-from ...data import EncoderDecoderSample
+from ...data import EncoderDecoderTargetSample
 from .._base_module import LightningModuleBase
 from ..phylstm import PhyLSTM3Output, PhyLSTMLoss
 from ..typing import LR_CALL_TYPE, OPT_CALL_TYPE
@@ -104,14 +104,14 @@ class PhyTSMixerModule(LightningModuleBase):
 
         return default_kwargs
 
-    def forward(self, x: EncoderDecoderSample) -> PhyLSTM3Output:
+    def forward(self, x: EncoderDecoderTargetSample) -> PhyLSTM3Output:
         return self.model(
             past_covariates=x["encoder_input"],
             future_covariates=x["decoder_input"][..., :-1],
         )
 
     def training_step(
-        self, batch: EncoderDecoderSample, batch_idx: int
+        self, batch: EncoderDecoderTargetSample, batch_idx: int
     ) -> dict[str, torch.Tensor]:
         assert "target" in batch
         target = batch["target"]
@@ -126,7 +126,7 @@ class PhyTSMixerModule(LightningModuleBase):
 
     def validation_step(
         self,
-        batch: EncoderDecoderSample,
+        batch: EncoderDecoderTargetSample,
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> dict[str, torch.Tensor]:
