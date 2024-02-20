@@ -12,6 +12,7 @@ from ._sample_generator import (
     TimeSeriesSample,
     TimeSeriesSampleGenerator,
     TransformerSampleGenerator,
+    TransformerPredictionSampleGenerator,
 )
 from ._window_generator import WindowGenerator
 from .datamodule import (
@@ -38,6 +39,7 @@ for _mod in (
     RunningNormalizer,
     TimeSeriesSampleGenerator,
     TransformerSampleGenerator,
+    TransformerPredictionSampleGenerator,
     AbstractTimeSeriesDataset,
     EncoderDataset,
     EncoderDecoderDataset,
@@ -69,6 +71,7 @@ __all__ = [
     "EncoderTargetSample",
     "EncoderDecoderTargetSample",
     "TransformerSampleGenerator",
+    "TransformerPredictionSampleGenerator",
     "WindowGenerator",
     "downsample",
 ]
