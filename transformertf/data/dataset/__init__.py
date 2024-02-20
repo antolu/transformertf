@@ -5,6 +5,7 @@ from ._base import (
 from ._encoder import EncoderDataset
 from ._encoder_decoder import EncoderDecoderDataset
 from ._timeseries import TimeSeriesDataset
+from ._encoder_decoder_predict import EncoderDecoderPredictDataset
 
 
 for _mod in (
@@ -12,6 +13,7 @@ for _mod in (
     AbstractTimeSeriesDataset,
     EncoderDataset,
     EncoderDecoderDataset,
+    EncoderDecoderPredictDataset,
 ):
     replace_modname(_mod, __name__)
 
@@ -23,5 +25,6 @@ __all__ = [
     "AbstractTimeSeriesDataset",
     "EncoderDataset",
     "EncoderDecoderDataset",
+    "EncoderDecoderPredictDataset",
     "TimeSeriesDataset",
 ]
