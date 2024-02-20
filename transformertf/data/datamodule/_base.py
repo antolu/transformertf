@@ -13,7 +13,7 @@ import pandas as pd
 import torch
 import torch.utils.data
 
-from .._dataset import TimeSeriesDataset
+from transformertf.data.dataset import TimeSeriesDataset
 from .._downsample import downsample
 from ..transform import (
     BaseTransform,

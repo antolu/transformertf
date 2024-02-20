@@ -14,14 +14,14 @@ import numpy as np
 import pandas as pd
 import torch
 
-from ._sample_generator import (
+from transformertf.data._sample_generator import (
     EncoderDecoderTargetSample,
     EncoderTargetSample,
     TimeSeriesSample,
     TimeSeriesSampleGenerator,
     TransformerSampleGenerator,
 )
-from .transform import BaseTransform
+from transformertf.data.transform import BaseTransform
 
 if typing.TYPE_CHECKING:
     SameType = typing.TypeVar("SameType", bound="AbstractTimeSeriesDataset")
@@ -37,22 +37,6 @@ __all__ = [
 log = logging.getLogger(__name__)
 
 DATA_SOURCE = typing.Union[pd.Series, np.ndarray, torch.Tensor]
-
-
-DTYPE_MAP = {
-    "float32": torch.float32,
-    "float64": torch.float64,
-    "float": torch.float64,
-    "double": torch.float64,
-    "float16": torch.float16,
-    "int32": torch.int32,
-    "int64": torch.int64,
-    "int": torch.int64,
-    "long": torch.int64,
-    "int16": torch.int16,
-    "int8": torch.int8,
-    "uint8": torch.uint8,
-}
 
 
 class DataSetType(enum.Enum):
@@ -613,7 +597,6 @@ def convert_data(
         else:
             raise TypeError(f"Unsupported type {type(o)} for data")
 
-    dtype = DTYPE_MAP[dtype] if isinstance(dtype, str) else dtype
     return [to_torch(o).to(dtype) for o in source]
 
 

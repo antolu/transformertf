@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import typing
 
-from .._dataset import EncoderDataset, EncoderDecoderDataset
+from transformertf.data.dataset import EncoderDataset, EncoderDecoderDataset
 from ._base import DataModuleBase
 
 if typing.TYPE_CHECKING:
