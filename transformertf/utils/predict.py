@@ -13,6 +13,7 @@ from ..data import (
 from ..nn import QuantileLoss
 from ..data.dataset import EncoderDecoderPredictDataset
 from ..models import LightningModuleBase
+from ..models.phylstm import PhyLSTMModule
 from ..utils import ops
 
 
@@ -63,6 +64,83 @@ def predict_timeseries(
         outputs = datamodule.target_transform.inverse_transform(
             covariates[datamodule.hparams["input_columns"][0]].to_numpy(),
             outputs,
+        )
+
+    # truncate the outputs to the length of the future covariates
+    outputs = outputs[: dataset.num_points]
+    outputs = outputs[
+        len(past_covariates) // datamodule.hparams["downsample"] :
+    ]
+    return typing.cast(torch.Tensor, outputs).squeeze().numpy()
+
+
+def predict_phylstm(
+    module: PhyLSTMModule,
+    datamodule: TimeSeriesDataModule,
+    past_covariates: pd.DataFrame,
+    future_covariates: pd.DataFrame,
+    device: torch.device = torch.device(
+        "cuda" if torch.cuda.is_available() else "cpu"
+    ),
+) -> np.ndarray:
+    """
+
+    Parameters
+    ----------
+    module
+    datamodule
+    past_covariates
+    future_covariates
+    device
+
+    Returns
+    -------
+
+    """
+    covariates = pd.concat((past_covariates, future_covariates))
+
+    dataset = datamodule.make_dataset(covariates, predict=True)
+    dataloader = torch.utils.data.DataLoader(
+        dataset, batch_size=1, num_workers=0
+    )
+
+    outputs = []
+    inputs = []
+
+    module.on_predict_start()
+    module.on_predict_epoch_start()
+    for idx, batch in enumerate(dataloader):
+        batch = ops.to(batch, device)
+
+        model_output = module.predict_step(batch, idx)
+        module.on_predict_batch_end(model_output, batch, idx)
+
+        model_output = ops.to_cpu(model_output)
+        model_output = ops.detach(model_output)
+
+        inputs.append(batch["input"])
+        outputs.append(model_output)
+
+    module.on_predict_epoch_end()
+    module.on_predict_end()
+
+    predictions = torch.cat(
+        [o["output"]["z"].squeeze(0) for o in outputs], dim=0
+    )
+    predictions = predictions[..., 0]  # get B
+
+    inputs = torch.cat([i.squeeze(0) for i in inputs], dim=0).squeeze()
+
+    if datamodule.target_transform is not None:
+        input_transform = datamodule.input_transforms[
+            datamodule.hparams["input_columns"][0]
+        ]
+
+        inputs = input_transform.inverse_transform(inputs)
+
+        predictions = datamodule.target_transform.inverse_transform(
+            inputs,
+            predictions,
         )
 
     # truncate the outputs to the length of the future covariates
