@@ -8,11 +8,69 @@ import torch
 
 from ..data import (
     EncoderDecoderDataModule,
+    TimeSeriesDataModule,
 )
 from ..nn import QuantileLoss
 from ..data.dataset import EncoderDecoderPredictDataset
 from ..models import LightningModuleBase
 from ..utils import ops
+
+
+def predict_timeseries(
+    module: LightningModuleBase,
+    datamodule: TimeSeriesDataModule,
+    past_covariates: pd.DataFrame,
+    future_covariates: pd.DataFrame,
+    device: torch.device = torch.device(
+        "cuda" if torch.cuda.is_available() else "cpu"
+    ),
+) -> np.ndarray:
+    """
+    UNTESTED
+
+    Parameters
+    ----------
+    module
+    datamodule
+    past_covariates
+    future_covariates
+    device
+
+    Returns
+    -------
+
+    """
+    covariates = pd.concat((past_covariates, future_covariates))
+
+    dataset = datamodule.make_dataset(covariates, predict=True)
+    dataloader = torch.utils.data.DataLoader(
+        dataset, batch_size=1, num_workers=0
+    )
+
+    outputs = []
+    for idx, batch in enumerate(dataloader):
+        batch = ops.to(batch, device)
+
+        model_output = module(batch)
+        model_output = ops.to_cpu(model_output)
+        model_output = ops.detach(model_output)
+
+        outputs.append(model_output)
+
+    outputs = torch.cat([o.squeeze(0) for o in outputs], dim=0)
+
+    if datamodule.target_transform is not None:
+        outputs = datamodule.target_transform.inverse_transform(
+            covariates[datamodule.hparams["input_columns"][0]].to_numpy(),
+            outputs,
+        )
+
+    # truncate the outputs to the length of the future covariates
+    outputs = outputs[: dataset.num_points]
+    outputs = outputs[
+        len(past_covariates) // datamodule.hparams["downsample"] :
+    ]
+    return typing.cast(torch.Tensor, outputs).squeeze().numpy()
 
 
 @typing.overload
