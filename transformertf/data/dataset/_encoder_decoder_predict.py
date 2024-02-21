@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import typing
 
-from ._base import AbstractTimeSeriesDataset, DataSetType
+from ._base import AbstractTimeSeriesDataset, DataSetType, convert_data
 
 
 import numpy as np
@@ -10,7 +10,7 @@ import pandas as pd
 
 import torch
 
-from ..transform import BaseTransform
+from ..transform import BaseTransform, TransformType
 from .._sample_generator import (
     TransformerPredictionSampleGenerator,
     EncoderDecoderSample,
@@ -33,6 +33,7 @@ class EncoderDecoderPredictDataset(
         target_transform: BaseTransform | None = None,
         input_columns: list[str] | None = None,
         target_column: str | None = None,
+        dtype: torch.dtype = torch.float32,
     ) -> None:
         """
         A dataset for predicting future time steps using an encoder-decoder
@@ -97,6 +98,7 @@ class EncoderDecoderPredictDataset(
 
         self._context_length = context_length
         self._target_length = prediction_length
+        self._dtype = dtype
 
         past_covariates = extract_covariates_from_df(
             past_covariates, input_columns
@@ -116,8 +118,15 @@ class EncoderDecoderPredictDataset(
             future_covariates, self._input_transform
         )
         self._past_target = apply_transforms(
-            past_target, self._target_transform
+            past_target, self._target_transform, past_covariates[..., 0]
         )
+
+        # convert to torch tensors
+        self._past_covariates = convert_data(self._past_covariates, dtype)[0]
+        self._future_covariates = convert_data(self._future_covariates, dtype)[
+            0
+        ]
+        self._past_target = convert_data(self._past_target, dtype)[0]
 
         self._sample_generator = TransformerPredictionSampleGenerator(
             past_covariates=self._past_covariates,
@@ -182,6 +191,7 @@ def keep_only_context(
 def apply_transforms(
     data: np.ndarray | pd.Series,
     transforms: dict[str, BaseTransform] | BaseTransform | None = None,
+    dependency: np.ndarray | pd.Series | None = None,
 ) -> torch.Tensor:
     """
     Applies the provided transforms to the data. If the data is a 2D array,
@@ -223,7 +233,20 @@ def apply_transforms(
         if isinstance(transforms, dict):
             transforms = list(transforms.values())[0]
         assert isinstance(transforms, BaseTransform)  # mypy
-        return transforms.transform(data)
+
+        if (
+            dependency is not None
+            and transforms.transform_type == TransformType.XY
+        ):
+            dependency = (
+                dependency.to_numpy()
+                if isinstance(dependency, pd.Series)
+                else dependency
+            )
+
+            return transforms.transform(dependency, data)
+        else:
+            return transforms.transform(data)
 
     # If the data is a 2D array
     num_cols = data.shape[1]

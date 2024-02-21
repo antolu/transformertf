@@ -437,6 +437,11 @@ class DataModuleBase(L.LightningDataModule):
         pd.DataFrame
             The preprocessed dataframe.
         """
+        df = downsample(
+            df,
+            downsample=self.hparams["downsample"],
+            method=self.hparams["downsample_method"],
+        )
         return df
 
     def apply_transforms(
@@ -536,11 +541,6 @@ class DataModuleBase(L.LightningDataModule):
             else None,
         )
         df = self.preprocess_dataframe(df)
-        df = downsample(
-            df,
-            downsample=self.hparams["downsample"],
-            method=self.hparams["downsample_method"],
-        )
 
         df = self.apply_transforms(df, skip_target=skip_target)
 
