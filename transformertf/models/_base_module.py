@@ -37,7 +37,7 @@ class LightningModuleBase(L.LightningModule):
         **kwargs: typing.Any,
     ) -> None:
         super().__init__()
-        self.save_hyperparameters(ignore=["lr_scheduler"])
+        self.save_hyperparameters(ignore=["lr_scheduler", "criterion"])
 
         self._train_outputs: dict[int, list[MODEL_OUTPUT]] = {}
         self._val_outputs: dict[int, list[MODEL_OUTPUT]] = {}
