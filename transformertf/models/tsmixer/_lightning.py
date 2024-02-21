@@ -4,7 +4,7 @@ import typing
 
 import torch
 
-from ...data import EncoderDecoderSample
+from ...data import EncoderDecoderTargetSample
 from ...nn import QuantileLoss
 from .._base_module import LightningModuleBase
 from ..typing import LR_CALL_TYPE, OPT_CALL_TYPE
@@ -37,10 +37,9 @@ class TSMixerModule(LightningModuleBase):
         max_epochs: int = 1000,
         validate_every_n_epochs: int = 50,
         log_grad_norm: bool = False,
-        criterion: QuantileLoss
-        | torch.nn.MSELoss
-        | torch.nn.HuberLoss
-        | None = None,
+        criterion: (
+            QuantileLoss | torch.nn.MSELoss | torch.nn.HuberLoss | None
+        ) = None,
         lr_scheduler: str | LR_CALL_TYPE | None = None,
         lr_scheduler_interval: typing.Literal["epoch", "step"] = "epoch",
     ):
@@ -120,14 +119,14 @@ class TSMixerModule(LightningModuleBase):
 
         return default_kwargs
 
-    def forward(self, x: EncoderDecoderSample) -> torch.Tensor:
+    def forward(self, x: EncoderDecoderTargetSample) -> torch.Tensor:
         return self.model(
             past_covariates=x["encoder_input"],
             future_covariates=x["decoder_input"][..., :-1],
         )
 
     def training_step(
-        self, batch: EncoderDecoderSample, batch_idx: int
+        self, batch: EncoderDecoderTargetSample, batch_idx: int
     ) -> dict[str, torch.Tensor]:
         assert "target" in batch
         target = batch["target"]
@@ -142,7 +141,7 @@ class TSMixerModule(LightningModuleBase):
 
     def validation_step(
         self,
-        batch: EncoderDecoderSample,
+        batch: EncoderDecoderTargetSample,
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> dict[str, torch.Tensor]:

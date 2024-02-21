@@ -101,8 +101,7 @@ class PhyLSTMLoss(nn.Module):
         weights: LossWeights | None = None,
         *,
         return_all: typing.Literal[False],
-    ) -> torch.Tensor:
-        ...
+    ) -> torch.Tensor: ...
 
     @typing.overload
     def forward(
@@ -112,8 +111,7 @@ class PhyLSTMLoss(nn.Module):
         weights: LossWeights | None = None,
         *,
         return_all: typing.Literal[True],
-    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
-        ...
+    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]: ...
 
     @typing.overload
     def forward(
@@ -123,8 +121,7 @@ class PhyLSTMLoss(nn.Module):
         weights: LossWeights | None = None,
         *,
         return_all: typing.Literal[False] = False,
-    ) -> torch.Tensor:
-        ...
+    ) -> torch.Tensor: ...
 
     def forward(
         self,
@@ -165,8 +162,7 @@ class PhyLSTMLoss(nn.Module):
         weights: LossWeights | None = None,
         *,
         return_all: typing.Literal[False],
-    ) -> torch.Tensor:
-        ...
+    ) -> torch.Tensor: ...
 
     @typing.overload
     def forward_explicit(
@@ -179,8 +175,7 @@ class PhyLSTMLoss(nn.Module):
         weights: LossWeights | None = None,
         *,
         return_all: typing.Literal[True],
-    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
-        ...
+    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]: ...
 
     @typing.overload
     def forward_explicit(
@@ -193,8 +188,7 @@ class PhyLSTMLoss(nn.Module):
         weights: LossWeights | None = None,
         *,
         return_all: typing.Literal[False] = False,
-    ) -> torch.Tensor:
-        ...
+    ) -> torch.Tensor: ...
 
     @typing.overload
     def forward_explicit(
@@ -207,8 +201,7 @@ class PhyLSTMLoss(nn.Module):
         weights: LossWeights | None = None,
         *,
         return_all: bool = False,
-    ) -> torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]:
-        ...
+    ) -> torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]: ...
 
     def forward_explicit(
         self,

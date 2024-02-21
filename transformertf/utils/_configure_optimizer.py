@@ -1,6 +1,7 @@
 """
 This module contains functions to configure the optimizer and learning rate scheduler.
 """
+
 from __future__ import annotations
 
 import functools
@@ -135,12 +136,14 @@ def configure_optimizers(
 
 def configure_lr_scheduler(
     optimizer: torch.optim.Optimizer,
-    lr_scheduler: str
-    | typing.Type[torch.optim.lr_scheduler.LRScheduler]
-    | functools.partial
-    | typing.Callable[
-        [torch.optim.Optimizer], torch.optim.lr_scheduler.LRScheduler
-    ],
+    lr_scheduler: (
+        str
+        | typing.Type[torch.optim.lr_scheduler.LRScheduler]
+        | functools.partial
+        | typing.Callable[
+            [torch.optim.Optimizer], torch.optim.lr_scheduler.LRScheduler
+        ]
+    ),
     monitor: str | None = None,
     scheduler_interval: typing.Literal["step", "epoch"] = "epoch",
     max_epochs: int | None = None,

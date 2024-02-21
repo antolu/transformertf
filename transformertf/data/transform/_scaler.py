@@ -149,8 +149,7 @@ class RunningNormalizer(BaseTransform):
         y: None = None,
         return_scales: typing.Literal[False] = False,
         target_scale: torch.Tensor | None = None,
-    ) -> torch.Tensor:
-        ...
+    ) -> torch.Tensor: ...
 
     @typing.overload
     def transform(
@@ -159,8 +158,7 @@ class RunningNormalizer(BaseTransform):
         y: torch.Tensor | np.ndarray | None = None,
         return_scales: typing.Literal[True] = True,
         target_scale: torch.Tensor | None = None,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        ...
+    ) -> tuple[torch.Tensor, torch.Tensor]: ...
 
     def transform(
         self,

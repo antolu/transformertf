@@ -1,5 +1,5 @@
 from .._mod_replace import replace_modname
-from ._dataset import (
+from transformertf.data.dataset import (
     AbstractTimeSeriesDataset,
     EncoderDataset,
     EncoderDecoderDataset,
@@ -7,14 +7,16 @@ from ._dataset import (
 )
 from ._downsample import downsample
 from ._sample_generator import (
-    EncoderDecoderSample,
-    EncoderSample,
+    EncoderDecoderTargetSample,
+    EncoderTargetSample,
     TimeSeriesSample,
     TimeSeriesSampleGenerator,
     TransformerSampleGenerator,
+    TransformerPredictionSampleGenerator,
 )
 from ._window_generator import WindowGenerator
 from .datamodule import (
+    DataModuleBase,
     EncoderDataModule,
     EncoderDecoderDataModule,
     TimeSeriesDataModule,
@@ -31,15 +33,12 @@ from .transform import (
 
 for _mod in (
     WindowGenerator,
-    TimeSeriesDataset,
     TimeSeriesSample,
     FixedPolynomialTransform,
     RunningNormalizer,
     TimeSeriesSampleGenerator,
     TransformerSampleGenerator,
-    AbstractTimeSeriesDataset,
-    EncoderDataset,
-    EncoderDecoderDataset,
+    TransformerPredictionSampleGenerator,
     downsample,
 ):
     replace_modname(_mod, __name__)
@@ -60,13 +59,15 @@ __all__ = [
     "TimeSeriesSampleGenerator",
     "TransformCollection",
     "TransformerDataModule",
+    "DataModuleBase",
     "EncoderDataModule",
     "EncoderDecoderDataModule",
     "EncoderDataset",
     "EncoderDecoderDataset",
-    "EncoderSample",
-    "EncoderDecoderSample",
+    "EncoderTargetSample",
+    "EncoderDecoderTargetSample",
     "TransformerSampleGenerator",
+    "TransformerPredictionSampleGenerator",
     "WindowGenerator",
     "downsample",
 ]

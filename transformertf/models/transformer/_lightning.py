@@ -4,7 +4,7 @@ import typing
 
 import torch
 
-from ...data import EncoderDecoderSample
+from ...data import EncoderDecoderTargetSample
 from ...nn import QuantileLoss
 from .._base_module import LightningModuleBase
 from ..typing import LR_CALL_TYPE, OPT_CALL_TYPE
@@ -123,7 +123,7 @@ class VanillaTransformerModule(LightningModuleBase):
 
         return default_kwargs
 
-    def forward(self, x: EncoderDecoderSample) -> torch.Tensor:
+    def forward(self, x: EncoderDecoderTargetSample) -> torch.Tensor:
         return self.model(
             source=x["encoder_input"],
             target=x["decoder_input"],
@@ -132,7 +132,7 @@ class VanillaTransformerModule(LightningModuleBase):
         )
 
     def training_step(
-        self, batch: EncoderDecoderSample, batch_idx: int
+        self, batch: EncoderDecoderTargetSample, batch_idx: int
     ) -> dict[str, torch.Tensor]:
         assert "target" in batch
         target = batch["target"].squeeze(-1)
@@ -156,7 +156,7 @@ class VanillaTransformerModule(LightningModuleBase):
 
     def validation_step(
         self,
-        batch: EncoderDecoderSample,
+        batch: EncoderDecoderTargetSample,
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> dict[str, torch.Tensor]:

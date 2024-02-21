@@ -5,6 +5,7 @@ samples for the time series dataset, using the WindowGenerator class.
 
 :author: Anton Lu (anton.lu@cern.ch)
 """
+
 from __future__ import annotations
 
 import logging
@@ -27,13 +28,21 @@ __all__ = [
     "SampleGenerator",
     "EncoderSample",
     "EncoderDecoderSample",
+    "EncoderTargetSample",
+    "EncoderDecoderTargetSample",
     "TransformerSampleGenerator",
+    "TransformerPredictionSampleGenerator",
 ]
 
 T = typing.TypeVar("T", np.ndarray, torch.Tensor)
 U = typing.TypeVar("U")
 
 log = logging.getLogger(__name__)
+
+
+class TargetSample(TypedDict, typing.Generic[T]):
+    target: T
+    """ Target / ground truth data for the time series, size L. """
 
 
 class TimeSeriesSample(TypedDict, typing.Generic[T]):
@@ -56,12 +65,10 @@ class SampleGenerator(typing.Sequence[U]):
         raise NotImplementedError
 
     @typing.overload
-    def __getitem__(self, idx: int) -> U:
-        ...
+    def __getitem__(self, idx: int) -> U: ...
 
     @typing.overload
-    def __getitem__(self, idx: slice) -> typing.Sequence[U]:
-        ...
+    def __getitem__(self, idx: slice) -> typing.Sequence[U]: ...
 
     def __getitem__(self, idx: int | slice) -> U | typing.Sequence[U]:
         if isinstance(idx, int):
@@ -167,8 +174,9 @@ class EncoderSample(TypedDict, typing.Generic[T]):
     encoder_mask: NotRequired[T]
     """ Source sequence mask to encoder. Typically should all be ones. """
 
-    target: T
-    """ Target / ground truth sequence."""
+
+class EncoderTargetSample(EncoderSample, TargetSample, typing.Generic[T]):
+    x: int
 
 
 class EncoderDecoderSample(EncoderSample, typing.Generic[T]):
@@ -178,7 +186,15 @@ class EncoderDecoderSample(EncoderSample, typing.Generic[T]):
     """ Target mask. Typically should all be ones. """
 
 
-class TransformerSampleGenerator(SampleGenerator[EncoderDecoderSample[T]]):
+class EncoderDecoderTargetSample(
+    EncoderDecoderSample, TargetSample, typing.Generic[T]
+):
+    pass
+
+
+class TransformerSampleGenerator(
+    SampleGenerator[EncoderDecoderTargetSample[T]]
+):
     _input_data: T
     _label_data: T
 
@@ -217,19 +233,13 @@ class TransformerSampleGenerator(SampleGenerator[EncoderDecoderSample[T]]):
                 self._label_data, self._window_generator.real_data_len
             )
 
-    def _make_sample(self, idx: int) -> EncoderDecoderSample[T]:
+    def _make_sample(self, idx: int) -> EncoderDecoderTargetSample[T]:  # type: ignore[override]
         idx = check_index(idx, len(self))
 
         sl = self._window_generator[idx]
 
         src_slice = slice(sl.start, sl.start + self._src_seq_len)
         tgt_slice = slice(sl.start + self._src_seq_len, sl.stop)
-
-        def to_2dim(arr: T) -> T:
-            if arr.ndim == 1:
-                return arr[..., None]
-            else:
-                return arr
 
         src = concat(
             to_2dim(self._input_data[src_slice]),
@@ -244,13 +254,124 @@ class TransformerSampleGenerator(SampleGenerator[EncoderDecoderSample[T]]):
         label = to_2dim(self._label_data[tgt_slice])
 
         return typing.cast(
-            EncoderDecoderSample[T],
+            EncoderDecoderTargetSample[T],
             {
                 "encoder_input": src,
                 "encoder_mask": ones_like(src),
                 "decoder_input": tgt,
                 "decoder_mask": ones_like(tgt),
                 "target": label,
+            },
+        )
+
+    def __len__(self) -> int:
+        return self._window_generator.num_samples
+
+
+class TransformerPredictionSampleGenerator(
+    SampleGenerator[EncoderDecoderSample[T]]
+):
+    def __init__(
+        self,
+        past_covariates: T,
+        future_covariates: T,
+        past_targets: T,
+        context_length: int,
+        prediction_length: int,
+    ) -> None:
+        super().__init__()
+
+        self._num_points = len(future_covariates)
+
+        if len(past_covariates) != len(past_targets):
+            raise ValueError(
+                "Past covariates and past target must have the same length: "
+                f"({len(past_covariates)}) and ({len(past_targets)})"
+            )
+        if len(past_covariates) != context_length:
+            raise ValueError(
+                f"Past covariates must have length {context_length}"
+            )
+
+        if len(future_covariates) < prediction_length:
+            raise ValueError(
+                f"Future covariates must have at least length "
+                f"{prediction_length}"
+            )
+
+        self._context_length = context_length
+        self._prediction_length = prediction_length
+        self._total_context = len(future_covariates)
+
+        self._window_generator = WindowGenerator(
+            len(past_covariates) + len(future_covariates),
+            context_length + prediction_length,
+            stride=prediction_length,
+            zero_pad=True,
+        )
+
+        future_covariates = zero_pad_(
+            future_covariates, self._window_generator.real_data_len
+        )
+        self._covariates = to_2dim(
+            concat(past_covariates, future_covariates, dim=0)
+        )
+
+        self._past_target = to_2dim(copy(past_targets))
+
+    def add_target_context(self, future_target: T) -> None:
+        """
+        Add future target to the dataset to increase the context length.
+        """
+        if (
+            len(future_target) + len(self._past_target)
+            > self._total_context + self._context_length
+        ):
+            raise ValueError(
+                "Future target length plus past target length must be "
+                "less than or equal to the length of the future covariates "
+                "since there can be no further predictions "
+            )
+
+        self._past_target = concat(
+            self._past_target, to_2dim(future_target), dim=0
+        )
+
+    def _make_sample(self, idx: int) -> EncoderDecoderSample[T]:
+        idx = check_index(idx, len(self))
+
+        sl = self._window_generator[idx]
+        ctxt_stop = sl.start + self._context_length
+
+        src_slice = slice(sl.start, ctxt_stop)
+        tgt_slice = slice(ctxt_stop, sl.stop)
+
+        if ctxt_stop > len(self._past_target):
+            raise IndexError(
+                f"No context data available for index {idx}. "
+                f"The context has ended at length {len(self._past_target)}, "
+                f"but the index {idx} requires a length of {ctxt_stop}. "
+                f"Add more target context using the `add_target_context` method."
+            )
+
+        src = concat(
+            to_2dim(self._covariates[src_slice]),
+            to_2dim(self._past_target[src_slice]),
+            dim=-1,
+        )
+        tgt = concat(
+            to_2dim(self._covariates[tgt_slice]),
+            to_2dim(zeros_like(self._covariates[tgt_slice][..., 0])),
+            dim=-1,
+        )
+
+        return typing.cast(
+            EncoderDecoderSample[T],
+            {
+                "encoder_input": src,
+                "encoder_mask": ones_like(src),
+                "decoder_input": tgt,
+                "decoder_mask": ones_like(tgt),
             },
         )
 
@@ -334,3 +455,12 @@ def concat(*arrs: T, dim: int = 0) -> T:
         return torch.cat(arrs, dim=dim)  # type: ignore[return-value]
     else:
         raise TypeError
+
+
+def to_2dim(arr: T) -> T:
+    if arr.ndim == 0:
+        return arr[None, None]
+    elif arr.ndim == 1:
+        return arr[..., None]
+    else:
+        return arr

@@ -59,10 +59,12 @@ class PreisachModule(LightningModuleBase):
         cls: typing.Type[SameType],
         config: PreisachConfig,
         criterion: typing.Type[torch.nn.Module] | None = None,
-        lr_scheduler: str
-        | typing.Type[torch.optim.lr_scheduler.LRScheduler]
-        | functools.partial
-        | None = None,
+        lr_scheduler: (
+            str
+            | typing.Type[torch.optim.lr_scheduler.LRScheduler]
+            | functools.partial
+            | None
+        ) = None,
         **kwargs: typing.Any,
     ) -> SameType:
         default_kwargs = {

@@ -4,6 +4,7 @@ Implementation of Gated Residual Network (GRN) module as described in the paper
 by Lim et al.
 https://arxiv.org/abs/1912.09363
 """
+
 from __future__ import annotations
 
 import torch

@@ -94,9 +94,9 @@ class TransformerV2(torch.nn.Module):
         )
         self.grn3 = GatedResidualNetwork(
             input_dim=self.n_dim_model,
-            hidden_dim=self.fc_dim
-            if isinstance(self.fc_dim, int)
-            else self.fc_dim[0],
+            hidden_dim=(
+                self.fc_dim if isinstance(self.fc_dim, int) else self.fc_dim[0]
+            ),
             output_dim=self.n_dim_model,
             dropout=self.dropout,
             activation=self.activation,  # type: ignore[arg-type]

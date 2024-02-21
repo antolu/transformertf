@@ -86,42 +86,41 @@ def squeeze(data: T_co) -> T_co:
 @typing.overload
 def concatenate(
     value: tuple[arr_t, ...] | list[arr_t] | typing.Sequence[arr_t]
-) -> arr_t:
-    ...
+) -> arr_t: ...
 
 
 @typing.overload
 def concatenate(
     value: typing.Sequence[tuple[arr_t, ...]]
-) -> tuple[arr_t, ...]:
-    ...
+) -> tuple[arr_t, ...]: ...
 
 
 @typing.overload  # type: ignore[misc]
-def concatenate(value: typing.Sequence[dict[str, arr_t]]) -> dict[str, arr_t]:
-    ...
+def concatenate(
+    value: typing.Sequence[dict[str, arr_t]]
+) -> dict[str, arr_t]: ...
 
 
 @typing.overload
-def concatenate(value: typing.Sequence[list[arr_t]]) -> list[arr_t]:
-    ...
+def concatenate(value: typing.Sequence[list[arr_t]]) -> list[arr_t]: ...
 
 
 @typing.overload
 def concatenate(
     value: typing.Sequence[typing.Sequence[arr_t]],
-) -> typing.Sequence[arr_t]:
-    ...
+) -> typing.Sequence[arr_t]: ...
 
 
 def concatenate(  # type: ignore[misc]
-    value: list[tuple[arr_t, ...]]
-    | list[arr_t]
-    | typing.Sequence[dict[str, arr_t]]
-    | typing.Sequence[arr_t]
-    | typing.Sequence[tuple[arr_t, ...]]
-    | typing.Sequence[list[arr_t]]
-    | typing.Sequence[typing.Sequence[arr_t]]
+    value: (
+        list[tuple[arr_t, ...]]
+        | list[arr_t]
+        | typing.Sequence[dict[str, arr_t]]
+        | typing.Sequence[arr_t]
+        | typing.Sequence[tuple[arr_t, ...]]
+        | typing.Sequence[list[arr_t]]
+        | typing.Sequence[typing.Sequence[arr_t]]
+    )
 ) -> (
     arr_t
     | dict[str, arr_t]

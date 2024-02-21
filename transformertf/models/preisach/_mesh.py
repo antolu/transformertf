@@ -31,10 +31,9 @@ def exponential_mesh(
 
 def create_triangle_mesh(
     mesh_scale: float,
-    mesh_density_function: typing.Callable[
-        [np.ndarray, np.ndarray, float], np.ndarray
-    ]
-    | None = None,
+    mesh_density_function: (
+        typing.Callable[[np.ndarray, np.ndarray, float], np.ndarray] | None
+    ) = None,
 ) -> np.ndarray:
     mesh_density_function = mesh_density_function or default_mesh_size
     with pygmsh.geo.Geometry() as geom:

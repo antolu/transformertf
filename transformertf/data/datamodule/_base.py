@@ -13,7 +13,7 @@ import pandas as pd
 import torch
 import torch.utils.data
 
-from .._dataset import TimeSeriesDataset
+from transformertf.data.dataset import TimeSeriesDataset
 from .._downsample import downsample
 from ..transform import (
     BaseTransform,
@@ -47,9 +47,6 @@ class DataModuleBase(L.LightningDataModule):
 
     _input_transforms: dict[str, TransformCollection]
     _target_transform: TransformCollection
-
-    TRANSFORMS: list[typing.Literal["polynomial", "normalize"]] = []
-    """ Which transforms are to be run """
 
     def __init__(
         self,
@@ -136,13 +133,8 @@ class DataModuleBase(L.LightningDataModule):
         """
         Instantiates the transforms to be used by the datamodule.
         """
-        normalize = (
-            self.hparams["normalize"] and "normalize" in self.TRANSFORMS
-        )
-        polynomial = (
-            self.hparams["remove_polynomial"]
-            and "polynomial" in self.TRANSFORMS
-        )
+        normalize = self.hparams["normalize"]
+        polynomial = self.hparams["remove_polynomial"]
 
         # input transforms
         input_transforms: dict[str, list[BaseTransform]]
@@ -355,13 +347,6 @@ class DataModuleBase(L.LightningDataModule):
         train_df = list(map(self.preprocess_dataframe, self._raw_train_df))
         val_df = list(map(self.preprocess_dataframe, self._raw_val_df))
 
-        # downsample after preprocessing, but before transforming data
-        ds = functools.partial(
-            downsample, downsample=self.hparams["downsample"]
-        )
-        train_df = list(map(ds, train_df))
-        val_df = list(map(ds, val_df))
-
         if not self._scalers_fitted():
             self._fit_transforms(pd.concat(train_df))
 
@@ -373,8 +358,9 @@ class DataModuleBase(L.LightningDataModule):
 
     def setup(
         self,
-        stage: typing.Literal["fit", "train", "val", "test", "predict"]
-        | None = None,
+        stage: (
+            typing.Literal["fit", "train", "val", "test", "predict"] | None
+        ) = None,
     ) -> None:
         """
         Sets up the data for training, validation or testing.
@@ -437,6 +423,11 @@ class DataModuleBase(L.LightningDataModule):
         pd.DataFrame
             The preprocessed dataframe.
         """
+        df = downsample(
+            df,
+            downsample=self.hparams["downsample"],
+            method=self.hparams["downsample_method"],
+        )
         return df
 
     def apply_transforms(
@@ -478,20 +469,24 @@ class DataModuleBase(L.LightningDataModule):
             return out
 
         if self.hparams["target_depends_on"] is not None:
-            out[
-                self.hparams["target_column"]
-            ] = self._target_transform.transform(
-                torch.from_numpy(
-                    df[self.hparams["target_depends_on"]].to_numpy()
-                ),
-                torch.from_numpy(df[self.hparams["target_column"]].to_numpy()),
+            out[self.hparams["target_column"]] = (
+                self._target_transform.transform(
+                    torch.from_numpy(
+                        df[self.hparams["target_depends_on"]].to_numpy()
+                    ),
+                    torch.from_numpy(
+                        df[self.hparams["target_column"]].to_numpy()
+                    ),
+                )
             )
         else:
-            out[
-                self.hparams["target_column"]
-            ] = self._target_transform.transform(
-                torch.tensor([]),
-                torch.from_numpy(df[self.hparams["target_column"]].to_numpy()),
+            out[self.hparams["target_column"]] = (
+                self._target_transform.transform(
+                    torch.tensor([]),
+                    torch.from_numpy(
+                        df[self.hparams["target_column"]].to_numpy()
+                    ),
+                )
             )
 
         return out
@@ -531,16 +526,11 @@ class DataModuleBase(L.LightningDataModule):
             input_,
             timestamp=timestamp,
             input_columns=self.hparams["input_columns"],
-            target_column=self.hparams["target_column"]
-            if not skip_target
-            else None,
+            target_column=(
+                self.hparams["target_column"] if not skip_target else None
+            ),
         )
         df = self.preprocess_dataframe(df)
-        df = downsample(
-            df,
-            downsample=self.hparams["downsample"],
-            method=self.hparams["downsample_method"],
-        )
 
         df = self.apply_transforms(df, skip_target=skip_target)
 

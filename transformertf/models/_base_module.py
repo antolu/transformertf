@@ -17,9 +17,13 @@ if typing.TYPE_CHECKING:
 
 
 class LightningModuleBase(L.LightningModule):
-    _lr_scheduler: str | typing.Callable[
-        [tuple[typing.Any, ...]], torch.optim.lr_scheduler.LRScheduler
-    ] | None
+    _lr_scheduler: (
+        str
+        | typing.Callable[
+            [tuple[typing.Any, ...]], torch.optim.lr_scheduler.LRScheduler
+        ]
+        | None
+    )
 
     def __init__(
         self,
@@ -37,7 +41,7 @@ class LightningModuleBase(L.LightningModule):
         **kwargs: typing.Any,
     ) -> None:
         super().__init__()
-        self.save_hyperparameters(ignore=["lr_scheduler"])
+        self.save_hyperparameters(ignore=["lr_scheduler", "criterion"])
 
         self._train_outputs: dict[int, list[MODEL_OUTPUT]] = {}
         self._val_outputs: dict[int, list[MODEL_OUTPUT]] = {}

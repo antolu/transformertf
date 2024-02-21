@@ -132,8 +132,7 @@ class LSTMModule(LightningModuleBase):
         x: torch.Tensor,
         return_states: typing.Literal[False] = False,
         hidden_state: HIDDEN_STATE | None = None,
-    ) -> torch.Tensor:
-        ...
+    ) -> torch.Tensor: ...
 
     @typing.overload
     def forward(
@@ -141,8 +140,7 @@ class LSTMModule(LightningModuleBase):
         x: torch.Tensor,
         return_states: typing.Literal[True],
         hidden_state: HIDDEN_STATE | None = None,
-    ) -> tuple[torch.Tensor, HIDDEN_STATE]:
-        ...
+    ) -> tuple[torch.Tensor, HIDDEN_STATE]: ...
 
     def forward(
         self,

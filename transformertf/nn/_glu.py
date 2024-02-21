@@ -3,6 +3,7 @@ Gate Linear Unit (GLU) module as described in the paper
 "Language Modeling with Gated Convolutional Networks" by Dauphin et al.
 https://arxiv.org/abs/1612.08083
 """
+
 from __future__ import annotations
 
 import torch

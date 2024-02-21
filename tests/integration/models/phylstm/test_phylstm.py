@@ -1,6 +1,7 @@
 """
 This module contains complete tests for the PhyLSTM model.
 """
+
 from __future__ import annotations
 
 import pandas as pd

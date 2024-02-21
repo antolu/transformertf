@@ -47,8 +47,6 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
     :attr:`train_data`, :attr:`val_data` and :attr:`test_data`.
     """
 
-    TRANSFORMS = ["polynomial", "normalize"]
-
     def __init__(
         self,
         train_df: pd.DataFrame | list[pd.DataFrame] | None,
@@ -146,7 +144,6 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
         pd.DataFrame
             The preprocessed dataframe.
         """
-        df = super().preprocess_dataframe(df)
 
         current: str = self.hparams["input_columns"][0]
         field: str | None = self.hparams["target_column"]
@@ -178,5 +175,7 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
                     stride=1,
                     threshold=6e-6,
                 )
+
+        df = super().preprocess_dataframe(df)
 
         return df

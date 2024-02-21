@@ -42,24 +42,21 @@ class BaseTransform(
         nn.Module.__init__(self)
 
     @typing.overload
-    def fit(self: SameType, x: torch.Tensor | np.ndarray) -> SameType:
-        ...
+    def fit(self: SameType, x: torch.Tensor | np.ndarray) -> SameType: ...
 
     @typing.overload
     def fit(
         self: SameType,
         x: torch.Tensor | np.ndarray,
         y: torch.Tensor | np.ndarray,
-    ) -> SameType:
-        ...
+    ) -> SameType: ...
 
     @typing.overload
     def fit(
         self: SameType,
         x: torch.Tensor | np.ndarray,
         y: torch.Tensor | np.ndarray | None = None,
-    ) -> SameType:
-        ...
+    ) -> SameType: ...
 
     def fit(
         self: SameType,

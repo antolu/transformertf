@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import typing
 
-from .._dataset import EncoderDataset, EncoderDecoderDataset
+from transformertf.data.dataset import EncoderDataset, EncoderDecoderDataset
 from ._base import DataModuleBase
 
 if typing.TYPE_CHECKING:
@@ -14,8 +14,6 @@ if typing.TYPE_CHECKING:
 
 
 class TransformerDataModule(DataModuleBase):
-    TRANSFORMS = ["normalize", "polynomial"]
-
     def __init__(
         self,
         train_df: pd.DataFrame | list[pd.DataFrame],
@@ -99,9 +97,9 @@ class EncoderDecoderDataModule(TransformerDataModule):
             min_ctxt_seq_len=self.hparams["min_ctxt_seq_len"],
             min_tgt_seq_len=self.hparams["min_tgt_seq_len"],
             stride=self.hparams["stride"],
-            randomize_seq_len=self.hparams["randomize_seq_len"]
-            if not predict
-            else False,
+            randomize_seq_len=(
+                self.hparams["randomize_seq_len"] if not predict else False
+            ),
             predict=predict,
             input_transform=self.input_transforms,
             target_transform=self.target_transform,
@@ -129,9 +127,9 @@ class EncoderDataModule(TransformerDataModule):
             tgt_seq_len=self.hparams["tgt_seq_len"],
             min_tgt_seq_len=self.hparams["min_tgt_seq_len"],
             stride=self.hparams["stride"],
-            randomize_seq_len=self.hparams["randomize_seq_len"]
-            if not predict
-            else False,
+            randomize_seq_len=(
+                self.hparams["randomize_seq_len"] if not predict else False
+            ),
             predict=predict,
             input_transform=self.input_transforms,
             target_transform=self.target_transform,

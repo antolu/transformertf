@@ -37,9 +37,9 @@ def downsample(
         return downsample_array(value, downsample, method=method)
     elif isinstance(value, pd.DataFrame):
         if method == "interval":
-            return value.iloc[::downsample].reset_index()
+            return value.iloc[::downsample].reset_index(drop=True)
         else:
-            df = value.iloc[::downsample].reset_index()
+            df = value.iloc[::downsample].reset_index(drop=True)
             for col in df.columns:
                 if (
                     pd.api.types.is_datetime64_any_dtype(df[col].dtype)

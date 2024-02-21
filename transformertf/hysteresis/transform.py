@@ -144,14 +144,12 @@ class HysteresisTransform(Module):
     @typing.overload
     def transform(
         self, h: torch.Tensor, m: None = None
-    ) -> tuple[torch.Tensor, None]:
-        ...
+    ) -> tuple[torch.Tensor, None]: ...
 
     @typing.overload
     def transform(
         self, h: torch.Tensor, m: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        ...
+    ) -> tuple[torch.Tensor, torch.Tensor]: ...
 
     def transform(
         self, h: torch.Tensor, m: torch.Tensor | None = None
@@ -176,14 +174,12 @@ class HysteresisTransform(Module):
     @typing.overload
     def untransform(
         self, hn: torch.Tensor, mn: None = None
-    ) -> tuple[torch.Tensor, None]:
-        ...
+    ) -> tuple[torch.Tensor, None]: ...
 
     @typing.overload
     def untransform(
         self, hn: torch.Tensor, mn: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        ...
+    ) -> tuple[torch.Tensor, torch.Tensor]: ...
 
     def untransform(
         self, hn: torch.Tensor, mn: torch.Tensor | None = None
