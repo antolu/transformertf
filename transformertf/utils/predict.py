@@ -318,6 +318,9 @@ def predict_encoder_decoder(
             future_x, outputs
         )
 
+    # truncate the outputs to the length of the future covariates
+    outputs = outputs[: len(future_covariates)]
+
     return outputs
 
 
