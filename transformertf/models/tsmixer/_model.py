@@ -2,6 +2,7 @@
 Implementation of the TSMixer model from
 http://arxiv.org/abs/2303.06053
 """
+
 from __future__ import annotations
 
 import collections

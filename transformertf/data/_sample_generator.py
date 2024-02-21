@@ -65,12 +65,10 @@ class SampleGenerator(typing.Sequence[U]):
         raise NotImplementedError
 
     @typing.overload
-    def __getitem__(self, idx: int) -> U:
-        ...
+    def __getitem__(self, idx: int) -> U: ...
 
     @typing.overload
-    def __getitem__(self, idx: slice) -> typing.Sequence[U]:
-        ...
+    def __getitem__(self, idx: slice) -> typing.Sequence[U]: ...
 
     def __getitem__(self, idx: int | slice) -> U | typing.Sequence[U]:
         if isinstance(idx, int):

@@ -162,8 +162,7 @@ def predict_encoder_decoder(
     device: torch.device = torch.device(
         "cuda" if torch.cuda.is_available() else "cpu"
     ),
-) -> np.ndarray:
-    ...
+) -> np.ndarray: ...
 
 
 @typing.overload
@@ -177,8 +176,7 @@ def predict_encoder_decoder(
     device: torch.device = torch.device(
         "cuda" if torch.cuda.is_available() else "cpu"
     ),
-) -> torch.Tensor:
-    ...
+) -> torch.Tensor: ...
 
 
 def predict_encoder_decoder(

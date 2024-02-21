@@ -1,6 +1,7 @@
 """
 Activation function factory
 """
+
 from __future__ import annotations
 
 import typing

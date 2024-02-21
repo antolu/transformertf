@@ -1,6 +1,7 @@
 """
 Tests for the `transformertf.data.TransformerPredictionSampleGenerator` class.
 """
+
 from __future__ import annotations
 
 import numpy as np

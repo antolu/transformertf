@@ -4,6 +4,7 @@ which are used to load and preprocess data for training the hysteresis model.
 
 :author: Anton Lu (anton.lu@cern.ch)
 """
+
 from __future__ import annotations
 
 import enum

@@ -14,8 +14,7 @@ def get_norm_layer(
     num_features: int | None,
     normalized_shape: tuple[int, ...] | None,
     **kwargs: typing.Any,
-) -> torch.nn.BatchNorm2d:
-    ...
+) -> torch.nn.BatchNorm2d: ...
 
 
 @typing.overload
@@ -24,8 +23,7 @@ def get_norm_layer(
     num_features: int | None,
     normalized_shape: tuple[int, ...] | None,
     **kwargs: typing.Any,
-) -> torch.nn.LayerNorm:
-    ...
+) -> torch.nn.LayerNorm: ...
 
 
 def get_norm_layer(
@@ -46,8 +44,7 @@ def get_norm_layer(
         raise ValueError(f"norm must be 'batch' or 'layer', not {norm_type}")
 
 
-class FeatureProjection(torch.nn.Linear):
-    ...
+class FeatureProjection(torch.nn.Linear): ...
 
 
 class TemporalProjection(torch.nn.Module):

@@ -29,10 +29,9 @@ class BaseHysteresis(Module, ModeModule):
         trainable: bool = True,
         tkwargs: dict[str, typing.Any] | None = None,
         mesh_scale: float = 1.0,
-        mesh_density_function: typing.Callable[
-            [np.ndarray, np.ndarray, float], np.ndarray
-        ]
-        | None = None,
+        mesh_density_function: (
+            typing.Callable[[np.ndarray, np.ndarray, float], np.ndarray] | None
+        ) = None,
         polynomial_degree: int = 1,
         polynomial_fit_iterations: int = 3000,
         temp: float = 1e-2,

@@ -133,9 +133,11 @@ class PhyLSTMModule(LightningModuleBase):
         self._lr_scheduler = lr_scheduler
         self._datamodule = datamodule
 
-        model_cls: typing.Type[PhyLSTM1] | typing.Type[PhyLSTM2] | typing.Type[
-            PhyLSTM3
-        ]
+        model_cls: (
+            typing.Type[PhyLSTM1]
+            | typing.Type[PhyLSTM2]
+            | typing.Type[PhyLSTM3]
+        )
         if phylstm == 1:
             model_cls = PhyLSTM1
         elif phylstm == 2:
@@ -158,8 +160,7 @@ class PhyLSTMModule(LightningModuleBase):
         x: torch.Tensor,
         return_states: typing.Literal[False] = False,
         hidden_state: HIDDEN_STATE | None = None,
-    ) -> PHYLSTM_OUTPUT:
-        ...
+    ) -> PHYLSTM_OUTPUT: ...
 
     @typing.overload
     def forward(
@@ -167,8 +168,7 @@ class PhyLSTMModule(LightningModuleBase):
         x: torch.Tensor,
         return_states: typing.Literal[True],
         hidden_state: HIDDEN_STATE | None = None,
-    ) -> tuple[PHYLSTM_OUTPUT, HIDDEN_STATE]:
-        ...
+    ) -> tuple[PHYLSTM_OUTPUT, HIDDEN_STATE]: ...
 
     def forward(
         self,

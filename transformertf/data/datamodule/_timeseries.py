@@ -85,9 +85,9 @@ class TimeSeriesDataModule(DataModuleBase):
             stride=self.hparams["stride"],
             seq_len=self.hparams["seq_len"],
             min_seq_len=self.hparams["min_seq_len"] if not predict else None,
-            randomize_seq_len=self.hparams["randomize_seq_len"]
-            if not predict
-            else False,
+            randomize_seq_len=(
+                self.hparams["randomize_seq_len"] if not predict else False
+            ),
             predict=predict,
             input_transform=self.input_transforms,
             target_transform=self.target_transform,

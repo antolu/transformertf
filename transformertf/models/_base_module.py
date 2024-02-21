@@ -17,9 +17,13 @@ if typing.TYPE_CHECKING:
 
 
 class LightningModuleBase(L.LightningModule):
-    _lr_scheduler: str | typing.Callable[
-        [tuple[typing.Any, ...]], torch.optim.lr_scheduler.LRScheduler
-    ] | None
+    _lr_scheduler: (
+        str
+        | typing.Callable[
+            [tuple[typing.Any, ...]], torch.optim.lr_scheduler.LRScheduler
+        ]
+        | None
+    )
 
     def __init__(
         self,

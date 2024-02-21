@@ -366,8 +366,9 @@ class DataModuleBase(L.LightningDataModule):
 
     def setup(
         self,
-        stage: typing.Literal["fit", "train", "val", "test", "predict"]
-        | None = None,
+        stage: (
+            typing.Literal["fit", "train", "val", "test", "predict"] | None
+        ) = None,
     ) -> None:
         """
         Sets up the data for training, validation or testing.
@@ -476,20 +477,24 @@ class DataModuleBase(L.LightningDataModule):
             return out
 
         if self.hparams["target_depends_on"] is not None:
-            out[
-                self.hparams["target_column"]
-            ] = self._target_transform.transform(
-                torch.from_numpy(
-                    df[self.hparams["target_depends_on"]].to_numpy()
-                ),
-                torch.from_numpy(df[self.hparams["target_column"]].to_numpy()),
+            out[self.hparams["target_column"]] = (
+                self._target_transform.transform(
+                    torch.from_numpy(
+                        df[self.hparams["target_depends_on"]].to_numpy()
+                    ),
+                    torch.from_numpy(
+                        df[self.hparams["target_column"]].to_numpy()
+                    ),
+                )
             )
         else:
-            out[
-                self.hparams["target_column"]
-            ] = self._target_transform.transform(
-                torch.tensor([]),
-                torch.from_numpy(df[self.hparams["target_column"]].to_numpy()),
+            out[self.hparams["target_column"]] = (
+                self._target_transform.transform(
+                    torch.tensor([]),
+                    torch.from_numpy(
+                        df[self.hparams["target_column"]].to_numpy()
+                    ),
+                )
             )
 
         return out
@@ -529,9 +534,9 @@ class DataModuleBase(L.LightningDataModule):
             input_,
             timestamp=timestamp,
             input_columns=self.hparams["input_columns"],
-            target_column=self.hparams["target_column"]
-            if not skip_target
-            else None,
+            target_column=(
+                self.hparams["target_column"] if not skip_target else None
+            ),
         )
         df = self.preprocess_dataframe(df)
 

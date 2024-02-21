@@ -4,6 +4,7 @@ Implementation of Perona-Malik PDE solution for time series smoothing.
 As written in https://arxiv.org/pdf/1412.6291.pdf
 and implemented in https://wire.insiderfinance.io/preserving-edges-when-smoothening-time-series-data-90f9d965132e
 """
+
 from __future__ import annotations
 
 import numpy as np

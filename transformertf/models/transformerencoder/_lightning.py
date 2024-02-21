@@ -38,10 +38,9 @@ class TransformerEncoderModule(LightningModuleBase):
         max_epochs: int = 1000,
         validate_every_n_epochs: int = 50,
         log_grad_norm: bool = False,
-        criterion: QuantileLoss
-        | torch.nn.MSELoss
-        | torch.nn.HuberLoss
-        | None = None,
+        criterion: (
+            QuantileLoss | torch.nn.MSELoss | torch.nn.HuberLoss | None
+        ) = None,
         lr_scheduler: str | LR_CALL_TYPE | None = None,
         lr_scheduler_interval: typing.Literal["epoch", "step"] = "epoch",
     ):

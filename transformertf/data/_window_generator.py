@@ -3,6 +3,7 @@ This module contains functions for preprocessing data.
 
 :author: Anton Lu (anton.lu@cern.ch)
 """
+
 from __future__ import annotations
 
 import logging
@@ -144,12 +145,10 @@ class WindowGenerator(typing.Sequence[slice]):
         return slice(start, stop)
 
     @typing.overload
-    def __getitem__(self, idx: int) -> slice:
-        ...
+    def __getitem__(self, idx: int) -> slice: ...
 
     @typing.overload
-    def __getitem__(self, idx: slice) -> typing.Sequence[slice]:
-        ...
+    def __getitem__(self, idx: slice) -> typing.Sequence[slice]: ...
 
     def __getitem__(self, idx: int | slice) -> slice | typing.Sequence[slice]:
         """

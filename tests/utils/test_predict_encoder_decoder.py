@@ -3,6 +3,7 @@ Test the predict_transformer function.
 
 This should probably be an integration test, but it's here for now.
 """
+
 from __future__ import annotations
 
 import pandas as pd

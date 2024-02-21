@@ -53,9 +53,9 @@ class BaseConfig:
     # bulk data processing parameters
     normalize: bool = True
     downsample: int = 1
-    downsample_method: typing.Literal[
-        "interval", "average", "convolve"
-    ] = "interval"
+    downsample_method: typing.Literal["interval", "average", "convolve"] = (
+        "interval"
+    )
     remove_polynomial: bool = False
 
     target_depends_on: str | None = None

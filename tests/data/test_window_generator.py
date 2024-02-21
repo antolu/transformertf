@@ -1,6 +1,7 @@
 """
 Test the transformertf.data.WindowGenerator class.
 """
+
 from __future__ import annotations
 
 import pytest
