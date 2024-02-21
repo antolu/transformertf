@@ -9,12 +9,80 @@ import torch
 from ..data import (
     EncoderDecoderDataModule,
     TimeSeriesDataModule,
+    DataModuleBase,
 )
 from ..nn import QuantileLoss
 from ..data.dataset import EncoderDecoderPredictDataset
 from ..models import LightningModuleBase
-from ..models.phylstm import PhyLSTMModule
+from ..models.phylstm import PhyLSTMModule, PhyLSTMDataModule
 from ..utils import ops
+
+
+__all__ = [
+    "predict",
+    "predict_timeseries",
+    "predict_phylstm",
+    "predict_encoder_decoder",
+]
+
+
+def predict(
+    module: LightningModuleBase,
+    datamodule: DataModuleBase,
+    past_covariates: pd.DataFrame,
+    future_covariates: pd.DataFrame,
+    past_target: pd.DataFrame | np.ndarray | pd.Series | None = None,
+    device: torch.device = torch.device(
+        "cuda" if torch.cuda.is_available() else "cpu"
+    ),
+) -> np.ndarray:
+    """
+    Predict the target variable using the given module and datamodule.
+
+    Parameters
+    ----------
+    module
+    datamodule
+    past_covariates
+    future_covariates
+    past_target
+    device
+
+    Returns
+    -------
+
+    """
+    if isinstance(datamodule, PhyLSTMDataModule) and isinstance(
+        module, PhyLSTMModule
+    ):
+        return predict_phylstm(
+            module,
+            datamodule,
+            past_covariates,
+            future_covariates,
+            device,
+        )
+    elif isinstance(datamodule, TimeSeriesDataModule):
+        return predict_timeseries(
+            module,
+            datamodule,
+            past_covariates,
+            future_covariates,
+            device,
+        )
+    elif isinstance(datamodule, EncoderDecoderDataModule):
+        return predict_encoder_decoder(
+            module,
+            datamodule,
+            past_covariates,
+            future_covariates,
+            past_target,
+            device=device,
+        )
+    else:
+        raise NotImplementedError(
+            f"Predicting with datamodule of type {type(datamodule)} is not implemented"
+        )
 
 
 def predict_timeseries(
@@ -76,7 +144,7 @@ def predict_timeseries(
 
 def predict_phylstm(
     module: PhyLSTMModule,
-    datamodule: TimeSeriesDataModule,
+    datamodule: PhyLSTMDataModule,
     past_covariates: pd.DataFrame,
     future_covariates: pd.DataFrame,
     device: torch.device = torch.device(
