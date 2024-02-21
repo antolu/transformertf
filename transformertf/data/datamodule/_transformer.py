@@ -14,8 +14,6 @@ if typing.TYPE_CHECKING:
 
 
 class TransformerDataModule(DataModuleBase):
-    TRANSFORMS = ["normalize", "polynomial"]
-
     def __init__(
         self,
         train_df: pd.DataFrame | list[pd.DataFrame],

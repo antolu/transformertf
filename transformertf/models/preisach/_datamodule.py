@@ -20,8 +20,6 @@ FIELD = "B_meas_T"
 
 
 class PreisachDataModule(TimeSeriesDataModule):
-    TRANSFORMS = ["polynomial", "normalize"]
-
     def __init__(
         self,
         train_df: pd.DataFrame | list[pd.DataFrame],

@@ -47,8 +47,6 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
     :attr:`train_data`, :attr:`val_data` and :attr:`test_data`.
     """
 
-    TRANSFORMS = ["polynomial", "normalize"]
-
     def __init__(
         self,
         train_df: pd.DataFrame | list[pd.DataFrame] | None,

@@ -48,9 +48,6 @@ class DataModuleBase(L.LightningDataModule):
     _input_transforms: dict[str, TransformCollection]
     _target_transform: TransformCollection
 
-    TRANSFORMS: list[typing.Literal["polynomial", "normalize"]] = []
-    """ Which transforms are to be run """
-
     def __init__(
         self,
         train_df: pd.DataFrame | list[pd.DataFrame] | None,
@@ -136,13 +133,8 @@ class DataModuleBase(L.LightningDataModule):
         """
         Instantiates the transforms to be used by the datamodule.
         """
-        normalize = (
-            self.hparams["normalize"] and "normalize" in self.TRANSFORMS
-        )
-        polynomial = (
-            self.hparams["remove_polynomial"]
-            and "polynomial" in self.TRANSFORMS
-        )
+        normalize = self.hparams["normalize"]
+        polynomial = self.hparams["remove_polynomial"]
 
         # input transforms
         input_transforms: dict[str, list[BaseTransform]]
