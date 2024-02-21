@@ -355,13 +355,6 @@ class DataModuleBase(L.LightningDataModule):
         train_df = list(map(self.preprocess_dataframe, self._raw_train_df))
         val_df = list(map(self.preprocess_dataframe, self._raw_val_df))
 
-        # downsample after preprocessing, but before transforming data
-        ds = functools.partial(
-            downsample, downsample=self.hparams["downsample"]
-        )
-        train_df = list(map(ds, train_df))
-        val_df = list(map(ds, val_df))
-
         if not self._scalers_fitted():
             self._fit_transforms(pd.concat(train_df))
 

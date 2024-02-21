@@ -169,7 +169,7 @@ def test_datamodule_base_transform_input(
     assert CURRENT in processed_df.columns
     assert FIELD in processed_df.columns
 
-    assert len(processed_df.columns) == 4
+    assert len(processed_df.columns) == 3
 
 
 def test_datamodule_base_make_dataset(

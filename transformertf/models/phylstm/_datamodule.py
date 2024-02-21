@@ -146,7 +146,6 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
         pd.DataFrame
             The preprocessed dataframe.
         """
-        df = super().preprocess_dataframe(df)
 
         current: str = self.hparams["input_columns"][0]
         field: str | None = self.hparams["target_column"]
@@ -178,5 +177,7 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
                     stride=1,
                     threshold=6e-6,
                 )
+
+        df = super().preprocess_dataframe(df)
 
         return df
