@@ -190,7 +190,7 @@ class TransformerV2Module(LightningModuleBase):
     ) -> torch.Tensor:
         if self.hparams["prediction_type"] == "delta":
             with torch.no_grad():
-                delta = torch.zeros_like(target)
+                delta = torch.clone(target)
                 delta[:, 1:] = target[:, 1:] - target[:, :-1]
 
             return typing.cast(
