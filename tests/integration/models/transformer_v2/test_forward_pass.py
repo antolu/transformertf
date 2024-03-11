@@ -67,7 +67,7 @@ def test_transformer_v2_forward_pass_simple(
     assert y.shape[:2] == x_future.shape[:2]
 
 
-def test_transformer_encoder_forward_pass(
+def test_transformer_v2_forward_pass_point(
     datamodule: EncoderDecoderDataModule,
     transformer_v2_module: TransformerV2Module,
 ) -> None:
@@ -107,6 +107,51 @@ def test_transformer_encoder_forward_pass(
     for key in (
         "loss",
         "loss_MSE",
+        "output",
+    ):
+        assert key in outputs
+
+
+def test_transformer_v2_forward_pass_delta(
+    datamodule: EncoderDecoderDataModule,
+    transformer_v2_module: TransformerV2Module,
+) -> None:
+    transformer_v2_module.hparams["prediction_type"] = "delta"
+    datamodule.prepare_data()
+    datamodule.setup()
+
+    dataloader = datamodule.train_dataloader()
+
+    batch = next(iter(dataloader))
+
+    transformer_v2_module.on_train_start()
+    transformer_v2_module.on_train_epoch_start()
+
+    with torch.no_grad():
+        losses = transformer_v2_module.training_step(batch, 0)
+
+    for key in ("loss",):
+        assert key in losses
+
+    transformer_v2_module.on_train_epoch_end()
+    transformer_v2_module.on_train_end()
+
+    # validation
+    dataloader = datamodule.val_dataloader()
+
+    batch = next(iter(dataloader))
+
+    transformer_v2_module.on_validation_start()
+    transformer_v2_module.on_validation_epoch_start()
+
+    with torch.no_grad():
+        outputs = transformer_v2_module.validation_step(batch, 0)
+
+    transformer_v2_module.on_validation_epoch_end()
+    transformer_v2_module.on_validation_end()
+
+    for key in (
+        "loss",
         "output",
     ):
         assert key in outputs

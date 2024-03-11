@@ -144,16 +144,17 @@ class TransformerV2Module(LightningModuleBase):
 
         model_output = self(batch)
 
-        loss = self.calc_loss(model_output, target)
+        loss = self.calc_loss(model_output, batch)
 
         loss_dict = {"loss": loss}
         point_prediction = model_output
         if isinstance(self.criterion, QuantileLoss):
             point_prediction = self.criterion.point_prediction(model_output)
 
-        loss_dict["loss_MSE"] = torch.nn.functional.mse_loss(
-            point_prediction, target
-        )
+        if self.hparams["prediction_type"] == "point":
+            loss_dict["loss_MSE"] = torch.nn.functional.mse_loss(
+                point_prediction, target
+            )
 
         self.common_log_step(loss_dict, "train")
 
@@ -170,34 +171,42 @@ class TransformerV2Module(LightningModuleBase):
 
         model_output = self(batch)
 
-        loss = self.calc_loss(model_output, target)
+        loss = self.calc_loss(model_output, batch)
 
         loss_dict = {"loss": loss}
         point_prediction = model_output
         if isinstance(self.criterion, QuantileLoss):
             point_prediction = self.criterion.point_prediction(model_output)
 
-        loss_dict["loss_MSE"] = torch.nn.functional.mse_loss(
-            point_prediction, target
-        )
+        if self.hparams["prediction_type"] == "point":
+            loss_dict["loss_MSE"] = torch.nn.functional.mse_loss(
+                point_prediction, target
+            )
 
         self.common_log_step(loss_dict, "validation")
 
         return {**loss_dict, "output": model_output}
 
     def calc_loss(
-        self, model_output: torch.Tensor, target: torch.Tensor
+        self,
+        model_output: torch.Tensor,
+        batch: EncoderDecoderTargetSample,
     ) -> torch.Tensor:
         if self.hparams["prediction_type"] == "delta":
             with torch.no_grad():
-                delta = torch.clone(target)
+                target = batch["target"].squeeze(-1)
+                delta = torch.zeros_like(target)
                 delta[:, 1:] = target[:, 1:] - target[:, :-1]
+
+                past_target = batch["encoder_input"][:, -1, -1]
+                delta[:, 0] = past_target - target[:, 0]
 
             return typing.cast(
                 torch.Tensor, self.criterion(model_output, delta)
             )
 
         elif self.hparams["prediction_type"] == "point":
+            target = batch["target"].squeeze(-1)
             return typing.cast(
                 torch.Tensor, self.criterion(model_output, target)
             )
