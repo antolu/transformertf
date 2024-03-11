@@ -181,7 +181,6 @@ class LSTMModule(LightningModuleBase):
 
         default_kwargs = dict(
             num_features=num_features,
- 
             num_layers=config.num_layers,
             sequence_length=config.seq_len,
             hidden_dim=config.hidden_size,
