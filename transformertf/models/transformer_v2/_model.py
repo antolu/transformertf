@@ -91,6 +91,7 @@ class TransformerV2(torch.nn.Module):
             dropout=self.dropout,
             activation=self.activation,
             batch_first=True,
+            dim_feedforward=fc_dim,
         )
         self.grn3 = GatedResidualNetwork(
             input_dim=self.n_dim_model,

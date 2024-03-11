@@ -48,6 +48,7 @@ CRITERION: dict[LOSS_FN, torch.nn.Module] = {
 class LSTMModule(LightningModuleBase):
     def __init__(
         self,
+        num_features: int = 1,
         num_layers: int = 3,
         sequence_length: int = 500,
         hidden_dim: int = 350,
@@ -112,7 +113,7 @@ class LSTMModule(LightningModuleBase):
         self._val_hidden: list[HIDDEN_STATE | None] = []  # type: ignore[assignment]
 
         self.model = torch.nn.LSTM(
-            input_size=1,
+            input_size=num_features,
             hidden_size=hidden_dim,
             num_layers=num_layers,
             dropout=dropout,
@@ -172,7 +173,15 @@ class LSTMModule(LightningModuleBase):
         cls, config: LSTMConfig, **kwargs: typing.Any  # type: ignore[override]
     ) -> dict[str, typing.Any]:
         kwargs = super().parse_config_kwargs(config, **kwargs)
+        num_features = (
+            len(config.input_columns)
+            if config.input_columns is not None
+            else 0
+        )
+
         default_kwargs = dict(
+            num_features=num_features,
+ 
             num_layers=config.num_layers,
             sequence_length=config.seq_len,
             hidden_dim=config.hidden_size,
