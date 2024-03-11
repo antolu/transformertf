@@ -22,3 +22,4 @@ class TransformerV2Config(TransformerBaseConfig):
     output_dim: int = 7
 
     loss_fn: typing.Literal["mse", "huber", "quantile"] = "quantile"
+    prediction_type: typing.Literal["delta", "point"] = "point"

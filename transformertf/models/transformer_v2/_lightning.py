@@ -41,6 +41,7 @@ class TransformerV2Module(LightningModuleBase):
         validate_every_n_epochs: int = 50,
         log_grad_norm: bool = False,
         criterion: QuantileLoss | torch.nn.Module | None = None,
+        prediction_type: typing.Literal["delta", "point"] = "point",
         lr_scheduler: str | LR_CALL_TYPE | None = None,
         lr_scheduler_interval: typing.Literal["epoch", "step"] = "epoch",
     ):
@@ -107,6 +108,7 @@ class TransformerV2Module(LightningModuleBase):
                 embedding=config.embedding,
                 fc_dim=config.fc_dim,
                 output_dim=config.output_dim,
+                prediction_type=config.prediction_type,
             )
         )
 
@@ -142,7 +144,7 @@ class TransformerV2Module(LightningModuleBase):
 
         model_output = self(batch)
 
-        loss = typing.cast(torch.Tensor, self.criterion(model_output, target))
+        loss = self.calc_loss(model_output, target)
 
         loss_dict = {"loss": loss}
         point_prediction = model_output
@@ -168,7 +170,7 @@ class TransformerV2Module(LightningModuleBase):
 
         model_output = self(batch)
 
-        loss = typing.cast(torch.Tensor, self.criterion(model_output, target))
+        loss = self.calc_loss(model_output, target)
 
         loss_dict = {"loss": loss}
         point_prediction = model_output
@@ -182,3 +184,20 @@ class TransformerV2Module(LightningModuleBase):
         self.common_log_step(loss_dict, "validation")
 
         return {**loss_dict, "output": model_output}
+
+    def calc_loss(
+        self, model_output: torch.Tensor, target: torch.Tensor
+    ) -> torch.Tensor:
+        if self.hparams["prediction_type"] == "delta":
+            with torch.no_grad():
+                delta = torch.zeros_like(target)
+                delta[:, 1:] = target[:, 1:] - target[:, :-1]
+
+            return typing.cast(
+                torch.Tensor, self.criterion(model_output, delta)
+            )
+
+        elif self.hparams["prediction_type"] == "point":
+            return typing.cast(
+                torch.Tensor, self.criterion(model_output, target)
+            )
