@@ -2,9 +2,9 @@
 Tests for downsampling algorithms.
 """
 
-import pytest
 import numpy as np
 import pandas as pd
+import pytest
 import torch
 
 from transformertf.data import _downsample  # noqa: E402

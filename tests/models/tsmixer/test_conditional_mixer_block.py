@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-
 import torch
-from .conftest import (
-    SEQ_LEN,
-    NUM_FEATURES,
-    NUM_STATIC_FEATURES,
-)
+
 from transformertf.models.tsmixer import ConditionalMixerBlock
+
+from .conftest import NUM_FEATURES, NUM_STATIC_FEATURES, SEQ_LEN
 
 
 def test_conditional_mixer_block(

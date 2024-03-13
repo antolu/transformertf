@@ -3,11 +3,12 @@ from __future__ import annotations
 import pytest
 import torch
 
-from transformertf.models.transformerencoder import (
-    TransformerEncoderModule,
-    TransformerEncoderConfig,
-)
 from transformertf.data import EncoderDataModule
+from transformertf.models.transformerencoder import (
+    TransformerEncoderConfig,
+    TransformerEncoderModule,
+)
+
 from ....conftest import CURRENT, DF_PATH
 
 

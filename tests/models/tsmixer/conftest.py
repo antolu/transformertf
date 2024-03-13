@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import torch
 import pytest
-
+import torch
 
 BATCH_SIZE = 2
 NUM_FEATURES = 3
