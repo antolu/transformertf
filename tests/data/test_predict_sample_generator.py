@@ -7,9 +7,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-
 from transformertf.data import TransformerPredictionSampleGenerator
-
 
 CONTEXT_LENGTH = 2
 PREDICTION_LENGTH = 2

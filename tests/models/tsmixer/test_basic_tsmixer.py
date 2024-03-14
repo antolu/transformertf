@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-
 import torch
-from .conftest import NUM_FEATURES, SEQ_LEN, BATCH_SIZE
+
 from transformertf.models.tsmixer import BasicTSMixer
 
+from .conftest import BATCH_SIZE, NUM_FEATURES, SEQ_LEN
 
 OUT_SEQ_LEN = 12
 

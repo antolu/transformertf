@@ -1,15 +1,12 @@
 from __future__ import annotations
 
-
 import numpy as np
-import pytest
 import pandas as pd
+import pytest
 import torch
-
 
 from transformertf.data.dataset import EncoderDecoderPredictDataset
 from transformertf.data.transform import TransformCollection
-
 
 CONTEXT_LENGTH = 2
 PREDICTION_LENGTH = 2

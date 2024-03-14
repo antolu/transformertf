@@ -265,10 +265,8 @@ def predict_encoder_decoder(
     elif isinstance(past_target, pd.Series):
         past_target = past_target.to_numpy()
 
-    past_df = pd.concat(
-        [past_covariates, pd.DataFrame({"target": past_target})], axis=1
-    ).reset_index(drop=True)
-    past_df = datamodule.preprocess_dataframe(past_df)
+    past_covariates["target"] = past_target
+    past_df = datamodule.preprocess_dataframe(past_covariates)
 
     past_covariates = past_df[past_covariates.columns]
     past_target = past_df["target"].to_numpy()
@@ -314,7 +312,7 @@ def predict_encoder_decoder(
     outputs = torch.cat([o.squeeze(0) for o in outputs], dim=0)
 
     if raw_output:
-        return outputs
+        return outputs.numpy()  # type: ignore[attr-defined]
 
     outputs = to_point_prediction(outputs, module.criterion)
 
@@ -322,15 +320,13 @@ def predict_encoder_decoder(
     outputs = outputs[: len(future_covariates)]
 
     if datamodule.target_transform is not None:
-        future_x = future_covariates[
-            datamodule.hparams["input_columns"][0]
-        ].to_numpy()
+        future_x = future_covariates[datamodule.hparams["input_columns"][0]]
         outputs = datamodule.target_transform.inverse_transform(
             future_x, outputs
         )
 
     # truncate the outputs to the length of the future covariates
-    outputs = outputs[: len(future_covariates)]
+    outputs = outputs[: len(future_covariates)].numpy()  # type: ignore[attr-defined]
 
     return outputs
 

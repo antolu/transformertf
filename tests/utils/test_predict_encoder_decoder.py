@@ -9,13 +9,13 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+from transformertf.data.datamodule import EncoderDecoderDataModule
 from transformertf.data.transform import DivideByXTransform
-from transformertf.utils.predict import predict_encoder_decoder
 from transformertf.models.transformer import (
     VanillaTransformerConfig,
     VanillaTransformerModule,
 )
-from transformertf.data.datamodule import EncoderDecoderDataModule
+from transformertf.utils.predict import predict_encoder_decoder
 
 
 @pytest.fixture

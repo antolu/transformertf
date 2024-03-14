@@ -7,8 +7,8 @@ from __future__ import annotations
 import pytest
 import torch
 
-from transformertf.models.phytsmixer import PhyTSMixerConfig, PhyTSMixerModule
 from transformertf.data import EncoderDecoderDataModule
+from transformertf.models.phytsmixer import PhyTSMixerConfig, PhyTSMixerModule
 
 from ....conftest import CURRENT, DF_PATH
 

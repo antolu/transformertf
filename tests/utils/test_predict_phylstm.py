@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-import pytest
 import pandas as pd
+import pytest
 
 from transformertf.data.transform import DivideByXTransform
-from transformertf.utils.predict import predict_phylstm
 from transformertf.models.phylstm import (
     PhyLSTMConfig,
-    PhyLSTMModule,
     PhyLSTMDataModule,
+    PhyLSTMModule,
 )
+from transformertf.utils.predict import predict_phylstm
 
 
 @pytest.fixture

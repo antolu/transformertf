@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-
 import torch
+
 from transformertf.models.tsmixer import FeatureMixer
-from .conftest import SEQ_LEN, NUM_FEATURES
+
+from .conftest import NUM_FEATURES, SEQ_LEN
 
 
 def test_feature_mixer(sample: torch.Tensor) -> None:

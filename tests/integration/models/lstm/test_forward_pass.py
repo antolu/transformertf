@@ -1,11 +1,10 @@
 from __future__ import annotations
+
 import pytest
 import torch
 
-
 from transformertf.data import TimeSeriesSample
 from transformertf.models.lstm import LSTMConfig, LSTMModule
-
 
 BATCH_SIZE = 4
 SEQ_LEN = 100
