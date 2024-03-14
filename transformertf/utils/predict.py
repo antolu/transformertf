@@ -274,6 +274,12 @@ def predict_encoder_decoder(
     past_target = past_df["target"].to_numpy()
     future_covariates = datamodule.preprocess_dataframe(future_covariates)
 
+    log.debug(
+        "Running encoder decoder inference with "
+        f"{len(past_covariates)} past context and "
+        f"{len(future_covariates)} prediction horizon."
+    )
+
     dataset = EncoderDecoderPredictDataset(
         past_covariates=past_covariates,
         future_covariates=future_covariates,
@@ -298,10 +304,12 @@ def predict_encoder_decoder(
         model_output = ops.detach(model_output)
 
         outputs.append(model_output)
-        point_prediction = to_point_prediction(
-            model_output, module.criterion
-        ).squeeze()
-        dataset.append_past_target(point_prediction)
+
+        if idx < len(dataloader) - 1:
+            point_prediction = to_point_prediction(
+                model_output, module.criterion
+            ).squeeze()
+            dataset.append_past_target(point_prediction)
 
     outputs = torch.cat([o.squeeze(0) for o in outputs], dim=0)
 
@@ -309,6 +317,9 @@ def predict_encoder_decoder(
         return outputs
 
     outputs = to_point_prediction(outputs, module.criterion)
+
+    # truncate the outputs to the length of the future covariates
+    outputs = outputs[: len(future_covariates)]
 
     if datamodule.target_transform is not None:
         future_x = future_covariates[
