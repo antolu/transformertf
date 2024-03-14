@@ -272,12 +272,6 @@ def predict_encoder_decoder(
     past_target = past_df["target"].to_numpy()
     future_covariates = datamodule.preprocess_dataframe(future_covariates)
 
-    log.debug(
-        "Running encoder decoder inference with "
-        f"{len(past_covariates)} past context and "
-        f"{len(future_covariates)} prediction horizon."
-    )
-
     dataset = EncoderDecoderPredictDataset(
         past_covariates=past_covariates,
         future_covariates=future_covariates,
