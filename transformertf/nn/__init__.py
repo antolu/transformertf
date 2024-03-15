@@ -2,6 +2,7 @@ from .._mod_replace import replace_modname
 from ._add_norm import AddNorm
 from ._glu import GatedLinearUnit
 from ._grn import GatedResidualNetwork
+from ._interpretable_multi_head_attn import InterpretableMultiHeadAttention
 from ._mlp import MLP
 from ._quantile_loss import QuantileLoss
 from ._resample_norm import ResampleNorm
@@ -11,6 +12,7 @@ for _mod in (
     AddNorm,
     GatedLinearUnit,
     GatedResidualNetwork,
+    InterpretableMultiHeadAttention,
     QuantileLoss,
     ResampleNorm,
     VariableSelection,
@@ -25,6 +27,7 @@ __all__ = [
     "AddNorm",
     "GatedLinearUnit",
     "GatedResidualNetwork",
+    "InterpretableMultiHeadAttention",
     "QuantileLoss",
     "ResampleNorm",
     "VariableSelection",
