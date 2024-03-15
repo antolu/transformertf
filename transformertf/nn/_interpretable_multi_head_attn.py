@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import typing
+
 import torch
 
 
@@ -46,13 +48,34 @@ class InterpretableMultiHeadAttention(torch.nn.Module):
 
         self.output_layer = torch.nn.Linear(self.d_v, n_dim_model)
 
+    @typing.overload
     def forward(
         self,
         query: torch.Tensor,
         key: torch.Tensor,
         value: torch.Tensor,
         mask: torch.Tensor | None = None,
-    ) -> torch.Tensor:
+        return_attn: typing.Literal[False] = False,
+    ) -> torch.Tensor: ...
+
+    @typing.overload
+    def forward(
+        self,
+        query: torch.Tensor,
+        key: torch.Tensor,
+        value: torch.Tensor,
+        mask: torch.Tensor | None,
+        return_attn: typing.Literal[True],
+    ) -> tuple[torch.Tensor, torch.Tensor]: ...
+
+    def forward(
+        self,
+        query: torch.Tensor,
+        key: torch.Tensor,
+        value: torch.Tensor,
+        mask: torch.Tensor | None = None,
+        return_attn: bool = False,
+    ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """
         Forward pass.
 
@@ -75,20 +98,27 @@ class InterpretableMultiHeadAttention(torch.nn.Module):
         value = self.value_layer(value)
 
         heads = []
+        attns = []
         for i in range(self.num_heads):
             q = self.query_layers[i](query)
             k = self.key_layers[i](key)
-            v = value
+            v = torch.eye(
+                value.shape[1], device=query.device
+            )  # hack to get attention scores
 
-            head = torch.nn.functional.scaled_dot_product_attention(
+            attn = torch.nn.functional.scaled_dot_product_attention(
                 q, k, v, attn_mask=mask, dropout_p=self.dropout
             )
+            head = attn @ value
+            attns.append(attn)
             heads.append(head)
 
         head = torch.stack(heads, dim=2) if self.num_heads > 1 else heads[0]
+        attn = torch.stack(attns, dim=2) if self.num_heads > 1 else attns[0]
+
         head = head.mean(dim=2) if self.num_heads > 1 else head
 
         output = self.output_layer(head)
         output = torch.nn.functional.dropout(output, p=self.dropout)
 
-        return output
+        return output, attn
