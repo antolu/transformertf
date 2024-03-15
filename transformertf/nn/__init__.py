@@ -4,12 +4,16 @@ from ._glu import GatedLinearUnit
 from ._grn import GatedResidualNetwork
 from ._mlp import MLP
 from ._quantile_loss import QuantileLoss
+from ._resample_norm import ResampleNorm
+from ._variable_selection import VariableSelection
 
 for _mod in (
     AddNorm,
     GatedLinearUnit,
     GatedResidualNetwork,
     QuantileLoss,
+    ResampleNorm,
+    VariableSelection,
     MLP,
 ):
     replace_modname(_mod, __name__)
@@ -22,5 +26,7 @@ __all__ = [
     "GatedLinearUnit",
     "GatedResidualNetwork",
     "QuantileLoss",
+    "ResampleNorm",
+    "VariableSelection",
     "MLP",
 ]

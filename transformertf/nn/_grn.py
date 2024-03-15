@@ -11,6 +11,7 @@ import torch
 
 from ..utils import ACTIVATIONS, get_activation
 from ._glu import GatedLinearUnit
+from ._resample_norm import ResampleNorm
 
 
 class GatedResidualNetwork(torch.nn.Module):
@@ -43,7 +44,12 @@ class GatedResidualNetwork(torch.nn.Module):
             Activation function
         """
         super().__init__()
-        hidden_dim = hidden_dim if hidden_dim is not None else input_dim
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.context_dim = context_dim
+
+        hidden_dim = hidden_dim or input_dim
+        self.hidden_dim = hidden_dim
 
         self.fc1 = torch.nn.Linear(input_dim, hidden_dim)
         self.fc2 = torch.nn.Linear(hidden_dim, output_dim)
@@ -52,9 +58,14 @@ class GatedResidualNetwork(torch.nn.Module):
         else:
             self.fc3 = None
 
+        if input_dim != output_dim:
+            self.resample = ResampleNorm(input_dim, output_dim)
+        else:
+            self.resample = torch.nn.Identity()
+
         self.dropout = torch.nn.Dropout(dropout)
         self.glu1 = GatedLinearUnit(output_dim)
-        self.norm = torch.nn.LayerNorm(input_dim)
+        self.norm = torch.nn.LayerNorm(output_dim)
 
         self.activation = get_activation(activation)
 
@@ -75,7 +86,7 @@ class GatedResidualNetwork(torch.nn.Module):
         torch.Tensor
             Output tensor of shape (batch_size, input_dim, n_features)
         """
-        residual = x
+        residual = self.resample(x)
 
         x = self.fc1(x)
         if self.fc3 is not None:
