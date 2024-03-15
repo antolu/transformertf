@@ -1,0 +1,228 @@
+from __future__ import annotations
+
+
+import torch
+import einops
+
+
+from ...nn import (
+    AddNorm,
+    GatedResidualNetwork,
+    GatedLinearUnit,
+    VariableSelection,
+    InterpretableMultiHeadAttention,
+)
+
+
+__all__ = ["TemporalFusionTransformer"]
+
+
+class TemporalFusionTransformer(torch.nn.Module):
+    def __init__(
+        self,
+        num_features: int,
+        ctxt_seq_len: int,
+        tgt_seq_len: int,
+        num_static_features: int = 0,
+        n_dim_model: int = 300,
+        variable_selection_dim: int = 100,
+        num_heads: int = 4,
+        num_lstm_layers: int = 2,
+        dropout: float = 0.1,
+        output_dim: int = 7,
+    ):
+        self.num_features = num_features
+        self.ctxt_seq_len = ctxt_seq_len
+        self.tgt_seq_len = tgt_seq_len
+        self.num_static_features = num_static_features  # not used
+        self.n_dim_model = n_dim_model
+        self.variable_selection_dim = variable_selection_dim
+        self.num_heads = num_heads
+        self.num_lstm_layers = num_lstm_layers
+        self.dropout = dropout
+        self.output_dim = output_dim
+
+        # TODO: static covariate embeddings
+
+        self.enc_vs = VariableSelection(
+            n_features=num_features,
+            hidden_dim=variable_selection_dim,
+            n_dim_model=n_dim_model,
+            context_size=n_dim_model,
+            dropout=dropout,
+        )
+
+        self.dec_vs = VariableSelection(
+            n_features=num_features - 1,
+            hidden_dim=variable_selection_dim,
+            n_dim_model=n_dim_model,
+            context_size=variable_selection_dim,
+            dropout=dropout,
+        )
+
+        self.static_vs = basic_grn(n_dim_model, dropout)
+        self.static_ctxt_enrichment = basic_grn(n_dim_model, dropout)
+
+        self.lstm_init_hidden = basic_grn(n_dim_model, dropout)
+        self.lstm_init_cell = basic_grn(n_dim_model, dropout)
+
+        self.enc_lstm = torch.nn.LSTM(
+            input_size=n_dim_model,
+            hidden_size=n_dim_model,
+            num_layers=num_lstm_layers,
+            dropout=dropout if num_lstm_layers > 1 else 0.0,
+            batch_first=True,
+        )
+
+        self.dec_lstm = torch.nn.LSTM(
+            input_size=n_dim_model,
+            hidden_size=n_dim_model,
+            num_layers=num_lstm_layers,
+            dropout=dropout if num_lstm_layers > 1 else 0.0,
+            batch_first=True,
+        )
+
+        self.enc_gate1 = GatedLinearUnit(n_dim_model, dropout=dropout)
+        self.dec_gate1 = self.enc_gate1
+
+        self.enc_norm1 = AddNorm(n_dim_model, trainable_add=False)
+        self.dec_norm1 = self.enc_norm1
+
+        self.static_enrichment = GatedResidualNetwork(
+            input_dim=n_dim_model,
+            hidden_dim=n_dim_model,
+            output_dim=n_dim_model,
+            context_dim=n_dim_model,
+            dropout=dropout,
+        )
+
+        self.attn = InterpretableMultiHeadAttention(
+            n_heads=num_heads,
+            n_dim_model=n_dim_model,
+            dropout=dropout,
+        )
+
+        self.attn_gate1 = GatedLinearUnit(n_dim_model, dropout=dropout)
+        self.attn_norm1 = AddNorm(n_dim_model, trainable_add=False)
+        self.attn_grn = basic_grn(n_dim_model, dropout)
+
+        self.attn_gate2 = GatedLinearUnit(n_dim_model, dropout=0.0)
+        self.attn_norm2 = AddNorm(n_dim_model, trainable_add=False)
+
+        self.output_layer = torch.nn.Linear(n_dim_model, output_dim)
+
+    def forward(
+        self,
+        encoder_input: torch.Tensor,
+        decoder_input: torch.Tensor,
+        static_input: torch.Tensor | None = None,
+    ) -> dict[str, torch.Tensor]:
+        """
+        Forward pass.
+
+        Parameters
+        ----------
+        encoder_input : torch.Tensor
+            [batch_size, ctxt_seq_len, num_features]
+        decoder_input : torch.Tensor
+            [batch_size, tgt_seq_len, num_features]
+        static_input : torch.Tensor, optional
+            [batch_size, num_static_features]
+
+        Returns
+        -------
+        dict[str, torch.Tensor]
+            Predictions
+        """
+        if static_input is None:
+            # normally static embedding is computed using an
+            # embedding layer, but for simplicity we just use zeros
+            static_embedding = torch.zeros(
+                encoder_input.shape[0],
+                self.n_dim_model,
+                device=encoder_input.device,
+            )  # static covariate embeddings
+            static_variable_selection = torch.zeros(
+                encoder_input.shape[0], 0, device=encoder_input.device
+            )  # static variable selection weights
+        else:
+            raise NotImplementedError("Static features not yet implemented")
+
+        # static variable selection
+        static_ctxt_vs = (self.static_vs(static_variable_selection),)
+        enc_static_context = einops.repeat(
+            static_ctxt_vs, "b f -> b t f", t=encoder_input.shape[1]
+        )
+        dec_static_context = einops.repeat(
+            static_ctxt_vs, "b f -> b t f", t=decoder_input.shape[1]
+        )
+
+        # variable selection
+        enc_vs, enc_weights = self.enc_vs(encoder_input, enc_static_context)
+        dec_vs, dec_weights = self.dec_vs(
+            decoder_input[..., :-1], dec_static_context
+        )
+
+        # initialize LSTM states with static features
+        lstm_hidden = self.lstm_init_hidden(static_embedding)
+        lstm_hidden = einops.repeat(
+            lstm_hidden, "h i -> n h i", n=self.num_lstm_layers
+        )
+        lstm_cell = self.lstm_init_cell(static_embedding)
+        lstm_cell = einops.repeat(
+            lstm_cell, "h i -> n h i", n=self.num_lstm_layers
+        )
+
+        # encoder and decoder LSTM
+        enc_input, hx = self.enc_lstm(enc_vs, (lstm_hidden, lstm_cell))
+        dec_input, _ = self.dec_lstm(dec_vs, hx)
+
+        # encoder and decoder post-processing
+        enc_output = self.enc_gate1(enc_input)
+        enc_output = self.enc_norm1(enc_output, enc_vs)
+
+        dec_output = self.dec_gate1(dec_input)
+        dec_output = self.dec_norm1(dec_output, dec_vs)
+
+        # add static features LSTM outputs
+        static_context = self.static_ctxt_enrichment(static_embedding)
+        attn_input = self.static_enrichment(
+            torch.cat([enc_output, dec_output], dim=1),
+            einops.repeat(
+                static_context,
+                "b f -> b t f",
+                t=enc_output.shape[1] + dec_output.shape[1],
+            ),
+        )
+
+        # multi-head attention and post-processing
+        attn_output, attn_weights = self.attn(
+            attn_input, attn_input, attn_input
+        )
+        attn_output = self.attn_gate1(attn_output)
+        attn_output = self.attn_norm1(
+            attn_output, attn_input[:, : enc_output.shape[1], ...]
+        )
+        attn_output = self.attn_grn(attn_output)
+
+        # final post-processing and output
+        attn_output = self.attn_gate2(attn_output)
+        attn_output = self.attn_norm2(attn_output, dec_output)
+
+        output = self.output_layer(attn_output)
+
+        return {
+            "output": output,
+            "enc_weights": enc_weights,
+            "dec_weights": dec_weights,
+            "attn_weights": attn_weights,
+        }
+
+
+def basic_grn(dim: int, dropout: float) -> GatedResidualNetwork:
+    return GatedResidualNetwork(
+        input_dim=dim,
+        hidden_dim=dim,
+        output_dim=dim,
+        dropout=dropout,
+    )
