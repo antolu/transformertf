@@ -19,6 +19,3 @@ class TemporalFusionTransformerConfig(TransformerBaseConfig):
 
     loss_fn: typing.Literal["mse", "huber", "quantile"] = "quantile"
     prediction_type: typing.Literal["delta", "point"] = "point"
-
-
-TemporalFusionTransformerConfig
