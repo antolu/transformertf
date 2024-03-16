@@ -18,7 +18,7 @@ def test_variable_selection(sample: torch.Tensor) -> None:
 
     assert model is not None
     assert output.shape[:1] == sample.shape[:1]
-    assert output.shape[2] == 8
+    assert output.shape[2] == 32
 
 
 def test_variable_selection_context(sample: torch.Tensor) -> None:
@@ -29,4 +29,4 @@ def test_variable_selection_context(sample: torch.Tensor) -> None:
 
     assert model is not None
     assert output.shape[:1] == sample.shape[:1]
-    assert output.shape[2] == 8
+    assert output.shape[2] == 32
