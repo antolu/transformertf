@@ -183,14 +183,14 @@ class TemporalFusionTransformer(torch.nn.Module):
                 self.n_dim_model,
                 device=past_covariates.device,
             )  # static covariate embeddings
-            static_variable_selection = torch.zeros(
+            static_variable_selection = torch.zeros(  # noqa: F841
                 batch_size, 0, device=past_covariates.device
             )  # static variable selection weights
         else:
             raise NotImplementedError("Static features not yet implemented")
 
         # static variable selection
-        static_ctxt_vs = (self.static_vs(static_variable_selection),)
+        static_ctxt_vs = self.static_vs(static_embedding)
         enc_static_context = einops.repeat(
             static_ctxt_vs,
             "b f -> b t f",
@@ -237,18 +237,16 @@ class TemporalFusionTransformer(torch.nn.Module):
             einops.repeat(
                 static_context,
                 "b f -> b t f",
-                t=enc_output.shape[1] + dec_output.shape[1],
+                t=enc_seq_len + dec_seq_len,
             ),
         )
 
         # multi-head attention and post-processing
         attn_output, attn_weights = self.attn(
-            attn_input, attn_input, attn_input
+            attn_input[:, enc_seq_len:], attn_input, attn_input
         )
         attn_output = self.attn_gate1(attn_output)
-        attn_output = self.attn_norm1(
-            attn_output, attn_input[:, : enc_output.shape[1], ...]
-        )
+        attn_output = self.attn_norm1(attn_output, attn_input[:, enc_seq_len:])
         attn_output = self.attn_grn(attn_output)
 
         # final post-processing and output
