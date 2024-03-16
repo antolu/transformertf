@@ -149,7 +149,11 @@ class TemporalFusionTransformerModule(LightningModuleBase):
 
         self.common_log_step(loss_dict, "train")
 
-        return loss_dict
+        return {
+            **loss_dict,
+            "output": model_output["output"],
+            "point_prediction": point_prediction,
+        }
 
     def validation_step(
         self,
@@ -178,4 +182,8 @@ class TemporalFusionTransformerModule(LightningModuleBase):
 
         self.common_log_step(loss_dict, "validation")
 
-        return {**loss_dict, "output": model_output}
+        return {
+            **loss_dict,
+            "output": model_output["output"],
+            "point_prediction": point_prediction,
+        }

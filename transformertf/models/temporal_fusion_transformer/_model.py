@@ -89,7 +89,7 @@ class TemporalFusionTransformer(torch.nn.Module):
             n_features=num_features - 1,
             hidden_dim=variable_selection_dim,
             n_dim_model=n_dim_model,
-            context_size=variable_selection_dim,
+            context_size=n_dim_model,
             dropout=dropout,
         )
 
@@ -213,11 +213,11 @@ class TemporalFusionTransformer(torch.nn.Module):
         lstm_hidden = self.lstm_init_hidden(static_embedding)
         lstm_hidden = einops.repeat(
             lstm_hidden, "h i -> n h i", n=self.num_lstm_layers
-        )
+        ).contiguous()
         lstm_cell = self.lstm_init_cell(static_embedding)
         lstm_cell = einops.repeat(
             lstm_cell, "h i -> n h i", n=self.num_lstm_layers
-        )
+        ).contiguous()
 
         # encoder and decoder LSTM
         enc_input, hx = self.enc_lstm(enc_vs, (lstm_hidden, lstm_cell))
