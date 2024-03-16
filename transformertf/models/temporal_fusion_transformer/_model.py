@@ -31,6 +31,39 @@ class TemporalFusionTransformer(torch.nn.Module):
         dropout: float = 0.1,
         output_dim: int = 7,
     ):
+        """
+        Implementation of the Temporal Fusion Transformer architecture.
+
+        Parameters
+        ----------
+        num_features : int
+            Number of continuous features / covariates (time series)
+        ctxt_seq_len : int
+            Length of the context sequence, in other words the encoder
+            sequence length.
+        tgt_seq_len : int
+            Length of the target sequence, in other words the decoder
+            sequence length. This is the prediction horizon.
+        num_static_features : int, optional
+            Number of static features, by default 0. Currently not used.
+        n_dim_model : int, optional
+            Dimension of the model, by default 300. The most important
+            hyperparameter, as it determines the model capacity.
+        variable_selection_dim : int, optional
+            Dimension of the variable selection network, by default 100.
+        num_heads : int, optional
+            Number of attention heads, by default 4.
+        num_lstm_layers : int, optional
+            Number of LSTM layers, by default 2.
+        dropout : float, optional
+            Dropout rate, by default 0.1.
+        output_dim : int, optional
+            Output dimension, by default 7. The output dimension is
+            typically 7 for quantile regression, but can be different
+            for other tasks. For MSE loss, the output dimension should
+            be 1.
+        """
+        super().__init__()
         self.num_features = num_features
         self.ctxt_seq_len = ctxt_seq_len
         self.tgt_seq_len = tgt_seq_len
@@ -113,37 +146,45 @@ class TemporalFusionTransformer(torch.nn.Module):
 
     def forward(
         self,
-        encoder_input: torch.Tensor,
-        decoder_input: torch.Tensor,
-        static_input: torch.Tensor | None = None,
+        past_covariates: torch.Tensor,
+        future_covariates: torch.Tensor,
+        static_covariates: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         """
         Forward pass.
 
         Parameters
         ----------
-        encoder_input : torch.Tensor
+        past_covariates : torch.Tensor
             [batch_size, ctxt_seq_len, num_features]
-        decoder_input : torch.Tensor
+        future_covariates : torch.Tensor
             [batch_size, tgt_seq_len, num_features]
-        static_input : torch.Tensor, optional
+        static_covariates : torch.Tensor, optional
             [batch_size, num_static_features]
 
         Returns
         -------
         dict[str, torch.Tensor]
-            Predictions
+            Predictions and attention weights.
+            Keys: "output", "enc_weights", "dec_weights", "attn_weights"
+            correspond to the output predictions, encoder variable selection
+            weights, decoder variable selection weights, and attention
+            weights, respectively.
         """
-        if static_input is None:
+        batch_size = past_covariates.shape[0]
+        enc_seq_len = past_covariates.shape[1]
+        dec_seq_len = future_covariates.shape[1]
+
+        if static_covariates is None:
             # normally static embedding is computed using an
             # embedding layer, but for simplicity we just use zeros
             static_embedding = torch.zeros(
-                encoder_input.shape[0],
+                batch_size,
                 self.n_dim_model,
-                device=encoder_input.device,
+                device=past_covariates.device,
             )  # static covariate embeddings
             static_variable_selection = torch.zeros(
-                encoder_input.shape[0], 0, device=encoder_input.device
+                batch_size, 0, device=past_covariates.device
             )  # static variable selection weights
         else:
             raise NotImplementedError("Static features not yet implemented")
@@ -151,16 +192,21 @@ class TemporalFusionTransformer(torch.nn.Module):
         # static variable selection
         static_ctxt_vs = (self.static_vs(static_variable_selection),)
         enc_static_context = einops.repeat(
-            static_ctxt_vs, "b f -> b t f", t=encoder_input.shape[1]
+            static_ctxt_vs,
+            "b f -> b t f",
+            t=enc_seq_len,
         )
         dec_static_context = einops.repeat(
-            static_ctxt_vs, "b f -> b t f", t=decoder_input.shape[1]
+            static_ctxt_vs,
+            "b f -> b t f",
+            t=dec_seq_len,
         )
 
         # variable selection
-        enc_vs, enc_weights = self.enc_vs(encoder_input, enc_static_context)
+        enc_vs, enc_weights = self.enc_vs(past_covariates, enc_static_context)
         dec_vs, dec_weights = self.dec_vs(
-            decoder_input[..., :-1], dec_static_context
+            future_covariates[..., :-1],
+            dec_static_context,  # skip target feature since it's zeros
         )
 
         # initialize LSTM states with static features
@@ -220,6 +266,21 @@ class TemporalFusionTransformer(torch.nn.Module):
 
 
 def basic_grn(dim: int, dropout: float) -> GatedResidualNetwork:
+    """
+    Utility function improve readability of TemporalFusionTransformer.__init__.
+
+    Parameters
+    ----------
+    dim : int
+        Dimension of the model, in, hidden and output dimensions.
+    dropout : float
+        Dropout rate.
+
+    Returns
+    -------
+    GatedResidualNetwork
+        Gated residual network with input, hidden, and output dimensions equal to `dim`.
+    """
     return GatedResidualNetwork(
         input_dim=dim,
         hidden_dim=dim,
