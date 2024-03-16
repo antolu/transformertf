@@ -1,6 +1,6 @@
 from ._model import TemporalFusionTransformer  # noqa: F401
 
-from ...._mod_replace import replace_modname
+from ..._mod_replace import replace_modname
 
 
 for _mod in (TemporalFusionTransformer,):
