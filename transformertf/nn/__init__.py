@@ -4,6 +4,7 @@ from ._glu import GatedLinearUnit
 from ._grn import GatedResidualNetwork
 from ._interpretable_multi_head_attn import InterpretableMultiHeadAttention
 from ._mlp import MLP
+from ._multi_embedding import MultiEmbedding
 from ._quantile_loss import QuantileLoss
 from ._resample_norm import ResampleNorm
 from ._variable_selection import VariableSelection
@@ -13,6 +14,7 @@ for _mod in (
     GatedLinearUnit,
     GatedResidualNetwork,
     InterpretableMultiHeadAttention,
+    MultiEmbedding,
     QuantileLoss,
     ResampleNorm,
     VariableSelection,
@@ -28,6 +30,7 @@ __all__ = [
     "GatedLinearUnit",
     "GatedResidualNetwork",
     "InterpretableMultiHeadAttention",
+    "MultiEmbedding",
     "QuantileLoss",
     "ResampleNorm",
     "VariableSelection",
