@@ -174,6 +174,15 @@ class EncoderSample(TypedDict, typing.Generic[T]):
     encoder_mask: NotRequired[T]
     """ Source sequence mask to encoder. Typically should all be ones. """
 
+    static_cont_covariates: NotRequired[T]
+    """ Static continuous covariates. Should be defined for all timesteps. """
+
+    static_cat_covariates: NotRequired[T]
+    """ Static categorical covariates. Should be defined for all timesteps. """
+
+    encoder_lengths: NotRequired[T]
+    """ Lengths of the encoder input sequences. """
+
 
 class EncoderTargetSample(EncoderSample, TargetSample, typing.Generic[T]):
     x: int
@@ -184,12 +193,6 @@ class EncoderDecoderSample(EncoderSample, typing.Generic[T]):
     """ Target sequence input to transformer. Typically should all be zeros. """
     decoder_mask: NotRequired[T]
     """ Target mask. Typically should all be ones. """
-
-    static_cont_covariates: NotRequired[T]
-    """ Static continuous covariates. Should be defined for all timesteps. """
-
-    static_cat_covariates: NotRequired[T]
-    """ Static categorical covariates. Should be defined for all timesteps. """
 
 
 class EncoderDecoderTargetSample(
@@ -212,6 +215,9 @@ class TransformerSampleGenerator(
         tgt_seq_len: int,
         stride: int = 1,
         zero_pad: bool = False,
+        past_covariates: T | None = None,
+        static_cont_covariates: T | None = None,
+        static_cat_covariates: T | None = None,
     ):
         self._num_points = len(input_data)
         self._window_generator = WindowGenerator(
@@ -223,6 +229,21 @@ class TransformerSampleGenerator(
         self._input_data = copy(input_data)
         self._label_data = copy(target_data)
 
+        self._past_covariates = (
+            copy(past_covariates) if past_covariates is not None else None
+        )
+        self._static_cont_covariates = (
+            copy(static_cont_covariates)
+            if static_cont_covariates is not None
+            else None
+        )
+        self._static_cat_covariates = (
+            copy(static_cat_covariates)
+            if static_cat_covariates is not None
+            else None
+        )
+
+        # check array lengths
         if len(self._input_data) != len(self._label_data):
             raise ValueError(
                 "Input and label data must have the same length: "
@@ -231,6 +252,19 @@ class TransformerSampleGenerator(
                 )
             )
 
+        for attr in (
+            "_past_covariates",
+            "_static_cont_covariates",
+            "_static_cat_covariates",
+        ):
+            if getattr(self, attr) is not None and len(
+                getattr(self, attr)
+            ) != len(self._input_data):
+                raise ValueError(
+                    f"{attr} must have the same length as the input data: "
+                    f"({len(getattr(self, attr))}) and ({len(self._input_data)})"
+                )
+
         if zero_pad:
             self._input_data = zero_pad_(
                 self._input_data, self._window_generator.real_data_len
@@ -238,6 +272,20 @@ class TransformerSampleGenerator(
             self._label_data = zero_pad_(
                 self._label_data, self._window_generator.real_data_len
             )
+            for attr in (
+                "_past_covariates",  # technically not needed
+                "_static_cont_covariates",
+                "_static_cat_covariates",
+            ):
+                if getattr(self, attr) is not None:
+                    setattr(
+                        self,
+                        attr,
+                        zero_pad_(
+                            getattr(self, attr),
+                            self._window_generator.real_data_len,
+                        ),
+                    )
 
     def _make_sample(self, idx: int) -> EncoderDecoderTargetSample[T]:  # type: ignore[override]
         idx = check_index(idx, len(self))
@@ -259,15 +307,30 @@ class TransformerSampleGenerator(
         )
         label = to_2dim(self._label_data[tgt_slice])
 
+        sample = {
+            "encoder_input": src,
+            "encoder_mask": ones_like(src),
+            "decoder_input": tgt,
+            "decoder_mask": ones_like(tgt),
+            "target": label,
+        }
+
+        if self._past_covariates is not None:
+            sample["past_covariates"] = to_2dim(
+                self._past_covariates[src_slice]
+            )
+        if self._static_cont_covariates is not None:
+            sample["static_cont_covariates"] = to_2dim(
+                self._static_cont_covariates[sl]
+            )
+        if self._static_cat_covariates is not None:
+            sample["static_cat_covariates"] = to_2dim(
+                self._static_cat_covariates[sl]
+            )
+
         return typing.cast(
             EncoderDecoderTargetSample[T],
-            {
-                "encoder_input": src,
-                "encoder_mask": ones_like(src),
-                "decoder_input": tgt,
-                "decoder_mask": ones_like(tgt),
-                "target": label,
-            },
+            sample,
         )
 
     def __len__(self) -> int:

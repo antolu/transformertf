@@ -13,7 +13,7 @@ from ._base import (
     DataSetType,
     DATA_SOURCE,
     convert_data,
-    _check_label_data_length,
+    _check_data_length,
     _check_index,
 )
 from ..transform import BaseTransform
@@ -105,7 +105,7 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
 
         if target_data is not None:
             self._target_data = convert_data(target_data, dtype=dtype)
-            _check_label_data_length(self._input_data, self._target_data)
+            _check_data_length(self._input_data, self._target_data)
 
             # if there is labeled data, it's either for training or validation
             if predict:

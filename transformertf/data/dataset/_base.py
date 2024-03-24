@@ -113,7 +113,7 @@ def _check_index(idx: int, length: int) -> int:
     return idx
 
 
-def _check_label_data_length(
+def _check_data_length(
     input_data: list[torch.Tensor],
     target_data: list[torch.Tensor] | list[None],
 ) -> None:

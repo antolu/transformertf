@@ -111,6 +111,9 @@ class EncoderDecoderDataModule(TransformerDataModule):
             tgt_seq_len=self.hparams["tgt_seq_len"],
             min_ctxt_seq_len=self.hparams["min_ctxt_seq_len"],
             min_tgt_seq_len=self.hparams["min_tgt_seq_len"],
+            past_covariates_data=past_covariates_data,
+            static_cont_covariates_data=static_cont_covariates_data,
+            static_cat_covariates_data=static_cat_covariates_data,
             stride=self.hparams["stride"],
             randomize_seq_len=(
                 self.hparams["randomize_seq_len"] if not predict else False
@@ -144,6 +147,9 @@ class EncoderDataModule(TransformerDataModule):
             min_ctxt_seq_len=self.hparams["min_ctxt_seq_len"],
             tgt_seq_len=self.hparams["tgt_seq_len"],
             min_tgt_seq_len=self.hparams["min_tgt_seq_len"],
+            past_covariates_data=past_covariates_data,
+            static_cont_covariates_data=static_cont_covariates_data,
+            static_cat_covariates_data=static_cat_covariates_data,
             stride=self.hparams["stride"],
             randomize_seq_len=(
                 self.hparams["randomize_seq_len"] if not predict else False
