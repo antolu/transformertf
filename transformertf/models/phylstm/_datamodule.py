@@ -61,17 +61,16 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
         ] = "interval",
         lowpass_filter: bool = False,
         mean_filter: bool = False,
-        remove_polynomial: bool = True,
-        polynomial_degree: int = 1,
-        polynomial_iterations: int = 1000,
         target_depends_on: str | None = None,
         extra_transforms: dict[str, list[BaseTransform]] | None = None,
-        input_columns: str = CURRENT,
-        target_column: str = FIELD,
+        known_covariates_cols: str = CURRENT,
+        target_col: str = FIELD,
         batch_size: int = 128,
         num_workers: int = 0,
         model_dir: str | None = None,
         dtype: str = "float32",
+        input_columns: str | typing.Sequence[str] | None = None,  # deprecated
+        target_column: str | None = None,  # deprecated
     ):
         """
         The raw dataset used to train the hysteresis model.
@@ -88,8 +87,8 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
         super().__init__(
             train_df=train_df,
             val_df=val_df,
-            input_columns=input_columns,
-            target_column=target_column,
+            known_covariates_cols=known_covariates_cols,
+            target_col=target_col,
             normalize=True,
             downsample=downsample,
             downsample_method=downsample_method,
@@ -97,15 +96,14 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
             min_seq_len=min_seq_len,
             randomize_seq_len=randomize_seq_len,
             stride=stride,
-            remove_polynomial=remove_polynomial,
-            polynomial_degree=polynomial_degree,
-            polynomial_iterations=polynomial_iterations,
             target_depends_on=target_depends_on,
             extra_transforms=extra_transforms,
             batch_size=batch_size,
             num_workers=num_workers,
         )
-        self.save_hyperparameters(ignore=["train_df", "val_df"])
+        self.save_hyperparameters(
+            ignore=["train_df", "val_df", "known_covariates_cols"]
+        )
 
     @classmethod
     def parse_config_kwargs(  # type: ignore[override]
@@ -123,6 +121,18 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
         for key in ("normalize",):
             if key in default_kwargs:
                 del default_kwargs[key]
+
+        # remove past and static covariates
+        for key in [
+            "past_covariates_cols",
+            "static_cont_covariates_cols",
+            "static_cat_covariates_cols",
+        ]:
+            if key in default_kwargs:
+                log.warning(
+                    f"{key} is not used in PhyLSTMDataModule, ignoring it"
+                )
+                default_kwargs.pop(key, None)
 
         return default_kwargs
 
@@ -145,8 +155,8 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
             The preprocessed dataframe.
         """
 
-        current: str = self.hparams["input_columns"][0]
-        field: str | None = self.hparams["target_column"]
+        current: str = self.hparams["known_covariates_cols"][0]
+        field: str | None = self.hparams["target_col"]
 
         # signal processing: lowpass filter
         if self.hparams["lowpass_filter"]:

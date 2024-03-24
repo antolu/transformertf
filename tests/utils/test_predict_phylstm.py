@@ -37,8 +37,8 @@ def phylstm_config() -> PhyLSTMConfig:
         downsample_method="average",
         extra_transforms={"B_meas_T": [DivideByXTransform()]},
         target_depends_on="I_meas_A",
-        input_columns="I_meas_A",
-        target_column="B_meas_T",
+        known_covariates_cols="I_meas_A",
+        target_col="B_meas_T",
     )
 
 

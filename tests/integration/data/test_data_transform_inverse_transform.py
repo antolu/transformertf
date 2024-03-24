@@ -23,8 +23,8 @@ def dm() -> TimeSeriesDataModule:
         config=config,
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
-        input_columns=[CURRENT],
-        target_column=FIELD,
+        known_covariates_cols=[CURRENT],
+        target_col=FIELD,
         seq_len=500,
         dtype=torch.float64,
     )
@@ -75,12 +75,11 @@ def test_data_transform_inverse_transform(dm: TimeSeriesDataModule) -> None:
 
 @pytest.fixture(scope="module")
 def phylstm_dm() -> PhyLSTMDataModule:
-    config = PhyLSTMConfig(input_columns=CURRENT, target_column=FIELD)
+    config = PhyLSTMConfig(known_covariates_cols=CURRENT, target_column=FIELD)
     dm = PhyLSTMDataModule.from_parquet(
         config,
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
-        polynomial_iterations=10,
         downsample=100,
         lowpass_filter=False,
         mean_filter=False,

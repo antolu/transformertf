@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import typing
 
 import torch
 import einops
@@ -9,6 +10,7 @@ from ...nn import (
     AddNorm,
     GatedResidualNetwork,
     GatedLinearUnit,
+    MultiEmbedding,
     VariableSelection,
     InterpretableMultiHeadAttention,
 )
@@ -20,12 +22,15 @@ __all__ = ["TemporalFusionTransformer"]
 class TemporalFusionTransformer(torch.nn.Module):
     def __init__(
         self,
-        num_features: int,
+        num_past_covariates: int,
+        num_future_covariates: int,
         ctxt_seq_len: int,
         tgt_seq_len: int,
-        num_static_features: int = 0,
+        num_static_cont: int = 0,
+        num_static_cat: int = 0,
         n_dim_model: int = 300,
         variable_selection_dim: int = 100,
+        embedding_dims: typing.Sequence[tuple[int, int]] | None = None,
         num_heads: int = 4,
         num_lstm_layers: int = 2,
         dropout: float = 0.1,
@@ -36,21 +41,30 @@ class TemporalFusionTransformer(torch.nn.Module):
 
         Parameters
         ----------
-        num_features : int
-            Number of continuous features / covariates (time series)
+        num_past_covariates : int
+            Number of past covariates. This includes the target feature.
+        num_future_covariates : int
+            Number of future covariates. This should not include the target feature,
+            or the target feature should be zeros and placed at the end of the tensor.
         ctxt_seq_len : int
             Length of the context sequence, in other words the encoder
             sequence length.
         tgt_seq_len : int
             Length of the target sequence, in other words the decoder
             sequence length. This is the prediction horizon.
-        num_static_features : int, optional
-            Number of static features, by default 0. Currently not used.
+        num_static_cont : int, optional
+            Number of static features, by default 0.
+        num_static_cat : int, optional
+            Number of static categorical features, by default 0. If not zero,
+            the `embedding_dims` parameter must be provided.
         n_dim_model : int, optional
             Dimension of the model, by default 300. The most important
             hyperparameter, as it determines the model capacity.
         variable_selection_dim : int, optional
             Dimension of the variable selection network, by default 100.
+        embedding_dims : typing.Sequence[tuple[int, int]] | None, optional
+            List of tuples with number of categories and embedding size
+            for each categorical variable, by default None.
         num_heads : int, optional
             Number of attention heads, by default 4.
         num_lstm_layers : int, optional
@@ -64,21 +78,51 @@ class TemporalFusionTransformer(torch.nn.Module):
             be 1.
         """
         super().__init__()
-        self.num_features = num_features
+        self.num_past_covariates = num_past_covariates
+        self.num_future_covariates = num_future_covariates
         self.ctxt_seq_len = ctxt_seq_len
         self.tgt_seq_len = tgt_seq_len
-        self.num_static_features = num_static_features  # not used
+        self.num_static_cont = num_static_cont  # not used
+        self.num_static_cat = num_static_cat  # not used
         self.n_dim_model = n_dim_model
         self.variable_selection_dim = variable_selection_dim
+        self.embedding_dims = embedding_dims
         self.num_heads = num_heads
         self.num_lstm_layers = num_lstm_layers
         self.dropout = dropout
         self.output_dim = output_dim
 
         # TODO: static covariate embeddings
+        if num_static_cat > 0:
+            if embedding_dims is None:
+                raise ValueError(
+                    "Static categorical features require embedding dimensions"
+                )
+            elif not all(
+                isinstance(embedding, tuple) and len(embedding) == 2
+                for embedding in embedding_dims
+            ):
+                raise ValueError(
+                    "Embedding dimensions must be a list of tuples with "
+                    "number of categories and embedding size"
+                )
+            elif len(embedding_dims) != num_static_cat:
+                raise ValueError(
+                    "Number of embedding dimensions must match number of "
+                    "static categorical features"
+                )
+            self.static_embedding = MultiEmbedding(embedding_dims)
+
+        self.static_vs = VariableSelection(
+            n_features=num_static_cont + num_static_cat,
+            hidden_dim=variable_selection_dim,
+            n_dim_model=n_dim_model,
+            context_size=n_dim_model,
+            dropout=dropout,
+        )
 
         self.enc_vs = VariableSelection(
-            n_features=num_features,
+            n_features=num_past_covariates,
             hidden_dim=variable_selection_dim,
             n_dim_model=n_dim_model,
             context_size=n_dim_model,
@@ -86,14 +130,14 @@ class TemporalFusionTransformer(torch.nn.Module):
         )
 
         self.dec_vs = VariableSelection(
-            n_features=num_features - 1,
+            n_features=num_future_covariates,  # target feature is unknown
             hidden_dim=variable_selection_dim,
             n_dim_model=n_dim_model,
             context_size=n_dim_model,
             dropout=dropout,
         )
 
-        self.static_vs = basic_grn(n_dim_model, dropout)
+        self.static_ctxt_vs = basic_grn(n_dim_model, dropout)
         self.static_ctxt_enrichment = basic_grn(n_dim_model, dropout)
 
         self.lstm_init_hidden = basic_grn(n_dim_model, dropout)
@@ -148,7 +192,8 @@ class TemporalFusionTransformer(torch.nn.Module):
         self,
         past_covariates: torch.Tensor,
         future_covariates: torch.Tensor,
-        static_covariates: torch.Tensor | None = None,
+        static_cont_covariates: torch.Tensor | None = None,
+        static_cat_covariates: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         """
         Forward pass.
@@ -156,11 +201,14 @@ class TemporalFusionTransformer(torch.nn.Module):
         Parameters
         ----------
         past_covariates : torch.Tensor
-            [batch_size, ctxt_seq_len, num_features]
+            [batch_size, ctxt_seq_len, num_past_covariates]
         future_covariates : torch.Tensor
-            [batch_size, tgt_seq_len, num_features]
-        static_covariates : torch.Tensor, optional
-            [batch_size, num_static_features]
+            [batch_size, tgt_seq_len, num_future_covariates]
+
+        static_cont_covariates : torch.Tensor, optional
+            [batch_size, ctxt_seq_len + tgt_seq_len, num_static_cont_features]
+        static_cat_covariates : torch.Tensor, optional
+            [batch_size, ctxt_seq_len + tgt_seq_len, num_static_cat_features]
 
         Returns
         -------
@@ -175,22 +223,51 @@ class TemporalFusionTransformer(torch.nn.Module):
         enc_seq_len = past_covariates.shape[1]
         dec_seq_len = future_covariates.shape[1]
 
-        if static_covariates is None:
-            # normally static embedding is computed using an
-            # embedding layer, but for simplicity we just use zeros
+        if (
+            static_cat_covariates is not None
+            and static_cat_covariates.shape[-1] != self.num_static_cat
+        ):
+            raise ValueError(
+                "Number of static categorical features does not match "
+                "number of static categorical embeddings"
+            )
+        if (
+            static_cont_covariates is not None
+            and static_cont_covariates.shape[-1] != self.num_static_cont
+        ):
+            raise ValueError(
+                "Number of static continuous features does not match "
+                "number of static continuous embeddings"
+            )
+
+        static_embeddings = []
+        if static_cat_covariates is not None:
+            assert self.static_embedding is not None
+            static_embeddings.append(
+                self.static_embedding(static_cat_covariates)[:, 0]
+            )
+
+        if static_cont_covariates is not None:
+            static_embeddings.append(static_cont_covariates)
+
+        if len(static_embeddings) > 0:
+            static_embedding = torch.cat(static_embeddings, dim=-1)
+
+            static_embedding, static_variable_selection = self.static_vs(
+                static_embedding
+            )
+        else:
             static_embedding = torch.zeros(
                 batch_size,
                 self.n_dim_model,
                 device=past_covariates.device,
-            )  # static covariate embeddings
+            )
             static_variable_selection = torch.zeros(  # noqa: F841
                 batch_size, 0, device=past_covariates.device
             )  # static variable selection weights
-        else:
-            raise NotImplementedError("Static features not yet implemented")
 
         # static variable selection
-        static_ctxt_vs = self.static_vs(static_embedding)
+        static_ctxt_vs = self.static_ctxt_vs(static_embedding)
         enc_static_context = einops.repeat(
             static_ctxt_vs,
             "b f -> b t f",

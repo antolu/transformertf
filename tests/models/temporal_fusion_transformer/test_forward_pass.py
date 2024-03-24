@@ -30,7 +30,8 @@ def test_temporal_fusion_transformer_model(
     past_covariates: torch.Tensor, future_covariates: torch.Tensor
 ) -> None:
     model = TemporalFusionTransformer(
-        num_features=NUM_FEATURES,
+        num_past_covariates=NUM_FEATURES,
+        num_future_covariates=NUM_FEATURES - 1,
         ctxt_seq_len=PAST_SEQ_LEN,
         tgt_seq_len=FUTURE_SEQ_LEN,
         num_lstm_layers=1,

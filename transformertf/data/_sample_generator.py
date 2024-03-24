@@ -185,6 +185,12 @@ class EncoderDecoderSample(EncoderSample, typing.Generic[T]):
     decoder_mask: NotRequired[T]
     """ Target mask. Typically should all be ones. """
 
+    static_cont_covariates: NotRequired[T]
+    """ Static continuous covariates. Should be defined for all timesteps. """
+
+    static_cat_covariates: NotRequired[T]
+    """ Static categorical covariates. Should be defined for all timesteps. """
+
 
 class EncoderDecoderTargetSample(
     EncoderDecoderSample, TargetSample, typing.Generic[T]

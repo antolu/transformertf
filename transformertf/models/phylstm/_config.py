@@ -31,5 +31,5 @@ class PhyLSTMConfig(TimeSeriesBaseConfig):
 
     # override defaults
     remove_polynomial: bool = True
-    input_columns: str = "I_meas_A"
-    target_column: str = "B_meas_T"
+    known_covariates_cols: str = "I_meas_A"
+    target_col: str = "B_meas_T"

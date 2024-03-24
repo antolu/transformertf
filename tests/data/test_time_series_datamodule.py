@@ -16,37 +16,37 @@ FIELD = "B_meas_T"
 config = TimeSeriesBaseConfig()
 
 
-def test_datamodule_base_create_from_parquet() -> None:
+def test_datamodule_timeseries_create_from_parquet() -> None:
     dm = TimeSeriesDataModule.from_parquet(
         config=config,
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
-        input_columns=["a"],
-        target_column="b",
+        known_covariates_cols=["a"],
+        target_col="b",
     )
     assert dm is not None
 
 
-def test_datamodule_base_prepare_data() -> None:
+def test_datamodule_timeseries_prepare_data() -> None:
     dm = TimeSeriesDataModule.from_parquet(
         config=config,
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
-        input_columns=[CURRENT],
-        target_column=FIELD,
+        known_covariates_cols=[CURRENT],
+        target_col=FIELD,
     )
     dm.prepare_data()
 
     assert dm is not None
 
 
-def test_datamodule_base_setup_before_prepare_data() -> None:
+def test_datamodule_timeseries_setup_before_prepare_data() -> None:
     dm = TimeSeriesDataModule.from_parquet(
         config=config,
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
-        input_columns=[CURRENT],
-        target_column=FIELD,
+        known_covariates_cols=[CURRENT],
+        target_col=FIELD,
     )
     dm.setup()
 
@@ -60,13 +60,13 @@ def test_datamodule_base_setup_before_prepare_data() -> None:
 
 
 @pytest.fixture(scope="module")
-def datamodule_base() -> TimeSeriesDataModule:
+def datamodule_timeseries() -> TimeSeriesDataModule:
     dm = TimeSeriesDataModule.from_parquet(
         config=config,
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
-        input_columns=[CURRENT],
-        target_column=FIELD,
+        known_covariates_cols=[CURRENT],
+        target_col=FIELD,
     )
     dm.prepare_data()
     dm.setup()
@@ -74,37 +74,37 @@ def datamodule_base() -> TimeSeriesDataModule:
     return dm
 
 
-def test_datamodule_base_train_dataloader(
-    datamodule_base: TimeSeriesDataModule,
+def test_datamodule_timeseries_train_dataloader(
+    datamodule_timeseries: TimeSeriesDataModule,
 ) -> None:
-    dataset = datamodule_base.train_dataset
+    dataset = datamodule_timeseries.train_dataset
     assert dataset is not None
     assert isinstance(dataset, torch.utils.data.Dataset)
 
-    dataloader = datamodule_base.train_dataloader()
+    dataloader = datamodule_timeseries.train_dataloader()
     assert dataloader is not None
     assert isinstance(dataloader, torch.utils.data.DataLoader)
 
 
-def test_datamodule_base_val_dataloader(
-    datamodule_base: TimeSeriesDataModule,
+def test_datamodule_timeseries_val_dataloader(
+    datamodule_timeseries: TimeSeriesDataModule,
 ) -> None:
-    dataset = datamodule_base.val_dataset
+    dataset = datamodule_timeseries.val_dataset
     assert dataset is not None
     assert isinstance(dataset, torch.utils.data.Dataset)
 
-    dataloader = datamodule_base.val_dataloader()
+    dataloader = datamodule_timeseries.val_dataloader()
     assert dataloader is not None
     assert isinstance(dataloader, torch.utils.data.DataLoader)
 
 
-def test_datamodule_base_prepare_twice() -> None:
+def test_datamodule_timeseries_prepare_twice() -> None:
     dm = TimeSeriesDataModule.from_parquet(
         config=config,
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
-        input_columns=[CURRENT],
-        target_column=FIELD,
+        known_covariates_cols=[CURRENT],
+        target_col=FIELD,
     )
     dm.prepare_data()
 
@@ -116,10 +116,10 @@ def df() -> pd.DataFrame:
     return pd.read_parquet(DF_PATH)
 
 
-def test_datamodule_base_read_input(
-    datamodule_base: TimeSeriesDataModule, df: pd.DataFrame
+def test_datamodule_timeseries_read_input(
+    datamodule_timeseries: TimeSeriesDataModule, df: pd.DataFrame
 ) -> None:
-    processed_df = datamodule_base.read_input(
+    processed_df = datamodule_timeseries.read_input(
         df, input_columns=[CURRENT], target_column=FIELD
     )
 
@@ -132,10 +132,10 @@ def test_datamodule_base_read_input(
     assert len(processed_df.columns) == 3
 
 
-def test_datamodule_base_preprocess_dataframe(
-    datamodule_base: TimeSeriesDataModule, df: pd.DataFrame
+def test_datamodule_timeseries_preprocess_dataframe(
+    datamodule_timeseries: TimeSeriesDataModule, df: pd.DataFrame
 ) -> None:
-    processed_df = datamodule_base.preprocess_dataframe(df)
+    processed_df = datamodule_timeseries.preprocess_dataframe(df)
 
     assert processed_df is not None
     assert isinstance(processed_df, pd.DataFrame)
@@ -146,10 +146,10 @@ def test_datamodule_base_preprocess_dataframe(
     assert len(processed_df.columns) == len(df.columns)
 
 
-def test_datamodule_base_normalize_dataframe(
-    datamodule_base: TimeSeriesDataModule, df: pd.DataFrame
+def test_datamodule_timeseries_normalize_dataframe(
+    datamodule_timeseries: TimeSeriesDataModule, df: pd.DataFrame
 ) -> None:
-    processed_df = datamodule_base.apply_transforms(df)
+    processed_df = datamodule_timeseries.apply_transforms(df)
 
     assert processed_df is not None
     assert isinstance(processed_df, pd.DataFrame)
@@ -158,10 +158,10 @@ def test_datamodule_base_normalize_dataframe(
     assert FIELD in processed_df.columns
 
 
-def test_datamodule_base_transform_input(
-    datamodule_base: TimeSeriesDataModule, df: pd.DataFrame
+def test_datamodule_timeseries_transform_input(
+    datamodule_timeseries: TimeSeriesDataModule, df: pd.DataFrame
 ) -> None:
-    processed_df = datamodule_base.transform_input(df)
+    processed_df = datamodule_timeseries.transform_input(df)
 
     assert processed_df is not None
     assert isinstance(processed_df, pd.DataFrame)
@@ -172,19 +172,19 @@ def test_datamodule_base_transform_input(
     assert len(processed_df.columns) == 3
 
 
-def test_datamodule_base_make_dataset(
-    datamodule_base: TimeSeriesDataModule, df: pd.DataFrame
+def test_datamodule_timeseries_make_dataset(
+    datamodule_timeseries: TimeSeriesDataModule, df: pd.DataFrame
 ) -> None:
-    dataset = datamodule_base.make_dataset(df)
+    dataset = datamodule_timeseries.make_dataset(df)
 
     assert dataset is not None
     assert isinstance(dataset, torch.utils.data.Dataset)
 
 
-def test_datamodule_base_make_dataset_predict(
-    datamodule_base: TimeSeriesDataModule, df: pd.DataFrame
+def test_datamodule_timeseries_make_dataset_predict(
+    datamodule_timeseries: TimeSeriesDataModule, df: pd.DataFrame
 ) -> None:
-    dataset = datamodule_base.make_dataset(df, predict=True)
+    dataset = datamodule_timeseries.make_dataset(df, predict=True)
 
     assert dataset is not None
     assert isinstance(dataset, torch.utils.data.Dataset)

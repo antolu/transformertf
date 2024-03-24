@@ -23,8 +23,8 @@ def config() -> TemporalFusionTransformerConfig:
         batch_size=4,
         num_workers=0,
         target_depends_on=CURRENT,
-        input_columns=[CURRENT],
-        target_column=FIELD,
+        known_covariates_cols=[CURRENT],
+        target_col=FIELD,
     )
 
 
@@ -66,6 +66,32 @@ def test_transformer_v2_forward_pass_simple(
         y = tft_module(batch)["output"]
 
     assert y.shape[:2] == x_future.shape[:2]
+
+
+# def test_transformer_v2_forward_pass_static_cont(
+#     config: TemporalFusionTransformerConfig,
+# ) -> None:
+#     x_past = torch.rand(
+#         1,
+#         config.ctxt_seq_len,
+#         2,
+#     )
+#     x_future = torch.rand(
+#         1,
+#         config.tgt_seq_len,
+#         2,
+#     )
+#     static_cont = torch.rand(1, config.ctxt_seq_len + config.tgt_seq_len, 1)
+#
+#     batch = dict(
+#         past_covariates=x_past,
+#         future_covariates=x_future,
+#     )
+#
+#     with torch.no_grad():
+#         y = tft_module(batch)["output"]
+#
+#     assert y.shape[:2] == x_future.shape[:2]
 
 
 def test_transformer_v2_forward_pass(

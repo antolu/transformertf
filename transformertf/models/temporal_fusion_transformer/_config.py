@@ -10,6 +10,9 @@ from ...config import TransformerBaseConfig
 class TemporalFusionTransformerConfig(TransformerBaseConfig):
     n_dim_model: int = 300
     variable_selection_dim: int = 100
+    embedding_dims: list[tuple[int, int]] = dataclasses.field(
+        default_factory=list
+    )
     num_heads: int = 4
 
     num_lstm_layers: int = 2

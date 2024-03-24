@@ -75,8 +75,14 @@ class BaseConfig:
     train_dataset: str | typing.Sequence[str] | None = None
     val_dataset: str | typing.Sequence[str] | None = None
 
-    input_columns: str | typing.Sequence[str] | None = None
+    input_columns: str | typing.Sequence[str] | None = None  # deprecated
     target_column: str | None = None
+
+    known_covariates_cols: str | typing.Sequence[str] | None = None
+    target_col: str | None = None
+    known_past_covariates: str | typing.Sequence[str] | None = None
+    static_categoricals: list[str] = field(default_factory=list)
+    static_continuous: list[str] = field(default_factory=list)
 
     # Checkpointing
     checkpoint_every: int = 50

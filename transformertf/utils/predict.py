@@ -200,9 +200,10 @@ def predict_phylstm(
     inputs = torch.cat([i.squeeze(0) for i in inputs], dim=0).squeeze()
 
     if datamodule.target_transform is not None:
-        input_transform = datamodule.input_transforms[
-            datamodule.hparams["input_columns"][0]
-        ]
+        input_cols = datamodule.hparams.get("input_columns")
+        if input_cols is None:
+            input_cols = datamodule.hparams["known_covariates_cols"]
+        input_transform = datamodule.input_transforms[input_cols[0]]
 
         inputs = input_transform.inverse_transform(inputs)
 
@@ -258,10 +259,16 @@ def predict_encoder_decoder(
         "cuda" if torch.cuda.is_available() else "cpu"
     ),
 ) -> np.ndarray | torch.Tensor:
+    target_col = datamodule.hparams.get("target_column")
+    if target_col is None:  # backwards compatibility
+        target_col = datamodule.hparams["target_col"]
+
+    input_cols = datamodule.hparams.get("input_columns")
+    if input_cols is None:  # backwards compatibility
+        input_cols = datamodule.hparams["known_covariates_cols"]
+
     if isinstance(past_target, pd.DataFrame):
-        past_target = past_target[
-            datamodule.hparams["target_column"]
-        ].to_numpy()
+        past_target = past_target[target_col].to_numpy()
     elif isinstance(past_target, pd.Series):
         past_target = past_target.to_numpy()
 
@@ -280,8 +287,8 @@ def predict_encoder_decoder(
         prediction_length=datamodule.hparams["tgt_seq_len"],
         input_transforms=datamodule.input_transforms,
         target_transform=datamodule.target_transform,
-        input_columns=datamodule.hparams["input_columns"],
-        target_column=datamodule.hparams["target_column"],
+        input_columns=input_cols,
+        target_column=target_col,
     )
     dataloader = torch.utils.data.DataLoader(
         dataset, batch_size=1, num_workers=0
@@ -314,7 +321,7 @@ def predict_encoder_decoder(
     outputs = outputs[: len(future_covariates)]
 
     if datamodule.target_transform is not None:
-        future_x = future_covariates[datamodule.hparams["input_columns"][0]]
+        future_x = future_covariates[input_cols[0]]
         outputs = datamodule.target_transform.inverse_transform(
             future_x, outputs
         )

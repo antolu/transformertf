@@ -47,11 +47,8 @@ def test_phylstm_datamodule_hparams_correct() -> None:
         downsample_method="interval",
         batch_size=32,
         num_workers=4,
-        remove_polynomial=True,
-        polynomial_degree=2,
-        polynomial_iterations=2000,
-        input_columns=["a"],
-        target_column="b",
+        known_covariates_cols=["a"],
+        target_col="b",
         target_depends_on="a",
         model_dir="model_dir",
     )
@@ -74,13 +71,13 @@ def test_phylstm_datamodule_hparams_correct() -> None:
         "downsample_method": "interval",
         "batch_size": 32,
         "num_workers": 4,
-        "input_columns": ["a"],
-        "target_column": "b",
+        "known_covariates_cols": ["a"],
+        "past_covariates_cols": [],
+        "static_cont_covariates_cols": [],
+        "static_cat_covariates_cols": [],
+        "target_col": "b",
         "model_dir": "model_dir",
         "normalize": True,
-        "remove_polynomial": True,
-        "polynomial_degree": 2,
-        "polynomial_iterations": 2000,
         "target_depends_on": "a",
         "dtype": "float32",
     }
@@ -89,7 +86,7 @@ def test_phylstm_datamodule_hparams_correct() -> None:
     for key, value in correct_hparams.items():
         assert hparams.pop(key) == value
 
-    assert len(hparams) == 1 and "extra_transforms" in hparams
+    assert len(hparams) == 3 and "extra_transforms" in hparams
 
 
 def test_phylstm_datamodule_prepare_data() -> None:

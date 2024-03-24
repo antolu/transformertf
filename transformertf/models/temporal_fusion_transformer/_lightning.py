@@ -21,9 +21,12 @@ if typing.TYPE_CHECKING:
 class TemporalFusionTransformerModule(LightningModuleBase):
     def __init__(
         self,
-        num_features: int,
+        num_past_covariates: int,
+        num_future_covariates: int,
         ctxt_seq_len: int,
         tgt_seq_len: int,
+        num_static_cont_covariates: int = 0,
+        num_static_cat_covariates: int = 0,
         n_dim_model: int = 300,
         variable_selection_dim: int = 100,
         num_heads: int = 4,
@@ -65,7 +68,10 @@ class TemporalFusionTransformerModule(LightningModuleBase):
         self.save_hyperparameters(ignore=["lr_scheduler", "criterion"])
 
         self.model = TemporalFusionTransformer(
-            num_features=num_features,
+            num_past_covariates=num_past_covariates,
+            num_future_covariates=num_future_covariates,
+            num_static_cat=num_static_cat_covariates,
+            num_static_cont=num_static_cont_covariates,
             ctxt_seq_len=ctxt_seq_len,
             tgt_seq_len=tgt_seq_len,
             n_dim_model=n_dim_model,
@@ -82,15 +88,16 @@ class TemporalFusionTransformerModule(LightningModuleBase):
     ) -> dict[str, typing.Any]:
         default_kwargs = super().parse_config_kwargs(config, **kwargs)
         num_features = (
-            len(config.input_columns)
-            if config.input_columns is not None
+            len(config.known_covariates_cols)
+            if config.known_covariates_cols is not None
             else 0
         )
         num_features += 1  # add target
 
         default_kwargs.update(
             dict(
-                num_features=num_features,
+                num_past_covariates=num_features,
+                num_future_covariates=num_features - 1,
                 ctxt_seq_len=config.ctxt_seq_len,
                 tgt_seq_len=config.tgt_seq_len,
                 n_dim_model=config.n_dim_model,
