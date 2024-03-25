@@ -60,6 +60,7 @@ def test_transformer_v2_forward_pass_simple(
     batch = dict(
         encoder_input=x_past,
         decoder_input=x_future,
+        encoder_lengths=torch.tensor([[1.0]]),
     )
 
     with torch.no_grad():

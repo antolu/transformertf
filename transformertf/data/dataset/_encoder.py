@@ -118,6 +118,7 @@ class EncoderDataset(AbstractTimeSeriesDataset):
         self._cum_num_samples = np.cumsum(
             [len(gen) for gen in self._sample_gen]
         )
+        self._dtype = dtype
 
     @classmethod
     def from_dataframe(
@@ -185,7 +186,7 @@ class EncoderDataset(AbstractTimeSeriesDataset):
             random_len = np.random.randint(
                 self._min_ctxt_seq_len, self._ctxt_seq_len
             )
-            sample["encoder_input"][random_len:] = 0.0
+            sample["encoder_input"][: self._ctxt_seq_len - random_len] = 0.0
 
             random_len = np.random.randint(
                 self._min_tgt_seq_len, self._tgt_seq_len
