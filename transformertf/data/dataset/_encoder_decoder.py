@@ -6,7 +6,7 @@ import torch
 
 from ._base import (
     _check_index,
-    DTYPE_MAP,
+    get_dtype,
 )
 from ._encoder import EncoderDataset
 from .._sample_generator import EncoderDecoderTargetSample
@@ -52,11 +52,11 @@ class EncoderDecoderDataset(EncoderDataset):
 
             encoder_len_ = 2.0 * encoder_len / self._ctxt_seq_len - 1.0
             sample["encoder_lengths"] = torch.tensor(
-                [encoder_len_], dtype=DTYPE_MAP[self._dtype]
+                [encoder_len_], dtype=get_dtype(self._dtype)
             )
         else:
             sample["encoder_lengths"] = torch.tensor(
-                [1.0], dtype=DTYPE_MAP[self._dtype]
+                [1.0], dtype=get_dtype(self._dtype)
             )
 
         return sample

@@ -41,6 +41,12 @@ DTYPE_MAP = {
 }
 
 
+def get_dtype(dtype: str | torch.dtype) -> torch.dtype:
+    if isinstance(dtype, str):
+        return DTYPE_MAP[dtype]
+    return dtype
+
+
 class DataSetType(enum.Enum):
     TRAIN = "train"
     VAL_TEST = "validation_test"
