@@ -721,7 +721,7 @@ class DataModuleBase(L.LightningDataModule):
             dir_ = typing.cast(str, self.hparams["model_dir"])
         dfs = getattr(self, f"_{name}_df")
 
-        if dfs is not None:  # for saving
+        if dfs is not None and len(dfs) > 0:  # for saving
             if len(dfs) == 1 or isinstance(dfs, pd.DataFrame):
                 return [Path(dir_) / f"{name}.parquet"]
             else:
@@ -744,6 +744,7 @@ class DataModuleBase(L.LightningDataModule):
                         paths.append(p)
                     else:
                         break
+                    i += 1
 
                 return paths
 
