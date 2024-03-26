@@ -39,18 +39,11 @@ class EncoderDecoderDataset(EncoderDataset):
         if self._randomize_seq_len:
             assert self._min_ctxt_seq_len is not None
             assert self._min_tgt_seq_len is not None
-            encoder_len = sample_len(
-                self._min_ctxt_seq_len, self._ctxt_seq_len
-            )
-            sample["encoder_input"][: self._ctxt_seq_len - encoder_len] = 0.0
+            encoder_len = sample_len(self._min_ctxt_seq_len, self.ctxt_seq_len)
+            sample["encoder_input"][: self.ctxt_seq_len - encoder_len] = 0.0
+            sample["encoder_mask"][: self.ctxt_seq_len - encoder_len] = 0.0
 
-            decoder_len = sample_len(self._min_tgt_seq_len, self._tgt_seq_len)
-            sample["decoder_input"][decoder_len:] = 0.0
-
-            if "target" in sample:
-                sample["target"][decoder_len:] = 0.0
-
-            encoder_len_ = 2.0 * encoder_len / self._ctxt_seq_len - 1.0
+            encoder_len_ = 2.0 * encoder_len / self.ctxt_seq_len - 1.0
             sample["encoder_lengths"] = torch.tensor(
                 [encoder_len_], dtype=get_dtype(self._dtype)
             )
