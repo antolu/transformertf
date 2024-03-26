@@ -56,4 +56,4 @@ class EncoderDecoderDataset(EncoderDataset):
 
 
 def sample_len(min_: int, max_: int) -> int:
-    return int(np.random.beta(5, 2) * (max_ - min_) + min_)
+    return int(np.random.beta(1.0, 0.5) * (max_ - min_) + min_)
