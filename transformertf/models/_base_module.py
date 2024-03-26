@@ -147,6 +147,7 @@ class LightningModuleBase(L.LightningModule):
                 log_dict,
                 on_step=stage == "train",
                 prog_bar=stage == "train",
+                sync_dist=True,
             )
 
         return log_dict

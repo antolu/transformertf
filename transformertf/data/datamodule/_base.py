@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import functools
 import logging
 import os.path as path
@@ -34,6 +35,15 @@ if typing.TYPE_CHECKING:
     SameType = typing.TypeVar("SameType", bound="DataModuleBase")
 
 TIME = "time_ms"
+
+
+@dataclasses.dataclass
+class TmpDir:
+    name: str
+
+
+class TmpDirType(typing.Protocol):
+    name: str
 
 
 class DataModuleBase(L.LightningDataModule):
@@ -91,7 +101,16 @@ class DataModuleBase(L.LightningDataModule):
         self._train_df: list[pd.DataFrame] = []
         self._val_df: list[pd.DataFrame] = []
 
-        self._tmp_dir = tempfile.TemporaryDirectory()
+        self._tmp_dir: TmpDirType
+        if distributed_sampler:
+            self._tmp_dir = TmpDir("/tmp/tmp_datamodule/")
+            pth = Path(self._tmp_dir.name)
+
+            # if pth.exists():
+            #     shutil.rmtree(str(pth))
+            pth.mkdir(parents=True, exist_ok=True)
+        else:
+            self._tmp_dir = tempfile.TemporaryDirectory()
 
     """ Override the following in subclasses """
 
@@ -642,7 +661,7 @@ class DataModuleBase(L.LightningDataModule):
         return torch.utils.data.DataLoader(
             self.train_dataset,
             batch_size=self.hparams["batch_size"],
-            shuffle=True,
+            shuffle=True if sampler is None else False,
             num_workers=self.hparams["num_workers"],
             sampler=sampler,
         )
