@@ -39,6 +39,7 @@ class TransformerDataModule(DataModuleBase):
         batch_size: int = 128,
         num_workers: int = 0,
         dtype: str = "float32",
+        distributed_sampler: bool = False,
     ):
         super().__init__(
             train_df=train_df,
@@ -55,6 +56,7 @@ class TransformerDataModule(DataModuleBase):
             batch_size=batch_size,
             num_workers=num_workers,
             dtype=dtype,
+            distributed_sampler=distributed_sampler,
         )
 
         self.save_hyperparameters(ignore=["train_df", "val_df"])
