@@ -292,7 +292,7 @@ def predict_encoder_decoder(
         batch = ops.to(batch, device)
 
         model_output = module(batch)
-        if "output" in model_output:
+        if isinstance(model_output, dict) and "output" in model_output:
             model_output = model_output["output"]
         model_output = ops.to_cpu(model_output)
         model_output = ops.detach(model_output)

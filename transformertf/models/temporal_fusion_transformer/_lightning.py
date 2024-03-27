@@ -69,6 +69,7 @@ class TemporalFusionTransformerModule(LightningModuleBase):
             ctxt_seq_len=ctxt_seq_len,
             tgt_seq_len=tgt_seq_len,
             n_dim_model=n_dim_model,
+            num_static_features=1,
             variable_selection_dim=variable_selection_dim,
             num_heads=num_heads,
             num_lstm_layers=num_lstm_layers,
@@ -123,6 +124,7 @@ class TemporalFusionTransformerModule(LightningModuleBase):
         return self.model(
             past_covariates=x["encoder_input"],
             future_covariates=x["decoder_input"],
+            static_covariates=x["encoder_lengths"],  # type: ignore[typeddict-item]
         )
 
     def training_step(

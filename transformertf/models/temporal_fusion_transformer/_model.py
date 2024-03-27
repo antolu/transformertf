@@ -76,6 +76,13 @@ class TemporalFusionTransformer(torch.nn.Module):
         self.output_dim = output_dim
 
         # TODO: static covariate embeddings
+        self.static_vs = VariableSelection(
+            n_features=num_static_features,
+            hidden_dim=variable_selection_dim,
+            n_dim_model=n_dim_model,
+            context_size=n_dim_model,
+            dropout=dropout,
+        )
 
         self.enc_vs = VariableSelection(
             n_features=num_features,
@@ -93,7 +100,7 @@ class TemporalFusionTransformer(torch.nn.Module):
             dropout=dropout,
         )
 
-        self.static_vs = basic_grn(n_dim_model, dropout)
+        self.static_ctxt_vs = basic_grn(n_dim_model, dropout)
         self.static_ctxt_enrichment = basic_grn(n_dim_model, dropout)
 
         self.lstm_init_hidden = basic_grn(n_dim_model, dropout)
@@ -187,10 +194,13 @@ class TemporalFusionTransformer(torch.nn.Module):
                 batch_size, 0, device=past_covariates.device
             )  # static variable selection weights
         else:
-            raise NotImplementedError("Static features not yet implemented")
+            static_embedding = static_covariates
+            static_embedding, static_variable_selection = self.static_vs(
+                static_embedding
+            )
 
         # static variable selection
-        static_ctxt_vs = self.static_vs(static_embedding)
+        static_ctxt_vs = self.static_ctxt_vs(static_embedding)
         enc_static_context = einops.repeat(
             static_ctxt_vs,
             "b f -> b t f",

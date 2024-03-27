@@ -38,7 +38,7 @@ class TimeDistributedInterpolation(torch.nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if x.ndim <= 2:
-            return self.interpolate(x, self.output_dim, self.mask)
+            return interpolate(x, self.output_dim, self.mask)
 
         # Squash samples and timesteps into a single axis
         # x_reshape = x.contiguous().view(-1, x.size(-1))  # (samples * timesteps, input_size)
