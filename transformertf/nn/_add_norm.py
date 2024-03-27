@@ -7,7 +7,6 @@ the skip connection to be trainable.
 
 from __future__ import annotations
 
-
 import torch
 
 

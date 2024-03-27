@@ -128,4 +128,4 @@ def downsample_mean(
     if factor < 2:
         return v
 
-    return scipy.ndimage.median_filter(v, size=factor)[::factor]
+    return scipy.ndimage.median_filter(v, size=factor // 2)[::factor]

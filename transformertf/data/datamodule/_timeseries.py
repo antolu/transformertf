@@ -3,6 +3,7 @@ from __future__ import annotations
 import typing
 
 from transformertf.data.dataset import TimeSeriesDataset
+
 from ._base import DataModuleBase
 
 if typing.TYPE_CHECKING:
