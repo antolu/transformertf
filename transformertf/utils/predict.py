@@ -289,6 +289,10 @@ def predict_encoder_decoder(
 
     outputs = []
     for idx, batch in enumerate(dataloader):
+        batch["encoder_lengths"] = torch.ones(
+            [batch["encoder_input"].shape[0], 1],
+            dtype=batch["encoder_input"].dtype,
+        )
         batch = ops.to(batch, device)
 
         model_output = module(batch)
