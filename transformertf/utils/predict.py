@@ -7,16 +7,15 @@ import pandas as pd
 import torch
 
 from ..data import (
+    DataModuleBase,
     EncoderDecoderDataModule,
     TimeSeriesDataModule,
-    DataModuleBase,
 )
-from ..nn import QuantileLoss
 from ..data.dataset import EncoderDecoderPredictDataset
 from ..models import LightningModuleBase
-from ..models.phylstm import PhyLSTMModule, PhyLSTMDataModule
+from ..models.phylstm import PhyLSTMDataModule, PhyLSTMModule
+from ..nn import QuantileLoss
 from ..utils import ops
-
 
 __all__ = [
     "predict",
@@ -289,6 +288,10 @@ def predict_encoder_decoder(
 
     outputs = []
     for idx, batch in enumerate(dataloader):
+        batch["encoder_lengths"] = torch.ones(
+            [batch["encoder_input"].shape[0], 1],
+            dtype=batch["encoder_input"].dtype,
+        )
         batch = ops.to(batch, device)
 
         model_output = module(batch)

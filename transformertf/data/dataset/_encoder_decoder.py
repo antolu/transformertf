@@ -1,15 +1,11 @@
 from __future__ import annotations
 
-
 import numpy as np
 import torch
 
-from ._base import (
-    _check_index,
-    get_dtype,
-)
-from ._encoder import EncoderDataset
 from .._sample_generator import EncoderDecoderTargetSample
+from ._base import _check_index, get_dtype
+from ._encoder import EncoderDataset
 
 
 class EncoderDecoderDataset(EncoderDataset):

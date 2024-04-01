@@ -15,6 +15,7 @@ import torch
 import torch.utils.data
 
 from transformertf.data.dataset import TimeSeriesDataset
+
 from .._downsample import downsample
 from ..transform import (
     BaseTransform,

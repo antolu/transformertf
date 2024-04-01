@@ -1,18 +1,15 @@
 from __future__ import annotations
 
-
-import torch
 import einops
-
+import torch
 
 from ...nn import (
     AddNorm,
-    GatedResidualNetwork,
     GatedLinearUnit,
-    VariableSelection,
+    GatedResidualNetwork,
     InterpretableMultiHeadAttention,
+    VariableSelection,
 )
-
 
 __all__ = ["TemporalFusionTransformer"]
 
