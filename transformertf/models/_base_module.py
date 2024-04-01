@@ -92,11 +92,16 @@ class LightningModuleBase(L.LightningModule):
         batch: typing.Any,
         batch_idx: int,
     ) -> None:
-        assert outputs is not None
-        assert "target" in batch
-        assert isinstance(outputs, dict)
-        other_metrics = self.calc_other_metrics(outputs, batch["target"])
-        self.common_log_step(other_metrics, "train")
+
+        if "prediction_type" not in self.hparams or (
+            "prediction_type" in self.hparams
+            and self.hparams["prediction_type"] == "point"
+        ):
+            assert outputs is not None
+            assert "target" in batch
+            assert isinstance(outputs, dict)
+            other_metrics = self.calc_other_metrics(outputs, batch["target"])
+            self.common_log_step(other_metrics, "train")
 
         return super().on_train_batch_end(outputs, batch, batch_idx)
 
@@ -113,9 +118,13 @@ class LightningModuleBase(L.LightningModule):
             ops.to_cpu(ops.detach(outputs))
         )
 
-        assert "target" in batch
-        other_metrics = self.calc_other_metrics(outputs, batch["target"])
-        self.common_log_step(other_metrics, "validation")
+        if "prediction_type" not in self.hparams or (
+            "prediction_type" in self.hparams
+            and self.hparams["prediction_type"] == "point"
+        ):
+            assert "target" in batch
+            other_metrics = self.calc_other_metrics(outputs, batch["target"])
+            self.common_log_step(other_metrics, "validation")
 
     def calc_other_metrics(
         self, outputs: STEP_OUTPUT, target: torch.Tensor

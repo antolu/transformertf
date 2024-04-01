@@ -144,27 +144,6 @@ class TemporalFusionTransformerModule(LightningModuleBase):
                 point_prediction
             )
 
-        if self.hparams["prediction_type"] == "point":
-            loss_dict["MSE"] = torch.nn.functional.mse_loss(
-                point_prediction, target
-            )
-            loss_dict["MAE"] = torch.nn.functional.l1_loss(
-                point_prediction, target
-            )
-            loss_dict["MAPE"] = torch.mean(
-                torch.abs((point_prediction - target) / target)
-            )
-            loss_dict["SMAPE"] = torch.mean(
-                2
-                * torch.abs(point_prediction - target)
-                / (torch.abs(point_prediction) + torch.abs(target))
-            )
-            loss_dict["MASE"] = torch.mean(
-                torch.abs(point_prediction - target)
-                / torch.mean(torch.abs(target[1:] - target[:-1]))
-            )
-            loss_dict["RMSE"] = torch.sqrt(loss_dict["MSE"])
-
         self.common_log_step(loss_dict, "train")
 
         return {
@@ -191,29 +170,6 @@ class TemporalFusionTransformerModule(LightningModuleBase):
         if isinstance(self.criterion, QuantileLoss):
             point_prediction = self.criterion.point_prediction(
                 point_prediction
-            )
-
-        if self.hparams["prediction_type"] == "point":
-            loss_dict["MSE"] = torch.nn.functional.mse_loss(
-                point_prediction, target
-            )
-            loss_dict["MAE"] = torch.nn.functional.l1_loss(
-                point_prediction, target
-            )
-            loss_dict["MAPE"] = torch.mean(
-                torch.abs((point_prediction - target) / target)
-            )
-            loss_dict["SMAPE"] = torch.mean(
-                2
-                * torch.abs(point_prediction - target)
-                / (torch.abs(point_prediction) + torch.abs(target))
-            )
-            loss_dict["MASE"] = torch.mean(
-                torch.abs(point_prediction - target)
-                / torch.mean(torch.abs(target[1:] - target[:-1]))
-            )
-            loss_dict["RMSE"] = torch.sqrt(
-                loss_dict["MSE"],
             )
 
         self.common_log_step(loss_dict, "validation")
