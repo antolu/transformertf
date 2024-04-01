@@ -108,7 +108,7 @@ def test_transformer_v2_forward_pass(
 
     for key in (
         "loss",
-        "loss_MSE",
+        "MSE",
         "output",
     ):
         assert key in outputs
