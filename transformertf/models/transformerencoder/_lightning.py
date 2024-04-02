@@ -152,17 +152,14 @@ class TransformerEncoderModule(LightningModuleBase):
         loss = typing.cast(torch.Tensor, self.criterion(model_output, target))
 
         loss_dict = {"loss": loss}
-        point_prediction = model_output
+        point_prediction_dict: dict[str, torch.Tensor] = {}
         if isinstance(self.criterion, QuantileLoss):
             point_prediction = self.criterion.point_prediction(model_output)
-
-        loss_dict["loss_MSE"] = torch.nn.functional.mse_loss(
-            point_prediction, target
-        )
+            point_prediction_dict = {"point_prediction": point_prediction}
 
         self.common_log_step(loss_dict, "train")
 
-        return loss_dict
+        return loss_dict | {"output": model_output} | point_prediction_dict
 
     def validation_step(
         self,
@@ -178,14 +175,11 @@ class TransformerEncoderModule(LightningModuleBase):
         loss = typing.cast(torch.Tensor, self.criterion(model_output, target))
 
         loss_dict = {"loss": loss}
-        point_prediction = model_output
+        point_prediction_dict: dict[str, torch.Tensor] = {}
         if isinstance(self.criterion, QuantileLoss):
             point_prediction = self.criterion.point_prediction(model_output)
-
-        loss_dict["loss_MSE"] = torch.nn.functional.mse_loss(
-            point_prediction, target
-        )
+            point_prediction_dict = {"point_prediction": point_prediction}
 
         self.common_log_step(loss_dict, "validation")
 
-        return {**loss_dict, "output": model_output}
+        return loss_dict | {"output": model_output} | point_prediction_dict

@@ -9,6 +9,7 @@ import torch
 from ..config import BaseConfig
 from ..data import TimeSeriesSample
 from ..utils import configure_lr_scheduler, configure_optimizers, ops
+from ..nn import functional as F
 
 if typing.TYPE_CHECKING:
     SameType = typing.TypeVar("SameType", bound="LightningModuleBase")
@@ -86,6 +87,25 @@ class LightningModuleBase(L.LightningModule):
 
         super().on_validation_epoch_start()
 
+    def on_train_batch_end(
+        self,
+        outputs: torch.Tensor | typing.Mapping[str, typing.Any] | None,
+        batch: typing.Any,
+        batch_idx: int,
+    ) -> None:
+
+        if "prediction_type" not in self.hparams or (
+            "prediction_type" in self.hparams
+            and self.hparams["prediction_type"] == "point"
+        ):
+            assert outputs is not None
+            assert "target" in batch
+            assert isinstance(outputs, dict)
+            other_metrics = self.calc_other_metrics(outputs, batch["target"])
+            self.common_log_step(other_metrics, "train")
+
+        return super().on_train_batch_end(outputs, batch, batch_idx)
+
     def on_validation_batch_end(
         self,
         outputs: STEP_OUTPUT,
@@ -98,6 +118,57 @@ class LightningModuleBase(L.LightningModule):
         self._val_outputs[dataloader_idx].append(
             ops.to_cpu(ops.detach(outputs))
         )
+
+        if "prediction_type" not in self.hparams or (
+            "prediction_type" in self.hparams
+            and self.hparams["prediction_type"] == "point"
+        ):
+            assert "target" in batch
+            other_metrics = self.calc_other_metrics(outputs, batch["target"])
+            self.common_log_step(other_metrics, "validation")
+
+    def calc_other_metrics(
+        self, outputs: STEP_OUTPUT, target: torch.Tensor
+    ) -> dict[str, torch.Tensor]:
+        """
+        Calculate other metrics from the outputs of the model.
+
+        Parameters
+        ----------
+        outputs : STEP_OUTPUT
+            The outputs of the model. Should contain keys "output" and "loss", and optionally "point_prediction".
+            If the "point_prediction" key is present, it should be a tensor of shape (batch_size, prediction_horizon, 1),
+            otherwise it will be calculated from the "output" tensor.
+        target : torch.Tensor
+            The target tensor. Should be a tensor of shape (batch_size, prediction_horizon, 1).
+
+        Returns
+        -------
+        dict[str, torch.Tensor]
+            A dictionary containing the calculated metrics.
+        """
+        loss_dict: dict[str, torch.Tensor] = {}
+
+        if target.ndim == 3:
+            target = target.squeeze(-1)
+
+        assert isinstance(outputs, dict)
+        if "point_prediction" in outputs:
+            prediction = outputs["point_prediction"]
+        else:
+            prediction = outputs["output"]
+
+        assert isinstance(prediction, torch.Tensor)
+        if prediction.ndim == 3:
+            prediction = prediction.squeeze(-1)
+
+        loss_dict["MSE"] = torch.nn.functional.mse_loss(prediction, target)
+        loss_dict["MAE"] = torch.nn.functional.l1_loss(prediction, target)
+        loss_dict["MAPE"] = F.mape_loss(prediction, target)
+        loss_dict["SMAPE"] = F.smape_loss(prediction, target)
+        loss_dict["RMSE"] = torch.sqrt(loss_dict["MSE"])
+
+        return loss_dict
 
     def on_test_epoch_start(self) -> None:
         self._test_outputs = {}
@@ -147,6 +218,7 @@ class LightningModuleBase(L.LightningModule):
                 log_dict,
                 on_step=stage == "train",
                 prog_bar=stage == "train",
+                sync_dist=True,
             )
 
         return log_dict
@@ -159,7 +231,7 @@ class LightningModuleBase(L.LightningModule):
                 lightning.pytorch.utilities.grad_norm(self, norm_type=2)
             )
 
-    def configure_optimizers(
+    def configure_optimizers(  # type: ignore[override]
         self,
     ) -> torch.optim.Optimizer | OPTIMIZER_DICT:
         lr: float = self.hparams["lr"]

@@ -1,18 +1,19 @@
-from .._mod_replace import replace_modname
 from transformertf.data.dataset import (
     AbstractTimeSeriesDataset,
     EncoderDataset,
     EncoderDecoderDataset,
     TimeSeriesDataset,
 )
+
+from .._mod_replace import replace_modname
 from ._downsample import downsample
 from ._sample_generator import (
     EncoderDecoderTargetSample,
     EncoderTargetSample,
     TimeSeriesSample,
     TimeSeriesSampleGenerator,
-    TransformerSampleGenerator,
     TransformerPredictionSampleGenerator,
+    TransformerSampleGenerator,
 )
 from ._window_generator import WindowGenerator
 from .datamodule import (

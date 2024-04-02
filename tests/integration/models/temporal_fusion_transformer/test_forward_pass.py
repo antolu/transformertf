@@ -86,7 +86,7 @@ def test_transformer_v2_forward_pass(
     with torch.no_grad():
         losses = tft_module.training_step(batch, 0)
 
-    for key in ("loss", "loss_MSE"):
+    for key in ("loss",):
         assert key in losses
 
     tft_module.on_train_epoch_end()
@@ -108,7 +108,6 @@ def test_transformer_v2_forward_pass(
 
     for key in (
         "loss",
-        "loss_MSE",
         "output",
     ):
         assert key in outputs

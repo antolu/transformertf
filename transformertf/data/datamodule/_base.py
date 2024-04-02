@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import functools
 import logging
 import os.path as path
@@ -14,6 +15,7 @@ import torch
 import torch.utils.data
 
 from transformertf.data.dataset import TimeSeriesDataset
+
 from .._downsample import downsample
 from ..transform import (
     BaseTransform,
@@ -34,6 +36,15 @@ if typing.TYPE_CHECKING:
     SameType = typing.TypeVar("SameType", bound="DataModuleBase")
 
 TIME = "time_ms"
+
+
+@dataclasses.dataclass
+class TmpDir:
+    name: str
+
+
+class TmpDirType(typing.Protocol):
+    name: str
 
 
 class DataModuleBase(L.LightningDataModule):
@@ -67,6 +78,7 @@ class DataModuleBase(L.LightningDataModule):
         batch_size: int = 128,
         num_workers: int = 0,
         dtype: str = "float32",
+        distributed_sampler: bool = False,
     ):
         super().__init__()
         input_columns = _to_list(input_columns)
@@ -90,7 +102,16 @@ class DataModuleBase(L.LightningDataModule):
         self._train_df: list[pd.DataFrame] = []
         self._val_df: list[pd.DataFrame] = []
 
-        self._tmp_dir = tempfile.TemporaryDirectory()
+        self._tmp_dir: TmpDirType
+        if distributed_sampler:
+            self._tmp_dir = TmpDir("/tmp/tmp_datamodule/")
+            pth = Path(self._tmp_dir.name)
+
+            # if pth.exists():
+            #     shutil.rmtree(str(pth))
+            pth.mkdir(parents=True, exist_ok=True)
+        else:
+            self._tmp_dir = tempfile.TemporaryDirectory()
 
     """ Override the following in subclasses """
 
@@ -628,11 +649,22 @@ class DataModuleBase(L.LightningDataModule):
         torch.utils.data.DataLoader
         | typing.Sequence[torch.utils.data.DataLoader]
     ):
+        sampler: torch.utils.data.Sampler | None = None
+        if self.hparams["distributed_sampler"]:
+            sampler = torch.utils.data.distributed.DistributedSampler(
+                self.train_dataset,
+                shuffle=True,
+                drop_last=True,
+            )
+        else:
+            sampler = None
+
         return torch.utils.data.DataLoader(
             self.train_dataset,
             batch_size=self.hparams["batch_size"],
-            shuffle=True,
+            shuffle=True if sampler is None else False,
             num_workers=self.hparams["num_workers"],
+            sampler=sampler,
         )
 
     def val_dataloader(
@@ -641,11 +673,24 @@ class DataModuleBase(L.LightningDataModule):
         torch.utils.data.DataLoader
         | typing.Sequence[torch.utils.data.DataLoader]
     ):
+        if self._val_df is None or len(self._val_df) == 0:
+            raise ValueError("No validation data available.")
+
+        sampler: torch.utils.data.Sampler | None = None
+        if self.hparams["distributed_sampler"]:
+            sampler = torch.utils.data.distributed.DistributedSampler(
+                self.val_dataset,
+                shuffle=False,
+                drop_last=False,
+            )
+        else:
+            sampler = None
         make_dataloader = functools.partial(
             torch.utils.data.DataLoader,
             batch_size=1,
             num_workers=self.hparams["num_workers"],
             shuffle=False,
+            sampler=sampler,
         )
         if len(self._val_df) == 1:
             return make_dataloader(self.val_dataset)  # type: ignore[arg-type]

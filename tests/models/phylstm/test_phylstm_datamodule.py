@@ -83,6 +83,7 @@ def test_phylstm_datamodule_hparams_correct() -> None:
         "polynomial_iterations": 2000,
         "target_depends_on": "a",
         "dtype": "float32",
+        "distributed_sampler": False,
     }
 
     hparams = dict(dm.hparams)

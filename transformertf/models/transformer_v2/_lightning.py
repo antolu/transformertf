@@ -139,26 +139,20 @@ class TransformerV2Module(LightningModuleBase):
     def training_step(
         self, batch: EncoderDecoderTargetSample, batch_idx: int
     ) -> dict[str, torch.Tensor]:
-        assert "target" in batch
-        target = batch["target"].squeeze(-1)
-
         model_output = self(batch)
 
         loss = self.calc_loss(model_output, batch)
 
         loss_dict = {"loss": loss}
-        point_prediction = model_output
+        point_prediction_dict: dict[str, torch.Tensor] = {}
+
         if isinstance(self.criterion, QuantileLoss):
             point_prediction = self.criterion.point_prediction(model_output)
-
-        if self.hparams["prediction_type"] == "point":
-            loss_dict["loss_MSE"] = torch.nn.functional.mse_loss(
-                point_prediction, target
-            )
+            point_prediction_dict = {"point_prediction": point_prediction}
 
         self.common_log_step(loss_dict, "train")
 
-        return loss_dict
+        return loss_dict | {"output": model_output} | point_prediction_dict
 
     def validation_step(
         self,
@@ -166,26 +160,19 @@ class TransformerV2Module(LightningModuleBase):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> dict[str, torch.Tensor]:
-        assert "target" in batch
-        target = batch["target"].squeeze(-1)
-
         model_output = self(batch)
 
         loss = self.calc_loss(model_output, batch)
 
         loss_dict = {"loss": loss}
-        point_prediction = model_output
+        point_prediction_dict: dict[str, torch.Tensor] = {}
         if isinstance(self.criterion, QuantileLoss):
             point_prediction = self.criterion.point_prediction(model_output)
-
-        if self.hparams["prediction_type"] == "point":
-            loss_dict["loss_MSE"] = torch.nn.functional.mse_loss(
-                point_prediction, target
-            )
+            point_prediction_dict = {"point_prediction": point_prediction}
 
         self.common_log_step(loss_dict, "validation")
 
-        return {**loss_dict, "output": model_output}
+        return loss_dict | {"output": model_output} | point_prediction_dict
 
     def calc_loss(
         self,

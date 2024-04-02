@@ -72,6 +72,7 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
         num_workers: int = 0,
         model_dir: str | None = None,
         dtype: str = "float32",
+        distributed_sampler: bool = False,
     ):
         """
         The raw dataset used to train the hysteresis model.
@@ -104,6 +105,8 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
             extra_transforms=extra_transforms,
             batch_size=batch_size,
             num_workers=num_workers,
+            dtype=dtype,
+            distributed_sampler=distributed_sampler,
         )
         self.save_hyperparameters(ignore=["train_df", "val_df"])
 

@@ -1,24 +1,22 @@
 from __future__ import annotations
 
-
-import typing
 import logging
+import typing
 
 import numpy as np
-import torch
 import pandas as pd
+import torch
 
+from .._sample_generator import EncoderTargetSample, TransformerSampleGenerator
+from ..transform import BaseTransform
 from ._base import (
+    DATA_SOURCE,
     AbstractTimeSeriesDataset,
     DataSetType,
-    DATA_SOURCE,
     _check_index,
     _check_label_data_length,
     convert_data,
 )
-from ..transform import BaseTransform
-from .._sample_generator import TransformerSampleGenerator, EncoderTargetSample
-
 
 log = logging.getLogger(__name__)
 

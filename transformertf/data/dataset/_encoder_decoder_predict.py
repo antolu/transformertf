@@ -2,19 +2,16 @@ from __future__ import annotations
 
 import typing
 
-from ._base import AbstractTimeSeriesDataset, DataSetType, convert_data
-
-
 import numpy as np
 import pandas as pd
-
 import torch
 
-from ..transform import BaseTransform, TransformType
 from .._sample_generator import (
-    TransformerPredictionSampleGenerator,
     EncoderDecoderSample,
+    TransformerPredictionSampleGenerator,
 )
+from ..transform import BaseTransform, TransformType
+from ._base import AbstractTimeSeriesDataset, DataSetType, convert_data
 
 
 class EncoderDecoderPredictDataset(

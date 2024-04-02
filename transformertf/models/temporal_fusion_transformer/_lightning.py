@@ -144,11 +144,6 @@ class TemporalFusionTransformerModule(LightningModuleBase):
                 point_prediction
             )
 
-        if self.hparams["prediction_type"] == "point":
-            loss_dict["loss_MSE"] = torch.nn.functional.mse_loss(
-                point_prediction, target
-            )
-
         self.common_log_step(loss_dict, "train")
 
         return {
@@ -175,11 +170,6 @@ class TemporalFusionTransformerModule(LightningModuleBase):
         if isinstance(self.criterion, QuantileLoss):
             point_prediction = self.criterion.point_prediction(
                 point_prediction
-            )
-
-        if self.hparams["prediction_type"] == "point":
-            loss_dict["loss_MSE"] = torch.nn.functional.mse_loss(
-                point_prediction, target
             )
 
         self.common_log_step(loss_dict, "validation")
