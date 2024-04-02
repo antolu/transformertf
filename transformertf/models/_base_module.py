@@ -9,6 +9,7 @@ import torch
 from ..config import BaseConfig
 from ..data import TimeSeriesSample
 from ..utils import configure_lr_scheduler, configure_optimizers, ops
+from ..nn import functional as F
 
 if typing.TYPE_CHECKING:
     SameType = typing.TypeVar("SameType", bound="LightningModuleBase")
@@ -163,14 +164,8 @@ class LightningModuleBase(L.LightningModule):
 
         loss_dict["MSE"] = torch.nn.functional.mse_loss(prediction, target)
         loss_dict["MAE"] = torch.nn.functional.l1_loss(prediction, target)
-        loss_dict["MAPE"] = torch.mean(
-            torch.abs((prediction - target) / target)
-        )
-        loss_dict["SMAPE"] = torch.mean(
-            2
-            * torch.abs(prediction - target)
-            / (torch.abs(prediction) + torch.abs(target))
-        )
+        loss_dict["MAPE"] = F.mape_loss(prediction, target)
+        loss_dict["SMAPE"] = F.smape_loss(prediction, target)
         loss_dict["RMSE"] = torch.sqrt(loss_dict["MSE"])
 
         return loss_dict
@@ -236,9 +231,9 @@ class LightningModuleBase(L.LightningModule):
                 lightning.pytorch.utilities.grad_norm(self, norm_type=2)
             )
 
-    def configure_optimizers(
+    def configure_optimizers(  # type: ignore[override]
         self,
-    ) -> torch.optim.Optimizer | OPTIMIZER_DICT:  # type: ignore[override]
+    ) -> torch.optim.Optimizer | OPTIMIZER_DICT:
         lr: float = self.hparams["lr"]
         if lr == "auto":
             lr = 1e-3
