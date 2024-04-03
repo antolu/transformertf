@@ -32,6 +32,9 @@ class CheckpointEvery(L.pytorch.callbacks.checkpoint.Checkpoint):
     ) -> None:
         super().on_validation_end(trainer, pl_module)
 
+        if not pl_module.global_rank == 0:
+            return
+
         if (trainer.current_epoch + 1) % self._checkpoint_every == 0:
             try:
                 val_loss = resolve_validation_metric(

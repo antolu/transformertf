@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import dataclasses
-import functools
 import logging
 import os.path as path
 import tempfile
@@ -677,21 +676,30 @@ class DataModuleBase(L.LightningDataModule):
             raise ValueError("No validation data available.")
 
         sampler: torch.utils.data.Sampler | None = None
-        if self.hparams["distributed_sampler"]:
-            sampler = torch.utils.data.distributed.DistributedSampler(
-                self.val_dataset,
+
+        def make_sampler(
+            ds: torch.utils.data.Dataset,
+        ) -> torch.utils.data.Sampler | None:
+            if self.hparams["distributed_sampler"]:
+                return torch.utils.data.distributed.DistributedSampler(
+                    ds,
+                    shuffle=False,
+                    drop_last=False,
+                )
+            else:
+                return None
+
+        def make_dataloader(
+            ds: torch.utils.data.Dataset,
+        ) -> torch.utils.data.DataLoader:
+            return torch.utils.data.DataLoader(
+                ds,
+                batch_size=1,
+                num_workers=self.hparams["num_workers"],
                 shuffle=False,
-                drop_last=False,
+                sampler=make_sampler(ds),
             )
-        else:
-            sampler = None
-        make_dataloader = functools.partial(
-            torch.utils.data.DataLoader,
-            batch_size=1,
-            num_workers=self.hparams["num_workers"],
-            shuffle=False,
-            sampler=sampler,
-        )
+
         if len(self._val_df) == 1:
             return make_dataloader(self.val_dataset)  # type: ignore[arg-type]
         else:

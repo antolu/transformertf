@@ -8,8 +8,8 @@ import torch
 
 from ..config import BaseConfig
 from ..data import TimeSeriesSample
-from ..utils import configure_lr_scheduler, configure_optimizers, ops
 from ..nn import functional as F
+from ..utils import configure_lr_scheduler, configure_optimizers, ops
 
 if typing.TYPE_CHECKING:
     SameType = typing.TypeVar("SameType", bound="LightningModuleBase")
