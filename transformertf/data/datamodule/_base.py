@@ -675,8 +675,6 @@ class DataModuleBase(L.LightningDataModule):
         if self._val_df is None or len(self._val_df) == 0:
             raise ValueError("No validation data available.")
 
-        sampler: torch.utils.data.Sampler | None = None
-
         def make_sampler(
             ds: torch.utils.data.Dataset,
         ) -> torch.utils.data.Sampler | None:
