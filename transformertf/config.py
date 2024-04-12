@@ -87,8 +87,8 @@ class BaseConfig:
 
     # Misc. to not be used manually
     timestamp: str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    checkpoint_dir: str = "logs"
-    model_dir: str | None = None
+    checkpoint_dir: str = "checkpoints"
+    model_dir: str | None = "models"
 
 
 @dataclass
