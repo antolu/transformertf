@@ -62,8 +62,10 @@ class TimeSeriesDataModule(DataModuleBase):
         self.save_hyperparameters(ignore=["train_df", "val_df"])
 
     @classmethod
-    def parse_config_kwargs(
-        cls, config: TimeSeriesBaseConfig, **kwargs: typing.Any  # type: ignore[override]
+    def parse_config_kwargs(  # type: ignore[override]
+        cls,
+        config: TimeSeriesBaseConfig,
+        **kwargs: typing.Any,
     ) -> dict[str, typing.Any]:
         kwargs = super().parse_config_kwargs(config, **kwargs)
         default_kwargs = {

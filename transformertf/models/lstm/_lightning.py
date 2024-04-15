@@ -169,8 +169,10 @@ class LSTMModule(LightningModuleBase):
             return y_hat
 
     @classmethod
-    def parse_config_kwargs(
-        cls, config: LSTMConfig, **kwargs: typing.Any  # type: ignore[override]
+    def parse_config_kwargs(  # type: ignore[override]
+        cls,
+        config: LSTMConfig,
+        **kwargs: typing.Any,
     ) -> dict[str, typing.Any]:
         kwargs = super().parse_config_kwargs(config, **kwargs)
         num_features = (

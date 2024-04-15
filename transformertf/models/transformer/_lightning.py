@@ -85,8 +85,10 @@ class VanillaTransformerModule(LightningModuleBase):
         )
 
     @classmethod
-    def parse_config_kwargs(
-        cls, config: VanillaTransformerConfig, **kwargs: typing.Any  # type: ignore[override]
+    def parse_config_kwargs(  # type: ignore[override]
+        cls,
+        config: VanillaTransformerConfig,
+        **kwargs: typing.Any,
     ) -> dict[str, typing.Any]:
         default_kwargs = super().parse_config_kwargs(config, **kwargs)
         num_features = (

@@ -95,8 +95,10 @@ class TransformerEncoderModule(LightningModuleBase):
         )
 
     @classmethod
-    def parse_config_kwargs(
-        cls, config: TransformerEncoderConfig, **kwargs: typing.Any  # type: ignore[override]
+    def parse_config_kwargs(  # type: ignore[override]
+        cls,
+        config: TransformerEncoderConfig,
+        **kwargs: typing.Any,
     ) -> dict[str, typing.Any]:
         default_kwargs = super().parse_config_kwargs(config, **kwargs)
         num_features = (

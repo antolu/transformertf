@@ -93,7 +93,6 @@ class LightningModuleBase(L.LightningModule):
         batch: typing.Any,
         batch_idx: int,
     ) -> None:
-
         if "prediction_type" not in self.hparams or (
             "prediction_type" in self.hparams
             and self.hparams["prediction_type"] == "point"
