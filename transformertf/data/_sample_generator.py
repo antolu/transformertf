@@ -293,12 +293,6 @@ class TransformerPredictionSampleGenerator(
                 f"Past covariates must have length {context_length}"
             )
 
-        if len(future_covariates) < prediction_length:
-            raise ValueError(
-                f"Future covariates must have at least length "
-                f"{prediction_length}"
-            )
-
         self._context_length = context_length
         self._prediction_length = prediction_length
         self._total_context = len(future_covariates)
@@ -437,13 +431,9 @@ def copy(arr: T) -> T:
 
 def stack(*arrs: T, dim: int = -1) -> T:
     if all(isinstance(arr, np.ndarray) for arr in arrs):
-        return np.stack(
-            arrs, axis=dim
-        )  # pyright: ignore [reportGeneralTypeIssues]
+        return np.stack(arrs, axis=dim)  # pyright: ignore [reportGeneralTypeIssues]
     elif all(isinstance(arr, torch.Tensor) for arr in arrs):
-        return torch.stack(
-            arrs, dim=dim
-        )  # pyright: ignore [reportGeneralTypeIssues]
+        return torch.stack(arrs, dim=dim)  # pyright: ignore [reportGeneralTypeIssues]
     else:
         raise TypeError
 
