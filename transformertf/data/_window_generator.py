@@ -57,7 +57,7 @@ class WindowGenerator(typing.Sequence[slice]):
         ValueError
             If the input data length is less than the input window size.
         """
-        if window_size > num_points:
+        if window_size > num_points and not zero_pad:
             raise ValueError(
                 "Input window size ({}) must be less than the input data "
                 "length ({})".format(window_size, num_points)
@@ -67,7 +67,9 @@ class WindowGenerator(typing.Sequence[slice]):
         self._stride: int = stride
         self._label_data: np.ndarray | None
 
-        round_op: typing.Callable[[float], float] = np.ceil if zero_pad else np.floor  # type: ignore[assignment]
+        round_op: typing.Callable[[float], float] = (  # type: ignore[assignment]
+            np.ceil if zero_pad else np.floor  # type: ignore[assignment]
+        )
         self._num_samples = int(
             round_op((num_points - window_size + stride) / stride)
         )

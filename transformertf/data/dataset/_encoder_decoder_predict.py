@@ -173,7 +173,7 @@ def extract_covariates_from_df(
             )
         return data[columns].to_numpy()
     else:
-        return data
+        return data  # type: ignore[return-value]
 
 
 def keep_only_context(

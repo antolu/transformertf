@@ -34,7 +34,7 @@ def downsample(
 
     """
     if isinstance(value, (np.ndarray, torch.Tensor, pd.Series)):
-        return downsample_array(value, downsample, method=method)
+        return downsample_array(value, downsample, method=method)  # type: ignore[return-value]
     elif isinstance(value, pd.DataFrame):
         if method == "interval":
             return value.iloc[::downsample].reset_index(drop=True)

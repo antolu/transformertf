@@ -94,8 +94,8 @@ class DataModuleBase(L.LightningDataModule):
         elif train_df is not None and val_df is None:
             raise ValueError("train_df must be None if val_df is None.")
         else:
-            self._raw_train_df = _to_list(train_df)
-            self._raw_val_df = _to_list(val_df)
+            self._raw_train_df = _to_list(train_df)  # type: ignore[arg-type]
+            self._raw_val_df = _to_list(val_df)  # type: ignore[arg-type]
 
         # these will be set by prepare_data
         self._train_df: list[pd.DataFrame] = []
