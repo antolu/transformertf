@@ -75,7 +75,7 @@ def predict(
             datamodule,
             past_covariates,
             future_covariates,
-            past_target,
+            past_target,  # type: ignore
             device=device,
         )
     else:

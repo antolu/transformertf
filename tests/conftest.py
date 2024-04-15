@@ -28,6 +28,6 @@ def df() -> pd.DataFrame:
     df = pd.read_parquet(DF_PATH)
     df = df.dropna()
     df = df.reset_index(drop=True)
-    df[FIELD_DOT] = numpy.gradient(df[FIELD].values)
+    df[FIELD_DOT] = numpy.gradient(df[FIELD].values)  # type: ignore
 
     return df
