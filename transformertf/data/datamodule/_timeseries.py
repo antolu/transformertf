@@ -17,10 +17,11 @@ if typing.TYPE_CHECKING:
 class TimeSeriesDataModule(DataModuleBase):
     def __init__(
         self,
-        train_df: pd.DataFrame | list[pd.DataFrame] | None,
-        val_df: pd.DataFrame | list[pd.DataFrame] | None,
         input_columns: str | typing.Sequence[str],
         target_column: str,
+        known_past_columns: str | typing.Sequence[str] | None = None,
+        train_df: pd.DataFrame | list[pd.DataFrame] | None = None,
+        val_df: pd.DataFrame | list[pd.DataFrame] | None = None,
         normalize: bool = True,  # noqa: FBT001, FBT002
         seq_len: int | None = None,
         min_seq_len: int | None = None,
@@ -43,6 +44,7 @@ class TimeSeriesDataModule(DataModuleBase):
             val_df=val_df,
             input_columns=input_columns,
             target_column=target_column,
+            known_past_columns=known_past_columns,
             normalize=normalize,
             downsample=downsample,
             downsample_method=downsample_method,
@@ -76,10 +78,15 @@ class TimeSeriesDataModule(DataModuleBase):
     def _make_dataset_from_arrays(
         self,
         input_data: np.ndarray,
+        known_past_data: np.ndarray | None = None,
         target_data: np.ndarray | None = None,
         *,
         predict: bool = False,
     ) -> TimeSeriesDataset:
+        if known_past_data is not None:
+            msg = "known_past_data is not used in this class."
+            raise NotImplementedError(msg)
+
         return TimeSeriesDataset(
             input_data=input_data,
             target_data=target_data,

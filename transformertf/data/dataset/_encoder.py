@@ -32,6 +32,7 @@ class EncoderDataset(AbstractTimeSeriesDataset):
         ctx_seq_len: int,
         tgt_seq_len: int,
         *,
+        known_past_data: DATA_SOURCE | list[DATA_SOURCE] | None = None,
         stride: int = 1,
         predict: bool = False,
         min_ctxt_seq_len: int | None = None,
@@ -77,6 +78,11 @@ class EncoderDataset(AbstractTimeSeriesDataset):
         self._input_data = convert_data(input_data, dtype=dtype)
         self._target_data = convert_data(target_data, dtype=dtype)
         _check_label_data_length(self._input_data, self._target_data)
+        self._known_past_data = (
+            convert_data(known_past_data, dtype=dtype)
+            if known_past_data is not None
+            else [None] * len(self._input_data)
+        )
 
         self._dataset_type = DataSetType.VAL_TEST if predict else DataSetType.TRAIN
 
@@ -105,14 +111,16 @@ class EncoderDataset(AbstractTimeSeriesDataset):
             TransformerSampleGenerator(
                 input_data=input_,
                 target_data=target_,
+                known_past_data=known_,
                 src_seq_len=ctx_seq_len,
                 tgt_seq_len=tgt_seq_len,
                 zero_pad=predict,
                 stride=stride,
             )
-            for input_, target_ in zip(
+            for input_, target_, known_ in zip(
                 self._input_data,
                 self._target_data,
+                self._known_past_data,
                 strict=False,
             )
         ]
@@ -129,6 +137,7 @@ class EncoderDataset(AbstractTimeSeriesDataset):
         ctx_seq_len: int,
         tgt_seq_len: int,
         *,
+        known_past_columns: str | typing.Sequence[str] | None = None,
         stride: int = 1,
         predict: bool = False,
         min_ctxt_seq_len: int | None = None,
@@ -142,10 +151,16 @@ class EncoderDataset(AbstractTimeSeriesDataset):
 
         input_data = dataframe[list(input_columns)].to_numpy()
         target_data = dataframe[target_column].to_numpy()
+        known_past_data = (
+            dataframe[list(known_past_columns)].to_numpy()
+            if known_past_columns is not None
+            else None
+        )
 
         return cls(
             input_data=input_data,
             target_data=target_data,
+            known_past_data=known_past_data,
             ctx_seq_len=ctx_seq_len,
             tgt_seq_len=tgt_seq_len,
             stride=stride,

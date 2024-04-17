@@ -59,10 +59,15 @@ class DataModuleBase(L.LightningDataModule):
 
     def __init__(
         self,
-        train_df: pd.DataFrame | list[pd.DataFrame] | None,
-        val_df: pd.DataFrame | list[pd.DataFrame] | None,
         input_columns: str | typing.Sequence[str],
         target_column: str,
+        known_past_columns: str | typing.Sequence[str] | None = None,
+        train_df: pd.DataFrame
+        | list[pd.DataFrame]
+        | None = None,  # for checkpoint restore
+        val_df: pd.DataFrame
+        | list[pd.DataFrame]
+        | None = None,  # for checkpoint restore
         normalize: bool = True,  # noqa: FBT001, FBT002
         downsample: int = 1,
         downsample_method: typing.Literal[
@@ -77,9 +82,13 @@ class DataModuleBase(L.LightningDataModule):
         distributed_sampler: bool = False,
     ):
         super().__init__()
-        input_columns = _to_list(input_columns)
-
         self.save_hyperparameters(ignore=["train_df", "val_df"])
+
+        input_columns = _to_list(input_columns)
+        known_past_columns = _to_list(known_past_columns) if known_past_columns else []
+
+        self.hparams["input_columns"] = input_columns
+        self.hparams["known_past_columns"] = known_past_columns
 
         self._create_transforms()
 
@@ -107,8 +116,6 @@ class DataModuleBase(L.LightningDataModule):
             self._tmp_dir = TmpDir("/tmp/tmp_datamodule/")
             pth = Path(self._tmp_dir.name)
 
-            # if pth.exists():
-            #     shutil.rmtree(str(pth))
             pth.mkdir(parents=True, exist_ok=True)
         else:
             self._tmp_dir = tempfile.TemporaryDirectory()
@@ -118,6 +125,7 @@ class DataModuleBase(L.LightningDataModule):
     def _make_dataset_from_arrays(
         self,
         input_data: np.ndarray,
+        known_past_data: np.ndarray | None = None,
         target_data: np.ndarray | None = None,
         *,
         predict: bool = False,
@@ -157,6 +165,7 @@ class DataModuleBase(L.LightningDataModule):
         # input transforms
         input_transforms: dict[str, list[BaseTransform]]
         input_transforms = {col: [] for col in self.hparams["input_columns"]}
+        input_transforms |= {col: [] for col in self.hparams["known_past_columns"]}
 
         if self.hparams["extra_transforms"] is not None:
             for col, transforms in self.hparams["extra_transforms"].items():
@@ -214,10 +223,6 @@ class DataModuleBase(L.LightningDataModule):
             Dataframes containing the training data.
         val_df : pd.DataFrame | list[pd.DataFrame]
             Dataframes containing the validation data.
-        input_columns : str | typing.Sequence[str]
-            The names of the input columns.
-        target_column : str
-            The name of the target column.
         kwargs : typing.Any
             Additional keyword arguments to pass to the datamodule constructor.
             These will override the values specified in the config.
@@ -244,11 +249,14 @@ class DataModuleBase(L.LightningDataModule):
 
             target_column = config.target_column
 
+        known_past_columns = config.known_past_columns
+
         return cls(
             train_df=train_df,
             val_df=val_df,
             input_columns=input_columns,
             target_column=target_column,
+            known_past_columns=known_past_columns,
             **cls.parse_config_kwargs(config, **kwargs),
         )
 
@@ -258,8 +266,6 @@ class DataModuleBase(L.LightningDataModule):
         config: BaseConfig,
         train_dataset: str | typing.Sequence[str] | None = None,
         val_dataset: str | typing.Sequence[str] | None = None,
-        input_columns: str | typing.Sequence[str] | None = None,
-        target_column: str | None = None,
         **kwargs: typing.Any,
     ) -> SameType:
         """
@@ -311,8 +317,6 @@ class DataModuleBase(L.LightningDataModule):
             config,
             train_df,
             val_df,
-            input_columns=input_columns,
-            target_column=target_column,
             **kwargs,
         )
 
@@ -518,6 +522,9 @@ class DataModuleBase(L.LightningDataModule):
 
         return self._make_dataset_from_arrays(
             input_data=df[self.hparams["input_columns"]].to_numpy(),
+            known_past_data=df[self.hparams["known_past_columns"]].to_numpy()
+            if self.hparams["known_past_columns"] is not None
+            else None,
             target_data=target_data,
             predict=predict,
         )
@@ -571,11 +578,21 @@ class DataModuleBase(L.LightningDataModule):
         input_data = np.concatenate([
             df[self.hparams["input_columns"]].to_numpy() for df in self._train_df
         ])
+        known_past_data = (
+            np.concatenate([
+                df[self.hparams["known_past_columns"]].to_numpy()
+                for df in self._train_df
+            ])
+            if self.hparams["known_past_columns"] is not None
+            else None
+        )
         target_data = np.concatenate([
             df[self.hparams["target_column"]].to_numpy() for df in self._train_df
         ])
 
-        return self._make_dataset_from_arrays(input_data, target_data, predict=False)
+        return self._make_dataset_from_arrays(
+            input_data, known_past_data, target_data, predict=False
+        )
 
     @property
     def val_dataset(

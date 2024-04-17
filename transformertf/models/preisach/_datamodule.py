@@ -22,10 +22,11 @@ FIELD = "B_meas_T"
 class PreisachDataModule(TimeSeriesDataModule):
     def __init__(
         self,
-        train_df: pd.DataFrame | list[pd.DataFrame],
-        val_df: pd.DataFrame | list[pd.DataFrame],
         input_columns: str | typing.Sequence[str] = (CURRENT,),
         target_column: str = FIELD,
+        known_past_columns: str | typing.Sequence[str] | None = None,
+        train_df: pd.DataFrame | list[pd.DataFrame] | None = None,
+        val_df: pd.DataFrame | list[pd.DataFrame] | None = None,
         downsample: int = 1,
         target_depends_on: str | None = None,
         extra_transforms: dict[str, list[BaseTransform]] | None = None,
@@ -36,6 +37,7 @@ class PreisachDataModule(TimeSeriesDataModule):
             val_df=val_df,
             input_columns=input_columns,
             target_column=target_column,
+            known_past_columns=known_past_columns,
             normalize=False,
             downsample=downsample,
             target_depends_on=target_depends_on or input_columns[0],

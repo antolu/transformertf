@@ -70,6 +70,7 @@ def test_phylstm_datamodule_hparams_correct() -> None:
         "num_workers": 4,
         "input_columns": ["a"],
         "target_column": "b",
+        "known_past_columns": None,
         "model_dir": "model_dir",
         "normalize": True,
         "target_depends_on": "a",

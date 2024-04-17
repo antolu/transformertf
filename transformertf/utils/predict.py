@@ -240,10 +240,13 @@ def predict_encoder_decoder(
     elif isinstance(past_target, pd.Series):
         past_target = past_target.to_numpy()
 
+    known_past_columns = datamodule.hparams.get("known_past_columns")
+
     past_covariates["target"] = past_target
     past_df = datamodule.preprocess_dataframe(past_covariates)
 
     past_covariates = past_df[past_covariates.columns]
+    (past_df[known_past_columns] if known_past_columns is not None else None)
     past_target = past_df["target"].to_numpy()
     future_covariates = datamodule.preprocess_dataframe(future_covariates)
 

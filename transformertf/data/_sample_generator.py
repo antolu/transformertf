@@ -186,6 +186,7 @@ class TransformerSampleGenerator(SampleGenerator[EncoderDecoderTargetSample[T]])
         target_data: T,
         src_seq_len: int,
         tgt_seq_len: int,
+        known_past_data: T | None = None,
         stride: int = 1,
         *,
         zero_pad: bool = False,
@@ -199,11 +200,22 @@ class TransformerSampleGenerator(SampleGenerator[EncoderDecoderTargetSample[T]])
 
         self._input_data = copy(input_data)
         self._label_data = copy(target_data)
+        self._known_past_data = (
+            copy(known_past_data) if known_past_data is not None else None
+        )
 
         if len(self._input_data) != len(self._label_data):
             msg = (
                 "Input and label data must have the same length: "
                 f"({len(self._input_data)}) and ({len(self._label_data)})"
+            )
+            raise ValueError(msg)
+        if known_past_data is not None and len(self._input_data) != len(
+            self._known_past_data
+        ):
+            msg = (
+                "Input and known past data must have the same length: "
+                f"({len(self._input_data)}) and ({len(self._known_past_data)})"
             )
             raise ValueError(msg)
 
@@ -214,6 +226,11 @@ class TransformerSampleGenerator(SampleGenerator[EncoderDecoderTargetSample[T]])
             self._label_data = zero_pad_(
                 self._label_data, self._window_generator.real_data_len
             )
+            self._known_past_data = (
+                zero_pad_(self._known_past_data, self._window_generator.real_data_len)
+                if self._known_past_data is not None
+                else None
+            )
 
     def _make_sample(self, idx: int) -> EncoderDecoderTargetSample[T]:  # type: ignore[override]
         idx = check_index(idx, len(self))
@@ -223,16 +240,18 @@ class TransformerSampleGenerator(SampleGenerator[EncoderDecoderTargetSample[T]])
         src_slice = slice(sl.start, sl.start + self._src_seq_len)
         tgt_slice = slice(sl.start + self._src_seq_len, sl.stop)
 
-        src = concat(
-            to_2dim(self._input_data[src_slice]),
-            to_2dim(self._label_data[src_slice]),
-            dim=-1,
-        )  # [bs, seq_len, num_features]
-        tgt = concat(
-            to_2dim(self._input_data[tgt_slice]),
-            to_2dim(zeros_like(self._label_data[tgt_slice])),
-            dim=-1,
-        )
+        src_l = [to_2dim(self._input_data[src_slice])]
+        if self._known_past_data is not None:
+            src_l.append(to_2dim(self._known_past_data[src_slice]))
+        src_l.append(to_2dim(self._label_data[src_slice]))
+
+        tgt_l = [to_2dim(self._input_data[tgt_slice])]
+        if self._known_past_data is not None:
+            tgt_l.append(to_2dim(self._known_past_data[tgt_slice]))
+        tgt_l.append(to_2dim(zeros_like(self._label_data[tgt_slice])))
+
+        src = concat(*src_l, dim=-1)
+        tgt = concat(*tgt_l, dim=-1)
         label = to_2dim(self._label_data[tgt_slice])
 
         return typing.cast(
@@ -258,6 +277,7 @@ class TransformerPredictionSampleGenerator(SampleGenerator[EncoderDecoderSample[
         past_targets: T,
         context_length: int,
         prediction_length: int,
+        known_past_covariates: T | None = None,
     ) -> None:
         super().__init__()
 
@@ -277,6 +297,13 @@ class TransformerPredictionSampleGenerator(SampleGenerator[EncoderDecoderSample[
             msg = f"Future covariates must have at least length " f"{prediction_length}"
             raise ValueError(msg)
 
+        if (
+            known_past_covariates is not None
+            and len(known_past_covariates) != context_length
+        ):
+            msg = f"Known past covariates must have length {context_length}"
+            raise ValueError(msg)
+
         self._context_length = context_length
         self._prediction_length = prediction_length
         self._total_context = len(future_covariates)
@@ -294,6 +321,11 @@ class TransformerPredictionSampleGenerator(SampleGenerator[EncoderDecoderSample[
         self._covariates = to_2dim(concat(past_covariates, future_covariates, dim=0))
 
         self._past_target = to_2dim(copy(past_targets))
+        self._known_past_covariates = (
+            to_2dim(copy(known_past_covariates))
+            if known_past_covariates is not None
+            else None
+        )
 
     def add_target_context(self, future_target: T) -> None:
         """
@@ -311,6 +343,28 @@ class TransformerPredictionSampleGenerator(SampleGenerator[EncoderDecoderSample[
             raise ValueError(msg)
 
         self._past_target = concat(self._past_target, to_2dim(future_target), dim=0)
+
+    def add_known_past_context(self, known_past_covariates: T) -> None:
+        """
+        Add known past covariates to the dataset to increase the context length.
+        """
+        if self._known_past_covariates is None:
+            msg = "No known past covariates were provided during initialization"
+            raise ValueError(msg)
+
+        if (
+            len(known_past_covariates) + len(self._known_past_covariates)
+            > self._context_length
+        ):
+            msg = (
+                "Known past covariates length plus past covariates length "
+                "must be less than or equal to the context length"
+            )
+            raise ValueError(msg)
+
+        self._known_past_covariates = concat(
+            self._known_past_covariates, to_2dim(known_past_covariates), dim=0
+        )
 
     def _make_sample(self, idx: int) -> EncoderDecoderSample[T]:
         idx = check_index(idx, len(self))
@@ -330,16 +384,18 @@ class TransformerPredictionSampleGenerator(SampleGenerator[EncoderDecoderSample[
             )
             raise IndexError(msg)
 
-        src = concat(
-            to_2dim(self._covariates[src_slice]),
-            to_2dim(self._past_target[src_slice]),
-            dim=-1,
-        )
-        tgt = concat(
-            to_2dim(self._covariates[tgt_slice]),
-            to_2dim(zeros_like(self._covariates[tgt_slice][..., 0])),
-            dim=-1,
-        )
+        src_l = [to_2dim(self._covariates[src_slice])]
+        if self._known_past_covariates is not None:
+            src_l.append(to_2dim(self._known_past_covariates[src_slice]))
+        src_l.append(to_2dim(self._past_target[src_slice]))
+
+        tgt_l = [to_2dim(self._covariates[tgt_slice])]
+        if self._known_past_covariates is not None:
+            tgt_l.append(to_2dim(self._known_past_covariates[tgt_slice]))
+        tgt_l.append(to_2dim(zeros_like(self._covariates[tgt_slice])))
+
+        src = concat(*src_l, dim=-1)
+        tgt = concat(*tgt_l, dim=-1)
 
         return typing.cast(
             EncoderDecoderSample[T],

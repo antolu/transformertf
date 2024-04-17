@@ -49,8 +49,8 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
 
     def __init__(
         self,
-        train_df: pd.DataFrame | list[pd.DataFrame] | None,
-        val_df: pd.DataFrame | list[pd.DataFrame] | None,
+        train_df: pd.DataFrame | list[pd.DataFrame] | None = None,
+        val_df: pd.DataFrame | list[pd.DataFrame] | None = None,
         seq_len: int = 500,
         min_seq_len: int | None = None,
         randomize_seq_len: bool = False,  # noqa: FBT001, FBT002
@@ -64,6 +64,7 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
         extra_transforms: dict[str, list[BaseTransform]] | None = None,
         input_columns: str = CURRENT,
         target_column: str = FIELD,
+        known_past_columns: str | typing.Sequence[str] | None = None,
         batch_size: int = 128,
         num_workers: int = 0,
         model_dir: str | None = None,
@@ -88,6 +89,7 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
             val_df=val_df,
             input_columns=input_columns,
             target_column=target_column,
+            known_past_columns=known_past_columns,
             normalize=True,
             downsample=downsample,
             downsample_method=downsample_method,
