@@ -12,9 +12,7 @@ from .first_order import TorchAccelerator, TorchQuad
 
 
 class HysteresisMagnet(ModeModule, ABC):
-    def __init__(
-        self, name: str, L: torch.Tensor, hysteresis_model: BaseHysteresis
-    ):
+    def __init__(self, name: str, L: torch.Tensor, hysteresis_model: BaseHysteresis):
         Module.__init__(self)
         self.name = name
         self.hysteresis_model = hysteresis_model
@@ -29,11 +27,10 @@ class HysteresisMagnet(ModeModule, ABC):
             m = self.hysteresis_model(X, return_real=True)
             return self._calculate_beam_matrix(m)
 
-        else:
-            assert self.hysteresis_model.mode == CURRENT
-            assert self.mode == CURRENT
-            m = self.hysteresis_model(return_real=True)
-            return self._calculate_beam_matrix(m).squeeze()
+        assert self.hysteresis_model.mode == CURRENT
+        assert self.mode == CURRENT
+        m = self.hysteresis_model(return_real=True)
+        return self._calculate_beam_matrix(m).squeeze()
 
     def forward(self, X: torch.Tensor | None = None) -> torch.Tensor:
         """Returns the current transport matrix"""
@@ -42,7 +39,6 @@ class HysteresisMagnet(ModeModule, ABC):
     @abstractmethod
     def _calculate_beam_matrix(self, m: torch.Tensor) -> torch.Tensor:
         """calculate beam matrix given magnetization"""
-        pass
 
 
 class HysteresisAccelerator(TorchAccelerator, ModeModule):
@@ -76,7 +72,7 @@ class HysteresisAccelerator(TorchAccelerator, ModeModule):
             self.register_parameter(name + "_H", Parameter(torch.zeros(1)))
 
     def set_element_modes(self) -> None:
-        for name, ele in self.elements.items():
+        for ele in self.elements.values():
             if isinstance(ele, HysteresisMagnet):
                 ele.mode = self.mode
 
@@ -87,8 +83,7 @@ class HysteresisAccelerator(TorchAccelerator, ModeModule):
 
         if full:
             return R_f[-1]
-        else:
-            return R_f
+        return R_f
 
     def apply_fields(self, fields_dict: dict[str, torch.Tensor]) -> None:
         for key in fields_dict:
@@ -98,9 +93,7 @@ class HysteresisAccelerator(TorchAccelerator, ModeModule):
             self.elements[name].apply_field(field)
 
     def set_histories(self, history_h: torch.Tensor) -> None:
-        h_elements = [
-            self.elements[ele] for ele in self.hysteresis_element_names
-        ]
+        h_elements = [self.elements[ele] for ele in self.hysteresis_element_names]
         assert len(history_h.shape) == 2
         assert history_h.shape[-1] == len(h_elements)
         for idx, ele in enumerate(h_elements):

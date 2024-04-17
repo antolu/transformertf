@@ -35,12 +35,14 @@ class PhyTSMixerModule(LightningModuleBase):
         optimizer_kwargs: dict[str, typing.Any] | None = None,
         reduce_on_plateau_patience: int = 200,
         max_epochs: int = 1000,
-        validate_every_n_epochs: int = 50,
-        log_grad_norm: bool = False,
         criterion: PhyLSTMLoss | None = None,
         lr_scheduler: str | LR_CALL_TYPE | None = None,
         lr_scheduler_interval: typing.Literal["epoch", "step"] = "epoch",
+        *,
+        log_grad_norm: bool = False,
     ):
+        criterion = criterion or PhyLSTMLoss()
+        self.save_hyperparameters(ignore=["lr_scheduler", "criterion"])
         super().__init__(
             lr=lr,
             weight_decay=weight_decay,
@@ -49,16 +51,11 @@ class PhyTSMixerModule(LightningModuleBase):
             optimizer_kwargs=optimizer_kwargs or {},
             reduce_on_plateau_patience=reduce_on_plateau_patience,
             max_epochs=max_epochs,
-            validate_every_n_epochs=validate_every_n_epochs,
             log_grad_norm=log_grad_norm,
             lr_scheduler=lr_scheduler,
             lr_scheduler_interval=lr_scheduler_interval,
+            criterion=criterion,
         )
-        self.save_hyperparameters(ignore=["lr_scheduler", "criterion"])
-
-        self._lr_scheduler = lr_scheduler
-
-        self.criterion = criterion or PhyLSTMLoss()
 
         self.model = PhyTSMixer(
             num_features=num_features,
@@ -81,26 +78,22 @@ class PhyTSMixerModule(LightningModuleBase):
     ) -> dict[str, typing.Any]:
         default_kwargs = super().parse_config_kwargs(config, **kwargs)
         num_features = (
-            len(config.input_columns)
-            if config.input_columns is not None
-            else 0
+            len(config.input_columns) if config.input_columns is not None else 0
         )
         num_features += 1  # add target
 
-        default_kwargs.update(
-            dict(
-                num_features=num_features,
-                num_static_features=config.num_static_features,
-                seq_len=config.ctxt_seq_len,
-                out_seq_len=config.tgt_seq_len,
-                dropout=config.dropout,
-                activation=config.activation,
-                fc_dim=config.fc_dim,
-                hidden_dim=config.hidden_dim,
-                num_blocks=config.num_blocks,
-                norm=config.norm,
-            )
-        )
+        default_kwargs.update({
+            "num_features": num_features,
+            "num_static_features": config.num_static_features,
+            "seq_len": config.ctxt_seq_len,
+            "out_seq_len": config.tgt_seq_len,
+            "dropout": config.dropout,
+            "activation": config.activation,
+            "fc_dim": config.fc_dim,
+            "hidden_dim": config.hidden_dim,
+            "num_blocks": config.num_blocks,
+            "norm": config.norm,
+        })
 
         default_kwargs.update(kwargs)
 

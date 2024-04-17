@@ -6,9 +6,7 @@ import torch
 
 
 @torch.jit.script
-def switch(
-    h: torch.Tensor, mesh: torch.Tensor, T: float = 1e-4
-) -> torch.Tensor:
+def switch(h: torch.Tensor, mesh: torch.Tensor, T: float = 1e-4) -> torch.Tensor:
     # note that + T is needed to satisfy boundary conditions (creating a bit of delay
     # before the flip starts happening
     return 1.0 + torch.tanh((h - mesh - 0 * T) / abs(T))
@@ -16,8 +14,8 @@ def switch(
 
 @torch.jit.script
 def get_current(
-    current_state: typing.Optional[torch.Tensor],
-    current_field: typing.Optional[torch.Tensor],
+    current_state: torch.Tensor | None,
+    current_field: torch.Tensor | None,
     n_mesh_points: int,
     dtype: torch.dtype = torch.float64,
 ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -27,9 +25,11 @@ def get_current(
         initial_field = torch.zeros(1)
     else:
         if not isinstance(current_field, torch.Tensor):
-            raise ValueError("need to specify current field if state is given")
+            msg = "need to specify current field if state is given"
+            raise ValueError(msg)
         if current_state.shape[-1] != n_mesh_points:
-            raise ValueError("curret state must match number of mesh points")
+            msg = "curret state must match number of mesh points"
+            raise ValueError(msg)
         initial_state = current_state
         initial_field = current_field
 
@@ -91,24 +91,21 @@ def predict_batched_state(
     n_mesh_points = mesh_points.shape[0]
     tkwargs = tkwargs or {}
 
-    state, field = get_current(
-        current_state, current_field, n_mesh_points, **tkwargs
-    )
+    state, field = get_current(current_state, current_field, n_mesh_points, **tkwargs)
 
-    result = torch.where(
+    return torch.where(
         torch.greater_equal(h - field, torch.zeros(1).to(h)),
         sweep_up(h, mesh_points, state, temp),
         sweep_left(h, mesh_points, state, temp),
     )
-    return result
 
 
 @torch.jit.script
 def get_states(
     h: torch.Tensor,
     mesh_points: torch.Tensor,
-    current_state: typing.Optional[torch.Tensor] = None,
-    current_field: typing.Optional[torch.Tensor] = None,
+    current_state: torch.Tensor | None = None,
+    current_field: torch.Tensor | None = None,
     temp: float = 1e-3,
     dtype: torch.dtype = torch.float64,
 ) -> torch.Tensor:
@@ -152,7 +149,8 @@ def get_states(
     if torch.any(torch.less(h + epsilon, torch.zeros(1))) or torch.any(
         torch.greater(h - epsilon, torch.ones(1))
     ):
-        raise RuntimeError("applied values are outside of the unit domain")
+        msg = "applied values are outside of the unit domain"
+        raise RuntimeError(msg)
 
     assert len(h.shape) == 1
     n_mesh_points = mesh_points.shape[0]
@@ -187,5 +185,4 @@ def get_states(
             states += [states[i - 1]]
 
     # concatenate states into one tensor
-    total_states = torch.cat([ele.unsqueeze(0) for ele in states])
-    return total_states
+    return torch.cat([ele.unsqueeze(0) for ele in states])

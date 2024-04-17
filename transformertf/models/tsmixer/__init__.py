@@ -29,14 +29,14 @@ del _mod
 
 
 __all__ = [
-    "MixerBlock",
-    "TimeMixer",
-    "FeatureMixer",
+    "BasicTSMixer",
+    "BatchNorm2D",
     "ConditionalFeatureMixer",
     "ConditionalMixerBlock",
-    "BatchNorm2D",
-    "TSMixerModule",
-    "TSMixerConfig",
-    "BasicTSMixer",
+    "FeatureMixer",
+    "MixerBlock",
     "TSMixer",
+    "TSMixerConfig",
+    "TSMixerModule",
+    "TimeMixer",
 ]

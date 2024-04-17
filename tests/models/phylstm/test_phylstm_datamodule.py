@@ -31,30 +31,25 @@ def test_phylstm_datamodule_create_with_config() -> None:
     assert dm.hparams["seq_len"] == 500
     assert dm.hparams["stride"] == 1
     assert dm.hparams["lowpass_filter"] is True
-    assert dm.hparams["mean_filter"] is True
     assert dm.hparams["downsample"] == 1
     assert dm.hparams["batch_size"] == 128
     assert dm.hparams["num_workers"] == 4
 
 
 def test_phylstm_datamodule_hparams_correct() -> None:
-    kwargs = dict(
-        seq_len=500,
-        stride=1,
-        lowpass_filter=True,
-        mean_filter=True,
-        downsample=50,
-        downsample_method="interval",
-        batch_size=32,
-        num_workers=4,
-        remove_polynomial=True,
-        polynomial_degree=2,
-        polynomial_iterations=2000,
-        input_columns=["a"],
-        target_column="b",
-        target_depends_on="a",
-        model_dir="model_dir",
-    )
+    kwargs = {
+        "seq_len": 500,
+        "stride": 1,
+        "lowpass_filter": True,
+        "downsample": 50,
+        "downsample_method": "interval",
+        "batch_size": 32,
+        "num_workers": 4,
+        "input_columns": ["a"],
+        "target_column": "b",
+        "target_depends_on": "a",
+        "model_dir": "model_dir",
+    }
 
     dm = PhyLSTMDataModule.from_parquet(
         config,
@@ -69,7 +64,6 @@ def test_phylstm_datamodule_hparams_correct() -> None:
         "randomize_seq_len": False,
         "stride": 1,
         "lowpass_filter": True,
-        "mean_filter": True,
         "downsample": 50,
         "downsample_method": "interval",
         "batch_size": 32,
@@ -78,9 +72,6 @@ def test_phylstm_datamodule_hparams_correct() -> None:
         "target_column": "b",
         "model_dir": "model_dir",
         "normalize": True,
-        "remove_polynomial": True,
-        "polynomial_degree": 2,
-        "polynomial_iterations": 2000,
         "target_depends_on": "a",
         "dtype": "float32",
         "distributed_sampler": False,
@@ -90,7 +81,8 @@ def test_phylstm_datamodule_hparams_correct() -> None:
     for key, value in correct_hparams.items():
         assert hparams.pop(key) == value
 
-    assert len(hparams) == 1 and "extra_transforms" in hparams
+    assert len(hparams) == 1
+    assert "extra_transforms" in hparams
 
 
 def test_phylstm_datamodule_prepare_data() -> None:
@@ -112,10 +104,10 @@ def test_phylstm_datamodule_setup_before_prepare() -> None:
 
     dm.setup()
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):  # noqa: PT011
         dm.train_dataloader()
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):  # noqa: PT011
         dm.val_dataloader()
 
 
@@ -128,7 +120,6 @@ def phylstm_datamodule() -> PhyLSTMDataModule:
         seq_len=500,
         stride=1,
         lowpass_filter=True,
-        mean_filter=True,
         downsample=50,
         batch_size=128,
         num_workers=4,
@@ -174,7 +165,7 @@ def test_phylstm_datamodule_val_dataset(
     assert dataloader is not None
     assert isinstance(dataloader, torch.utils.data.DataLoader)
 
-    samples = [sample for sample in dataloader]
+    samples = list(dataloader)
 
     assert samples[-1]["input"].shape == (1, dm.hparams["seq_len"], 1)
     assert samples[-1]["target"].shape == (1, dm.hparams["seq_len"], 1)

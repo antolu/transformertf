@@ -16,7 +16,7 @@ class InterpretableMultiHeadAttention(torch.nn.Module):
         Interpretable Multi-Head Attention module, based on the equation:
 
         .. math::
-            \\text{InterpretableMultiHeadAttention}(Q, K, V) = \\frac{1}{h} \sum_{i=1}^h \\text{head}_i W_H
+            \\text{InterpretableMultiHeadAttention}(Q, K, V) = \\frac{1}{h} \\sum_{i=1}^h \\text{head}_i W_H
 
         where :math:`\\text{head}_i = \\text{Attention}(QW_i^Q, KW_i^K, VW^V)`.
 
@@ -38,12 +38,12 @@ class InterpretableMultiHeadAttention(torch.nn.Module):
 
         self.d_q = self.d_k = self.d_v = n_dim_model // n_heads
 
-        self.query_layers = torch.nn.ModuleList(
-            [torch.nn.Linear(n_dim_model, self.d_q) for _ in range(n_heads)]
-        )
-        self.key_layers = torch.nn.ModuleList(
-            [torch.nn.Linear(n_dim_model, self.d_k) for _ in range(n_heads)]
-        )
+        self.query_layers = torch.nn.ModuleList([
+            torch.nn.Linear(n_dim_model, self.d_q) for _ in range(n_heads)
+        ])
+        self.key_layers = torch.nn.ModuleList([
+            torch.nn.Linear(n_dim_model, self.d_k) for _ in range(n_heads)
+        ])
         self.value_layer = torch.nn.Linear(n_dim_model, self.d_v)
 
         self.output_layer = torch.nn.Linear(self.d_v, n_dim_model)
@@ -55,6 +55,7 @@ class InterpretableMultiHeadAttention(torch.nn.Module):
         key: torch.Tensor,
         value: torch.Tensor,
         mask: torch.Tensor | None = None,
+        *,
         return_attn: typing.Literal[False] = False,
     ) -> torch.Tensor: ...
 
@@ -65,6 +66,7 @@ class InterpretableMultiHeadAttention(torch.nn.Module):
         key: torch.Tensor,
         value: torch.Tensor,
         mask: torch.Tensor | None,
+        *,
         return_attn: typing.Literal[True],
     ) -> tuple[torch.Tensor, torch.Tensor]: ...
 
@@ -74,6 +76,7 @@ class InterpretableMultiHeadAttention(torch.nn.Module):
         key: torch.Tensor,
         value: torch.Tensor,
         mask: torch.Tensor | None = None,
+        *,
         return_attn: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """

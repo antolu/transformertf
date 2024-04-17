@@ -22,6 +22,7 @@ class WindowGenerator(typing.Sequence[slice]):
         num_points: int,
         window_size: int,
         stride: int = 1,
+        *,
         zero_pad: bool = False,
     ):
         """
@@ -57,11 +58,12 @@ class WindowGenerator(typing.Sequence[slice]):
         ValueError
             If the input data length is less than the input window size.
         """
-        if window_size > num_points and not zero_pad:
-            raise ValueError(
-                "Input window size ({}) must be less than the input data "
-                "length ({})".format(window_size, num_points)
+        if window_size > num_points:
+            msg = (
+                f"Input window size ({window_size}) must be less than the input data "
+                f"length ({num_points})"
             )
+            raise ValueError(msg)
 
         self._window_size: int = window_size
         self._stride: int = stride
@@ -70,15 +72,11 @@ class WindowGenerator(typing.Sequence[slice]):
         round_op: typing.Callable[[float], float] = (  # type: ignore[assignment]
             np.ceil if zero_pad else np.floor  # type: ignore[assignment]
         )
-        self._num_samples = int(
-            round_op((num_points - window_size + stride) / stride)
-        )
+        self._num_samples = int(round_op((num_points - window_size + stride) / stride))
 
         if zero_pad:
             # extend input and label data to fit stride
-            self._source_len = stride * self._num_samples + (
-                window_size - stride
-            )
+            self._source_len = stride * self._num_samples + (window_size - stride)
         else:
             self._source_len = num_points
 
@@ -135,10 +133,11 @@ class WindowGenerator(typing.Sequence[slice]):
         """
         # Check index
         if idx < 0:
-            idx = idx + self.num_samples
+            idx += self.num_samples
 
         if idx >= self._num_samples:
-            raise IndexError(f"Index {idx} is out of bounds")
+            msg = f"Index {idx} is out of bounds"
+            raise IndexError(msg)
 
         # Calculate slice
         start = idx * self._stride
@@ -158,13 +157,10 @@ class WindowGenerator(typing.Sequence[slice]):
         """
         if isinstance(idx, int):
             return self.calc_slice(idx)
-        else:
-            return [
-                self.calc_slice(i)
-                for i in range(
-                    idx.start or 0, idx.stop or len(self), idx.step or 1
-                )
-            ]
+        return [
+            self.calc_slice(i)
+            for i in range(idx.start or 0, idx.stop or len(self), idx.step or 1)
+        ]
 
     def __iter__(self) -> typing.Iterator[slice]:
         for i in range(len(self)):

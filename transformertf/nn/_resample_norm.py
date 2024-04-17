@@ -12,9 +12,7 @@ def interpolate(
     ).squeeze(1)
 
     if mask is not None:
-        upsampled = (
-            upsampled * torch.nn.functional.sigmoid(mask.unsqueeze(0)) * 2.0
-        )
+        upsampled = upsampled * torch.nn.functional.sigmoid(mask.unsqueeze(0)) * 2.0
     return upsampled
 
 
@@ -22,6 +20,7 @@ class TimeDistributedInterpolation(torch.nn.Module):
     def __init__(
         self,
         output_dim: int,
+        *,
         batch_first: bool = False,
         trainable: bool = False,
     ):
@@ -41,7 +40,9 @@ class TimeDistributedInterpolation(torch.nn.Module):
             return interpolate(x, self.output_dim, self.mask)
 
         # Squash samples and timesteps into a single axis
-        # x_reshape = x.contiguous().view(-1, x.size(-1))  # (samples * timesteps, input_size)
+        x_reshape = x.contiguous().view(
+            -1, x.size(-1)
+        )  # (samples * timesteps, input_size)
 
         # do the same with einops
         x_reshape = einops.rearrange(x, "s t c -> (s t) c")
@@ -53,16 +54,11 @@ class TimeDistributedInterpolation(torch.nn.Module):
             # y = y.contiguous().view(
             #     x.size(0), -1, y.size(-1)
             # )  # (samples, timesteps, output_size)
-            return einops.rearrange(
-                y, "(s t) c -> s t c", s=x.size(0), t=x.size(1)
-            )
-        else:
-            # y = y.view(
-            #     -1, x.size(1), y.size(-1)
-            # )  # (timesteps, samples, output_size)
-            return einops.rearrange(
-                y, "t s c -> s t c", s=x.size(0), t=x.size(1)
-            )
+            return einops.rearrange(y, "(s t) c -> s t c", s=x.size(0), t=x.size(1))
+        # y = y.view(
+        #     -1, x.size(1), y.size(-1)
+        # )  # (timesteps, samples, output_size)
+        return einops.rearrange(y, "t s c -> s t c", s=x.size(0), t=x.size(1))
 
 
 class ResampleNorm(torch.nn.Module):
@@ -70,6 +66,7 @@ class ResampleNorm(torch.nn.Module):
         self,
         input_dim: int,
         output_dim: int | None = None,
+        *,
         trainable_add: bool = True,
     ):
         """

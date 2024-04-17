@@ -20,7 +20,7 @@ class MLP(torch.nn.Module):
     ):
         super().__init__()
 
-        layers = []
+        layers: list[torch.nn.Module] = []
         prev_dim = input_dim
         if hidden_dim is not None:
             if isinstance(hidden_dim, int):

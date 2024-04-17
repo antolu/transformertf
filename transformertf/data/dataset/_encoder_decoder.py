@@ -7,6 +7,8 @@ from .._sample_generator import EncoderDecoderTargetSample
 from ._base import _check_index, get_dtype
 from ._encoder import EncoderDataset
 
+RND_G = np.random.default_rng()
+
 
 class EncoderDecoderDataset(EncoderDataset):
     def __getitem__(self, idx: int) -> EncoderDecoderTargetSample:  # type: ignore[override]
@@ -26,9 +28,7 @@ class EncoderDecoderDataset(EncoderDataset):
         # find which df to get samples from
         df_idx = np.argmax(self._cum_num_samples > idx)
 
-        shifted_idx = (
-            idx - self._cum_num_samples[df_idx - 1] if df_idx > 0 else idx
-        )
+        shifted_idx = idx - self._cum_num_samples[df_idx - 1] if df_idx > 0 else idx
 
         sample = self._sample_gen[df_idx][shifted_idx]
 
@@ -43,8 +43,21 @@ class EncoderDecoderDataset(EncoderDataset):
             sample["encoder_lengths"] = torch.tensor(
                 [encoder_len_], dtype=get_dtype(self._dtype)
             )
+
+            decoder_len = sample_len(self._min_tgt_seq_len, self.tgt_seq_len)
+            sample["decoder_input"][: self.tgt_seq_len - decoder_len] = 0.0
+            sample["decoder_mask"][: self.tgt_seq_len - decoder_len] = 0.0
+            sample["target"][: self.tgt_seq_len - decoder_len] = 0.0
+
+            decoder_len_ = decoder_len / self.tgt_seq_len
+            sample["decoder_lengths"] = torch.tensor(
+                [decoder_len_], dtype=get_dtype(self._dtype)
+            )
         else:
             sample["encoder_lengths"] = torch.tensor(
+                [1.0], dtype=get_dtype(self._dtype)
+            )
+            sample["decoder_lengths"] = torch.tensor(
                 [1.0], dtype=get_dtype(self._dtype)
             )
 
@@ -52,4 +65,4 @@ class EncoderDecoderDataset(EncoderDataset):
 
 
 def sample_len(min_: int, max_: int) -> int:
-    return int(np.round(np.random.beta(1.0, 0.5) * (max_ - min_) + min_))
+    return int(np.round(RND_G.beta(1.0, 0.5) * (max_ - min_) + min_))

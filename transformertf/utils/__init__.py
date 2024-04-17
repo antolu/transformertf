@@ -3,8 +3,8 @@ from . import _ops as ops
 from . import _signal as signal
 from ._activation import ACTIVATIONS, get_activation
 from ._configure_optimizer import (
-    LR_SCHEDULER_DICT,
-    OPTIMIZER_DICT,
+    LrSchedulerDict,
+    OptimizerDict,
     configure_lr_scheduler,
     configure_optimizers,
 )
@@ -24,12 +24,12 @@ for func in (
 del replace_modname
 
 __all__ = [
-    "ops",
-    "signal",
-    "LR_SCHEDULER_DICT",
-    "OPTIMIZER_DICT",
+    "ACTIVATIONS",
+    "LrSchedulerDict",
+    "OptimizerDict",
     "configure_lr_scheduler",
     "configure_optimizers",
     "get_activation",
-    "ACTIVATIONS",
+    "ops",
+    "signal",
 ]

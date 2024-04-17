@@ -24,19 +24,18 @@ class TorchAccelerator(Module):
             if ele.name not in names or allow_duplicates:
                 names += [ele.name]
             else:
-                raise RuntimeError(
-                    f"duplicate name {ele.name} found but not allowed"
-                )
+                msg = f"duplicate name {ele.name} found but not allowed"
+                raise RuntimeError(msg)
 
         self.elements = {element.name: element for element in elements}
 
-        for _, ele in self.elements.items():
+        for ele in self.elements.values():
             self.add_module(ele.name, ele)
 
     def calculate_transport(self) -> torch.Tensor:
         M_i = torch.eye(6)
         M = [M_i]
-        for _, ele in self.elements.items():
+        for ele in self.elements.values():
             M += [torch.matmul(ele(), M[-1])]
         return torch.cat([m.unsqueeze(0) for m in M], dim=0)
 
@@ -54,8 +53,9 @@ class TorchAccelerator(Module):
             Initial beam matrix
 
         """
-        if not M.shape[-2:] == torch.Size([6, 6]):
-            raise RuntimeError("last dims of transport matrix must be 6 x 6")
+        if M.shape[-2:] != torch.Size([6, 6]):
+            msg = "last dims of transport matrix must be 6 x 6"
+            raise RuntimeError(msg)
 
         return torch.matmul(M, torch.matmul(R, torch.transpose(M, -2, -1)))
 
@@ -78,8 +78,7 @@ class TorchAccelerator(Module):
         R_f = self.propagate_beam(M, R)
         if full:
             return R_f[-1]
-        else:
-            return R_f
+        return R_f
 
 
 def rot(alpha: float) -> torch.Tensor:
@@ -100,9 +99,7 @@ def rot(alpha: float) -> torch.Tensor:
 
 
 class TorchQuad(Module):
-    def __init__(
-        self, name: str, length: torch.Tensor, K1: torch.Tensor | None
-    ):
+    def __init__(self, name: str, length: torch.Tensor, K1: torch.Tensor | None):
         Module.__init__(self)
         self.register_parameter("L", torch.nn.parameter.Parameter(length))
         self.register_parameter("K1", torch.nn.parameter.Parameter(K1))
@@ -143,11 +140,7 @@ class TorchQuad(Module):
             .unsqueeze(-1)
             .repeat_interleave(6, dim=-1)
         )
-        M_final = (
-            M * (K1_test >= 0.0).float() + M_rot * (K1_test < 0.0).float()
-        )
-
-        return M_final
+        return M * (K1_test >= 0.0).float() + M_rot * (K1_test < 0.0).float()
 
 
 class TorchDrift(Module):

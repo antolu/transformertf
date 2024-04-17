@@ -10,7 +10,7 @@ from transformertf.data import WindowGenerator
 
 
 @pytest.mark.parametrize(
-    "num_points, window_size, stride, zero_pad, expected",
+    ("num_points", "window_size", "stride", "zero_pad", "expected"),
     [
         (
             10,
@@ -62,15 +62,15 @@ def test_window_generator_correct_slices(
     num_points: int,
     window_size: int,
     stride: int,
-    zero_pad: bool,
+    zero_pad: bool,  # noqa: FBT001
     expected: list[slice],
 ) -> None:
-    wg = WindowGenerator(num_points, window_size, stride, zero_pad)
+    wg = WindowGenerator(num_points, window_size, stride, zero_pad=zero_pad)
     assert wg[:] == expected
 
 
 def test_window_generator_access_int() -> None:
-    wg = WindowGenerator(10, 5, 1, False)
+    wg = WindowGenerator(10, 5, 1, zero_pad=False)
 
     assert wg[0] == slice(0, 5)
     assert wg[1] == slice(1, 6)
@@ -81,7 +81,7 @@ def test_window_generator_access_int() -> None:
 
 
 def test_window_generator_access_slice() -> None:
-    wg = WindowGenerator(10, 5, 1, False)
+    wg = WindowGenerator(10, 5, 1, zero_pad=False)
 
     assert len(wg) == 6
 
@@ -93,7 +93,7 @@ def test_window_generator_access_slice() -> None:
 
 
 def test_window_generator_iterable() -> None:
-    wg = WindowGenerator(10, 5, 1, False)
+    wg = WindowGenerator(10, 5, 1, zero_pad=False)
 
     assert list(wg) == [
         slice(0, 5),
@@ -106,13 +106,13 @@ def test_window_generator_iterable() -> None:
 
 
 def test_window_generator_real_data_len() -> None:
-    wg = WindowGenerator(10, 5, 1, False)
+    wg = WindowGenerator(10, 5, 1, zero_pad=False)
     assert wg.real_data_len == 10
 
-    wg = WindowGenerator(10, 5, 1, True)
+    wg = WindowGenerator(10, 5, 1, zero_pad=True)
     assert wg.real_data_len == 10
 
 
 def test_window_generator_str() -> None:
-    wg = WindowGenerator(10, 5, 1, False)
+    wg = WindowGenerator(10, 5, 1, zero_pad=False)
     assert str(wg).startswith("WindowGenerator")

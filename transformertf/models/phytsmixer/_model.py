@@ -50,17 +50,15 @@ class PhyTSMixer(torch.nn.Module):
         )
 
         self.fc1 = torch.nn.Sequential(
-            collections.OrderedDict(
-                [
-                    (
-                        "fc11",
-                        torch.nn.Linear(hidden_dim_2, fc_dim),
-                    ),
-                    ("lrelu1", torch.nn.LeakyReLU()),
-                    ("ln1", torch.nn.LayerNorm(fc_dim)),
-                    ("fc12", torch.nn.Linear(fc_dim, 3)),
-                ]
-            )
+            collections.OrderedDict([
+                (
+                    "fc11",
+                    torch.nn.Linear(hidden_dim_2, fc_dim),
+                ),
+                ("lrelu1", torch.nn.LeakyReLU()),
+                ("ln1", torch.nn.LayerNorm(fc_dim)),
+                ("fc12", torch.nn.Linear(fc_dim, 3)),
+            ])
         )
 
         hidden_dim_2 //= 4
@@ -77,19 +75,15 @@ class PhyTSMixer(torch.nn.Module):
         )
 
         self.fc2 = torch.nn.Sequential(
-            collections.OrderedDict(
-                [
-                    (
-                        "fc21",
-                        torch.nn.Linear(
-                            hidden_dim_2 or num_features, hidden_dim
-                        ),
-                    ),
-                    ("lrelu2", torch.nn.LeakyReLU()),
-                    ("ln1", torch.nn.LayerNorm(hidden_dim)),
-                    ("fc22", torch.nn.Linear(hidden_dim, 1)),
-                ]
-            )
+            collections.OrderedDict([
+                (
+                    "fc21",
+                    torch.nn.Linear(hidden_dim_2 or num_features, hidden_dim),
+                ),
+                ("lrelu2", torch.nn.LeakyReLU()),
+                ("ln1", torch.nn.LayerNorm(hidden_dim)),
+                ("fc22", torch.nn.Linear(hidden_dim, 1)),
+            ])
         )
 
         self.g_plus_x = torch.nn.Sequential(
@@ -111,19 +105,15 @@ class PhyTSMixer(torch.nn.Module):
         )
 
         self.fc3 = torch.nn.Sequential(
-            collections.OrderedDict(
-                [
-                    (
-                        "fc31",
-                        torch.nn.Linear(
-                            hidden_dim_2 or num_features, hidden_dim
-                        ),
-                    ),
-                    ("lrelu3", torch.nn.LeakyReLU()),
-                    ("ln1", torch.nn.LayerNorm(hidden_dim)),
-                    ("fc32", torch.nn.Linear(hidden_dim, 1)),
-                ]
-            )
+            collections.OrderedDict([
+                (
+                    "fc31",
+                    torch.nn.Linear(hidden_dim_2 or num_features, hidden_dim),
+                ),
+                ("lrelu3", torch.nn.LeakyReLU()),
+                ("ln1", torch.nn.LayerNorm(hidden_dim)),
+                ("fc32", torch.nn.Linear(hidden_dim, 1)),
+            ])
         )
 
     def forward(
@@ -140,9 +130,7 @@ class PhyTSMixer(torch.nn.Module):
         g = self.fc2(self.ts2(z))
         g_gamma_x = self.g_plus_x(torch.cat([g, future_covariates], dim=2))
 
-        dz_dt_0 = einops.repeat(
-            dz_dt[:, 0, 1, None], "b f -> b t f", t=self.output_len
-        )
+        dz_dt_0 = einops.repeat(dz_dt[:, 0, 1, None], "b f -> b t f", t=self.output_len)
 
         delta_z_dot = dz_dt[..., 1, None] - dz_dt_0
         phi = torch.cat([delta_z_dot, z[..., 2, None]], dim=2)
@@ -151,11 +139,11 @@ class PhyTSMixer(torch.nn.Module):
 
         return typing.cast(
             PhyLSTM3Output,
-            dict(
-                z=z,
-                dz_dt=dz_dt,
-                g=g,
-                g_gamma_x=g_gamma_x,
-                dr_dt=dr_dt,
-            ),
+            {
+                "z": z,
+                "dz_dt": dz_dt,
+                "g": g,
+                "g_gamma_x": g_gamma_x,
+                "dr_dt": dr_dt,
+            },
         )

@@ -21,9 +21,9 @@ class VariableSelection(torch.nn.Module):
         self.context_size = context_size
         self.dropout = torch.nn.Dropout(dropout)
 
-        self.prescalers = torch.nn.ModuleList(
-            [torch.nn.Linear(1, hidden_dim) for _ in range(n_features)]
-        )
+        self.prescalers = torch.nn.ModuleList([
+            torch.nn.Linear(1, hidden_dim) for _ in range(n_features)
+        ])
 
         if self.n_features > 1:
             if self.context_size is not None:
@@ -44,17 +44,15 @@ class VariableSelection(torch.nn.Module):
         else:
             self.flattened_grn = torch.nn.Identity()
 
-        self.single_grn = torch.nn.ModuleList(
-            [
-                GatedResidualNetwork(
-                    input_dim=hidden_dim,
-                    hidden_dim=self.hidden_dim,
-                    output_dim=self.n_dim_model,
-                    dropout=dropout,
-                )
-                for i in range(n_features)
-            ]
-        )
+        self.single_grn = torch.nn.ModuleList([
+            GatedResidualNetwork(
+                input_dim=hidden_dim,
+                hidden_dim=min(hidden_dim, self.n_dim_model),
+                output_dim=self.n_dim_model,
+                dropout=dropout,
+            )
+            for i in range(n_features)
+        ])
 
     def forward(
         self, x: torch.Tensor, context: torch.Tensor | None = None
@@ -72,15 +70,15 @@ class VariableSelection(torch.nn.Module):
 
         """
         if x.shape[-1] != self.n_features:
-            raise ValueError(
+            msg = (
                 f"Input tensor must have {self.n_features} features, "
                 f"but got {x.shape[-1]} features instead."
             )
+            raise ValueError(msg)
 
         if self.context_size is None and context is not None:
-            raise ValueError(
-                "Context tensor is not expected, but got a context tensor."
-            )
+            msg = "Context tensor is not expected, but got a context tensor."
+            raise ValueError(msg)
 
         if self.n_features == 1:
             # if there is only one feature, we don't need to do
@@ -89,9 +87,7 @@ class VariableSelection(torch.nn.Module):
             x = self.single_grn[0](x)
 
             if x.ndim == 3:
-                sparse_weights = torch.ones(
-                    *x.shape[0:2], 1, 1, device=x.device
-                )
+                sparse_weights = torch.ones(*x.shape[0:2], 1, 1, device=x.device)
             else:
                 sparse_weights = torch.ones(x.shape[0], 1, 1, device=x.device)
 
@@ -113,7 +109,7 @@ class VariableSelection(torch.nn.Module):
         weights = self.flattened_grn(weights, context)
         weights = torch.nn.functional.softmax(weights, dim=-1).unsqueeze(-2)
 
-        outputs = outputs * weights
+        outputs *= weights
         outputs = outputs.sum(dim=-1)
 
         return outputs, weights

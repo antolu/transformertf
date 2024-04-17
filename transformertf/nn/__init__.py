@@ -7,6 +7,7 @@ from ._mlp import MLP
 from ._quantile_loss import QuantileLoss
 from ._resample_norm import ResampleNorm
 from ._variable_selection import VariableSelection
+from ._weighted_loss import WeightedHuberLoss, WeightedMAELoss, WeightedMSELoss
 
 for _mod in (
     AddNorm,
@@ -17,6 +18,9 @@ for _mod in (
     ResampleNorm,
     VariableSelection,
     MLP,
+    WeightedMAELoss,
+    WeightedMSELoss,
+    WeightedHuberLoss,
 ):
     replace_modname(_mod, __name__)
 
@@ -24,6 +28,7 @@ del _mod
 del replace_modname
 
 __all__ = [
+    "MLP",
     "AddNorm",
     "GatedLinearUnit",
     "GatedResidualNetwork",
@@ -31,5 +36,7 @@ __all__ = [
     "QuantileLoss",
     "ResampleNorm",
     "VariableSelection",
-    "MLP",
+    "WeightedHuberLoss",
+    "WeightedMAELoss",
+    "WeightedMSELoss",
 ]

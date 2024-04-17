@@ -22,7 +22,7 @@ class TemporalFusionTransformer(torch.nn.Module):
         tgt_seq_len: int,
         num_static_features: int = 0,
         n_dim_model: int = 300,
-        variable_selection_dim: int = 100,
+        hidden_continuous_dim: int = 8,
         num_heads: int = 4,
         num_lstm_layers: int = 2,
         dropout: float = 0.1,
@@ -48,6 +48,8 @@ class TemporalFusionTransformer(torch.nn.Module):
             hyperparameter, as it determines the model capacity.
         variable_selection_dim : int, optional
             Dimension of the variable selection network, by default 100.
+        hidden_continuous_dim : int, optional
+            Dimension of the hidden continuous features, by default 8.
         num_heads : int, optional
             Number of attention heads, by default 4.
         num_lstm_layers : int, optional
@@ -66,7 +68,7 @@ class TemporalFusionTransformer(torch.nn.Module):
         self.tgt_seq_len = tgt_seq_len
         self.num_static_features = num_static_features  # not used
         self.n_dim_model = n_dim_model
-        self.variable_selection_dim = variable_selection_dim
+        self.hidden_continuous_dim = hidden_continuous_dim
         self.num_heads = num_heads
         self.num_lstm_layers = num_lstm_layers
         self.dropout = dropout
@@ -75,15 +77,14 @@ class TemporalFusionTransformer(torch.nn.Module):
         # TODO: static covariate embeddings
         self.static_vs = VariableSelection(
             n_features=num_static_features,
-            hidden_dim=variable_selection_dim,
+            hidden_dim=hidden_continuous_dim,
             n_dim_model=n_dim_model,
-            context_size=n_dim_model,
             dropout=dropout,
         )
 
         self.enc_vs = VariableSelection(
             n_features=num_features,
-            hidden_dim=variable_selection_dim,
+            hidden_dim=hidden_continuous_dim,
             n_dim_model=n_dim_model,
             context_size=n_dim_model,
             dropout=dropout,
@@ -91,7 +92,7 @@ class TemporalFusionTransformer(torch.nn.Module):
 
         self.dec_vs = VariableSelection(
             n_features=num_features - 1,
-            hidden_dim=variable_selection_dim,
+            hidden_dim=hidden_continuous_dim,
             n_dim_model=n_dim_model,
             context_size=n_dim_model,
             dropout=dropout,
@@ -187,12 +188,12 @@ class TemporalFusionTransformer(torch.nn.Module):
                 self.n_dim_model,
                 device=past_covariates.device,
             )  # static covariate embeddings
-            static_variable_selection = torch.zeros(  # noqa: F841
+            torch.zeros(
                 batch_size, 0, device=past_covariates.device
             )  # static variable selection weights
         else:
             static_embedding = static_covariates
-            static_embedding, static_variable_selection = self.static_vs(
+            static_embedding, _static_variable_selection = self.static_vs(
                 static_embedding
             )
 

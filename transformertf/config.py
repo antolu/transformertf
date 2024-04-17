@@ -19,9 +19,7 @@ __all__ = [
 
 log = logging.getLogger(__name__)
 
-PRECISION = typing.Literal[
-    "16-mixed", "bf16-mixed", "32-true", "64-true", 16, 32, 64
-]
+PRECISION = typing.Literal["16-mixed", "bf16-mixed", "32-true", "64-true", 16, 32, 64]
 
 
 @dataclass(init=True)
@@ -33,7 +31,7 @@ class BaseConfig:
 
     # Optimizer
     optimizer: str = "sgd"
-    lr_scheduler: str | typing.Type[LRScheduler] | partial | None = None
+    lr_scheduler: str | type[LRScheduler] | partial | None = None
     lr_scheduler_interval: typing.Literal["epoch", "step"] = "epoch"
     optimizer_kwargs: dict = field(default_factory=dict)
 
@@ -53,14 +51,9 @@ class BaseConfig:
     # bulk data processing parameters
     normalize: bool = True
     downsample: int = 1
-    downsample_method: typing.Literal["interval", "average", "convolve"] = (
-        "interval"
-    )
-    remove_polynomial: bool = False
+    downsample_method: typing.Literal["interval", "average", "convolve"] = "interval"
 
     target_depends_on: str | None = None
-    polynomial_degree: int = 1
-    polynomial_iterations: int = 1000
 
     lowpass_filter: bool = False
     mean_filter: bool = False
@@ -86,7 +79,9 @@ class BaseConfig:
     """ PyTorch Lightning callbacks """
 
     # Misc. to not be used manually
-    timestamp: str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp: str = field(
+        default_factory=lambda: datetime.datetime.now().strftime("%Y%m%d_%H%M%S")  # type: ignore[arg-typ]
+    )
     checkpoint_dir: str = "checkpoints"
     model_dir: str | None = "models"
 
@@ -110,3 +105,9 @@ class TransformerBaseConfig(BaseConfig):
     min_tgt_seq_len: int | None = None
     randomize_seq_len: bool = False
     stride: int = 1
+
+    loss_fn: typing.Literal["mse", "mse", "huber", "quantile"] = "quantile"
+    quantiles: list[float] = field(
+        default_factory=lambda: [0.02, 0.1, 0.25, 0.5, 0.75, 0.9, 0.98]  # type: ignore[arg-type]
+    )
+    prediction_type: typing.Literal["delta", "point"] = "point"

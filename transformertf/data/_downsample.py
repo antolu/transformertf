@@ -12,15 +12,34 @@ from .transform._utils import _as_numpy  # type: ignore[import]
 __all__ = ["downsample"]
 
 
+MIN_DOWNSAMPLE_FACTOR = 1
+
+
 if typing.TYPE_CHECKING:
-    T = typing.TypeVar("T", pd.Series, np.ndarray, torch.Tensor, pd.DataFrame)
+    T = typing.TypeVar("T", pd.Series, np.ndarray, torch.Tensor)
 
 
-def downsample(
+@typing.overload
+def downsample(  # type: ignore[overload-overlap]
     value: T,
     downsample: int,
     method: typing.Literal["interval", "average", "convolve"] = "interval",
-) -> T:
+) -> np.ndarray: ...
+
+
+@typing.overload
+def downsample(
+    value: pd.DataFrame,
+    downsample: int,
+    method: typing.Literal["interval", "average", "convolve"] = "interval",
+) -> pd.DataFrame: ...
+
+
+def downsample(
+    value: T | pd.DataFrame,
+    downsample: int,
+    method: typing.Literal["interval", "average", "convolve"] = "interval",
+) -> np.ndarray | pd.DataFrame:
     """
     Downsamples a container of time series data.
 
@@ -33,27 +52,26 @@ def downsample(
     -------
 
     """
-    if isinstance(value, (np.ndarray, torch.Tensor, pd.Series)):
-        return downsample_array(value, downsample, method=method)  # type: ignore[return-value]
-    elif isinstance(value, pd.DataFrame):
+    if isinstance(value, np.ndarray | torch.Tensor | pd.Series):
+        return downsample_array(value, downsample, method=method)
+    if isinstance(value, pd.DataFrame):
         if method == "interval":
             return value.iloc[::downsample].reset_index(drop=True)
-        else:
-            df = value.iloc[::downsample].reset_index(drop=True)
-            for col in df.columns:
-                if (
-                    pd.api.types.is_datetime64_any_dtype(df[col].dtype)
-                    or pd.api.types.is_timedelta64_dtype(df[col].dtype)
-                    or pd.api.types.is_string_dtype(df[col].dtype)
-                ):
-                    continue
-                else:
-                    df[col] = downsample_array(
-                        value[col], downsample, method=method
-                    )
-            return df
-    else:
-        raise TypeError(f"Unsupported type: {type(value)}")
+
+        df = value.iloc[::downsample].reset_index(drop=True)
+        for col in df.columns:
+            if (
+                pd.api.types.is_datetime64_any_dtype(df[col].dtype)
+                or pd.api.types.is_timedelta64_dtype(df[col].dtype)
+                or pd.api.types.is_string_dtype(df[col].dtype)
+            ):
+                continue
+
+            df[col] = downsample_array(value[col], downsample, method=method)
+        return df
+
+    msg = f"Unsupported type: {type(value)}"
+    raise TypeError(msg)
 
 
 def downsample_array(
@@ -78,12 +96,13 @@ def downsample_array(
 
     if method == "interval":
         return v[::factor]
-    elif method == "average":
+    if method == "average":
         return downsample_mean(v, factor)
-    elif method == "convolve":
+    if method == "convolve":
         return downsample_convolve(v, factor)
-    else:
-        raise ValueError(f"Unknown downsampling method: {method}")
+
+    msg = f"Unknown downsampling method: {method}"
+    raise ValueError(msg)
 
 
 def downsample_convolve(
@@ -102,7 +121,7 @@ def downsample_convolve(
 
     """
     v = _as_numpy(v)
-    if factor < 2:
+    if factor <= MIN_DOWNSAMPLE_FACTOR:
         return v
 
     box = np.ones(factor) / factor
@@ -125,7 +144,7 @@ def downsample_mean(
 
     """
     v = _as_numpy(v)
-    if factor < 2:
+    if factor <= MIN_DOWNSAMPLE_FACTOR:
         return v
 
     return scipy.ndimage.median_filter(v, size=factor // 2)[::factor]

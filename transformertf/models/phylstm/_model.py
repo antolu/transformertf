@@ -99,14 +99,12 @@ class PhyLSTM1(nn.Module):
         else:
             hidden_dim_fc_ = _parse_vararg(hidden_dim_fc, 1)
         self.fc1 = nn.Sequential(
-            collections.OrderedDict(
-                [
-                    ("fc11", nn.Linear(hidden_dim_, hidden_dim_fc_)),
-                    ("lrelu1", nn.LeakyReLU()),
-                    ("ln1", nn.LayerNorm(hidden_dim_fc_)),
-                    ("fc12", nn.Linear(hidden_dim_fc_, 3)),
-                ]
-            )
+            collections.OrderedDict([
+                ("fc11", nn.Linear(hidden_dim_, hidden_dim_fc_)),
+                ("lrelu1", nn.LeakyReLU()),
+                ("ln1", nn.LayerNorm(hidden_dim_fc_)),
+                ("fc12", nn.Linear(hidden_dim_fc_, 3)),
+            ])
         )
 
         self.apply(self.weights_init)
@@ -136,7 +134,7 @@ class PhyLSTM1(nn.Module):
             if module.bias is not None:
                 nn.init.zeros_(module.bias.data)
         elif (
-            isinstance(module, (nn.ConvTranspose2d, nn.Linear))
+            isinstance(module, nn.ConvTranspose2d | nn.Linear)
             and module.weight.requires_grad
         ):  # guard for linear_field
             gain = nn.init.calculate_gain("leaky_relu", 0.01)
@@ -146,23 +144,26 @@ class PhyLSTM1(nn.Module):
     def forward(
         self,
         x: torch.Tensor,
+        hidden_state: STATE1 | None = None,
+        *,
         return_states: typing.Literal[False] = False,
-        hidden_state: typing.Optional[STATE1] = None,
     ) -> PhyLSTM1Output: ...
 
     @typing.overload
     def forward(
         self,
         x: torch.Tensor,
+        hidden_state: STATE1 | None = None,
+        *,
         return_states: typing.Literal[True],
-        hidden_state: typing.Optional[STATE1] = None,
     ) -> tuple[PhyLSTM1Output, PhyLSTM1States]: ...
 
     def forward(
         self,
         x: torch.Tensor,
+        hidden_state: STATE1 | None = None,
+        *,
         return_states: bool = False,
-        hidden_state: typing.Optional[STATE1] = None,
     ) -> PhyLSTM1Output | tuple[PhyLSTM1Output, PhyLSTM1States]:
         """
         Forward pass of the model.
@@ -172,10 +173,7 @@ class PhyLSTM1(nn.Module):
 
         :return: Output torch.Tensor of shape (batch_size, sequence_length, 1).
         """
-        if hidden_state is not None:
-            h_lstm1 = hidden_state["lstm1"]
-        else:
-            h_lstm1 = None
+        h_lstm1 = hidden_state["lstm1"] if hidden_state is not None else None
 
         o_lstm1, h_lstm1 = self.lstm1(x, hx=h_lstm1)
 
@@ -187,8 +185,7 @@ class PhyLSTM1(nn.Module):
 
         if return_states:
             return output, states
-        else:
-            return output
+        return output
 
 
 class PhyLSTM2(PhyLSTM1):
@@ -225,14 +222,12 @@ class PhyLSTM2(PhyLSTM1):
         else:
             hidden_dim_fc_ = _parse_vararg(hidden_dim_fc, 2)
         self.fc2 = nn.Sequential(
-            collections.OrderedDict(
-                [
-                    ("fc21", nn.Linear(hidden_dim_, hidden_dim_fc_)),
-                    ("lrelu2", nn.LeakyReLU()),
-                    ("ln1", nn.LayerNorm(hidden_dim_fc_)),
-                    ("fc22", nn.Linear(hidden_dim_fc_, 1)),
-                ]
-            )
+            collections.OrderedDict([
+                ("fc21", nn.Linear(hidden_dim_, hidden_dim_fc_)),
+                ("lrelu2", nn.LeakyReLU()),
+                ("ln1", nn.LayerNorm(hidden_dim_fc_)),
+                ("fc22", nn.Linear(hidden_dim_fc_, 1)),
+            ])
         )
 
         self.g_plus_x = nn.Sequential(
@@ -246,24 +241,27 @@ class PhyLSTM2(PhyLSTM1):
     def forward(
         self,
         x: torch.Tensor,
+        hidden_state: STATE2 | None = None,
+        *,
         return_states: typing.Literal[False] = False,
-        hidden_state: typing.Optional[STATE2] = None,
     ) -> PhyLSTM2Output: ...
 
     @typing.overload  # type: ignore[override]
     def forward(
         self,
         x: torch.Tensor,
+        hidden_state: STATE2 | None = None,
+        *,
         return_states: typing.Literal[True],
-        hidden_state: typing.Optional[STATE2] = None,
     ) -> tuple[PhyLSTM2Output, PhyLSTM2States]:  # type: ignore[override]
         ...
 
     def forward(
         self,
         x: torch.Tensor,
+        hidden_state: STATE2 | None = None,
+        *,
         return_states: bool = False,
-        hidden_state: typing.Optional[STATE2] = None,
     ) -> PhyLSTM2Output | tuple[PhyLSTM2Output, PhyLSTM2States]:
         """
         Forward pass of the model.
@@ -286,12 +284,7 @@ class PhyLSTM2(PhyLSTM1):
 
         z = phylstm1_output["z"]
 
-        if hidden_state is None:
-            h_lstm2 = None
-        else:
-            h_lstm2 = (
-                hidden_state["lstm2"] if "lstm2" in hidden_state else None
-            )
+        h_lstm2 = None if hidden_state is None else hidden_state.get("lstm2", None)
 
         dz_dt = torch.gradient(z, dim=1)[0]
 
@@ -311,10 +304,9 @@ class PhyLSTM2(PhyLSTM1):
         )
         if return_states:
             assert hidden1 is not None
-            states = hidden1 | {"lstm2": ops.detach(h_lstm2)}
+            states = hidden1 | {"lstm2": ops.detach(h_lstm2)}  # type: ignore[type-var]
             return output, typing.cast(PhyLSTM2States, states)
-        else:
-            return output
+        return output
 
 
 class PhyLSTM3(PhyLSTM2):
@@ -352,37 +344,38 @@ class PhyLSTM3(PhyLSTM2):
         else:
             hidden_dim_fc_ = _parse_vararg(hidden_dim_fc, 3)
         self.fc3 = nn.Sequential(
-            collections.OrderedDict(
-                [
-                    ("fc31", nn.Linear(hidden_dim_, hidden_dim_fc_)),
-                    ("lrelu3", nn.LeakyReLU()),
-                    ("ln3", nn.LayerNorm(hidden_dim_fc_)),
-                    ("fc32", nn.Linear(hidden_dim_fc_, 1)),
-                ]
-            )
+            collections.OrderedDict([
+                ("fc31", nn.Linear(hidden_dim_, hidden_dim_fc_)),
+                ("lrelu3", nn.LeakyReLU()),
+                ("ln3", nn.LayerNorm(hidden_dim_fc_)),
+                ("fc32", nn.Linear(hidden_dim_fc_, 1)),
+            ])
         )
 
     @typing.overload  # type: ignore[override]
     def forward(
         self,
         x: torch.Tensor,
+        hidden_state: STATE3 | None = None,
+        *,
         return_states: typing.Literal[False] = False,
-        hidden_state: typing.Optional[STATE3] = None,
     ) -> PhyLSTM3Output: ...
 
     @typing.overload  # type: ignore[override]
     def forward(
         self,
         x: torch.Tensor,
+        hidden_state: STATE3 | None = None,
+        *,
         return_states: typing.Literal[True],
-        hidden_state: typing.Optional[STATE3] = None,
     ) -> tuple[PhyLSTM3Output, PhyLSTM3States]: ...
 
     def forward(
         self,
         x: torch.Tensor,
+        hidden_state: STATE3 | None = None,
+        *,
         return_states: bool = False,
-        hidden_state: typing.Optional[STATE3] = None,
     ) -> PhyLSTM3Output | tuple[PhyLSTM3Output, PhyLSTM3States]:
         """
         This forward pass can be used for both training and inference.
@@ -412,12 +405,7 @@ class PhyLSTM3(PhyLSTM2):
         z = phylstm2_output["z"]
         dz_dt = phylstm2_output["dz_dt"]
 
-        if hidden_state is None:
-            h_lstm3 = None
-        else:
-            h_lstm3 = (
-                hidden_state["lstm3"] if "lstm3" in hidden_state else None
-            )
+        h_lstm3 = None if hidden_state is None else hidden_state.get("lstm3", None)
 
         dz_dt_0 = einops.repeat(
             dz_dt[:, 0, 1, None],
@@ -441,10 +429,9 @@ class PhyLSTM3(PhyLSTM2):
 
         if return_states:
             assert hidden2 is not None
-            states = hidden2 | {"lstm3": ops.detach(h_lstm3)}
+            states = hidden2 | {"lstm3": ops.detach(h_lstm3)}  # type: ignore[type-var]
             return output, typing.cast(PhyLSTM3States, states)
-        else:
-            return output
+        return output
 
 
 T = typing.TypeVar("T")
@@ -467,7 +454,6 @@ def _parse_vararg(vararg: T | tuple[T, ...], num_args: int) -> T:
         return vararg
 
     if len(vararg) < num_args:
-        raise ValueError(
-            f"Expected at least {num_args} arguments, got {len(vararg)}"
-        )
+        msg = f"Expected at least {num_args} arguments, got {len(vararg)}"
+        raise ValueError(msg)
     return vararg[num_args - 1]

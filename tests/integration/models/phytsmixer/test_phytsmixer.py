@@ -15,7 +15,7 @@ from ....conftest import CURRENT, DF_PATH
 
 @pytest.fixture(scope="module")
 def config() -> PhyTSMixerConfig:
-    config = PhyTSMixerConfig(
+    return PhyTSMixerConfig(
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
         num_workers=0,
@@ -23,15 +23,14 @@ def config() -> PhyTSMixerConfig:
         input_columns=["I_meas_A"],
         target_column="B_meas_T",
     )
-    return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def phytsmixer_module(config: PhyTSMixerConfig) -> PhyTSMixerModule:
     return PhyTSMixerModule.from_config(config)
 
 
-@pytest.fixture
+@pytest.fixture()
 def datamodule(config: PhyTSMixerConfig) -> EncoderDecoderDataModule:
     return EncoderDecoderDataModule.from_parquet(config)
 

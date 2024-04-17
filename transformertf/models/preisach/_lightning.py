@@ -26,14 +26,15 @@ class PreisachModule(LightningModuleBase):
         lr_scheduler: str | LR_CALL_TYPE | None = None,
         lr_scheduler_interval: typing.Literal["epoch", "step"] = "epoch",
         max_epochs: int = 1000,
+        criterion: torch.nn.Module | None = None,
+        *,
         log_grad_norm: bool = False,
-        validate_every_n_epochs: int = 1,
-        criterion: typing.Type[torch.nn.Module] | None = None,
     ):
         """
         This module implements a PyTorch Lightning module for the
         Differentiable Preisach Model.
         """
+        criterion = criterion or torch.nn.MSELoss()
         super().__init__(
             lr=lr,
             weight_decay=weight_decay,
@@ -42,28 +43,22 @@ class PreisachModule(LightningModuleBase):
             optimizer_kwargs=optimizer_kwargs or {},
             reduce_on_plateau_patience=reduce_on_plateau_patience,
             max_epochs=max_epochs,
-            validate_every_n_epochs=validate_every_n_epochs,
             log_grad_norm=log_grad_norm,
             lr_scheduler=lr_scheduler,
             lr_scheduler_interval=lr_scheduler_interval,
+            criterion=criterion,
         )
         super().save_hyperparameters(ignore=["lr_scheduler", "criterion"])
-
-        self._lr_scheduler = lr_scheduler
-        self.criterion = criterion or torch.nn.MSELoss()
 
         self.model = BaseHysteresis()
 
     @classmethod
     def from_config(  # type: ignore[override]
-        cls: typing.Type[SameType],
+        cls: type[SameType],
         config: PreisachConfig,
-        criterion: typing.Type[torch.nn.Module] | None = None,
+        criterion: torch.nn.Module | None = None,
         lr_scheduler: (
-            str
-            | typing.Type[torch.optim.lr_scheduler.LRScheduler]
-            | functools.partial
-            | None
+            str | type[torch.optim.lr_scheduler.LRScheduler] | functools.partial | None
         ) = None,
         **kwargs: typing.Any,
     ) -> SameType:
@@ -77,7 +72,6 @@ class PreisachModule(LightningModuleBase):
             "lr_scheduler_interval": config.lr_scheduler_interval,
             "max_epochs": config.num_epochs,
             "log_grad_norm": config.log_grad_norm,
-            "validate_every_n_epochs": config.validate_every,
             "criterion": criterion or torch.nn.MSELoss(),
             "lr_scheduler": lr_scheduler or config.lr_scheduler,
         }

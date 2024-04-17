@@ -21,8 +21,8 @@ del _mod
 
 __all__ = [
     "DataModuleBase",
-    "TransformerDataModule",
-    "TimeSeriesDataModule",
     "EncoderDataModule",
     "EncoderDecoderDataModule",
+    "TimeSeriesDataModule",
+    "TransformerDataModule",
 ]

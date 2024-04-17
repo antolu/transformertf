@@ -14,39 +14,31 @@ import torch
 
 log = logging.getLogger(__name__)
 
-LR_SCHEDULER_DICT = typing.TypedDict(
-    "LR_SCHEDULER_DICT",
-    {
-        "scheduler": typing.Union[
-            torch.optim.lr_scheduler.LRScheduler,
-            torch.optim.lr_scheduler.ReduceLROnPlateau,
-        ],
-        "monitor": str,
-        "interval": typing.Literal["epoch", "step"],
-    },
-)
+
+class LrSchedulerDict(typing.TypedDict):
+    scheduler: (
+        torch.optim.lr_scheduler.LRScheduler
+        | torch.optim.lr_scheduler.ReduceLROnPlateau
+    )
+    monitor: str
+    interval: typing.Literal["epoch", "step"]
 
 
-OPTIMIZER_DICT = typing.TypedDict(
-    "OPTIMIZER_DICT",
-    {
-        "optimizer": torch.optim.Optimizer,
-        "lr_scheduler": typing.Union[
-            typing.Union[
-                torch.optim.lr_scheduler.LRScheduler,
-                torch.optim.lr_scheduler.ReduceLROnPlateau,
-            ],
-            LR_SCHEDULER_DICT,
-            None,
-        ],
-    },
-)
+class OptimizerDict(typing.TypedDict):
+    optimizer: torch.optim.Optimizer
+    lr_scheduler: (
+        torch.optim.lr_scheduler.LRScheduler
+        | torch.optim.lr_scheduler.ReduceLROnPlateau
+        | LrSchedulerDict
+        | None
+    )
+
 
 __all__ = [
-    "LR_SCHEDULER_DICT",
-    "OPTIMIZER_DICT",
-    "configure_optimizers",
+    "LrSchedulerDict",
+    "OptimizerDict",
     "configure_lr_scheduler",
+    "configure_optimizers",
 ]
 
 
@@ -56,9 +48,7 @@ def configure_optimizers(
     weight_decay: float | None = None,
     momentum: float | None = None,
     **optimizer_kwargs: typing.Any,
-) -> typing.Callable[
-    [typing.Iterator[torch.nn.Parameter]], torch.optim.Optimizer
-]:
+) -> typing.Callable[[typing.Iterator[torch.nn.Parameter]], torch.optim.Optimizer]:
     """
     Return a function that takes an iterator of torch.nn.Parameter and returns a torch.optim.Optimizer object.
 
@@ -108,14 +98,14 @@ def configure_optimizers(
             weight_decay=weight_decay or 0.0,
             **optimizer_kwargs,
         )
-    elif optimizer == "adamw":
+    if optimizer == "adamw":
         return functools.partial(
             torch.optim.AdamW,
             lr=lr,
             weight_decay=weight_decay or 0.0,
             **optimizer_kwargs,
         )
-    elif optimizer == "sgd":
+    if optimizer == "sgd":
         return functools.partial(
             torch.optim.SGD,
             lr=lr,
@@ -123,32 +113,31 @@ def configure_optimizers(
             momentum=momentum or 0.0,
             **optimizer_kwargs,
         )
-    elif optimizer == "ranger":
+    if optimizer == "ranger":
         return functools.partial(
             py_optim.Ranger,
             lr=lr,
             weight_decay=weight_decay or 0.0,
             **optimizer_kwargs,
         )
-    else:
-        raise ValueError(f"Unknown optimizer: {optimizer}")
+
+    msg = f"Unknown optimizer: {optimizer}"
+    raise ValueError(msg)
 
 
 def configure_lr_scheduler(
     optimizer: torch.optim.Optimizer,
     lr_scheduler: (
         str
-        | typing.Type[torch.optim.lr_scheduler.LRScheduler]
+        | type[torch.optim.lr_scheduler.LRScheduler]
         | functools.partial
-        | typing.Callable[
-            [torch.optim.Optimizer], torch.optim.lr_scheduler.LRScheduler
-        ]
+        | typing.Callable[[torch.optim.Optimizer], torch.optim.lr_scheduler.LRScheduler]
     ),
     monitor: str | None = None,
     scheduler_interval: typing.Literal["step", "epoch"] = "epoch",
     max_epochs: int | None = None,
     reduce_on_plateau_patience: int | None = None,
-) -> LR_SCHEDULER_DICT:
+) -> LrSchedulerDict | torch.optim.lr_scheduler.ReduceLROnPlateau:
     """
     Configure and return a learning rate scheduler for the optimizer.
 
@@ -213,10 +202,13 @@ def configure_lr_scheduler(
                 patience=reduce_on_plateau_patience,
             )
         if lr_scheduler == "constant_then_cosine":
+            msg = (
+                "max_epochs must be specified when using the "
+                "constant_then_cosine lr_scheduler."
+            )
+
             if max_epochs is None:
-                raise ValueError(
-                    "max_epochs must be specified when using the constant_then_cosine lr_scheduler."
-                )
+                raise ValueError(msg)
             scheduler = torch.optim.lr_scheduler.SequentialLR(
                 optimizer,
                 [  # type: ignore
@@ -233,21 +225,19 @@ def configure_lr_scheduler(
                 milestones=[int(0.75 * max_epochs)],
             )
         else:
-            raise ValueError(f"Unknown lr_scheduler: {lr_scheduler}")
-    elif isinstance(lr_scheduler, functools.partial):
-        scheduler = lr_scheduler(optimizer=optimizer)
-    elif inspect.isclass(lr_scheduler):
+            msg = f"Unknown lr_scheduler: {lr_scheduler}"
+            raise ValueError(msg)
+    elif isinstance(lr_scheduler, functools.partial) or inspect.isclass(lr_scheduler):
         scheduler = lr_scheduler(optimizer=optimizer)
     else:
-        raise NotImplementedError(
-            "Learning rate schedulers are not implemented yet."
-        )
+        msg = "Learning rate schedulers are not implemented yet."
+        raise NotImplementedError(msg)
 
     if monitor is None:
         return scheduler
 
     return typing.cast(
-        LR_SCHEDULER_DICT,
+        LrSchedulerDict,
         {
             "scheduler": scheduler,
             "monitor": monitor,

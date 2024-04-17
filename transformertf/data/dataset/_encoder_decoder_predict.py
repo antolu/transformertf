@@ -97,20 +97,14 @@ class EncoderDecoderPredictDataset(
         self._target_length = prediction_length
         self._dtype = dtype
 
-        past_covariates = extract_covariates_from_df(
-            past_covariates, input_columns
-        )
-        future_covariates = extract_covariates_from_df(
-            future_covariates, input_columns
-        )
+        past_covariates = extract_covariates_from_df(past_covariates, input_columns)
+        future_covariates = extract_covariates_from_df(future_covariates, input_columns)
         past_target = extract_covariates_from_df(past_target, target_column)
 
         past_covariates = keep_only_context(past_covariates, context_length)
         past_target = keep_only_context(past_target, context_length)
 
-        self._past_covariates = apply_transforms(
-            past_covariates, self._input_transform
-        )
+        self._past_covariates = apply_transforms(past_covariates, self._input_transform)
         self._future_covariates = apply_transforms(
             future_covariates, self._input_transform
         )
@@ -120,9 +114,7 @@ class EncoderDecoderPredictDataset(
 
         # convert to torch tensors
         self._past_covariates = convert_data(self._past_covariates, dtype)[0]
-        self._future_covariates = convert_data(self._future_covariates, dtype)[
-            0
-        ]
+        self._future_covariates = convert_data(self._future_covariates, dtype)[0]
         self._past_target = convert_data(self._past_target, dtype)[0]
 
         self._sample_generator = TransformerPredictionSampleGenerator(
@@ -136,6 +128,7 @@ class EncoderDecoderPredictDataset(
     def append_past_target(
         self,
         past_target: np.ndarray | torch.Tensor,
+        *,
         transform: bool = False,
     ) -> None:
         """
@@ -166,14 +159,12 @@ def extract_covariates_from_df(
 ) -> np.ndarray:
     if isinstance(data, pd.Series):
         return data.to_numpy()
-    elif isinstance(data, pd.DataFrame):
+    if isinstance(data, pd.DataFrame):
         if columns is None:
-            raise ValueError(
-                "The columns parameter must be provided if the data is a DataFrame."
-            )
+            msg = "The columns parameter must be provided if the data is a DataFrame."
+            raise ValueError(msg)
         return data[columns].to_numpy()
-    else:
-        return data  # type: ignore[return-value]
+    return data  # type: ignore[return-value]
 
 
 def keep_only_context(
@@ -181,7 +172,8 @@ def keep_only_context(
     context_length: int,
 ) -> np.ndarray:
     if len(data) < context_length:
-        raise ValueError("The data is shorter than the context length.")
+        msg = "The data is shorter than the context length."
+        raise ValueError(msg)
     return data[-context_length:]
 
 
@@ -211,9 +203,7 @@ def apply_transforms(
     torch.Tensor
         The transformed data.
     """
-    if transforms is None or (
-        isinstance(transforms, dict) and len(transforms) == 0
-    ):
+    if transforms is None or (isinstance(transforms, dict) and len(transforms) == 0):
         return torch.as_tensor(data)
     assert transforms is not None  # mypy
 
@@ -224,17 +214,13 @@ def apply_transforms(
         if not isinstance(transforms, BaseTransform) and (
             isinstance(transforms, dict) and len(transforms) > 1
         ):
-            raise ValueError(
-                "More than one transform was provided for a single column."
-            )
+            msg = "More than one transform was provided for a single column."
+            raise ValueError(msg)
         if isinstance(transforms, dict):
-            transforms = list(transforms.values())[0]
+            transforms = next(iter(transforms.values()))
         assert isinstance(transforms, BaseTransform)  # mypy
 
-        if (
-            dependency is not None
-            and transforms.transform_type == TransformType.XY
-        ):
+        if dependency is not None and transforms.transform_type == TransformType.XY:
             dependency = (
                 dependency.to_numpy()
                 if isinstance(dependency, pd.Series)
@@ -242,31 +228,30 @@ def apply_transforms(
             )
 
             return transforms.transform(dependency, data)
-        else:
-            return transforms.transform(data)
+        return transforms.transform(data)
 
     # If the data is a 2D array
     num_cols = data.shape[1]
 
     if isinstance(transforms, BaseTransform):
-        raise ValueError(
-            "A single transform was provided for multiple columns."
-        )
+        msg = "A single transform was provided for multiple columns."
+        raise ValueError(msg)  # noqa: TRY004
     if (
         isinstance(transforms, dict)
         and num_cols != len(transforms)
         and len(transforms) > 0
     ):
-        raise ValueError(
+        msg = (
             "The number of transforms must match the number of columns "
             "if transforms are provided."
         )
+        raise ValueError(msg)
 
     if len(transforms) == 0:
         return torch.as_tensor(data)
 
     output = []
-    for col, (col_name, transform) in enumerate(transforms.items()):
+    for col, (_col_name, transform) in enumerate(transforms.items()):
         output.append(transform.transform(data[:, col]))
 
     return torch.stack(output, dim=1)

@@ -34,14 +34,16 @@ def get_norm_layer(
 ) -> BatchNorm2D | torch.nn.LayerNorm:
     if norm_type == "batch":
         if num_features is None:
-            raise ValueError("num_features must be provided")
+            msg = "num_features must be provided"
+            raise ValueError(msg)
         return BatchNorm2D(num_features)
-    elif norm_type == "layer":
+    if norm_type == "layer":
         if normalized_shape is None:
-            raise ValueError("normalized_shape must be provided")
+            msg = "normalized_shape must be provided"
+            raise ValueError(msg)
         return torch.nn.LayerNorm(normalized_shape)  # type: ignore
-    else:
-        raise ValueError(f"norm must be 'batch' or 'layer', not {norm_type}")
+    msg = f"norm must be 'batch' or 'layer', not {norm_type}"
+    raise ValueError(msg)
 
 
 class FeatureProjection(torch.nn.Linear): ...
@@ -75,9 +77,7 @@ class TemporalProjection(torch.nn.Module):
         super().__init__()
 
         self.fc = torch.nn.Linear(input_len, output_len)
-        self.activation = (
-            None if activation is None else get_activation(activation)
-        )
+        self.activation = None if activation is None else get_activation(activation)
         self.dropout = torch.nn.Dropout(dropout)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -96,9 +96,7 @@ class TemporalProjection(torch.nn.Module):
         x = self.fc(x)
         x = einops.rearrange(x, "b f l -> b l f")
         x = self.activation(x) if self.activation is not None else x
-        x = self.dropout(x)
-
-        return x
+        return self.dropout(x)
 
 
 class BatchNorm2D(torch.nn.Module):
@@ -114,9 +112,7 @@ class BatchNorm2D(torch.nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = einops.rearrange(x, "b l f -> b 1 l f")
         x = self.bn(x)
-        x = einops.rearrange(x, "b 1 l f -> b l f")
-
-        return x
+        return einops.rearrange(x, "b 1 l f -> b l f")
 
 
 class TimeMixer(torch.nn.Module):
@@ -173,9 +169,7 @@ class TimeMixer(torch.nn.Module):
         """
         x = self.temporal_linear(inputs)
         res = x + inputs
-        res = self.norm(res)
-
-        return res
+        return self.norm(res)
 
 
 class FeatureMixer(torch.nn.Module):
@@ -254,10 +248,8 @@ class FeatureMixer(torch.nn.Module):
         x = self.fc2(x)
         x = self.dropout(x)
 
-        x = x + residual
-        x = self.norm(x)
-
-        return x
+        x += residual
+        return self.norm(x)
 
 
 class ConditionalFeatureMixer(torch.nn.Module):
@@ -344,15 +336,12 @@ class ConditionalFeatureMixer(torch.nn.Module):
             return self.fm(x)
 
         if static_features is None:
-            raise ValueError("static_features must be provided")
+            msg = "static_features must be provided"
+            raise ValueError(msg)
 
-        v = self.fr(
-            einops.repeat(static_features, "b s -> b l s", l=x.shape[1])
-        )
+        v = self.fr(einops.repeat(static_features, "b s -> b l s", l=x.shape[1]))
 
-        x = self.fm(torch.cat([x, v], dim=-1))
-
-        return x
+        return self.fm(torch.cat([x, v], dim=-1))
 
 
 class MixerBlock(torch.nn.Module):
@@ -419,9 +408,7 @@ class MixerBlock(torch.nn.Module):
             Output tensor of shape [batch_size, seq_len, num_features]
         """
         x = self.tm(inputs)
-        x = self.fm(x)
-
-        return x
+        return self.fm(x)
 
 
 class ConditionalMixerBlock(torch.nn.Module):
@@ -494,6 +481,4 @@ class ConditionalMixerBlock(torch.nn.Module):
             Output tensor of shape [batch_size, seq_len, num_features]
         """
         x = self.tm(inputs)
-        x = self.fm(x, static_features)
-
-        return x
+        return self.fm(x, static_features)

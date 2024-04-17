@@ -228,10 +228,11 @@ class PhyLSTMLoss(nn.Module):
         :return: The loss value. For mathematical formulation see the module documentation.
         """
         if y.ndim != 3:
-            raise ValueError(
+            msg = (
                 "target y must have 3 dimensions. "
                 "Maybe you forgot the batch dimension?"
             )
+            raise ValueError(msg)
 
         if weights is None:
             alpha = self.alpha
@@ -280,5 +281,4 @@ class PhyLSTMLoss(nn.Module):
         if return_all:
             loss_dict["loss"] = total_loss
             return total_loss, loss_dict
-        else:
-            return total_loss
+        return total_loss

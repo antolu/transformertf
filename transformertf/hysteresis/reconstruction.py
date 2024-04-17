@@ -13,9 +13,7 @@ def reconstruction(H_model: BaseHysteresis) -> BaseHysteresis:
     # get grid points on alpha=beta line
     mesh_points = H_model.mesh_points
 
-    boundary_indicies = torch.nonzero(
-        mesh_points[:, 0] == mesh_points[:, 1]
-    ).squeeze()
+    boundary_indicies = torch.nonzero(mesh_points[:, 0] == mesh_points[:, 1]).squeeze()
     boundary_pts = mesh_points[boundary_indicies]
 
     # calculate the gradient of the transformer @ the boundary points
@@ -39,8 +37,7 @@ def reconstruction(H_model: BaseHysteresis) -> BaseHysteresis:
         use_normalized_density=False,
     )
     H.offset = (
-        H_model.offset * H_model.transformer.scale_m
-        + H_model.transformer.offset_m
+        H_model.offset * H_model.transformer.scale_m + H_model.transformer.offset_m
     )
     H.slope = 0.0
 

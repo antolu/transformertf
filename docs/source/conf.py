@@ -91,9 +91,7 @@ def hijack_module_name_replacement() -> None:
     for mod_name in list(sys.modules):
         if mod_name == "transformertf._mod_replace":
             continue
-        if mod_name == "transformertf" or mod_name.startswith(
-            "transformertf."
-        ):
+        if mod_name == "transformertf" or mod_name.startswith("transformertf."):
             del sys.modules[mod_name]
 
     transformertf._mod_replace.replace_modname = lambda *_: None

@@ -16,45 +16,39 @@ IN_NAME = "input"
 TGT_NAME = "target"
 
 
-@pytest.fixture
+@pytest.fixture()
 def past_covariates(x_data: np.ndarray, y_data: np.ndarray) -> pd.DataFrame:
-    return pd.DataFrame(
-        {
-            IN_NAME: x_data[:CONTEXT_LENGTH],
-            TGT_NAME: y_data[:CONTEXT_LENGTH],
-        }
-    )
+    return pd.DataFrame({
+        IN_NAME: x_data[:CONTEXT_LENGTH],
+        TGT_NAME: y_data[:CONTEXT_LENGTH],
+    })
 
 
-@pytest.fixture
+@pytest.fixture()
 def future_covariates(x_data: np.ndarray, y_data: np.ndarray) -> pd.DataFrame:
-    return pd.DataFrame(
-        {
-            IN_NAME: x_data[CONTEXT_LENGTH:],
-        }
-    )
+    return pd.DataFrame({
+        IN_NAME: x_data[CONTEXT_LENGTH:],
+    })
 
 
-@pytest.fixture
+@pytest.fixture()
 def past_target(y_data: np.ndarray) -> pd.DataFrame:
-    return pd.DataFrame(
-        {
-            TGT_NAME: y_data[:CONTEXT_LENGTH],
-        }
-    )
+    return pd.DataFrame({
+        TGT_NAME: y_data[:CONTEXT_LENGTH],
+    })
 
 
-@pytest.fixture
+@pytest.fixture()
 def future_target(y_data: np.ndarray) -> np.ndarray:
     return y_data[CONTEXT_LENGTH:]
 
 
-@pytest.fixture
+@pytest.fixture()
 def input_transform() -> TransformCollection:
     return TransformCollection([])
 
 
-@pytest.fixture
+@pytest.fixture()
 def target_transform() -> TransformCollection:
     return TransformCollection([])
 
@@ -102,7 +96,7 @@ def test_create_predict_dataset_no_colnames(
     input_transform: TransformCollection,
     target_transform: TransformCollection,
 ) -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):  # noqa: PT011
         EncoderDecoderPredictDataset(
             past_covariates=past_covariates,
             future_covariates=future_covariates,
@@ -309,10 +303,9 @@ def test_predict_dataset_iterate_without_extra_context(
     )
 
     num_samples = 0
-    with pytest.raises(IndexError):
+    with pytest.raises(IndexError):  # noqa: PT012
         for _ in dataset:
             num_samples += 1
-            pass
 
     assert num_samples == 1
 
@@ -372,7 +365,7 @@ def test_predict_dataset_iterate_with_too_much_extra_context(
             future_target[i * PREDICTION_LENGTH : (i + 1) * PREDICTION_LENGTH]
         )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):  # noqa: PT011
         dataset.append_past_target(future_target[:1])
 
 
@@ -395,9 +388,7 @@ def test_predict_dataset_with_dataloader(
         target_transform=target_transform,
     )
 
-    dataloader = torch.utils.data.DataLoader(
-        dataset, batch_size=1, shuffle=False
-    )
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=False)
 
     for batch in dataloader:
         assert batch["encoder_input"].shape == (1, CONTEXT_LENGTH, 2)

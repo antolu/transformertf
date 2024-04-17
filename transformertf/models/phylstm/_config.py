@@ -24,12 +24,10 @@ class PhyLSTMConfig(TimeSeriesBaseConfig):
 
     # preprocessing parameters
     lowpass_filter: bool = True
-    mean_filter: bool = True
 
     # specific PhyLSTM configuration
     loss_weights: LossWeights | None = None
 
     # override defaults
-    remove_polynomial: bool = True
     input_columns: str = "I_meas_A"
     target_column: str = "B_meas_T"

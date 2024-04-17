@@ -11,7 +11,7 @@ import torch
 
 
 class AddNorm(torch.nn.Module):
-    def __init__(self, input_size: int, trainable_add: bool = True):
+    def __init__(self, input_size: int, *, trainable_add: bool = True):
         """
         AddNorm layer, which is just an addition of two tensors followed by layer normalization.
 
@@ -62,8 +62,5 @@ class AddNorm(torch.nn.Module):
         """
         if self.trainable_add:
             assert self.mask is not None
-            return self.norm(
-                x + y * torch.nn.functional.sigmoid(self.mask) * 2.0
-            )
-        else:
-            return self.norm(x + y)
+            return self.norm(x + y * torch.nn.functional.sigmoid(self.mask) * 2.0)
+        return self.norm(x + y)

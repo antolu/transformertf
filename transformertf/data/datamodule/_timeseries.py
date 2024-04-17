@@ -21,23 +21,21 @@ class TimeSeriesDataModule(DataModuleBase):
         val_df: pd.DataFrame | list[pd.DataFrame] | None,
         input_columns: str | typing.Sequence[str],
         target_column: str,
-        normalize: bool = True,
+        normalize: bool = True,  # noqa: FBT001, FBT002
         seq_len: int | None = None,
         min_seq_len: int | None = None,
-        randomize_seq_len: bool = False,
+        randomize_seq_len: bool = False,  # noqa: FBT001, FBT002
         stride: int = 1,
         downsample: int = 1,
         downsample_method: typing.Literal[
             "interval", "average", "convolve"
         ] = "interval",
-        remove_polynomial: bool = False,
-        polynomial_degree: int = 1,
-        polynomial_iterations: int = 1000,
         target_depends_on: str | None = None,
         extra_transforms: dict[str, list[BaseTransform]] | None = None,
         batch_size: int = 128,
         num_workers: int = 0,
         dtype: str = "float32",
+        *,
         distributed_sampler: bool = False,
     ):
         super().__init__(
@@ -48,9 +46,6 @@ class TimeSeriesDataModule(DataModuleBase):
             normalize=normalize,
             downsample=downsample,
             downsample_method=downsample_method,
-            remove_polynomial=remove_polynomial,
-            polynomial_degree=polynomial_degree,
-            polynomial_iterations=polynomial_iterations,
             target_depends_on=target_depends_on,
             extra_transforms=extra_transforms,
             batch_size=batch_size,
@@ -82,6 +77,7 @@ class TimeSeriesDataModule(DataModuleBase):
         self,
         input_data: np.ndarray,
         target_data: np.ndarray | None = None,
+        *,
         predict: bool = False,
     ) -> TimeSeriesDataset:
         return TimeSeriesDataset(

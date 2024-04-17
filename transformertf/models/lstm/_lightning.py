@@ -1,17 +1,13 @@
 from __future__ import annotations
 
-import sys
 import typing
-
-if sys.version_info >= (3, 10):
-    from typing import NotRequired
-else:
-    from typing_extensions import NotRequired
+from typing import NotRequired
 
 import torch
 
 from ...data import TimeSeriesSample
 from ...utils import ops
+from ...utils.loss import get_loss
 from .._base_module import LightningModuleBase
 from ..typing import LR_CALL_TYPE, OPT_CALL_TYPE
 
@@ -22,27 +18,16 @@ if typing.TYPE_CHECKING:
 
 HIDDEN_STATE = tuple[torch.Tensor, torch.Tensor]
 
-STEP_OUTPUT = typing.TypedDict(
-    "STEP_OUTPUT",
-    {
-        "loss": torch.Tensor,
-        "loss1": torch.Tensor,
-        "loss2": torch.Tensor,
-        "loss3": NotRequired[torch.Tensor],
-        "loss4": NotRequired[torch.Tensor],
-        "loss5": NotRequired[torch.Tensor],
-        "output": torch.Tensor,
-        "state": HIDDEN_STATE,
-    },
-)
 
-
-LOSS_FN = typing.Literal["mse", "huber", "l1"]
-CRITERION: dict[LOSS_FN, torch.nn.Module] = {
-    "mse": torch.nn.MSELoss,
-    "huber": torch.nn.HuberLoss,
-    "l1": torch.nn.L1Loss,
-}
+class StepOutput(typing.TypedDict):
+    loss: torch.Tensor
+    loss1: torch.Tensor
+    loss2: torch.Tensor
+    loss3: NotRequired[torch.Tensor]
+    loss4: NotRequired[torch.Tensor]
+    loss5: NotRequired[torch.Tensor]
+    output: torch.Tensor
+    state: HIDDEN_STATE
 
 
 class LSTMModule(LightningModuleBase):
@@ -61,11 +46,11 @@ class LSTMModule(LightningModuleBase):
         optimizer_kwargs: dict[str, typing.Any] | None = None,
         reduce_on_plateau_patience: int = 200,
         max_epochs: int = 1000,
-        validate_every_n_epochs: int = 50,
-        log_grad_norm: bool = False,
-        criterion: torch.nn.Module | LOSS_FN = "mse",
+        criterion: torch.nn.Module | None = None,
         lr_scheduler: str | LR_CALL_TYPE | None = None,
         lr_scheduler_interval: typing.Literal["epoch", "step"] = "epoch",
+        *,
+        log_grad_norm: bool = False,
     ):
         """
         This module implements a PyTorch Lightning module for hysteresis
@@ -92,6 +77,8 @@ class LSTMModule(LightningModuleBase):
         :param criterion: The loss function to be used.
         :param lr_scheduler: The learning rate scheduler to be used.
         """
+        criterion = criterion or torch.nn.MSELoss()
+        self.save_hyperparameters(ignore=["lr_scheduler", "criterion"])
         super().__init__(
             lr=lr,
             weight_decay=weight_decay,
@@ -100,15 +87,11 @@ class LSTMModule(LightningModuleBase):
             optimizer_kwargs=optimizer_kwargs or {},
             reduce_on_plateau_patience=reduce_on_plateau_patience,
             max_epochs=max_epochs,
-            validate_every_n_epochs=validate_every_n_epochs,
             log_grad_norm=log_grad_norm,
             lr_scheduler_interval=lr_scheduler_interval,
             lr_scheduler=lr_scheduler,
+            criterion=criterion,
         )
-        ignore = ["lr_scheduler"]
-        if isinstance(criterion, torch.nn.Module):
-            ignore.append("criterion")
-        self.save_hyperparameters(ignore=ignore)
 
         self._val_hidden: list[HIDDEN_STATE | None] = []  # type: ignore[assignment]
 
@@ -121,33 +104,30 @@ class LSTMModule(LightningModuleBase):
         )
         self.fc = torch.nn.Linear(hidden_dim, 1)
 
-        self.criterion = (
-            criterion
-            if isinstance(criterion, torch.nn.Module)
-            else CRITERION[criterion]()
-        )
-
     @typing.overload
     def forward(
         self,
         x: torch.Tensor,
-        return_states: typing.Literal[False] = False,
         hidden_state: HIDDEN_STATE | None = None,
+        *,
+        return_states: typing.Literal[False] = False,
     ) -> torch.Tensor: ...
 
     @typing.overload
     def forward(
         self,
         x: torch.Tensor,
-        return_states: typing.Literal[True],
         hidden_state: HIDDEN_STATE | None = None,
+        *,
+        return_states: typing.Literal[True],
     ) -> tuple[torch.Tensor, HIDDEN_STATE]: ...
 
     def forward(
         self,
         x: torch.Tensor,
-        return_states: bool = False,
         hidden_state: HIDDEN_STATE | None = None,
+        *,
+        return_states: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, HIDDEN_STATE]:
         """
         Forward pass through the model.
@@ -165,8 +145,7 @@ class LSTMModule(LightningModuleBase):
 
         if return_states:
             return y_hat, hidden
-        else:
-            return y_hat
+        return y_hat
 
     @classmethod
     def parse_config_kwargs(  # type: ignore[override]
@@ -176,28 +155,25 @@ class LSTMModule(LightningModuleBase):
     ) -> dict[str, typing.Any]:
         kwargs = super().parse_config_kwargs(config, **kwargs)
         num_features = (
-            len(config.input_columns)
-            if config.input_columns is not None
-            else 0
+            len(config.input_columns) if config.input_columns is not None else 0
         )
 
-        default_kwargs = dict(
-            num_features=num_features,
-            num_layers=config.num_layers,
-            sequence_length=config.seq_len,
-            hidden_dim=config.hidden_size,
-            hidden_dim_fc=config.hidden_size_fc,
-            dropout=config.dropout,
-            lr=config.lr,
-            max_epochs=config.num_epochs,
-            optimizer=config.optimizer,
-            optimizer_kwargs=config.optimizer_kwargs,
-            validate_every_n_epochs=config.validate_every,
-            log_grad_norm=config.log_grad_norm,
-            criterion=config.loss_fn,
-            lr_scheduler=config.lr_scheduler,
-            lr_scheduler_interval=config.lr_scheduler_interval,
-        )
+        default_kwargs = {
+            "num_features": num_features,
+            "num_layers": config.num_layers,
+            "sequence_length": config.seq_len,
+            "hidden_dim": config.hidden_size,
+            "hidden_dim_fc": config.hidden_size_fc,
+            "dropout": config.dropout,
+            "lr": config.lr,
+            "max_epochs": config.num_epochs,
+            "optimizer": config.optimizer,
+            "optimizer_kwargs": config.optimizer_kwargs,
+            "log_grad_norm": config.log_grad_norm,
+            "criterion": get_loss(config.loss_fn),
+            "lr_scheduler": config.lr_scheduler,
+            "lr_scheduler_interval": config.lr_scheduler_interval,
+        }
 
         default_kwargs.update(kwargs)
 
@@ -225,13 +201,13 @@ class LSTMModule(LightningModuleBase):
             return_states=True,
         )
 
-        hidden = ops.detach(hidden)
+        hidden = ops.detach(hidden)  # type: ignore[assignment]
 
         loss = self.criterion(output, target)
 
         # also compute MSE and MAE
-        loss1 = torch.nn.MSELoss()(output, target)
-        loss2 = torch.nn.L1Loss()(output, target)
+        loss1 = torch.nn.functional.mse_loss(output, target)
+        loss2 = torch.nn.functional.l1_loss(output, target)
 
         loss_dict = {
             "loss": loss,
@@ -241,9 +217,7 @@ class LSTMModule(LightningModuleBase):
 
         return loss_dict, output, hidden  # type: ignore[misc]
 
-    def training_step(
-        self, batch: TimeSeriesSample, batch_idx: int
-    ) -> torch.Tensor:
+    def training_step(self, batch: TimeSeriesSample, batch_idx: int) -> torch.Tensor:
         target = batch.get("target")
         batch.get("target_scale")
         assert target is not None
@@ -261,7 +235,7 @@ class LSTMModule(LightningModuleBase):
         batch: TimeSeriesSample,
         batch_idx: int,
         dataloader_idx: int = 0,
-    ) -> STEP_OUTPUT:
+    ) -> StepOutput:
         if dataloader_idx >= len(self._val_hidden):
             self._val_hidden.append(None)
 
@@ -276,7 +250,7 @@ class LSTMModule(LightningModuleBase):
         self.common_log_step(loss, "validation")
 
         return typing.cast(
-            STEP_OUTPUT,
+            StepOutput,
             loss
             | {
                 "state": ops.to_cpu(ops.detach(hidden)),

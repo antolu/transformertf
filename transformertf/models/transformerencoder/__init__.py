@@ -14,7 +14,7 @@ del replace_modname
 del _mod
 
 __all__ = [
+    "TransformerEncoder",
     "TransformerEncoderConfig",
     "TransformerEncoderModule",
-    "TransformerEncoder",
 ]

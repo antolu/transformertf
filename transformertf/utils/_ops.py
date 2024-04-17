@@ -35,23 +35,21 @@ D_co = typing.TypeVar(
 
 
 # pyright: reportGeneralTypeIssues=false
-def _op_T(
+def _op_T(  # noqa: N802
     data: T_co, op: typing.Callable[[torch.Tensor], torch.Tensor]
 ) -> T_co:
     if isinstance(data, dict):
         return type(data)({k: _op_T(v, op) for k, v in data.items()})
-    elif isnamedtupleinstance(data):
+    if isnamedtupleinstance(data):
         return type(data)(*[_op_T(v, op) for v in data])
-    elif isinstance(data, tuple):
+    if isinstance(data, list | tuple):
         return type(data)([_op_T(v, op) for v in data])
-    elif isinstance(data, list):
-        return type(data)([_op_T(v, op) for v in data])
-    elif isinstance(data, typing.Sequence):
+    if isinstance(data, typing.Sequence):
         return type(data)([_op_T(v, op) for v in data])  # type: ignore[call-arg]
-    elif isinstance(data, torch.Tensor):
+    if isinstance(data, torch.Tensor):
         return op(data)
-    else:
-        raise TypeError(f"Unknown type {type(data)}.")
+    msg = f"Unknown type {type(data)}."
+    raise TypeError(msg)
 
 
 def detach(data: T_co) -> T_co:
@@ -90,15 +88,11 @@ def concatenate(
 
 
 @typing.overload
-def concatenate(
-    value: typing.Sequence[tuple[arr_t, ...]],
-) -> tuple[arr_t, ...]: ...
+def concatenate(value: typing.Sequence[tuple[arr_t, ...]]) -> tuple[arr_t, ...]: ...
 
 
 @typing.overload  # type: ignore[misc]
-def concatenate(
-    value: typing.Sequence[dict[str, arr_t]],
-) -> dict[str, arr_t]: ...
+def concatenate(value: typing.Sequence[dict[str, arr_t]]) -> dict[str, arr_t]: ...
 
 
 @typing.overload
@@ -111,7 +105,7 @@ def concatenate(
 ) -> typing.Sequence[arr_t]: ...
 
 
-def concatenate(  # type: ignore[misc]
+def concatenate(  # type: ignore
     value: (
         list[tuple[arr_t, ...]]
         | list[arr_t]
@@ -122,11 +116,7 @@ def concatenate(  # type: ignore[misc]
         | typing.Sequence[typing.Sequence[arr_t]]
     ),
 ) -> (
-    arr_t
-    | dict[str, arr_t]
-    | list[arr_t]
-    | tuple[arr_t, ...]
-    | typing.Sequence[arr_t]
+    arr_t | dict[str, arr_t] | list[arr_t] | tuple[arr_t, ...] | typing.Sequence[arr_t]
 ):
     if isinstance(value[0], torch.Tensor):
         value = typing.cast(
@@ -134,35 +124,32 @@ def concatenate(  # type: ignore[misc]
             value,
         )
         return torch.cat(list(value))
-    elif isinstance(value[0], np.ndarray):
+    if isinstance(value[0], np.ndarray):
         return np.concatenate(list(value))
 
-    elif isinstance(value[0], dict):
+    if isinstance(value[0], dict):
         if not all(isinstance(x, dict) for x in value):
-            raise TypeError("All arguments must be of the same type.")
+            msg = "All arguments must be of the same type."
+            raise TypeError(msg)
 
         value = typing.cast(
             typing.Sequence[dict[str, arr_t]],
             value,
         )
-        arr_type = type(list(value[0].values())[0])
+        arr_type = type(next(iter(value[0].values())))
 
-        if not all(
-            all(isinstance(x, arr_type) for x in d.values()) for d in value
-        ):
-            raise TypeError("All arguments must be of the same type.")
+        if not all(all(isinstance(x, arr_type) for x in d.values()) for d in value):
+            msg = "All arguments must be of the same type."
+            raise TypeError(msg)
 
-        return type(value[0])(
-            {k: concatenate([x[k] for x in value]) for k in value[0].keys()}
-        )
+        return type(value[0])({k: concatenate([x[k] for x in value]) for k in value[0]})
 
     type_ = type(value[0])
     if not all(isinstance(x, type_) for x in value):
-        raise TypeError("All arguments must be of the same type.")
+        msg = "All arguments must be of the same type."
+        raise TypeError(msg)
 
-    if isinstance(value[0], tuple) and all(
-        isinstance(x, tuple) for x in value
-    ):
+    if isinstance(value[0], tuple) and all(isinstance(x, tuple) for x in value):
         value = typing.cast(
             typing.Sequence[tuple[arr_t, ...]],
             value,
@@ -170,46 +157,37 @@ def concatenate(  # type: ignore[misc]
         return type_(  # type: ignore[call-arg]
             [concatenate([x[i] for x in value]) for i in range(len(value[0]))]
         )
-    elif isinstance(value[0], list) and all(
-        isinstance(x, list) for x in value
-    ):
+    if isinstance(value[0], list) and all(isinstance(x, list) for x in value):
         if all(isinstance(x, tuple) for x in value[0]):
             value = typing.cast(
                 typing.Sequence[tuple[arr_t, ...]],
                 value,
             )
             return type_(  # type: ignore[call-arg]
-                [
-                    concatenate([x[i] for x in value])
-                    for i in range(len(value[0]))
-                ]
+                [concatenate([x[i] for x in value]) for i in range(len(value[0]))]
             )
-        else:
-            value = typing.cast(
-                typing.Sequence[list[arr_t]],
-                value,
-            )
-            return type_(  # type: ignore[call-arg]
-                [
-                    concatenate([x[i] for x in value])
-                    for i in range(len(value[0]))
-                ]
-            )
-    elif isinstance(value[0], typing.Sequence):
+        value = typing.cast(
+            typing.Sequence[list[arr_t]],
+            value,
+        )
+        return type_(  # type: ignore[call-arg]
+            [concatenate([x[i] for x in value]) for i in range(len(value[0]))]
+        )
+    if isinstance(value[0], typing.Sequence):
         value = typing.cast(
             typing.Sequence[typing.Sequence[arr_t]],
             value,
         )
-        return type(value[0])(
-            *[concatenate([x[i] for x in value]) for i in range(len(value[0]))]
-        )
+        return type(value[0])(*[
+            concatenate([x[i] for x in value]) for i in range(len(value[0]))
+        ])
 
-    else:
-        raise TypeError(f"Unknown type {type(value[0])}.")
+    msg = f"Unknown type {type(value[0])}."
+    raise TypeError(msg)
 
 
-def slice(data: M_co, s: builtins.slice) -> M_co:
-    return _op_T(data, lambda x: x.__getitem__(s))
+def slice(data: M_co, s: builtins.slice) -> M_co:  # noqa: A001
+    return _op_T(data, lambda x: x[s])  # type: ignore[return-value]
 
 
 def isnamedtupleinstance(x: typing.Any) -> bool:
@@ -220,15 +198,15 @@ def isnamedtupleinstance(x: typing.Any) -> bool:
     and if so, check if x has a _fields attribute that is a tuple.
     """
     t = type(x)
-    superclasses: set[typing.Type] = set()
+    superclasses: set[type] = set()
 
-    def find_superclasses(t: typing.Type) -> None:
+    def find_superclasses(t: type) -> None:
         nonlocal superclasses
         bases = list(t.__bases__)
         for b in bases:
             find_superclasses(b)
 
-        superclasses = superclasses | set(bases)
+        superclasses |= set(bases)
 
     find_superclasses(t)
     if tuple not in superclasses:

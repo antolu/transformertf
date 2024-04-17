@@ -1,24 +1,24 @@
 from __future__ import annotations
 
-
 import typing
-import torch
+
 import pytest
+import torch
 
 from transformertf.nn.functional import mape_loss, smape_loss
 
 
-@pytest.fixture
+@pytest.fixture()
 def y_pred() -> torch.Tensor:
     return torch.tensor([1.0, 2.0, 3.0])
 
 
-@pytest.fixture
+@pytest.fixture()
 def y_true() -> torch.Tensor:
     return torch.tensor([2.0, 3.0, 4.0])
 
 
-@pytest.fixture
+@pytest.fixture()
 def weights() -> torch.Tensor:
     return torch.tensor([0.5, 0.25, 1.0])
 
@@ -28,12 +28,11 @@ def weights_or_none(request: pytest.FixtureRequest) -> torch.Tensor | None:
     if request.param == "weights":
         # get the weights fixture
         return request.getfixturevalue("weights")
-    else:
-        return None
+    return None
 
 
 @pytest.mark.parametrize(
-    "y_pred, y_true, weights_or_none, reduction, expected_loss",
+    ("y_pred", "y_true", "weights_or_none", "reduction", "expected_loss"),
     [
         (y_pred, y_true, None, None, [0.5, 0.3333, 0.25]),
         (y_pred, y_true, None, "mean", 0.3611),
@@ -55,7 +54,7 @@ def test_mape_loss(
 
 
 @pytest.mark.parametrize(
-    "y_pred, y_true, weights_or_none, reduction, expected_loss",
+    ("y_pred", "y_true", "weights_or_none", "reduction", "expected_loss"),
     [
         (y_pred, y_true, None, None, [0.6667, 0.4, 0.2857]),
         (y_pred, y_true, None, "mean", 0.4507),

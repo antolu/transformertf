@@ -21,6 +21,9 @@ from ._base import (
 log = logging.getLogger(__name__)
 
 
+RNG = np.random.default_rng()
+
+
 class TimeSeriesDataset(AbstractTimeSeriesDataset):
     _input_data: list[torch.Tensor]
     _target_data: list[torch.Tensor] | list[None]
@@ -88,17 +91,14 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
 
         if randomize_seq_len:
             if seq_len is None:
-                raise ValueError(
-                    "seq_len must be specified when randomize_seq_len is True."
-                )
+                msg = "seq_len must be specified when randomize_seq_len is True."
+                raise ValueError(msg)
             if min_seq_len is None:
-                raise ValueError(
-                    "min_seq_len must be specified when randomize_seq_len is True."
-                )
+                msg = "min_seq_len must be specified when randomize_seq_len is True."
+                raise ValueError(msg)
             if min_seq_len > seq_len:
-                raise ValueError(
-                    "min_seq_len must be less than or equal to seq_len."
-                )
+                msg = "min_seq_len must be less than or equal to seq_len."
+                raise ValueError(msg)
 
         self._input_data = convert_data(input_data, dtype=dtype)
 
@@ -114,27 +114,27 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
 
         else:  # no label predict
             if not predict:
-                raise ValueError(
-                    "Cannot use predict=False with no label data."
-                )
+                msg = "Cannot use predict=False with no label data."
+                raise ValueError(msg)
 
             self._target_data = [None]
             self._dataset_type = DataSetType.PREDICT
 
             if len(self._input_data) > 1:
-                raise ValueError(
+                msg = (
                     f"Predicting requires exactly one input data source. "
                     f"Got {len(self._input_data)}"
                 )
+                raise ValueError(msg)
 
         if seq_len is None:
             if len(self._input_data) > 1:
-                raise ValueError(
+                msg = (
                     f"seq_len must be specified when using more than one input data source. "
                     f"Got {len(self._input_data)} input data sources."
                 )
-            else:
-                seq_len = len(self._input_data[0])
+                raise ValueError(msg)
+            seq_len = len(self._input_data[0])
 
         if predict:
             if stride != 1:
@@ -158,13 +158,11 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
                 stride=stride,
                 zero_pad=predict,
             )
-            for input_, target in zip(self._input_data, self._target_data)
+            for input_, target in zip(self._input_data, self._target_data, strict=False)
         ]
 
         # needed to determine which dataframe to get samples from
-        self._cum_num_samples = np.cumsum(
-            [len(gen) for gen in self._sample_gen]
-        )
+        self._cum_num_samples = np.cumsum([len(gen) for gen in self._sample_gen])
 
     @classmethod
     def from_dataframe(
@@ -174,9 +172,9 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
         target_column: str | None = None,
         seq_len: int | None = None,
         stride: int = 1,
-        predict: bool = False,
+        predict: bool = False,  # noqa: FBT001, FBT002
         min_seq_len: int | None = None,
-        randomize_seq_len: bool = False,
+        randomize_seq_len: bool = False,  # noqa: FBT001, FBT002
         input_transform: dict[str, BaseTransform] | None = None,
         target_transform: BaseTransform | None = None,
         dtype: torch.dtype = torch.float32,
@@ -211,12 +209,12 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
         :param idx: The index of the sample to get.
         :return: A tuple of the input and target torch.Tensors.
         """
-        if self._dataset_type in (DataSetType.TRAIN, DataSetType.VAL_TEST):
+        if self._dataset_type in {DataSetType.TRAIN, DataSetType.VAL_TEST}:
             return self._create_sample(idx)
-        elif self._dataset_type == DataSetType.PREDICT:
+        if self._dataset_type == DataSetType.PREDICT:
             return self._get_prediction_input(idx)
-        else:
-            raise ValueError(f"Unknown dataset type {self._dataset_type}")
+        msg = f"Unknown dataset type {self._dataset_type}"
+        raise ValueError(msg)
 
     def __len__(self) -> int:
         """Number of samples in the dataset."""
@@ -239,15 +237,13 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
         # find which df to get samples from
         df_idx = np.argmax(self._cum_num_samples > idx)
 
-        shifted_idx = (
-            idx - self._cum_num_samples[df_idx - 1] if df_idx > 0 else idx
-        )
+        shifted_idx = idx - self._cum_num_samples[df_idx - 1] if df_idx > 0 else idx
 
         sample = self._sample_gen[df_idx][shifted_idx]
 
         if self._randomize_seq_len:
             assert self._min_seq_len is not None
-            random_len = np.random.randint(self._min_seq_len, self._seq_len)
+            random_len = RNG.integers(self._min_seq_len, self._seq_len)
             sample["input"][random_len:] = 0.0
 
             if "target" in sample:
@@ -274,7 +270,7 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
 
         if self._randomize_seq_len:
             assert self._min_seq_len is not None
-            random_len = np.random.randint(self._min_seq_len, self._seq_len)
+            random_len = RNG.integers(self._min_seq_len, self._seq_len)
             x["input"][random_len:] = 0.0
 
         return x

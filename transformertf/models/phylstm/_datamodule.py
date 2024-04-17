@@ -53,17 +53,13 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
         val_df: pd.DataFrame | list[pd.DataFrame] | None,
         seq_len: int = 500,
         min_seq_len: int | None = None,
-        randomize_seq_len: bool = False,
+        randomize_seq_len: bool = False,  # noqa: FBT001, FBT002
         stride: int = 1,
         downsample: int = 1,
         downsample_method: typing.Literal[
             "interval", "average", "convolve"
         ] = "interval",
-        lowpass_filter: bool = False,
-        mean_filter: bool = False,
-        remove_polynomial: bool = True,
-        polynomial_degree: int = 1,
-        polynomial_iterations: int = 1000,
+        lowpass_filter: bool = False,  # noqa: FBT001, FBT002
         target_depends_on: str | None = None,
         extra_transforms: dict[str, list[BaseTransform]] | None = None,
         input_columns: str = CURRENT,
@@ -72,6 +68,7 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
         num_workers: int = 0,
         model_dir: str | None = None,
         dtype: str = "float32",
+        *,
         distributed_sampler: bool = False,
     ):
         """
@@ -98,9 +95,6 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
             min_seq_len=min_seq_len,
             randomize_seq_len=randomize_seq_len,
             stride=stride,
-            remove_polynomial=remove_polynomial,
-            polynomial_degree=polynomial_degree,
-            polynomial_iterations=polynomial_iterations,
             target_depends_on=target_depends_on,
             extra_transforms=extra_transforms,
             batch_size=batch_size,
@@ -119,7 +113,6 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
         kwargs = super().parse_config_kwargs(config, **kwargs)
         default_kwargs = {
             "lowpass_filter": config.lowpass_filter,
-            "mean_filter": config.mean_filter,
         }
         default_kwargs.update(kwargs)
 
@@ -162,23 +155,4 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
                     df[field].to_numpy(), cutoff=32, fs=1e3, order=10
                 )
 
-        # signal processing: mean filter to remove low amplitude fluctuations
-        if self.hparams["mean_filter"]:
-            df[current] = signal.mean_filter(
-                df[current].to_numpy(),
-                window_size=100,
-                stride=1,
-                threshold=35e-3,
-            )
-
-            if field is not None and field in df:
-                df[field] = signal.mean_filter(
-                    df[field].to_numpy(),
-                    window_size=100,
-                    stride=1,
-                    threshold=6e-6,
-                )
-
-        df = super().preprocess_dataframe(df)
-
-        return df
+        return super().preprocess_dataframe(df)

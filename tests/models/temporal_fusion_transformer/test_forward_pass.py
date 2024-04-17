@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-
 import pytest
 import torch
-
 
 from transformertf.models.temporal_fusion_transformer import (
     TemporalFusionTransformer,
 )
-
 
 BATCH_SIZE = 4
 PAST_SEQ_LEN = 100
@@ -37,7 +34,7 @@ def test_temporal_fusion_transformer_model(
         n_dim_model=32,
         num_heads=4,
         output_dim=1,
-        variable_selection_dim=12,
+        hidden_continuous_dim=12,
     )
 
     output = model(past_covariates, future_covariates)

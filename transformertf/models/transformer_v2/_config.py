@@ -20,6 +20,3 @@ class TransformerV2Config(TransformerBaseConfig):
 
     fc_dim: int | tuple[int, ...] = 1024
     output_dim: int = 7
-
-    loss_fn: typing.Literal["mse", "huber", "quantile"] = "quantile"
-    prediction_type: typing.Literal["delta", "point"] = "point"

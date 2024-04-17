@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 from transformertf.models.temporal_fusion_transformer import (
     TemporalFusionTransformer,
 )

@@ -52,11 +52,11 @@ def test_datamodule_base_setup_before_prepare_data() -> None:
 
     assert dm is not None
 
-    with pytest.raises(ValueError):
-        dm.train_dataset
+    with pytest.raises(ValueError):  # noqa: PT011
+        _ = dm.train_dataset
 
-    with pytest.raises(ValueError):
-        dm.val_dataset
+    with pytest.raises(ValueError):  # noqa: PT011
+        _ = dm.val_dataset
 
 
 @pytest.fixture(scope="module")

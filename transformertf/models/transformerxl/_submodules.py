@@ -3,8 +3,8 @@ from __future__ import annotations
 import typing
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 
 
 class PositionalEmbedding(nn.Module):
@@ -20,16 +20,13 @@ class PositionalEmbedding(nn.Module):
         )
         self.register_buffer("inv_freq", inv_freq)
 
-    def forward(
-        self, pos_seq: torch.Tensor, bsz: int | None = None
-    ) -> torch.Tensor:
+    def forward(self, pos_seq: torch.Tensor, bsz: int | None = None) -> torch.Tensor:
         sinusoid_inp = torch.outer(pos_seq, self.inv_freq)
         pos_emb = torch.cat([sinusoid_inp.sin(), sinusoid_inp.cos()], dim=-1)
 
         if bsz is not None:
             return pos_emb[:, None, :].expand(-1, bsz, -1)
-        else:
-            return pos_emb[:, None, :]
+        return pos_emb[:, None, :]
 
 
 class PositionwiseFF(nn.Module):
@@ -38,6 +35,7 @@ class PositionwiseFF(nn.Module):
         d_model: int,
         d_inner: int,
         dropout: float,
+        *,
         pre_lnorm: bool = False,
     ):
         super().__init__()
@@ -83,6 +81,7 @@ class MultiHeadAttn(nn.Module):
         d_head: int,
         dropout: float,
         dropatt: float = 0,
+        *,
         pre_lnorm: bool = False,
     ):
         super().__init__()
@@ -114,10 +113,7 @@ class MultiHeadAttn(nn.Module):
         # multihead attention
         # [hlen x bsz x n_head x d_head]
 
-        if mems is not None:
-            c = torch.cat([mems, h], 0)
-        else:
-            c = h
+        c = torch.cat([mems, h], 0) if mems is not None else h
 
         if self.pre_lnorm:
             # layer normalization
@@ -135,19 +131,15 @@ class MultiHeadAttn(nn.Module):
         attn_score.mul_(self.scale)
         if attn_mask is not None and attn_mask.any().item():
             if attn_mask.dim() == 2:
-                attn_score.masked_fill_(
-                    attn_mask[None, :, :, None], -float("inf")
-                )
+                attn_score.masked_fill_(attn_mask[None, :, :, None], -float("inf"))
             elif attn_mask.dim() == 3:
-                attn_score.masked_fill_(
-                    attn_mask[:, :, :, None], -float("inf")
-                )
+                attn_score.masked_fill_(attn_mask[:, :, :, None], -float("inf"))
 
         # [qlen x klen x bsz x n_head]
         attn_prob = F.softmax(attn_score, dim=1)
         attn_prob = self.dropatt(attn_prob)
 
-        # [qlen x klen x bsz x n_head] + [klen x bsz x n_head x d_head] -> [qlen x bsz x n_head x d_head]  # noqa E501
+        # [qlen x klen x bsz x n_head] + [klen x bsz x n_head x d_head] -> [qlen x bsz x n_head x d_head]  # E501
         attn_vec = torch.einsum("ijbn,jbnd->ibnd", (attn_prob, head_v))
         attn_vec = attn_vec.contiguous().view(
             attn_vec.size(0), attn_vec.size(1), self.n_head * self.d_head
@@ -157,14 +149,7 @@ class MultiHeadAttn(nn.Module):
         attn_out = self.o_net(attn_vec)
         attn_out = self.drop(attn_out)
 
-        if self.pre_lnorm:
-            # residual connection
-            output = h + attn_out
-        else:
-            # residual connection + layer normalization
-            output = self.layer_norm(h + attn_out)
-
-        return output
+        return h + attn_out if self.pre_lnorm else self.layer_norm(h + attn_out)
 
 
 class RelMultiHeadAttn(nn.Module):
@@ -178,6 +163,7 @@ class RelMultiHeadAttn(nn.Module):
         tgt_len: int | None = None,
         ext_len: int | None = None,
         mem_len: int | None = None,
+        *,
         pre_lnorm: bool = False,
     ):
         super().__init__()
@@ -200,7 +186,7 @@ class RelMultiHeadAttn(nn.Module):
         self.pre_lnorm = pre_lnorm
 
     def _parallelogram_mask(
-        self, h: int, w: int, left: bool = False
+        self, h: int, w: int, *, left: bool = False
     ) -> torch.Tensor:
         mask = torch.ones((h, w)).byte()
         m = min(h, w)
@@ -209,8 +195,7 @@ class RelMultiHeadAttn(nn.Module):
 
         if left:
             return mask
-        else:
-            return mask.flip(0)
+        return mask.flip(0)
 
     def _shift(
         self,
@@ -218,6 +203,7 @@ class RelMultiHeadAttn(nn.Module):
         qlen: int,
         klen: int,
         mask: torch.Tensor,
+        *,
         left: bool = False,
     ) -> torch.Tensor:
         if qlen > 1:
@@ -235,15 +221,11 @@ class RelMultiHeadAttn(nn.Module):
         else:
             x_padded = torch.cat([x, zero_pad], dim=1).expand(qlen, -1, -1, -1)
 
-        x = x_padded.masked_select(mask[:, :, None, None]).view(
+        return x_padded.masked_select(mask[:, :, None, None]).view(
             qlen, klen, x.size(2), x.size(3)
         )
 
-        return x
-
-    def _rel_shift(
-        self, x: torch.Tensor, zero_triu: bool = False
-    ) -> torch.Tensor:
+    def _rel_shift(self, x: torch.Tensor, *, zero_triu: bool = False) -> torch.Tensor:
         zero_pad = torch.zeros(
             (x.size(0), 1, *x.size()[2:]), device=x.device, dtype=x.dtype
         )
@@ -255,7 +237,7 @@ class RelMultiHeadAttn(nn.Module):
 
         if zero_triu:
             ones = torch.ones((x.size(0), x.size(1)))
-            x = x * torch.tril(ones, x.size(1) - x.size(0))[:, :, None, None]
+            x *= torch.tril(ones, x.size(1) - x.size(0))[:, :, None, None]
 
         return x
 
@@ -279,6 +261,7 @@ class RelPartialLearnableMultiHeadAttn(RelMultiHeadAttn):
         d_head: int,
         dropout: float,
         dropatt: float = 0,
+        *,
         pre_lnorm: bool = False,
     ):
         super().__init__(
@@ -290,9 +273,7 @@ class RelPartialLearnableMultiHeadAttn(RelMultiHeadAttn):
             pre_lnorm=pre_lnorm,
         )
 
-        self.r_net = nn.Linear(
-            self.d_model, self.n_head * self.d_head, bias=False
-        )
+        self.r_net = nn.Linear(self.d_model, self.n_head * self.d_head, bias=False)
 
     def forward(
         self,
@@ -386,15 +367,7 @@ class RelPartialLearnableMultiHeadAttn(RelMultiHeadAttn):
         # linear projection
         attn_out = self.o_net(attn_vec)
         attn_out = self.drop(attn_out)
-
-        if self.pre_lnorm:
-            # residual connection
-            output = w + attn_out
-        else:
-            # residual connection + layer normalization
-            output = self.layer_norm(w + attn_out)
-
-        return output
+        return w + attn_out if self.pre_lnorm else self.layer_norm(w + attn_out)
 
 
 class RelLearnableMultiHeadAttn(RelMultiHeadAttn):
@@ -463,13 +436,9 @@ class RelLearnableMultiHeadAttn(RelMultiHeadAttn):
         # compute attention probability
         if attn_mask is not None and attn_mask.any().item():
             if attn_mask.dim() == 2:
-                attn_score.masked_fill_(
-                    attn_mask[None, :, :, None], -float("inf")
-                )
+                attn_score.masked_fill_(attn_mask[None, :, :, None], -float("inf"))
             elif attn_mask.dim() == 3:
-                attn_score.masked_fill_(
-                    attn_mask[:, :, :, None], -float("inf")
-                )
+                attn_score.masked_fill_(attn_mask[:, :, :, None], -float("inf"))
 
         # [qlen x klen x bsz x n_head]
         attn_prob = F.softmax(attn_score, dim=1)
@@ -487,14 +456,7 @@ class RelLearnableMultiHeadAttn(RelMultiHeadAttn):
         attn_out = self.o_net(attn_vec)
         attn_out = self.drop(attn_out)
 
-        if self.pre_lnorm:
-            # residual connection
-            output = w + attn_out
-        else:
-            # residual connection + layer normalization
-            output = self.layer_norm(w + attn_out)
-
-        return output
+        return w + attn_out if self.pre_lnorm else self.layer_norm(w + attn_out)
 
 
 class DecoderLayer(nn.Module):
@@ -506,6 +468,7 @@ class DecoderLayer(nn.Module):
         d_inner: int,
         dropout: float,
         dropatt: float,
+        *,
         prel_norm: bool = False,
     ):
         super().__init__()
@@ -513,9 +476,7 @@ class DecoderLayer(nn.Module):
         self.dec_attn = MultiHeadAttn(
             n_head, d_model, d_head, dropout, dropatt, pre_lnorm=prel_norm
         )
-        self.pos_ff = PositionwiseFF(
-            d_model, d_inner, dropout, pre_lnorm=prel_norm
-        )
+        self.pos_ff = PositionwiseFF(d_model, d_inner, dropout, pre_lnorm=prel_norm)
 
     def forward(
         self,
@@ -524,9 +485,7 @@ class DecoderLayer(nn.Module):
         mems: torch.Tensor | None = None,
     ) -> torch.Tensor:
         output = self.dec_attn(dec_inp, attn_mask=dec_attn_mask, mems=mems)
-        output = self.pos_ff(output)
-
-        return output
+        return self.pos_ff(output)
 
 
 class RelLearnableDecoderLayer(nn.Module):
@@ -538,6 +497,7 @@ class RelLearnableDecoderLayer(nn.Module):
         d_inner: int,
         dropout: float,
         dropatt: float,
+        *,
         pre_lnorm: bool = False,
     ):
         super().__init__()
@@ -545,9 +505,7 @@ class RelLearnableDecoderLayer(nn.Module):
         self.dec_attn = RelLearnableMultiHeadAttn(
             n_head, d_model, d_head, dropout, dropatt, pre_lnorm=pre_lnorm
         )
-        self.pos_ff = PositionwiseFF(
-            d_model, d_inner, dropout, pre_lnorm=pre_lnorm
-        )
+        self.pos_ff = PositionwiseFF(d_model, d_inner, dropout, pre_lnorm=pre_lnorm)
 
     def forward(
         self,
@@ -566,9 +524,7 @@ class RelLearnableDecoderLayer(nn.Module):
             attn_mask=dec_attn_mask,
             mems=mems,
         )
-        output = self.pos_ff(output)
-
-        return output
+        return self.pos_ff(output)
 
 
 class RelPartialLearnableDecoderLayer(nn.Module):
@@ -580,6 +536,7 @@ class RelPartialLearnableDecoderLayer(nn.Module):
         d_inner: int,
         dropout: float,
         dropatt: float,
+        *,
         prel_norm: bool = False,
     ):
         super().__init__()
@@ -587,9 +544,7 @@ class RelPartialLearnableDecoderLayer(nn.Module):
         self.dec_attn = RelPartialLearnableMultiHeadAttn(
             n_head, d_model, d_head, dropout, dropatt, pre_lnorm=prel_norm
         )
-        self.pos_ff = PositionwiseFF(
-            d_model, d_inner, dropout, pre_lnorm=prel_norm
-        )
+        self.pos_ff = PositionwiseFF(d_model, d_inner, dropout, pre_lnorm=prel_norm)
 
     def forward(
         self,
@@ -603,9 +558,7 @@ class RelPartialLearnableDecoderLayer(nn.Module):
         output = self.dec_attn(
             dec_inp, r, r_w_bias, r_r_bias, attn_mask=dec_attn_mask, mems=mems
         )
-        output = self.pos_ff(output)
-
-        return output
+        return self.pos_ff(output)
 
 
 class AdaptiveEmbedding(nn.Module):
@@ -616,6 +569,7 @@ class AdaptiveEmbedding(nn.Module):
         d_proj: int,
         cutoffs: typing.Sequence[int],
         div_val: int = 1,
+        *,
         sample_softmax: bool = False,
     ):
         super().__init__()
@@ -623,13 +577,13 @@ class AdaptiveEmbedding(nn.Module):
         self.n_token = n_token
         self.d_embed = d_embed
 
-        self.cutoffs = list(cutoffs) + [n_token]
+        self.cutoffs = [*list(cutoffs), n_token]
         self.div_val = div_val
         self.d_proj = d_proj
 
         self.emb_scale = d_proj**0.5
 
-        self.cutoff_ends = [0] + self.cutoffs
+        self.cutoff_ends = [0, *self.cutoffs]
 
         self.emb_layers = nn.ModuleList()
         self.emb_projs = nn.ParameterList()
@@ -638,17 +592,13 @@ class AdaptiveEmbedding(nn.Module):
                 nn.Embedding(n_token, d_embed, sparse=sample_softmax > 0)
             )
             if d_proj != d_embed:
-                self.emb_projs.append(
-                    nn.Parameter(torch.Tensor(d_proj, d_embed))
-                )
+                self.emb_projs.append(nn.Parameter(torch.Tensor(d_proj, d_embed)))
         else:
             for i in range(len(self.cutoffs)):
                 l_idx, r_idx = self.cutoff_ends[i], self.cutoff_ends[i + 1]
                 d_emb_i = d_embed // (div_val**i)
                 self.emb_layers.append(nn.Embedding(r_idx - l_idx, d_emb_i))
-                self.emb_projs.append(
-                    nn.Parameter(torch.Tensor(d_proj, d_emb_i))
-                )
+                self.emb_projs.append(nn.Parameter(torch.Tensor(d_proj, d_emb_i)))
 
     def forward(self, inp: torch.Tensor) -> torch.Tensor:
         if self.div_val == 1:
@@ -693,6 +643,7 @@ class ProjectedAdaptiveLogSoftmax(nn.Module):
         d_proj: int,
         cutoffs: typing.Sequence[int],
         div_val: int = 1,
+        *,
         keep_order: bool = False,
     ):
         super().__init__()
@@ -701,8 +652,8 @@ class ProjectedAdaptiveLogSoftmax(nn.Module):
         self.d_embed = d_embed
         self.d_proj = d_proj
 
-        self.cutoffs = list(cutoffs) + [n_token]
-        self.cutoff_ends = [0] + self.cutoffs
+        self.cutoffs = [*list(cutoffs), n_token]
+        self.cutoff_ends = [0, *self.cutoffs]
         self.div_val = div_val
 
         self.shortlist_size = self.cutoffs[0]
@@ -719,11 +670,9 @@ class ProjectedAdaptiveLogSoftmax(nn.Module):
         self.out_projs = nn.ParameterList()
 
         if div_val == 1:
-            for i in range(len(self.cutoffs)):
+            for _ in range(len(self.cutoffs)):
                 if d_proj != d_embed:
-                    self.out_projs.append(
-                        nn.Parameter(torch.Tensor(d_proj, d_embed))
-                    )
+                    self.out_projs.append(nn.Parameter(torch.Tensor(d_proj, d_embed)))
                 else:
                     self.out_projs.append(None)
 
@@ -733,9 +682,7 @@ class ProjectedAdaptiveLogSoftmax(nn.Module):
                 l_idx, r_idx = self.cutoff_ends[i], self.cutoff_ends[i + 1]
                 d_emb_i = d_embed // (div_val**i)
 
-                self.out_projs.append(
-                    nn.Parameter(torch.Tensor(d_proj, d_emb_i))
-                )
+                self.out_projs.append(nn.Parameter(torch.Tensor(d_proj, d_emb_i)))
 
                 self.out_layers.append(nn.Linear(d_emb_i, r_idx - l_idx))
 
@@ -765,6 +712,7 @@ class ProjectedAdaptiveLogSoftmax(nn.Module):
         self,
         hidden: torch.Tensor,
         target: torch.Tensor,
+        *,
         keep_order: bool = False,
     ) -> torch.Tensor:
         """
@@ -773,10 +721,10 @@ class ProjectedAdaptiveLogSoftmax(nn.Module):
         """
 
         if hidden.size(0) != target.size(0):
-            raise RuntimeError(
-                "Input and target should have the same size "
-                "in the batch dimension."
+            msg = (
+                "Input and target should have the same size " "in the batch dimension."
             )
+            raise RuntimeError(msg)
 
         if self.n_clusters == 0:
             logit = self._compute_logit(
@@ -786,9 +734,7 @@ class ProjectedAdaptiveLogSoftmax(nn.Module):
                 self.out_projs[0],
             )
             nll = (
-                -F.log_softmax(logit, dim=-1)
-                .gather(1, target.unsqueeze(1))
-                .squeeze(1)
+                -F.log_softmax(logit, dim=-1).gather(1, target.unsqueeze(1)).squeeze(1)
             )
         else:
             # construct weights and biases
@@ -803,9 +749,7 @@ class ProjectedAdaptiveLogSoftmax(nn.Module):
                     bias_i = self.out_layers[i].bias
 
                 if i == 0:
-                    weight_i = torch.cat(
-                        [weight_i, self.cluster_weight], dim=0
-                    )
+                    weight_i = torch.cat([weight_i, self.cluster_weight], dim=0)
                     bias_i = torch.cat([bias_i, self.cluster_bias], dim=0)
 
                 weights.append(weight_i)
@@ -817,17 +761,13 @@ class ProjectedAdaptiveLogSoftmax(nn.Module):
                 self.out_projs[0],
             )
 
-            head_logit = self._compute_logit(
-                hidden, head_weight, head_bias, head_proj
-            )
+            head_logit = self._compute_logit(hidden, head_weight, head_bias, head_proj)
             head_logprob = F.log_softmax(head_logit, dim=1)
 
-            nll = torch.zeros_like(
-                target, dtype=hidden.dtype, device=hidden.device
-            )
+            nll = torch.zeros_like(target, dtype=hidden.dtype, device=hidden.device)
 
             offset = 0
-            cutoff_values = [0] + self.cutoffs
+            cutoff_values = [0, *self.cutoffs]
             for i in range(len(cutoff_values) - 1):
                 l_idx, r_idx = cutoff_values[i], cutoff_values[i + 1]
 
@@ -841,9 +781,7 @@ class ProjectedAdaptiveLogSoftmax(nn.Module):
                 head_logprob_i = head_logprob.index_select(0, indices_i)
 
                 if i == 0:
-                    logprob_i = head_logprob_i.gather(
-                        1, target_i[:, None]
-                    ).squeeze(1)
+                    logprob_i = head_logprob_i.gather(1, target_i[:, None]).squeeze(1)
                 else:
                     weight_i, bias_i, proj_i = (
                         weights[i],
@@ -862,9 +800,7 @@ class ProjectedAdaptiveLogSoftmax(nn.Module):
                         1, target_i[:, None]
                     ).squeeze(1)
 
-                if (
-                    hasattr(self, "keep_order") and self.keep_order
-                ) or keep_order:
+                if (hasattr(self, "keep_order") and self.keep_order) or keep_order:
                     nll.index_copy_(0, indices_i, -logprob_i)
                 else:
                     nll[offset : offset + logprob_i.size(0)].copy_(-logprob_i)
@@ -893,9 +829,7 @@ class LogUniformSampler:
             # print('P', self.dist.numpy().tolist()[-30:])
 
             self.log_q = (
-                (-(-self.dist.double().log1p_() * 2 * n_sample).expm1_())
-                .log_()
-                .float()
+                (-(-self.dist.double().log1p_() * 2 * n_sample).expm1_()).log_().float()
             )
 
         self.n_sample = n_sample
@@ -960,11 +894,7 @@ def sample_logits(
         torch.einsum("ijk,ijk->ij", [true_w, inputs]) + true_b - true_log_probs
     )
     sample_logits = (
-        torch.einsum("lk,ijk->ijl", [sample_w, inputs])
-        + sample_b
-        - samp_log_probs
+        torch.einsum("lk,ijk->ijl", [sample_w, inputs]) + sample_b - samp_log_probs
     )
     sample_logits.masked_fill_(hit, -1e30)
-    logits = torch.cat([true_logits[:, :, None], sample_logits], -1)
-
-    return logits
+    return torch.cat([true_logits[:, :, None], sample_logits], -1)

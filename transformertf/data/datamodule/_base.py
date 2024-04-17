@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import dataclasses
 import logging
-import os.path as path
 import tempfile
 import typing
+from os import path
 from pathlib import Path
 
 import lightning as L
@@ -18,7 +18,6 @@ from transformertf.data.dataset import TimeSeriesDataset
 from .._downsample import downsample
 from ..transform import (
     BaseTransform,
-    PolynomialTransform,
     StandardScaler,
     TransformCollection,
     TransformType,
@@ -64,19 +63,17 @@ class DataModuleBase(L.LightningDataModule):
         val_df: pd.DataFrame | list[pd.DataFrame] | None,
         input_columns: str | typing.Sequence[str],
         target_column: str,
-        normalize: bool = True,
+        normalize: bool = True,  # noqa: FBT001, FBT002
         downsample: int = 1,
         downsample_method: typing.Literal[
             "interval", "average", "convolve"
         ] = "interval",
-        remove_polynomial: bool = False,
-        polynomial_degree: int = 1,
-        polynomial_iterations: int = 1000,
         target_depends_on: str | None = None,
         extra_transforms: dict[str, list[BaseTransform]] | None = None,
         batch_size: int = 128,
         num_workers: int = 0,
         dtype: str = "float32",
+        *,
         distributed_sampler: bool = False,
     ):
         super().__init__()
@@ -90,12 +87,16 @@ class DataModuleBase(L.LightningDataModule):
             self._raw_train_df: list[pd.DataFrame] = []
             self._raw_val_df: list[pd.DataFrame] = []
         elif train_df is None and val_df is not None:
-            raise ValueError("val_df must be None if train_df is None.")
+            msg = "val_df must be None if train_df is None."
+            raise ValueError(msg)
         elif train_df is not None and val_df is None:
-            raise ValueError("train_df must be None if val_df is None.")
+            msg = "train_df must be None if val_df is None."
+            raise ValueError(msg)
         else:
-            self._raw_train_df = _to_list(train_df)  # type: ignore[arg-type]
-            self._raw_val_df = _to_list(val_df)  # type: ignore[arg-type]
+            assert train_df is not None
+            assert val_df is not None
+            self._raw_train_df = _to_list(train_df)
+            self._raw_val_df = _to_list(val_df)
 
         # these will be set by prepare_data
         self._train_df: list[pd.DataFrame] = []
@@ -118,6 +119,7 @@ class DataModuleBase(L.LightningDataModule):
         self,
         input_data: np.ndarray,
         target_data: np.ndarray | None = None,
+        *,
         predict: bool = False,
     ) -> torch.utils.data.Dataset:
         raise NotImplementedError
@@ -130,18 +132,15 @@ class DataModuleBase(L.LightningDataModule):
         To be overridden by subclasses to parse other config subclasses.
         """
 
-        default_kwargs = dict(
-            normalize=config.normalize,
-            downsample=config.downsample,
-            downsample_method=config.downsample_method,
-            remove_polynomial=config.remove_polynomial,
-            polynomial_degree=config.polynomial_degree,
-            polynomial_iterations=config.polynomial_iterations,
-            target_depends_on=config.target_depends_on,
-            extra_transforms=config.extra_transforms,
-            batch_size=config.batch_size,
-            num_workers=config.num_workers,
-        )
+        default_kwargs = {
+            "normalize": config.normalize,
+            "downsample": config.downsample,
+            "downsample_method": config.downsample_method,
+            "target_depends_on": config.target_depends_on,
+            "extra_transforms": config.extra_transforms,
+            "batch_size": config.batch_size,
+            "num_workers": config.num_workers,
+        }
 
         default_kwargs.update(kwargs)
 
@@ -154,7 +153,6 @@ class DataModuleBase(L.LightningDataModule):
         Instantiates the transforms to be used by the datamodule.
         """
         normalize = self.hparams["normalize"]
-        polynomial = self.hparams["remove_polynomial"]
 
         # input transforms
         input_transforms: dict[str, list[BaseTransform]]
@@ -165,16 +163,13 @@ class DataModuleBase(L.LightningDataModule):
                 if col == self.hparams["target_column"]:
                     continue
                 if col not in input_transforms:
-                    raise ValueError(
-                        f"Unknown column {col} in extra_transforms."
-                    )
+                    msg = f"Unknown column {col} in extra_transforms."
+                    raise ValueError(msg)
                 input_transforms[col].extend(transforms)
 
         for input_col in self.hparams["input_columns"]:
             if normalize:
-                input_transforms[input_col].append(
-                    StandardScaler(num_features_=1)
-                )
+                input_transforms[input_col].append(StandardScaler(num_features_=1))
 
         self._input_transforms = {
             col: TransformCollection(transforms)
@@ -182,37 +177,15 @@ class DataModuleBase(L.LightningDataModule):
         }
 
         target_transform = []
-        if self.hparams["extra_transforms"] is not None:
-            if (
-                self.hparams["target_column"]
-                in self.hparams["extra_transforms"]
-            ):
-                target_transform.extend(
-                    self.hparams["extra_transforms"][
-                        self.hparams["target_column"]
-                    ]
-                )
+        if (
+            self.hparams["extra_transforms"] is not None
+            and self.hparams["target_column"] in self.hparams["extra_transforms"]
+        ):
+            target_transform.extend(
+                self.hparams["extra_transforms"][self.hparams["target_column"]]
+            )
         if normalize:
             target_transform.append(StandardScaler(num_features_=1))
-        if polynomial:
-            if self.hparams["target_depends_on"] is not None:
-                if (
-                    self.hparams["target_depends_on"]
-                    not in self.hparams["input_columns"]
-                ):
-                    raise ValueError(
-                        "Polynomial transform requires target_depends_on to be in input_columns."
-                    )
-                target_transform.append(
-                    PolynomialTransform(
-                        self.hparams["polynomial_degree"],
-                        self.hparams["polynomial_iterations"],
-                    )
-                )
-            else:
-                raise ValueError(
-                    "Polynomial transform requires target_depends_on to be set."
-                )
 
         self._target_transform = TransformCollection(
             target_transform,
@@ -221,7 +194,7 @@ class DataModuleBase(L.LightningDataModule):
 
     @classmethod
     def from_dataframe(
-        cls: typing.Type[SameType],
+        cls: type[SameType],
         config: BaseConfig,
         train_df: pd.DataFrame | list[pd.DataFrame],
         val_df: pd.DataFrame | list[pd.DataFrame],
@@ -259,17 +232,15 @@ class DataModuleBase(L.LightningDataModule):
 
         if input_columns is None:
             if config.input_columns is None:
-                raise ValueError(
-                    "Either input_columns or config.input_columns must be set."
-                )
+                msg = "Either input_columns or config.input_columns must be set."
+                raise ValueError(msg)
 
             input_columns = _to_list(config.input_columns)
 
         if target_column is None:
             if config.target_column is None:
-                raise ValueError(
-                    "Either target_column or config.target_column must be set."
-                )
+                msg = "Either target_column or config.target_column must be set."
+                raise ValueError(msg)
 
             target_column = config.target_column
 
@@ -283,7 +254,7 @@ class DataModuleBase(L.LightningDataModule):
 
     @classmethod
     def from_parquet(
-        cls: typing.Type[SameType],
+        cls: type[SameType],
         config: BaseConfig,
         train_dataset: str | typing.Sequence[str] | None = None,
         val_dataset: str | typing.Sequence[str] | None = None,
@@ -316,19 +287,16 @@ class DataModuleBase(L.LightningDataModule):
         """
         if train_dataset is None and val_dataset is None:
             if config.train_dataset is None and config.val_dataset is None:
-                raise ValueError(
-                    "train_dataset and val_dataset must not be None."
-                )
+                msg = "train_dataset and val_dataset must not be None."
+                raise ValueError(msg)
             train_dataset = config.train_dataset
             val_dataset = config.val_dataset
         elif train_dataset is None and val_dataset is not None:
-            raise ValueError(
-                "val_dataset must be None if train_dataset is None."
-            )
+            msg = "val_dataset must be None if train_dataset is None."
+            raise ValueError(msg)
         elif train_dataset is not None and val_dataset is None:
-            raise ValueError(
-                "train_dataset must be None if val_dataset is None."
-            )
+            msg = "train_dataset must be None if val_dataset is None."
+            raise ValueError(msg)
 
         assert train_dataset is not None
         assert val_dataset is not None
@@ -348,7 +316,7 @@ class DataModuleBase(L.LightningDataModule):
             **kwargs,
         )
 
-    def prepare_data(self, save: bool = True) -> None:
+    def prepare_data(self, *, save: bool = True) -> None:
         """
         Loads and preprocesses data dataframes.
 
@@ -378,9 +346,7 @@ class DataModuleBase(L.LightningDataModule):
 
     def setup(
         self,
-        stage: (
-            typing.Literal["fit", "train", "val", "test", "predict"] | None
-        ) = None,
+        stage: typing.Literal["fit", "train", "val", "test", "predict"] | None = None,
     ) -> None:
         """
         Sets up the data for training, validation or testing.
@@ -403,26 +369,26 @@ class DataModuleBase(L.LightningDataModule):
                 dfs.append(df)
             return dfs
 
-        if stage is None:
-            self._train_df = load_parquet("train", self._tmp_dir.name)
-            self._val_df = load_parquet("val", self._tmp_dir.name)
-        elif stage in ("train", "fit"):
+        if stage is None or stage in {"train", "fit"}:
             self._train_df = load_parquet("train", self._tmp_dir.name)
             self._val_df = load_parquet("val", self._tmp_dir.name)
         elif stage == "val":
             self._val_df = load_parquet("val", self._tmp_dir.name)
         elif stage == "test":
-            raise NotImplementedError(
+            msg = (
                 "Datamodule does not support using the test set.\n"
                 "Use the 'make_dataset' or 'make_dataloader' methods instead."
             )
+            raise NotImplementedError(msg)
         elif stage == "predict":
-            raise NotImplementedError(
+            msg = (
                 "Datamodule does not support using the predict set.\n"
                 "Use the 'make_dataset' or 'make_dataloader' methods instead."
             )
+            raise NotImplementedError(msg)
         else:
-            raise ValueError(f"Unknown stage {stage}.")
+            msg = f"Unknown stage {stage}."
+            raise ValueError(msg)
 
     def preprocess_dataframe(
         self,
@@ -443,16 +409,16 @@ class DataModuleBase(L.LightningDataModule):
         pd.DataFrame
             The preprocessed dataframe.
         """
-        df = downsample(
+        return downsample(  # type: ignore[return-value]
             df,
             downsample=self.hparams["downsample"],
             method=self.hparams["downsample_method"],
         )
-        return df
 
     def apply_transforms(
         self,
         df: pd.DataFrame,
+        *,
         skip_target: bool = False,
     ) -> pd.DataFrame:
         """
@@ -477,7 +443,8 @@ class DataModuleBase(L.LightningDataModule):
             If the scaler has not been fitted.
         """
         if not self._scalers_fitted():
-            raise RuntimeError("Scalers have not been fitted yet. ")
+            msg = "Scalers have not been fitted yet. "
+            raise RuntimeError(msg)
 
         out = pd.DataFrame(df)
         for col in self.hparams["input_columns"]:
@@ -489,24 +456,14 @@ class DataModuleBase(L.LightningDataModule):
             return out
 
         if self.hparams["target_depends_on"] is not None:
-            out[self.hparams["target_column"]] = (
-                self._target_transform.transform(
-                    torch.from_numpy(
-                        df[self.hparams["target_depends_on"]].to_numpy()
-                    ),
-                    torch.from_numpy(
-                        df[self.hparams["target_column"]].to_numpy()
-                    ),
-                )
+            out[self.hparams["target_column"]] = self._target_transform.transform(
+                torch.from_numpy(df[self.hparams["target_depends_on"]].to_numpy()),
+                torch.from_numpy(df[self.hparams["target_column"]].to_numpy()),
             )
         else:
-            out[self.hparams["target_column"]] = (
-                self._target_transform.transform(
-                    torch.tensor([]),
-                    torch.from_numpy(
-                        df[self.hparams["target_column"]].to_numpy()
-                    ),
-                )
+            out[self.hparams["target_column"]] = self._target_transform.transform(
+                torch.tensor([]),
+                torch.from_numpy(df[self.hparams["target_column"]].to_numpy()),
             )
 
         return out
@@ -546,18 +503,14 @@ class DataModuleBase(L.LightningDataModule):
             input_,
             timestamp=timestamp,
             input_columns=self.hparams["input_columns"],
-            target_column=(
-                self.hparams["target_column"] if not skip_target else None
-            ),
+            target_column=(self.hparams["target_column"] if not skip_target else None),
         )
         df = self.preprocess_dataframe(df)
 
-        df = self.apply_transforms(df, skip_target=skip_target)
-
-        return df
+        return self.apply_transforms(df, skip_target=skip_target)
 
     def _make_dataset_from_df(
-        self, df: pd.DataFrame, predict: bool = False
+        self, df: pd.DataFrame, *, predict: bool = False
     ) -> torch.utils.data.Dataset:
         target_data: np.ndarray | None = None
         if self.hparams["target_column"] in df.columns:
@@ -573,6 +526,7 @@ class DataModuleBase(L.LightningDataModule):
         self,
         df: pd.DataFrame,
         timestamp: np.ndarray | pd.Series | str | None = None,
+        *,
         predict: bool = False,
     ) -> TimeSeriesDataset:
         df = self.transform_input(
@@ -586,6 +540,7 @@ class DataModuleBase(L.LightningDataModule):
         self,
         input_: pd.DataFrame,
         timestamp: np.ndarray | pd.Series | str | None = None,
+        *,
         predict: bool = False,
         **kwargs: typing.Any,
     ) -> torch.utils.data.DataLoader:
@@ -610,44 +565,33 @@ class DataModuleBase(L.LightningDataModule):
     @property
     def train_dataset(self) -> torch.utils.data.Dataset:
         if self._train_df is None or len(self._train_df) == 0:
-            raise ValueError("No training data available.")
+            msg = "No training data available."
+            raise ValueError(msg)
 
-        input_data = np.concatenate(
-            [
-                df[self.hparams["input_columns"]].to_numpy()
-                for df in self._train_df
-            ]
-        )
-        target_data = np.concatenate(
-            [
-                df[self.hparams["target_column"]].to_numpy()
-                for df in self._train_df
-            ]
-        )
+        input_data = np.concatenate([
+            df[self.hparams["input_columns"]].to_numpy() for df in self._train_df
+        ])
+        target_data = np.concatenate([
+            df[self.hparams["target_column"]].to_numpy() for df in self._train_df
+        ])
 
-        return self._make_dataset_from_arrays(
-            input_data, target_data, predict=False
-        )
+        return self._make_dataset_from_arrays(input_data, target_data, predict=False)
 
     @property
     def val_dataset(
         self,
     ) -> torch.utils.data.Dataset | typing.Sequence[torch.utils.data.Dataset]:
         if self._val_df is None or len(self._val_df) == 0:
-            raise ValueError("No validation data available.")
+            msg = "No validation data available."
+            raise ValueError(msg)
 
-        datasets = [
-            self._make_dataset_from_df(df, predict=True) for df in self._val_df
-        ]
+        datasets = [self._make_dataset_from_df(df, predict=True) for df in self._val_df]
 
         return datasets[0] if len(datasets) == 1 else datasets
 
     def train_dataloader(
         self,
-    ) -> (
-        torch.utils.data.DataLoader
-        | typing.Sequence[torch.utils.data.DataLoader]
-    ):
+    ) -> torch.utils.data.DataLoader | typing.Sequence[torch.utils.data.DataLoader]:
         sampler: torch.utils.data.Sampler | None = None
         if self.hparams["distributed_sampler"]:
             sampler = torch.utils.data.distributed.DistributedSampler(
@@ -661,19 +605,17 @@ class DataModuleBase(L.LightningDataModule):
         return torch.utils.data.DataLoader(
             self.train_dataset,
             batch_size=self.hparams["batch_size"],
-            shuffle=True if sampler is None else False,
+            shuffle=sampler is None,
             num_workers=self.hparams["num_workers"],
             sampler=sampler,
         )
 
     def val_dataloader(
         self,
-    ) -> (
-        torch.utils.data.DataLoader
-        | typing.Sequence[torch.utils.data.DataLoader]
-    ):
+    ) -> torch.utils.data.DataLoader | typing.Sequence[torch.utils.data.DataLoader]:
         if self._val_df is None or len(self._val_df) == 0:
-            raise ValueError("No validation data available.")
+            msg = "No validation data available."
+            raise ValueError(msg)
 
         def make_sampler(
             ds: torch.utils.data.Dataset,
@@ -684,8 +626,7 @@ class DataModuleBase(L.LightningDataModule):
                     shuffle=False,
                     drop_last=False,
                 )
-            else:
-                return None
+            return None
 
         def make_dataloader(
             ds: torch.utils.data.Dataset,
@@ -700,10 +641,9 @@ class DataModuleBase(L.LightningDataModule):
 
         if len(self._val_df) == 1:
             return make_dataloader(self.val_dataset)  # type: ignore[arg-type]
-        else:
-            return [make_dataloader(ds) for ds in self.val_dataset]  # type: ignore[arg-type]
+        return [make_dataloader(ds) for ds in self.val_dataset]  # type: ignore[arg-type]
 
-    def save_data(self, save_dir: typing.Optional[str] = None) -> None:
+    def save_data(self, save_dir: str | None = None) -> None:
         """
         Saves the data to the model directory.
         """
@@ -711,7 +651,7 @@ class DataModuleBase(L.LightningDataModule):
             save_dir = self.hparams["model_dir"]
 
         def save_parquet(
-            dfs: typing.Optional[list[pd.DataFrame]],
+            dfs: list[pd.DataFrame] | None,
             name: typing.Literal["train", "val", "test", "predict"],
         ) -> None:
             if dfs is None:
@@ -721,7 +661,7 @@ class DataModuleBase(L.LightningDataModule):
             for i, df in enumerate(dfs):
                 if len(df) == 0:
                     continue
-                dfs[i].reset_index(drop=True).to_parquet(paths[i])
+                df.reset_index(drop=True).to_parquet(paths[i])
 
         save_parquet(self._train_df, "train")
         save_parquet(self._val_df, "val")
@@ -775,29 +715,25 @@ class DataModuleBase(L.LightningDataModule):
         if dfs is not None and len(dfs) > 0:  # for saving
             if len(dfs) == 1 or isinstance(dfs, pd.DataFrame):
                 return [Path(dir_) / f"{name}.parquet"]
+            return [Path(dir_) / f"{name}_{i}.parquet" for i in range(len(dfs))]
+        # for loading
+        # try to find the data files
+        single_df_path = Path(dir_) / f"{name}.parquet"
+        if single_df_path.exists():
+            return [single_df_path]
+        paths = []
+        multi_file_stem = path.join(dir_, f"{name}_{{}}.parquet")
+        # find all files with the same stem
+        i = 0
+        while True:
+            p = Path(multi_file_stem.format(i))
+            if p.exists():
+                paths.append(p)
             else:
-                return [
-                    Path(dir_) / f"{name}_{i}.parquet" for i in range(len(dfs))
-                ]
-        else:  # for loading
-            # try to find the data files
-            single_df_path = Path(dir_) / f"{name}.parquet"
-            if single_df_path.exists():
-                return [single_df_path]
-            else:
-                paths = []
-                multi_file_stem = path.join(dir_, f"{name}_{{}}.parquet")
-                # find all files with the same stem
-                i = 0
-                while True:
-                    p = Path(multi_file_stem.format(i))
-                    if p.exists():
-                        paths.append(p)
-                    else:
-                        break
-                    i += 1
+                break
+            i += 1
 
-                return paths
+        return paths
 
     def _scalers_fitted(self) -> bool:
         fitted = all(
@@ -812,15 +748,11 @@ class DataModuleBase(L.LightningDataModule):
     def _fit_transforms(self, df: pd.DataFrame) -> None:
         for col in self.hparams["input_columns"]:
             log.info(f"Fitting input scaler for {col}.")
-            self._input_transforms[col].fit(
-                torch.from_numpy(df[col].to_numpy())
-            )
+            self._input_transforms[col].fit(torch.from_numpy(df[col].to_numpy()))
 
         if self.hparams["target_depends_on"] is not None:
             self._target_transform.fit(
-                torch.from_numpy(
-                    df[self.hparams["target_depends_on"]].to_numpy()
-                ),
+                torch.from_numpy(df[self.hparams["target_depends_on"]].to_numpy()),
                 torch.from_numpy(df[self.hparams["target_column"]].to_numpy()),
             )
         else:
@@ -873,19 +805,20 @@ class DataModuleBase(L.LightningDataModule):
 
         col_filter = input_columns
         if target_column is not None:
-            col_filter = col_filter + _to_list(target_column)
+            col_filter += _to_list(target_column)
 
         df = df[col_filter]
 
         if timestamp is not None:
             if isinstance(timestamp, str):
                 df[TIME] = df[timestamp]
-            elif isinstance(timestamp, (np.ndarray, pd.Series)):
+            elif isinstance(timestamp, np.ndarray | pd.Series):
                 if len(timestamp) != len(df):
-                    raise ValueError(
+                    msg = (
                         "The length of the timestamp must match the length of the data."
                         f"Got {len(timestamp)} timestamps and {len(df)} rows."
                     )
+                    raise ValueError(msg)
                 df[TIME] = timestamp
         else:
             df[TIME] = np.arange(len(df))
@@ -898,8 +831,7 @@ T = typing.TypeVar("T")
 
 def _to_list(x: T | typing.Sequence[T]) -> list[T]:
     if isinstance(x, typing.Sequence) and not isinstance(
-        x, (str, pd.Series, np.ndarray, torch.Tensor, pd.DataFrame)
+        x, str | pd.Series | np.ndarray | torch.Tensor | pd.DataFrame
     ):
         return list(x)
-    else:
-        return typing.cast(list[T], [x])
+    return typing.cast(list[T], [x])

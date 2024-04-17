@@ -41,29 +41,25 @@ class BasicTSMixer(torch.nn.Module):
         super().__init__()
         hidden_dim = hidden_dim or num_features
 
-        self.residual_blocks = torch.nn.Sequential(
-            *[
-                MixerBlock(
-                    input_len=seq_len,
-                    num_features=num_features if i == 0 else hidden_dim,
-                    dropout=dropout,
-                    activation=activation,
-                    fc_dim=fc_dim,
-                    norm=norm,
-                    out_num_features=hidden_dim,
-                )
-                for i in range(num_blocks)
-            ]
-        )
+        self.residual_blocks = torch.nn.Sequential(*[
+            MixerBlock(
+                input_len=seq_len,
+                num_features=num_features if i == 0 else hidden_dim,
+                dropout=dropout,
+                activation=activation,
+                fc_dim=fc_dim,
+                norm=norm,
+                out_num_features=hidden_dim,
+            )
+            for i in range(num_blocks)
+        ])
 
         if out_seq_len is None:
             self.fc = None
         else:
             self.fc = FeatureProjection(seq_len, out_seq_len)
 
-    def forward(
-        self, x: torch.Tensor, target_slice: int | None = None
-    ) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, target_slice: int | None = None) -> torch.Tensor:
         x = self.residual_blocks(x)
 
         if target_slice is not None:
@@ -152,13 +148,11 @@ class TSMixer(torch.nn.Module):
         if out_dim is not None:
             # use MLP for final prediction
             self.fc = torch.nn.Sequential(
-                collections.OrderedDict(
-                    {
-                        "fc1": torch.nn.Linear(hidden_dim, fc_dim),
-                        "relu": torch.nn.ReLU(),
-                        "fc2": torch.nn.Linear(fc_dim, out_dim),
-                    }
-                )
+                collections.OrderedDict({
+                    "fc1": torch.nn.Linear(hidden_dim, fc_dim),
+                    "relu": torch.nn.ReLU(),
+                    "fc2": torch.nn.Linear(fc_dim, out_dim),
+                })
             )
         else:
             self.fc = None
@@ -170,9 +164,10 @@ class TSMixer(torch.nn.Module):
         static_covariates: torch.Tensor | None = None,
     ) -> torch.Tensor:
         if static_covariates is None:
-            static_covariates = torch.zeros(
-                (past_covariates.size(0), self.num_static_real_feat)
-            )
+            static_covariates = torch.zeros((
+                past_covariates.size(0),
+                self.num_static_real_feat,
+            ))
 
         # project past covariates to target sequence length
         past_covariates = self.past_proj(past_covariates)

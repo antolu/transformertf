@@ -1,4 +1,4 @@
-exclude: ^(.idea/)
+exclude: ^(.idea/|transformertf/hysteresis/.*\\.py)
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
@@ -27,9 +27,9 @@ repos:
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
-        exclude: "^docs/source/conf.py$"
+        exclude: "^docs/source/conf.py|transformertf/hysteresis/.*\\.py$"
       - id: ruff-format
-        exclude: "^docs/source/conf.py$"
+        exclude: "^docs/source/conf.py$|transformertf/hysteresis/.*\\.py$"
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: 'v1.9.0'
     hooks:

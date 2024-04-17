@@ -7,15 +7,11 @@ import numpy as np
 import pygmsh
 
 
-def constant_mesh_size(
-    x: np.ndarray, y: np.ndarray, mesh_scale: float
-) -> np.ndarray:
+def constant_mesh_size(x: np.ndarray, y: np.ndarray, mesh_scale: float) -> np.ndarray:
     return np.array(mesh_scale)
 
 
-def default_mesh_size(
-    x: np.ndarray, y: np.ndarray, mesh_scale: float
-) -> np.ndarray:
+def default_mesh_size(x: np.ndarray, y: np.ndarray, mesh_scale: float) -> np.ndarray:
     return mesh_scale * (0.2 * (np.abs(x - y)) + 0.05)
 
 
@@ -48,9 +44,7 @@ def create_triangle_mesh(
 
         # set mesh size with function
         geom.set_mesh_size_callback(
-            lambda dim, tag, x, y, z, lc: mesh_density_function(
-                x, y, mesh_scale
-            )
+            lambda dim, tag, x, y, z, lc: mesh_density_function(x, y, mesh_scale)
         )
 
         mesh = geom.generate_mesh()
