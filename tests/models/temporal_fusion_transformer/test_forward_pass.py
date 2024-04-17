@@ -20,14 +20,15 @@ def past_covariates() -> torch.Tensor:
 
 @pytest.fixture(scope="module")
 def future_covariates() -> torch.Tensor:
-    return torch.rand(BATCH_SIZE, FUTURE_SEQ_LEN, NUM_FEATURES)
+    return torch.rand(BATCH_SIZE, FUTURE_SEQ_LEN, NUM_FEATURES - 1)
 
 
 def test_temporal_fusion_transformer_model(
     past_covariates: torch.Tensor, future_covariates: torch.Tensor
 ) -> None:
     model = TemporalFusionTransformer(
-        num_features=NUM_FEATURES,
+        num_past_features=NUM_FEATURES,
+        num_future_features=1,
         ctxt_seq_len=PAST_SEQ_LEN,
         tgt_seq_len=FUTURE_SEQ_LEN,
         num_lstm_layers=1,

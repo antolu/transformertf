@@ -12,7 +12,8 @@ def test_create_temporal_fusion_transformer() -> None:
         n_dim_model=8,
         num_heads=2,
         num_lstm_layers=2,
-        num_features=2,
+        num_past_features=2,
+        num_future_features=1,
         num_static_features=1,
         dropout=0.1,
     )

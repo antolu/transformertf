@@ -18,7 +18,8 @@ if typing.TYPE_CHECKING:
 class TemporalFusionTransformerModule(TransformerModuleBase):
     def __init__(
         self,
-        num_features: int,
+        num_past_features: int,
+        num_future_features: int,
         ctxt_seq_len: int,
         tgt_seq_len: int,
         n_dim_model: int = 300,
@@ -62,7 +63,8 @@ class TemporalFusionTransformerModule(TransformerModuleBase):
         )
 
         self.model = TemporalFusionTransformer(
-            num_features=num_features,
+            num_past_features=num_past_features,
+            num_future_features=num_future_features,
             ctxt_seq_len=ctxt_seq_len,
             tgt_seq_len=tgt_seq_len,
             n_dim_model=n_dim_model,
@@ -81,16 +83,19 @@ class TemporalFusionTransformerModule(TransformerModuleBase):
         **kwargs: typing.Any,
     ) -> dict[str, typing.Any]:
         default_kwargs = super().parse_config_kwargs(config, **kwargs)
-        num_features = (
+        num_past_features = (
             len(config.input_columns) if config.input_columns is not None else 0
         )
-        num_features += (
+        num_future_features = num_past_features
+        num_past_features += (
             len(config.known_past_columns) if config.known_past_columns else 0
         )
-        num_features += 1  # add target
+
+        num_past_features += 1  # target
 
         default_kwargs |= {
-            "num_features": num_features,
+            "num_past_features": num_past_features,
+            "num_future_features": num_future_features,
             "ctxt_seq_len": config.ctxt_seq_len,
             "tgt_seq_len": config.tgt_seq_len,
             "n_dim_model": config.n_dim_model,
@@ -103,20 +108,15 @@ class TemporalFusionTransformerModule(TransformerModuleBase):
 
         default_kwargs |= kwargs
 
-        if num_features == 1:
-            error_message = (
-                "num_features must be greater than 1. "
-                "Please specify input_columns in config, or "
-                "pass in a different value for num_features."
-            )
-            raise ValueError(error_message)
-
         return default_kwargs
 
     def forward(self, x: EncoderDecoderTargetSample) -> torch.Tensor:
         return self.model(
             past_covariates=x["encoder_input"],
-            future_covariates=x["decoder_input"],
+            future_covariates=x["decoder_input"][
+                ...,
+                -self.hparams["num_future_features"] :,
+            ],
             static_covariates=x["encoder_lengths"],  # type: ignore[typeddict-item]
         )
 
