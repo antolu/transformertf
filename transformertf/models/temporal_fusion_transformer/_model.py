@@ -17,7 +17,8 @@ __all__ = ["TemporalFusionTransformer"]
 class TemporalFusionTransformer(torch.nn.Module):
     def __init__(
         self,
-        num_features: int,
+        num_past_features: int,
+        num_future_features: int,
         ctxt_seq_len: int,
         tgt_seq_len: int,
         num_static_features: int = 0,
@@ -63,7 +64,8 @@ class TemporalFusionTransformer(torch.nn.Module):
             be 1.
         """
         super().__init__()
-        self.num_features = num_features
+        self.num_past_features = num_past_features
+        self.num_future_features = num_future_features
         self.ctxt_seq_len = ctxt_seq_len
         self.tgt_seq_len = tgt_seq_len
         self.num_static_features = num_static_features  # not used
@@ -83,7 +85,7 @@ class TemporalFusionTransformer(torch.nn.Module):
         )
 
         self.enc_vs = VariableSelection(
-            n_features=num_features,
+            n_features=num_past_features,
             hidden_dim=hidden_continuous_dim,
             n_dim_model=n_dim_model,
             context_size=n_dim_model,
@@ -91,7 +93,7 @@ class TemporalFusionTransformer(torch.nn.Module):
         )
 
         self.dec_vs = VariableSelection(
-            n_features=num_features - 1,
+            n_features=num_future_features,
             hidden_dim=hidden_continuous_dim,
             n_dim_model=n_dim_model,
             context_size=n_dim_model,
@@ -188,12 +190,12 @@ class TemporalFusionTransformer(torch.nn.Module):
                 self.n_dim_model,
                 device=past_covariates.device,
             )  # static covariate embeddings
-            torch.zeros(
+            static_variable_selection = torch.zeros(
                 batch_size, 0, device=past_covariates.device
             )  # static variable selection weights
         else:
             static_embedding = static_covariates
-            static_embedding, _static_variable_selection = self.static_vs(
+            static_embedding, static_variable_selection = self.static_vs(
                 static_embedding
             )
 
@@ -213,7 +215,7 @@ class TemporalFusionTransformer(torch.nn.Module):
         # variable selection
         enc_vs, enc_weights = self.enc_vs(past_covariates, enc_static_context)
         dec_vs, dec_weights = self.dec_vs(
-            future_covariates[..., :-1],
+            future_covariates,
             dec_static_context,  # skip target feature since it's zeros
         )
 
@@ -268,6 +270,7 @@ class TemporalFusionTransformer(torch.nn.Module):
             "enc_weights": enc_weights,
             "dec_weights": dec_weights,
             "attn_weights": attn_weights,
+            "static_weights": static_variable_selection,
         }
 
 

@@ -17,10 +17,11 @@ if typing.TYPE_CHECKING:
 class TransformerDataModule(DataModuleBase):
     def __init__(
         self,
-        train_df: pd.DataFrame | list[pd.DataFrame],
-        val_df: pd.DataFrame | list[pd.DataFrame],
         input_columns: str | typing.Sequence[str],
         target_column: str,
+        known_past_columns: str | typing.Sequence[str] | None = None,
+        train_df: pd.DataFrame | list[pd.DataFrame] | None = None,
+        val_df: pd.DataFrame | list[pd.DataFrame] | None = None,
         normalize: bool = True,  # noqa: FBT001, FBT002
         ctxt_seq_len: int = 500,
         tgt_seq_len: int = 300,
@@ -45,6 +46,7 @@ class TransformerDataModule(DataModuleBase):
             val_df=val_df,
             input_columns=input_columns,
             target_column=target_column,
+            known_past_columns=known_past_columns,
             normalize=normalize,
             downsample=downsample,
             downsample_method=downsample_method,
@@ -81,6 +83,7 @@ class EncoderDecoderDataModule(TransformerDataModule):
     def _make_dataset_from_arrays(
         self,
         input_data: np.ndarray,
+        known_past_data: np.ndarray | None = None,
         target_data: np.ndarray | None = None,
         *,
         predict: bool = False,
@@ -91,6 +94,7 @@ class EncoderDecoderDataModule(TransformerDataModule):
 
         return EncoderDecoderDataset(
             input_data=input_data,
+            known_past_data=known_past_data,
             target_data=target_data,
             ctx_seq_len=self.hparams["ctxt_seq_len"],
             tgt_seq_len=self.hparams["tgt_seq_len"],
@@ -111,6 +115,7 @@ class EncoderDataModule(TransformerDataModule):
     def _make_dataset_from_arrays(
         self,
         input_data: np.ndarray,
+        known_past_data: np.ndarray | None = None,
         target_data: np.ndarray | None = None,
         *,
         predict: bool = False,
@@ -118,6 +123,10 @@ class EncoderDataModule(TransformerDataModule):
         if target_data is None:
             msg = "Target data should not be provided for an encoder model."
             raise ValueError(msg)
+
+        if known_past_data is not None:
+            msg = "known_past_data is not used in this class."
+            raise NotImplementedError(msg)
 
         return EncoderDataset(
             input_data=input_data,

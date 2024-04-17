@@ -70,6 +70,7 @@ class BaseConfig:
 
     input_columns: str | typing.Sequence[str] | None = None
     target_column: str | None = None
+    known_past_columns: str | typing.Sequence[str] | None = None
 
     # Checkpointing
     checkpoint_every: int = 50

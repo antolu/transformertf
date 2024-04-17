@@ -89,6 +89,9 @@ class TransformerV2Module(TransformerModuleBase):
         num_features = (
             len(config.input_columns) if config.input_columns is not None else 0
         )
+        num_features += (
+            len(config.known_past_columns) if config.known_past_columns else 0
+        )
         num_features += 1  # add target
 
         default_kwargs |= {

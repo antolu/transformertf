@@ -30,6 +30,7 @@ class EncoderDecoderPredictDataset(
         target_transform: BaseTransform | None = None,
         input_columns: list[str] | None = None,
         target_column: str | None = None,
+        known_past_columns: list[str] | None = None,
         dtype: torch.dtype = torch.float32,
     ) -> None:
         """
@@ -97,12 +98,24 @@ class EncoderDecoderPredictDataset(
         self._target_length = prediction_length
         self._dtype = dtype
 
+        past_known_covariates = (
+            extract_covariates_from_df(past_covariates, known_past_columns)
+            if known_past_columns is not None
+            and isinstance(past_covariates, pd.DataFrame)
+            else None
+        )
+
         past_covariates = extract_covariates_from_df(past_covariates, input_columns)
         future_covariates = extract_covariates_from_df(future_covariates, input_columns)
         past_target = extract_covariates_from_df(past_target, target_column)
 
         past_covariates = keep_only_context(past_covariates, context_length)
         past_target = keep_only_context(past_target, context_length)
+        past_known_covariates = (
+            keep_only_context(past_known_covariates, context_length)  # type: ignore[arg-type]
+            if past_known_covariates is not None
+            else None
+        )
 
         self._past_covariates = apply_transforms(past_covariates, self._input_transform)
         self._future_covariates = apply_transforms(
@@ -111,11 +124,21 @@ class EncoderDecoderPredictDataset(
         self._past_target = apply_transforms(
             past_target, self._target_transform, past_covariates[..., 0]
         )
+        self._past_known_covariates = (
+            apply_transforms(past_known_covariates, self._input_transform)  # type: ignore[arg-type]
+            if past_known_covariates is not None
+            else None
+        )
 
         # convert to torch tensors
         self._past_covariates = convert_data(self._past_covariates, dtype)[0]
         self._future_covariates = convert_data(self._future_covariates, dtype)[0]
         self._past_target = convert_data(self._past_target, dtype)[0]
+        self._past_known_covariates = (
+            convert_data(self._past_known_covariates, dtype)[0]
+            if self._past_known_covariates is not None
+            else None
+        )
 
         self._sample_generator = TransformerPredictionSampleGenerator(
             past_covariates=self._past_covariates,
@@ -123,6 +146,7 @@ class EncoderDecoderPredictDataset(
             past_targets=self._past_target,
             context_length=context_length,
             prediction_length=prediction_length,
+            known_past_covariates=self._past_known_covariates,
         )
 
     def append_past_target(
@@ -141,6 +165,23 @@ class EncoderDecoderPredictDataset(
             past_target = torch.as_tensor(past_target)
 
         self._sample_generator.add_target_context(past_target)
+
+    def append_past_covariates(
+        self,
+        past_covariates: np.ndarray | torch.Tensor,
+        *,
+        transform: bool = False,
+    ) -> None:
+        """
+        Appends the past covariates to the dataset. This method must be called
+        between iterations to append the past covariates to the dataset.
+        """
+        if transform:
+            past_covariates = apply_transforms(past_covariates, self._input_transform)
+        else:
+            past_covariates = torch.as_tensor(past_covariates)
+
+        self._sample_generator.add_known_past_context(past_covariates)
 
     def __getitem__(self, idx: int) -> EncoderDecoderSample:
         return self._sample_generator[idx]
