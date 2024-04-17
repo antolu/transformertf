@@ -1,7 +1,7 @@
 from ..._mod_replace import replace_modname
-from ._config import TemporalFusionTransformerConfig  # noqa: F401
-from ._lightning import TemporalFusionTransformerModule  # noqa: F401
-from ._model import TemporalFusionTransformer  # noqa: F401
+from ._config import TemporalFusionTransformerConfig
+from ._lightning import TemporalFusionTransformerModule
+from ._model import TemporalFusionTransformer
 
 for _mod in (
     TemporalFusionTransformer,
@@ -18,10 +18,10 @@ TFTConfig = TemporalFusionTransformerConfig
 TFTModule = TemporalFusionTransformerModule
 
 __all__ = [
-    "TemporalFusionTransformer",
-    "TemporalFusionTransformerConfig",
-    "TemporalFusionTransformerModule",
     "TFT",
     "TFTConfig",
     "TFTModule",
+    "TemporalFusionTransformer",
+    "TemporalFusionTransformerConfig",
+    "TemporalFusionTransformerModule",
 ]

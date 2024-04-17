@@ -11,7 +11,7 @@ from transformertf.data import TimeSeriesSampleGenerator
 
 
 @pytest.mark.parametrize(
-    "arr,win_size,stride,zero_pad,expected,sample_shape",
+    ("arr", "win_size", "stride", "zero_pad", "expected", "sample_shape"),
     [
         (np.arange(9), 3, 1, False, 7, (3,)),
         (np.arange(9), 3, 1, True, 7, (3,)),
@@ -27,13 +27,11 @@ def test_num_samples(
     arr: np.ndarray,
     win_size: int,
     stride: int,
-    zero_pad: bool,
+    zero_pad: bool,  # noqa: FBT001
     expected: int,
     sample_shape: tuple[int, ...],
 ) -> None:
-    wg = TimeSeriesSampleGenerator(
-        arr, win_size, stride=stride, zero_pad=zero_pad
-    )
+    wg = TimeSeriesSampleGenerator(arr, win_size, stride=stride, zero_pad=zero_pad)
 
     assert len(wg) == expected
     last_sample = wg[-1]
@@ -49,9 +47,7 @@ def test_num_samples(
 # Test 1D data
 
 
-def test_create_window_generator_xy_1d(
-    x_data: np.ndarray, y_data: np.ndarray
-) -> None:
+def test_create_window_generator_xy_1d(x_data: np.ndarray, y_data: np.ndarray) -> None:
     TimeSeriesSampleGenerator(
         x_data,
         3,
@@ -257,9 +253,7 @@ def test_time_series_sample_generator_correct_num_samples_x_2d_stride_2_zero_pad
 def test_time_series_sample_generator_correct_num_samples_xy_2d_stride_2_zero_pad(
     x_data_2d: np.ndarray, y_data_2d: np.ndarray
 ) -> None:
-    wg = TimeSeriesSampleGenerator(
-        x_data_2d, 3, y_data_2d, stride=2, zero_pad=True
-    )
+    wg = TimeSeriesSampleGenerator(x_data_2d, 3, y_data_2d, stride=2, zero_pad=True)
 
     assert len(wg) == 5
 
@@ -345,9 +339,7 @@ def test_time_series_sample_generator_correct_samples_x_2d_stride_2_zero_pad(
 def test_time_series_sample_generator_correct_samples_xy_2d_stride_2_zero_pad(
     x_data_2d: np.ndarray, y_data_2d: np.ndarray
 ) -> None:
-    wg = TimeSeriesSampleGenerator(
-        x_data_2d, 3, y_data_2d, stride=2, zero_pad=True
-    )
+    wg = TimeSeriesSampleGenerator(x_data_2d, 3, y_data_2d, stride=2, zero_pad=True)
 
     assert np.all(wg[0]["input"] == [[0, 1], [2, 3], [4, 5]])
     assert np.all(wg[1]["input"] == [[4, 5], [6, 7], [8, 9]])
@@ -366,22 +358,22 @@ def test_time_series_sample_generator_correct_samples_xy_2d_stride_2_zero_pad(
 
 
 def test_time_series_sample_generator_wrong_array_length_1d() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):  # noqa: PT011
         TimeSeriesSampleGenerator(np.arange(10), 11)
 
 
 def test_time_series_sample_generator_wrong_array_length_2d() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):  # noqa: PT011
         TimeSeriesSampleGenerator(np.arange(10).reshape(5, 2), 11)
 
 
 def test_time_series_sample_generator_wrong_array_length_xy_1d() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):  # noqa: PT011
         TimeSeriesSampleGenerator(np.arange(10), 3, np.arange(20))
 
 
 def test_time_series_sample_generator_wrong_array_length_xy_2d() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):  # noqa: PT011
         TimeSeriesSampleGenerator(
             np.arange(10).reshape(5, 2), 3, np.arange(22).reshape(11, 2)
         )

@@ -18,7 +18,7 @@ class ModeModule(Module):
 
     @mode.setter
     def mode(self, value: int) -> None:
-        assert value in [REGRESSION, NEXT, FUTURE, FITTING, CURRENT]
+        assert value in {REGRESSION, NEXT, FUTURE, FITTING, CURRENT}
         self._mode = value
 
         # if mode is FITTING set module to training.py

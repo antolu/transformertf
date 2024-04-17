@@ -38,7 +38,7 @@ def transformer_v2_module(
     return TransformerV2Module.from_config(config)
 
 
-@pytest.fixture
+@pytest.fixture()
 def datamodule(config: TransformerV2Config) -> EncoderDecoderDataModule:
     return EncoderDecoderDataModule.from_parquet(config)
 
@@ -57,10 +57,10 @@ def test_transformer_v2_forward_pass_simple(
         2,
     )
 
-    batch = dict(
-        encoder_input=x_past,
-        decoder_input=x_future,
-    )
+    batch = {
+        "encoder_input": x_past,
+        "decoder_input": x_future,
+    }
 
     with torch.no_grad():
         y = transformer_v2_module(batch)

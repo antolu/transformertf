@@ -52,7 +52,7 @@ def test_create_prediction_sample_generator_wrong_context_length_1d(
     future_covariates: np.ndarray,
     past_targets: np.ndarray,
 ) -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):  # noqa: PT011
         TransformerPredictionSampleGenerator(
             past_covariates=past_covariates,
             future_covariates=future_covariates,
@@ -67,7 +67,7 @@ def test_create_prediction_sample_generator_wrong_past_covariate_length_1d(
     future_covariates: np.ndarray,
     past_targets: np.ndarray,
 ) -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):  # noqa: PT011
         TransformerPredictionSampleGenerator(
             past_covariates=past_covariates[:-1],
             future_covariates=future_covariates,
@@ -82,7 +82,7 @@ def test_create_prediction_sample_generator_wrong_past_target_length_1d(
     future_covariates: np.ndarray,
     past_targets: np.ndarray,
 ) -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):  # noqa: PT011
         TransformerPredictionSampleGenerator(
             past_covariates=past_covariates,
             future_covariates=future_covariates,
@@ -227,9 +227,7 @@ def test_prediction_sample_generator_add_full_context_iteratively_1d(
         if i > 0:
             assert np.all(
                 sample["encoder_input"][..., 1]
-                == future_targets[
-                    (i - 1) * PREDICTION_LENGTH : i * PREDICTION_LENGTH
-                ]
+                == future_targets[(i - 1) * PREDICTION_LENGTH : i * PREDICTION_LENGTH]
             )
 
         pg.add_target_context(
@@ -260,7 +258,7 @@ def test_prediction_sample_generator_add_too_much_context_1d(
             future_targets[i * PREDICTION_LENGTH : (i + 1) * PREDICTION_LENGTH]
         )
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):  # noqa: PT011
         pg.add_target_context(future_targets[:1])
 
 
@@ -290,9 +288,7 @@ def test_prediction_sample_generator_last_sample_zero_padded_1d(
 
     assert np.all(
         sample["encoder_input"][..., 0]
-        == future_covariates[
-            (3 - 1) * PREDICTION_LENGTH : 3 * PREDICTION_LENGTH
-        ]
+        == future_covariates[(3 - 1) * PREDICTION_LENGTH : 3 * PREDICTION_LENGTH]
     )
     assert np.all(sample["decoder_input"][..., 0] == [9, 0])
     assert np.all(sample["decoder_input"][..., 1] == 0.0)

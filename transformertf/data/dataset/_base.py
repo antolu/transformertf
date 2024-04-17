@@ -23,7 +23,7 @@ if typing.TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-DATA_SOURCE = typing.Union[pd.Series, np.ndarray, torch.Tensor]
+DATA_SOURCE: typing.TypeAlias = pd.Series | np.ndarray | torch.Tensor
 
 DTYPE_MAP = {
     "float32": torch.float32,
@@ -92,12 +92,12 @@ def convert_data(
     ) -> torch.Tensor:
         if isinstance(o, pd.Series):
             return torch.from_numpy(o.to_numpy())
-        elif isinstance(o, np.ndarray):
+        if isinstance(o, np.ndarray):
             return torch.from_numpy(o)
-        elif isinstance(o, torch.Tensor):
+        if isinstance(o, torch.Tensor):
             return o
-        else:
-            raise TypeError(f"Unsupported type {type(o)} for data")
+        msg = f"Unsupported type {type(o)} for data"
+        raise TypeError(msg)
 
     dtype = DTYPE_MAP[dtype] if isinstance(dtype, str) else dtype
     return [to_torch(o).to(dtype) for o in source]
@@ -108,10 +108,8 @@ def _check_index(idx: int, length: int) -> int:
     Checks if an index for __getitem__ is valid.
     """
     if idx > length or idx < -length:
-        raise IndexError(
-            f"Index {idx} is out of bounds for dataset with "
-            f" {length} samples."
-        )
+        msg = f"Index {idx} is out of bounds for dataset with " f" {length} samples."
+        raise IndexError(msg)
 
     if idx < 0:
         idx += length
@@ -130,16 +128,14 @@ def _check_label_data_length(
     present.
     """
     if len(input_data) != len(target_data):
-        raise ValueError(
-            "The number of input and target data sources must be the same."
-        )
+        msg = "The number of input and target data sources must be the same."
+        raise ValueError(msg)
     if not all(
-        [
-            target is not None and len(input_) == len(target)
-            for input_, target in zip(input_data, target_data)
-        ]
+        target is not None and len(input_) == len(target)
+        for input_, target in zip(input_data, target_data, strict=False)
     ):
-        raise ValueError(
+        msg = (
             "The number of samples in the input and target data "
             "sources must be the same."
         )
+        raise ValueError(msg)

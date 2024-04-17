@@ -13,9 +13,9 @@ with weights and reduction options.
 
 from __future__ import annotations
 
+import typing
 
 import torch
-import typing
 
 
 def mape_loss(
@@ -47,15 +47,15 @@ def mape_loss(
     """
     diff = torch.abs((y_true - y_pred) / y_true)
     if weights is not None:
-        diff = diff * weights
+        diff *= weights
     if reduction is None:
         return diff
-    elif reduction == "mean":
+    if reduction == "mean":
         return diff.mean()
-    elif reduction == "sum":
+    if reduction == "sum":
         return diff.sum()
-    else:
-        raise ValueError(f"Invalid reduction method: {reduction}")
+    msg = f"Invalid reduction method: {reduction}"
+    raise ValueError(msg)
 
 
 def smape_loss(
@@ -85,18 +85,14 @@ def smape_loss(
     torch.Tensor
         The SMAPE loss.
     """
-    diff = (
-        2
-        * torch.abs(y_pred - y_true)
-        / (torch.abs(y_true) + torch.abs(y_pred))
-    )
+    diff = 2 * torch.abs(y_pred - y_true) / (torch.abs(y_true) + torch.abs(y_pred))
     if weights is not None:
-        diff = diff * weights
+        diff *= weights
     if reduction is None:
         return diff
-    elif reduction == "mean":
+    if reduction == "mean":
         return diff.mean()
-    elif reduction == "sum":
+    if reduction == "sum":
         return diff.sum()
-    else:
-        raise ValueError(f"Invalid reduction method: {reduction}")
+    msg = f"Invalid reduction method: {reduction}"
+    raise ValueError(msg)

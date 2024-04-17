@@ -4,8 +4,8 @@ import logging
 import typing
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 
 from ._submodules import (
     AdaptiveEmbedding,
@@ -32,20 +32,21 @@ class TransformerXL(nn.Module):
         d_inner: int,
         dropout: float,
         dropatt: float,
-        tie_weight: bool = True,
         d_embed: int | None = None,
         div_val: int = 1,
         tie_projs: list[bool] | None = None,
-        pre_lnorm: bool = False,
         tgt_len: int | None = None,
         ext_len: int | None = None,
         mem_len: int | None = None,
         cutoffs: list[int] | None = None,
-        adapt_inp: bool = False,
-        same_length: bool = False,
         attn_type: typing.Literal[0, 1, 2, 3] = 0,
         clamp_len: int = -1,
         sample_softmax: int = -1,
+        *,
+        tie_weight: bool = True,
+        pre_lnorm: bool = False,
+        adapt_inp: bool = False,
+        same_length: bool = False,
     ):
         super().__init__()
         tie_projs = tie_projs or [False]
@@ -70,7 +71,7 @@ class TransformerXL(nn.Module):
         self.tgt_len = tgt_len
         self.mem_len = mem_len
         self.ext_len = ext_len
-        self.max_klen = sum([k or 0 for k in (tgt_len, ext_len, mem_len)])
+        self.max_klen = sum(k or 0 for k in (tgt_len, ext_len, mem_len))
 
         self.attn_type = attn_type
 
@@ -83,32 +84,31 @@ class TransformerXL(nn.Module):
             "dropatt": dropatt,
             "pre_lnorm": pre_lnorm,
         }
-        layer_cls: typing.Type[nn.Module]
+        layer_cls: type[nn.Module]
         if attn_type == 0:  # the default attention
             layer_cls = RelPartialLearnableDecoderLayer
             layer_kwargs.update(
-                {"tgt_len": tgt_len, "ext_len": ext_len, "mem_len": mem_len}  # type: ignore[dict-item]  # noqa: E501
+                {"tgt_len": tgt_len, "ext_len": ext_len, "mem_len": mem_len}  # type: ignore[dict-item]
             )
         elif attn_type == 1:  # learnable embeddings
             layer_cls = RelLearnableDecoderLayer
             layer_kwargs.update(
-                {"tgt_len": tgt_len, "ext_len": ext_len, "mem_len": mem_len}  # type: ignore[dict-item]  # noqa: E501
+                {"tgt_len": tgt_len, "ext_len": ext_len, "mem_len": mem_len}  # type: ignore[dict-item]
             )
-        elif attn_type in [2, 3]:  # absolute embeddings
+        elif attn_type in {2, 3}:  # absolute embeddings
             layer_cls = DecoderLayer
         else:
-            raise ValueError("Unknown attention type {}".format(attn_type))
+            msg = f"Unknown attention type {attn_type}"
+            raise ValueError(msg)
 
-        self.layers = nn.ModuleList(
-            [layer_cls(**layer_kwargs) for _ in range(n_layer)]
-        )
+        self.layers = nn.ModuleList([layer_cls(**layer_kwargs) for _ in range(n_layer)])
 
         self.sample_softmax = sample_softmax
         # use sampled softmax
         if sample_softmax > 0:
             self.out_layer = nn.Linear(d_model, n_token)
             if tie_weight:
-                self.out_layer.weight = self.word_emb.weight  # type: ignore[assignment]  # noqa: E501
+                self.out_layer.weight = self.word_emb.weight  # type: ignore[assignment]
             self.tie_weight = tie_weight
             self.sampler = LogUniformSampler(n_token, sample_softmax)
 
@@ -120,9 +120,7 @@ class TransformerXL(nn.Module):
 
             if tie_weight:
                 for i in range(len(self.crit.out_layers)):
-                    self.crit.out_layers[i].weight = self.word_emb.emb_layers[
-                        i
-                    ].weight
+                    self.crit.out_layers[i].weight = self.word_emb.emb_layers[i].weight
 
             if tie_projs:
                 for i, tie_proj in enumerate(tie_projs):
@@ -139,17 +137,11 @@ class TransformerXL(nn.Module):
     def _create_params(self) -> None:
         if self.attn_type == 0:  # default attention
             self.pos_emb = PositionalEmbedding(self.d_model)
-            self.r_w_bias = nn.Parameter(
-                torch.Tensor(self.n_head, self.d_head)
-            )
-            self.r_r_bias = nn.Parameter(
-                torch.Tensor(self.n_head, self.d_head)
-            )
+            self.r_w_bias = nn.Parameter(torch.Tensor(self.n_head, self.d_head))
+            self.r_r_bias = nn.Parameter(torch.Tensor(self.n_head, self.d_head))
         elif self.attn_type == 1:  # learnable
             self.r_emb = nn.Parameter(
-                torch.Tensor(
-                    self.n_layer, self.max_klen, self.n_head, self.d_head
-                )
+                torch.Tensor(self.n_layer, self.max_klen, self.n_head, self.d_head)
             )
             self.r_w_bias = nn.Parameter(
                 torch.Tensor(self.n_layer, self.n_head, self.d_head)
@@ -161,9 +153,7 @@ class TransformerXL(nn.Module):
             self.pos_emb = PositionalEmbedding(self.d_model)
         elif self.attn_type == 3:  # absolute deeper SA
             self.r_emb = nn.Parameter(
-                torch.Tensor(
-                    self.n_layer, self.max_klen, self.n_head, self.d_head
-                )
+                torch.Tensor(self.n_layer, self.max_klen, self.n_head, self.d_head)
             )
 
     def reset_length(self, tgt_len: int, ext_len: int, mem_len: int) -> None:
@@ -180,8 +170,7 @@ class TransformerXL(nn.Module):
                 mems.append(empty)
 
             return mems
-        else:
-            return None
+        return None
 
     def _update_mems(
         self,
@@ -217,7 +206,7 @@ class TransformerXL(nn.Module):
         dec_inp: torch.Tensor,
         mems: typing.Sequence[torch.Tensor] | None = None,
     ) -> tuple[torch.Tensor, list[torch.Tensor] | None]:
-        qlen, bsz = dec_inp.size()
+        qlen, _bsz = dec_inp.size()
 
         word_emb = self.word_emb(dec_inp)
 
@@ -226,13 +215,9 @@ class TransformerXL(nn.Module):
         if self.same_length:
             all_ones = word_emb.new_ones(qlen, klen)
             mask_len = klen - (self.mem_len or 0)
-            if mask_len > 0:
-                mask_shift_len = qlen - mask_len
-            else:
-                mask_shift_len = qlen
+            mask_shift_len = qlen - mask_len if mask_len > 0 else qlen
             dec_attn_mask = (
-                torch.triu(all_ones, 1 + mlen)
-                + torch.tril(all_ones, -mask_shift_len)
+                torch.triu(all_ones, 1 + mlen) + torch.tril(all_ones, -mask_shift_len)
             ).byte()[:, :, None]  # -1
         else:
             dec_attn_mask = torch.triu(
@@ -306,9 +291,7 @@ class TransformerXL(nn.Module):
                 mems_i = None if mems is None else mems[i]
                 if mems_i is not None and i == 0:
                     mems_i += pos_emb[:mlen]
-                core_out = layer(
-                    core_out, dec_attn_mask=dec_attn_mask, mems=mems_i
-                )
+                core_out = layer(core_out, dec_attn_mask=dec_attn_mask, mems=mems_i)
                 hids.append(core_out)
         elif self.attn_type == 3:
             core_out = self.drop(word_emb)
@@ -320,18 +303,14 @@ class TransformerXL(nn.Module):
                     cur_emb = self.r_emb[i][:-qlen]
                     cur_size = cur_emb.size(0)
                     if cur_size < mlen:
-                        cur_emb_pad = cur_emb[0:1].expand(
-                            mlen - cur_size, -1, -1
-                        )
+                        cur_emb_pad = cur_emb[0:1].expand(mlen - cur_size, -1, -1)
                         cur_emb = torch.cat([cur_emb_pad, cur_emb], 0)
                     else:
                         cur_emb = cur_emb[-mlen:]
                     mems_i += cur_emb.view(mlen, 1, -1)
                 core_out += self.r_emb[i][-qlen:].view(qlen, 1, -1)
 
-                core_out = layer(
-                    core_out, dec_attn_mask=dec_attn_mask, mems=mems_i
-                )
+                core_out = layer(core_out, dec_attn_mask=dec_attn_mask, mems=mems_i)
                 hids.append(core_out)
 
         core_out = self.drop(core_out)
@@ -367,12 +346,9 @@ class TransformerXL(nn.Module):
             )
             loss = -F.log_softmax(logit, -1)[:, :, 0]
         else:
-            loss = self.crit(
-                pred_hid.view(-1, pred_hid.size(-1)), target.view(-1)
-            )
+            loss = self.crit(pred_hid.view(-1, pred_hid.size(-1)), target.view(-1))
             loss = loss.view(tgt_len, -1)
 
         if new_mems is None:
             return [loss]
-        else:
-            return [loss] + new_mems
+        return [loss, *new_mems]

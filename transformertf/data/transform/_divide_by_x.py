@@ -18,7 +18,7 @@ class DivideByXTransform(BaseTransform):
         self,
         x: torch.Tensor | np.ndarray | None = None,
         y: torch.Tensor | np.ndarray | None = None,
-    ) -> "DivideByXTransform":
+    ) -> DivideByXTransform:
         if x is not None:
             log.warning(
                 "DivideByXTransform does not require fitting, ignoring input data"
@@ -36,7 +36,8 @@ class DivideByXTransform(BaseTransform):
         y: torch.Tensor | np.ndarray | None = None,
     ) -> torch.Tensor:
         if y is None:
-            raise ValueError("y cannot be None for DivideByXTransform")
+            msg = "y cannot be None for DivideByXTransform"
+            raise ValueError(msg)
 
         x = _as_torch(x)
         y = _as_torch(y)
@@ -49,12 +50,13 @@ class DivideByXTransform(BaseTransform):
         y: torch.Tensor | np.ndarray | None = None,
     ) -> torch.Tensor:
         if y is None:
-            raise ValueError("y cannot be None for DivideByXTransform")
+            msg = "y cannot be None for DivideByXTransform"
+            raise ValueError(msg)
 
         x = _as_torch(x)
         y = _as_torch(y)
 
         return y * x
 
-    def __sklearn_is_fitted__(self) -> bool:
+    def __sklearn_is_fitted__(self) -> bool:  # noqa: PLW3201
         return True

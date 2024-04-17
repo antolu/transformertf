@@ -6,62 +6,57 @@ import pytest
 from transformertf.data import TimeSeriesDataset
 
 
-@pytest.fixture
+@pytest.fixture()
 def x1_1d() -> np.ndarray:
     return np.arange(10)
 
 
-@pytest.fixture
+@pytest.fixture()
 def x1_2d() -> np.ndarray:
-    return np.array(
-        [[1, 2, 3, 4, 5, 6, 7, 8, 9], [10, 11, 12, 13, 14, 15, 16, 17, 18]]
-    ).T
+    return np.array([
+        [1, 2, 3, 4, 5, 6, 7, 8, 9],
+        [10, 11, 12, 13, 14, 15, 16, 17, 18],
+    ]).T
 
 
-@pytest.fixture
+@pytest.fixture()
 def x2_1d() -> np.ndarray:
     return np.arange(start=-10, stop=0)
 
 
-@pytest.fixture
+@pytest.fixture()
 def x2_2d() -> np.ndarray:
-    return np.array(
-        [
-            [-1, -2, -3, -4, -5, -6, -7, -8, -9],
-            [-10, -11, -12, -13, -14, -15, -16, -17, -18],
-        ]
-    ).T
+    return np.array([
+        [-1, -2, -3, -4, -5, -6, -7, -8, -9],
+        [-10, -11, -12, -13, -14, -15, -16, -17, -18],
+    ]).T
 
 
-@pytest.fixture
+@pytest.fixture()
 def y1_1d() -> np.ndarray:
     return np.arange(10) / 10
 
 
-@pytest.fixture
+@pytest.fixture()
 def y1_2d() -> np.ndarray:
     return (
-        np.array(
-            [[1, 2, 3, 4, 5, 6, 7, 8, 9], [10, 11, 12, 13, 14, 15, 16, 17, 18]]
-        )
+        np.array([[1, 2, 3, 4, 5, 6, 7, 8, 9], [10, 11, 12, 13, 14, 15, 16, 17, 18]])
         / 10
     ).T
 
 
-@pytest.fixture
+@pytest.fixture()
 def y2_1d() -> np.ndarray:
     return np.arange(start=-10, stop=0) / 10
 
 
-@pytest.fixture
+@pytest.fixture()
 def y2_2d() -> np.ndarray:
     return (
-        np.array(
-            [
-                [-1, -2, -3, -4, -5, -6, -7, -8, -9],
-                [-10, -11, -12, -13, -14, -15, -16, -17, -18],
-            ]
-        )
+        np.array([
+            [-1, -2, -3, -4, -5, -6, -7, -8, -9],
+            [-10, -11, -12, -13, -14, -15, -16, -17, -18],
+        ])
         / 10
     ).T
 
@@ -75,9 +70,7 @@ def test_dataset_train_1d_single(x1_1d: np.ndarray, y1_1d: np.ndarray) -> None:
     assert dataset[0]["target"].shape == (3, 1)
 
 
-def test_dataset_train_1d_multiple(
-    x1_1d: np.ndarray, y1_1d: np.ndarray
-) -> None:
+def test_dataset_train_1d_multiple(x1_1d: np.ndarray, y1_1d: np.ndarray) -> None:
     dataset = TimeSeriesDataset(
         input_data=[x1_1d, x1_1d], seq_len=3, target_data=[y1_1d, y1_1d]
     )
@@ -97,9 +90,7 @@ def test_dataset_train_2d_single(x1_2d: np.ndarray, y1_2d: np.ndarray) -> None:
     assert dataset[0]["target"].shape == (3, 2)
 
 
-def test_dataset_train_2d_multiple(
-    x1_2d: np.ndarray, y1_2d: np.ndarray
-) -> None:
+def test_dataset_train_2d_multiple(x1_2d: np.ndarray, y1_2d: np.ndarray) -> None:
     dataset = TimeSeriesDataset(
         input_data=[x1_2d, x1_2d], seq_len=3, target_data=[y1_2d, y1_2d]
     )
@@ -123,9 +114,7 @@ def test_dataset_test_1d_single(x2_1d: np.ndarray, y2_1d: np.ndarray) -> None:
     assert sample["target"].shape == (3, 1)
 
 
-def test_dataset_test_1d_multiple(
-    x2_1d: np.ndarray, y2_1d: np.ndarray
-) -> None:
+def test_dataset_test_1d_multiple(x2_1d: np.ndarray, y2_1d: np.ndarray) -> None:
     dataset = TimeSeriesDataset(
         input_data=[x2_1d, x2_1d],
         seq_len=3,
@@ -154,9 +143,7 @@ def test_dataset_test_2d_single(x2_2d: np.ndarray, y2_2d: np.ndarray) -> None:
     assert sample["target"].shape == (3, 2)
 
 
-def test_dataset_test_2d_multiple(
-    x2_2d: np.ndarray, y2_2d: np.ndarray
-) -> None:
+def test_dataset_test_2d_multiple(x2_2d: np.ndarray, y2_2d: np.ndarray) -> None:
     dataset = TimeSeriesDataset(
         input_data=[x2_2d, x2_2d],
         seq_len=3,
@@ -183,7 +170,7 @@ def test_dataset_predict_1d_single(x1_1d: np.ndarray) -> None:
 
 
 def test_dataset_predict_1d_multiple(x1_1d: np.ndarray) -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):  # noqa: PT011
         TimeSeriesDataset(input_data=[x1_1d, x1_1d], seq_len=3, predict=True)
 
 
@@ -198,12 +185,12 @@ def test_dataset_predict_2d_single(x1_2d: np.ndarray) -> None:
 
 
 def test_dataset_predict_2d_multiple(x1_2d: np.ndarray) -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):  # noqa: PT011
         TimeSeriesDataset(input_data=[x1_2d, x1_2d], seq_len=3, predict=True)
 
 
 def test_dataset_num_points_1d_single(x1_1d: np.ndarray) -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):  # noqa: PT011
         dataset = TimeSeriesDataset(input_data=x1_1d, seq_len=3)
     dataset = TimeSeriesDataset(input_data=x1_1d, seq_len=3, predict=True)
 
@@ -211,12 +198,12 @@ def test_dataset_num_points_1d_single(x1_1d: np.ndarray) -> None:
 
 
 def test_dataset_num_points_1d_multiple(x1_1d: np.ndarray) -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):  # noqa: PT011
         TimeSeriesDataset(input_data=[x1_1d, x1_1d], seq_len=3)
 
 
 def test_dataset_num_points_2d_single(x1_2d: np.ndarray) -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):  # noqa: PT011
         dataset = TimeSeriesDataset(input_data=x1_2d, seq_len=3)
 
     dataset = TimeSeriesDataset(input_data=x1_2d, seq_len=3, predict=True)
@@ -224,7 +211,7 @@ def test_dataset_num_points_2d_single(x1_2d: np.ndarray) -> None:
 
 
 def test_dataset_num_points_2d_multiple(x1_2d: np.ndarray) -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):  # noqa: PT011
         TimeSeriesDataset(input_data=[x1_2d, x1_2d], seq_len=3)
 
 
@@ -245,16 +232,14 @@ def test_dataset_randomize_seq_len_1d_single(
 
 
 def test_dataset_seq_len_none(x1_1d: np.ndarray, y1_1d: np.ndarray) -> None:
-    dataset = TimeSeriesDataset(
-        input_data=x1_1d, target_data=y1_1d, seq_len=None
-    )
+    dataset = TimeSeriesDataset(input_data=x1_1d, target_data=y1_1d, seq_len=None)
 
     assert len(dataset) == 1
     assert dataset.num_points == 10
 
 
 def test_dataset_seq_len_none_2x(x1_1d: np.ndarray, y1_1d: np.ndarray) -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):  # noqa: PT011
         dataset = TimeSeriesDataset(
             input_data=[x1_1d, x1_1d], target_data=[y1_1d, y1_1d], seq_len=None
         )

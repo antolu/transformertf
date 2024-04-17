@@ -3,7 +3,6 @@ from __future__ import annotations
 import pytest
 import torch
 
-
 from transformertf.nn import ResampleNorm
 
 

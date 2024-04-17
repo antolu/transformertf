@@ -10,14 +10,14 @@ BATCH_SIZE = 4
 SEQ_LEN = 100
 
 
-@pytest.fixture
+@pytest.fixture()
 def batch() -> tuple[torch.Tensor, torch.Tensor]:
     x = torch.randn(BATCH_SIZE, SEQ_LEN, 1)
     y = torch.randn(BATCH_SIZE, SEQ_LEN, 1)
     return x, y
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample(batch: tuple[torch.Tensor, torch.Tensor]) -> TimeSeriesSample:
     x, y = batch
     return {
@@ -27,7 +27,7 @@ def sample(batch: tuple[torch.Tensor, torch.Tensor]) -> TimeSeriesSample:
     }
 
 
-@pytest.fixture
+@pytest.fixture()
 def module() -> LSTMModule:
     config = LSTMConfig(hidden_size=10, hidden_size_fc=16, num_layers=1)
     module = LSTMModule.from_config(config, num_features=1)

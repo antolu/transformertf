@@ -36,14 +36,32 @@ class TransformerEncoderModule(LightningModuleBase):
         optimizer_kwargs: dict[str, typing.Any] | None = None,
         reduce_on_plateau_patience: int = 200,
         max_epochs: int = 1000,
-        validate_every_n_epochs: int = 50,
-        log_grad_norm: bool = False,
-        criterion: (
-            QuantileLoss | torch.nn.MSELoss | torch.nn.HuberLoss | None
-        ) = None,
+        criterion: (QuantileLoss | torch.nn.MSELoss | torch.nn.HuberLoss | None) = None,
         lr_scheduler: str | LR_CALL_TYPE | None = None,
         lr_scheduler_interval: typing.Literal["epoch", "step"] = "epoch",
+        *,
+        log_grad_norm: bool = False,
     ):
+        if isinstance(criterion, QuantileLoss):
+            if output_dim != len(criterion.quantiles):
+                msg = (
+                    "output_dim must be equal to the number of quantiles "
+                    "in the QuantileLoss criterion."
+                )
+                raise ValueError(msg)
+        elif criterion is not None and output_dim != 1:
+            msg = "output_dim must be 1 if a custom criterion is specified."
+            raise ValueError(msg)
+        elif criterion is None and output_dim != 7:
+            msg = (
+                "output_dim must be 7 if criterion is None as "
+                "default criterion is QuantileLoss. "
+                "Otherwise, specify a custom criterion."
+            )
+            raise ValueError(msg)
+        elif criterion is None:
+            criterion = QuantileLoss()
+
         super().__init__(
             lr=lr,
             weight_decay=weight_decay,
@@ -52,35 +70,12 @@ class TransformerEncoderModule(LightningModuleBase):
             optimizer_kwargs=optimizer_kwargs or {},
             reduce_on_plateau_patience=reduce_on_plateau_patience,
             max_epochs=max_epochs,
-            validate_every_n_epochs=validate_every_n_epochs,
             log_grad_norm=log_grad_norm,
             lr_scheduler=lr_scheduler,
             lr_scheduler_interval=lr_scheduler_interval,
+            criterion=criterion,
         )
         self.save_hyperparameters(ignore=["lr_scheduler", "criterion"])
-
-        self._lr_scheduler = lr_scheduler
-
-        if isinstance(criterion, QuantileLoss):
-            if output_dim != len(criterion.quantiles):
-                raise ValueError(
-                    "output_dim must be equal to the number of quantiles "
-                    "in the QuantileLoss criterion."
-                )
-        elif criterion is not None and output_dim != 1:
-            raise ValueError(
-                "output_dim must be 1 if a custom criterion is specified."
-            )
-        elif criterion is None and output_dim != 7:
-            raise ValueError(
-                "output_dim must be 7 if criterion is None as "
-                "default criterion is QuantileLoss. "
-                "Otherwise, specify a custom criterion."
-            )
-        elif criterion is None:
-            criterion = QuantileLoss()
-
-        self.criterion = criterion
 
         self.model = TransformerEncoder(
             num_features=num_features,
@@ -102,32 +97,29 @@ class TransformerEncoderModule(LightningModuleBase):
     ) -> dict[str, typing.Any]:
         default_kwargs = super().parse_config_kwargs(config, **kwargs)
         num_features = (
-            len(config.input_columns)
-            if config.input_columns is not None
-            else 0
+            len(config.input_columns) if config.input_columns is not None else 0
         )
         num_features += 1  # add target
 
         if num_features == 1:
-            raise ValueError(
+            msg = (
                 "num_features must be greater than 1. "
                 "Please specify input_columns in config, or "
                 "pass in a different value for num_features."
             )
+            raise ValueError(msg)
 
-        default_kwargs.update(
-            dict(
-                num_features=num_features,
-                seq_len=config.ctxt_seq_len + config.tgt_seq_len,
-                n_dim_model=config.n_dim_model,
-                num_heads=config.num_heads,
-                num_encoder_layers=config.num_encoder_layers,
-                dropout=config.dropout,
-                activation=config.activation,
-                fc_dim=config.fc_dim,
-                output_dim=config.output_dim,
-            )
-        )
+        default_kwargs.update({
+            "num_features": num_features,
+            "seq_len": config.ctxt_seq_len + config.tgt_seq_len,
+            "n_dim_model": config.n_dim_model,
+            "num_heads": config.num_heads,
+            "num_encoder_layers": config.num_encoder_layers,
+            "dropout": config.dropout,
+            "activation": config.activation,
+            "fc_dim": config.fc_dim,
+            "output_dim": config.output_dim,
+        })
 
         default_kwargs.update(kwargs)
 

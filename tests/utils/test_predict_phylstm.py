@@ -12,12 +12,12 @@ from transformertf.models.phylstm import (
 from transformertf.utils.predict import predict_phylstm
 
 
-@pytest.fixture
+@pytest.fixture()
 def past_covariates(df: pd.DataFrame) -> pd.DataFrame:
     return df[["I_meas_A"]].iloc[:1000]
 
 
-@pytest.fixture
+@pytest.fixture()
 def future_covariates(df: pd.DataFrame) -> pd.DataFrame:
     return df[["I_meas_A"]].iloc[1000:10000]
 
@@ -33,7 +33,6 @@ def phylstm_config() -> PhyLSTMConfig:
         dropout=0.0,
         batch_size=8,
         normalize=True,
-        remove_polynomial=False,
         downsample_method="average",
         extra_transforms={"B_meas_T": [DivideByXTransform()]},
         target_depends_on="I_meas_A",
@@ -43,9 +42,7 @@ def phylstm_config() -> PhyLSTMConfig:
 
 
 @pytest.fixture(scope="module")
-def phylstm_module(
-    phylstm_config: PhyLSTMConfig, df: pd.DataFrame
-) -> PhyLSTMModule:
+def phylstm_module(phylstm_config: PhyLSTMConfig, df: pd.DataFrame) -> PhyLSTMModule:
     return PhyLSTMModule.from_config(phylstm_config)
 
 

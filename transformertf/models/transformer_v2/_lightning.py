@@ -6,8 +6,7 @@ import torch
 
 from ...data import EncoderDecoderTargetSample
 from ...nn import QuantileLoss
-from ...utils.loss import get_loss
-from .._base_module import LightningModuleBase
+from .._base_transformer import TransformerModuleBase
 from ..typing import LR_CALL_TYPE, OPT_CALL_TYPE
 from ._config import TransformerV2Config
 from ._model import TransformerV2
@@ -16,7 +15,7 @@ if typing.TYPE_CHECKING:
     SameType = typing.TypeVar("SameType", bound="TransformerV2Module")
 
 
-class TransformerV2Module(LightningModuleBase):
+class TransformerV2Module(TransformerModuleBase):
     def __init__(
         self,
         num_features: int,
@@ -38,13 +37,19 @@ class TransformerV2Module(LightningModuleBase):
         optimizer_kwargs: dict[str, typing.Any] | None = None,
         reduce_on_plateau_patience: int = 200,
         max_epochs: int = 1000,
-        validate_every_n_epochs: int = 50,
-        log_grad_norm: bool = False,
         criterion: QuantileLoss | torch.nn.Module | None = None,
         prediction_type: typing.Literal["delta", "point"] = "point",
         lr_scheduler: str | LR_CALL_TYPE | None = None,
         lr_scheduler_interval: typing.Literal["epoch", "step"] = "epoch",
+        *,
+        log_grad_norm: bool = False,
     ):
+        if criterion is None:
+            criterion = QuantileLoss()
+            self.hparams["output_dim"] = len(criterion.quantiles)
+            output_dim = self.hparams["output_dim"]
+
+        self.save_hyperparameters(ignore=["lr_scheduler", "criterion"])
         super().__init__(
             lr=lr,
             weight_decay=weight_decay,
@@ -53,19 +58,11 @@ class TransformerV2Module(LightningModuleBase):
             optimizer_kwargs=optimizer_kwargs or {},
             reduce_on_plateau_patience=reduce_on_plateau_patience,
             max_epochs=max_epochs,
-            validate_every_n_epochs=validate_every_n_epochs,
             log_grad_norm=log_grad_norm,
             lr_scheduler=lr_scheduler,
             lr_scheduler_interval=lr_scheduler_interval,
+            criterion=criterion,
         )
-        if criterion is None:
-            self.criterion = QuantileLoss()
-            output_dim = 7
-        else:
-            self.criterion = criterion
-        self.save_hyperparameters(ignore=["lr_scheduler", "criterion"])
-
-        self._lr_scheduler = lr_scheduler
 
         self.model = TransformerV2(
             num_features=num_features,
@@ -83,50 +80,39 @@ class TransformerV2Module(LightningModuleBase):
         )
 
     @classmethod
-    def parse_config_kwargs(  # type: ignore[override]
+    def parse_config_kwargs(
         cls,
-        config: TransformerV2Config,
+        config: TransformerV2Config,  # type: ignore[override]
         **kwargs: typing.Any,
     ) -> dict[str, typing.Any]:
         default_kwargs = super().parse_config_kwargs(config, **kwargs)
         num_features = (
-            len(config.input_columns)
-            if config.input_columns is not None
-            else 0
+            len(config.input_columns) if config.input_columns is not None else 0
         )
         num_features += 1  # add target
 
-        default_kwargs.update(
-            dict(
-                num_features=num_features,
-                ctxt_seq_len=config.ctxt_seq_len,
-                tgt_seq_len=config.tgt_seq_len,
-                n_dim_model=config.n_dim_model,
-                num_heads=config.num_heads,
-                num_encoder_layers=config.num_encoder_layers,
-                num_decoder_layers=config.num_decoder_layers,
-                dropout=config.dropout,
-                activation=config.activation,
-                embedding=config.embedding,
-                fc_dim=config.fc_dim,
-                output_dim=config.output_dim,
-                prediction_type=config.prediction_type,
-            )
-        )
+        default_kwargs |= {
+            "num_features": num_features,
+            "n_dim_model": config.n_dim_model,
+            "num_heads": config.num_heads,
+            "num_encoder_layers": config.num_encoder_layers,
+            "num_decoder_layers": config.num_decoder_layers,
+            "dropout": config.dropout,
+            "activation": config.activation,
+            "embedding": config.embedding,
+            "fc_dim": config.fc_dim,
+            "output_dim": config.output_dim,
+        }
 
-        default_kwargs.update(kwargs)
-
-        if "loss_fn" in default_kwargs and isinstance(
-            default_kwargs["loss_fn"], str
-        ):
-            default_kwargs["criterion"] = get_loss(default_kwargs["loss_fn"])  # type: ignore[arg-type]
+        default_kwargs |= kwargs
 
         if num_features == 1:
-            raise ValueError(
+            error_message = (
                 "num_features must be greater than 1. "
                 "Please specify input_columns in config, or "
                 "pass in a different value for num_features."
             )
+            raise ValueError(error_message)
 
         return default_kwargs
 
@@ -134,8 +120,6 @@ class TransformerV2Module(LightningModuleBase):
         return self.model(
             source=x["encoder_input"],
             target=x["decoder_input"],
-            # src_mask=x.get("encoder_mask"),
-            # tgt_mask=x.get("decoder_mask"),
         )
 
     def training_step(
@@ -167,7 +151,6 @@ class TransformerV2Module(LightningModuleBase):
         loss = self.calc_loss(model_output, batch)
 
         loss_dict = {"loss": loss}
-        point_prediction_dict: dict[str, torch.Tensor] = {}
         if isinstance(self.criterion, QuantileLoss):
             point_prediction = self.criterion.point_prediction(model_output)
             point_prediction_dict = {"point_prediction": point_prediction}
@@ -175,27 +158,3 @@ class TransformerV2Module(LightningModuleBase):
         self.common_log_step(loss_dict, "validation")
 
         return loss_dict | {"output": model_output} | point_prediction_dict
-
-    def calc_loss(
-        self,
-        model_output: torch.Tensor,
-        batch: EncoderDecoderTargetSample,
-    ) -> torch.Tensor:
-        if self.hparams["prediction_type"] == "delta":
-            with torch.no_grad():
-                target = batch["target"].squeeze(-1)
-                delta = torch.zeros_like(target)
-                delta[:, 1:] = target[:, 1:] - target[:, :-1]
-
-                past_target = batch["encoder_input"][:, -1, -1]
-                delta[:, 0] = past_target - target[:, 0]
-
-            return typing.cast(
-                torch.Tensor, self.criterion(model_output, delta)
-            )
-
-        elif self.hparams["prediction_type"] == "point":
-            target = batch["target"].squeeze(-1)
-            return typing.cast(
-                torch.Tensor, self.criterion(model_output, target)
-            )

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 
 class GradientTorch(nn.Module):
@@ -22,5 +22,5 @@ class GradientTorch(nn.Module):
         # The first and last gradient receive unit weight, the others
         # double that.
         weights = torch.ones_like(data)
-        weights[:, 1:-1, :] = weights[:, 1:-1, :] * 2.0
+        weights[:, 1:-1, :] *= 2.0
         return (after - before) / weights

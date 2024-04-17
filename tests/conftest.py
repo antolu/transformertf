@@ -11,7 +11,6 @@ import torch
 def random_seed() -> int:
     seed = 0
     random.seed(seed)
-    numpy.random.seed(seed)
     torch.manual_seed(seed)
 
     return seed
@@ -28,6 +27,6 @@ def df() -> pd.DataFrame:
     df = pd.read_parquet(DF_PATH)
     df = df.dropna()
     df = df.reset_index(drop=True)
-    df[FIELD_DOT] = numpy.gradient(df[FIELD].values)  # type: ignore
+    df[FIELD_DOT] = numpy.gradient(df[FIELD].to_numpy())
 
     return df

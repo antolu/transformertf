@@ -21,25 +21,23 @@ class TransformerDataModule(DataModuleBase):
         val_df: pd.DataFrame | list[pd.DataFrame],
         input_columns: str | typing.Sequence[str],
         target_column: str,
-        normalize: bool = True,
+        normalize: bool = True,  # noqa: FBT001, FBT002
         ctxt_seq_len: int = 500,
         tgt_seq_len: int = 300,
         min_ctxt_seq_len: int | None = None,
         min_tgt_seq_len: int | None = None,
-        randomize_seq_len: bool = False,
+        randomize_seq_len: bool = False,  # noqa: FBT001, FBT002
         stride: int = 1,
         downsample: int = 1,
         downsample_method: typing.Literal[
             "interval", "average", "convolve"
         ] = "interval",
-        remove_polynomial: bool = False,
-        polynomial_degree: int = 1,
-        polynomial_iterations: int = 1000,
         target_depends_on: str | None = None,
         extra_transforms: dict[str, list[BaseTransform]] | None = None,
         batch_size: int = 128,
         num_workers: int = 0,
         dtype: str = "float32",
+        *,
         distributed_sampler: bool = False,
     ):
         super().__init__(
@@ -50,9 +48,6 @@ class TransformerDataModule(DataModuleBase):
             normalize=normalize,
             downsample=downsample,
             downsample_method=downsample_method,
-            remove_polynomial=remove_polynomial,
-            polynomial_degree=polynomial_degree,
-            polynomial_iterations=polynomial_iterations,
             target_depends_on=target_depends_on,
             batch_size=batch_size,
             num_workers=num_workers,
@@ -87,12 +82,12 @@ class EncoderDecoderDataModule(TransformerDataModule):
         self,
         input_data: np.ndarray,
         target_data: np.ndarray | None = None,
+        *,
         predict: bool = False,
     ) -> EncoderDecoderDataset:
         if target_data is None:
-            raise ValueError(
-                "Target data must be provided for an encoder-decoder model."
-            )
+            msg = "Target data must be provided for an encoder-decoder model."
+            raise ValueError(msg)
 
         return EncoderDecoderDataset(
             input_data=input_data,
@@ -117,12 +112,12 @@ class EncoderDataModule(TransformerDataModule):
         self,
         input_data: np.ndarray,
         target_data: np.ndarray | None = None,
+        *,
         predict: bool = False,
     ) -> EncoderDataset:
         if target_data is None:
-            raise ValueError(
-                "Target data should not be provided for an encoder model."
-            )
+            msg = "Target data should not be provided for an encoder model."
+            raise ValueError(msg)
 
         return EncoderDataset(
             input_data=input_data,

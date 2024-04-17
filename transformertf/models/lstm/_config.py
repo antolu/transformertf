@@ -16,4 +16,4 @@ class LSTMConfig(TimeSeriesBaseConfig):
     num_layers: int = 3
     dropout: float = 0.2
 
-    loss_fn: typing.Literal["mse", "huber", "l1"] = "mse"
+    loss_fn: typing.Literal["mse", "huber", "mae", "quantile"] = "mse"

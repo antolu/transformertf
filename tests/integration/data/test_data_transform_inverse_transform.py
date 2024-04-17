@@ -66,8 +66,8 @@ def test_data_transform_inverse_transform(dm: TimeSeriesDataModule) -> None:
     x = x.numpy().flatten()
     y = y.numpy().flatten()
 
-    x_true = df[CURRENT].values
-    y_true = df[FIELD].values
+    x_true = df[CURRENT].to_numpy()
+    y_true = df[FIELD].to_numpy()
 
     assert np.allclose(x, x_true)
     assert np.allclose(y, y_true)
@@ -80,10 +80,8 @@ def phylstm_dm() -> PhyLSTMDataModule:
         config,
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
-        polynomial_iterations=10,
         downsample=100,
         lowpass_filter=False,
-        mean_filter=False,
         dtype=torch.float64,
         target_depends_on=CURRENT,
     )
@@ -126,8 +124,8 @@ def test_phylstm_data_transform_inverse_transform(
     x = x.numpy().flatten()
     y = y.numpy().flatten()
 
-    x_true = df[CURRENT].values
-    y_true = df[FIELD].values
+    x_true = df[CURRENT].to_numpy()
+    y_true = df[FIELD].to_numpy()
 
     assert np.allclose(x, x_true)
     assert np.allclose(y, y_true, atol=1e-5)

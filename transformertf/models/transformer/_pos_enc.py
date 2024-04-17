@@ -7,9 +7,7 @@ __all__ = ["SimplePositionalEncoding"]
 
 
 class SimplePositionalEncoding(torch.nn.Module):
-    def __init__(
-        self, dim_model: int, dropout: float = 0.1, max_len: int = 5000
-    ):
+    def __init__(self, dim_model: int, dropout: float = 0.1, max_len: int = 5000):
         super().__init__()
 
         self.dropout = torch.nn.Dropout(p=dropout)
@@ -27,5 +25,5 @@ class SimplePositionalEncoding(torch.nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Creates a basic positional encoding"""
-        x = x + self.pe[: x.size(0), :]
+        x += self.pe[: x.size(0), :]
         return self.dropout(x)

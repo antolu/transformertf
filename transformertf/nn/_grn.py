@@ -63,8 +63,7 @@ class GatedResidualNetwork(torch.nn.Module):
         else:
             self.resample = torch.nn.Identity()
 
-        self.dropout = torch.nn.Dropout(dropout)
-        self.glu1 = GatedLinearUnit(output_dim)
+        self.glu1 = GatedLinearUnit(output_dim, dropout=dropout)
         self.norm = torch.nn.LayerNorm(output_dim)
 
         self.activation = get_activation(activation)
@@ -90,12 +89,9 @@ class GatedResidualNetwork(torch.nn.Module):
 
         x = self.fc1(x)
         if self.fc3 is not None:
-            x = x + self.fc3(context)
+            x += self.fc3(context)
 
         x = self.activation(x)
         x = self.fc2(x)
-        x = self.dropout(x)
         x = self.glu1(x)
-        x = self.norm(x + residual)
-
-        return x
+        return self.norm(x + residual)

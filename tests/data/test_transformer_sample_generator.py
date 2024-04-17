@@ -9,9 +9,7 @@ import numpy as np
 from transformertf.data import TransformerSampleGenerator
 
 
-def test_create_window_generator_xy_1d(
-    x_data: np.ndarray, y_data: np.ndarray
-) -> None:
+def test_create_window_generator_xy_1d(x_data: np.ndarray, y_data: np.ndarray) -> None:
     TransformerSampleGenerator(
         x_data,
         y_data,
@@ -37,9 +35,7 @@ def test_transformer_sample_generator_correct_num_samples_xy_1d_stride_2(
 def test_transformer_sample_generator_correct_num_samples_xy_1d_stride_2_zero_pad(
     x_data: np.ndarray, y_data: np.ndarray
 ) -> None:
-    wg = TransformerSampleGenerator(
-        x_data, y_data, 2, 2, stride=2, zero_pad=True
-    )
+    wg = TransformerSampleGenerator(x_data, y_data, 2, 2, stride=2, zero_pad=True)
     assert len(wg) == 4
 
 
@@ -86,9 +82,7 @@ def test_transformer_sample_generator_correct_samples_xy_1d_stride_2(
 def test_transformer_sample_generator_correct_samples_xy_1d_stride_2_zero_pad(
     x_data: np.ndarray, y_data: np.ndarray
 ) -> None:
-    wg = TransformerSampleGenerator(
-        x_data, y_data, 2, 2, stride=2, zero_pad=True
-    )
+    wg = TransformerSampleGenerator(x_data, y_data, 2, 2, stride=2, zero_pad=True)
 
     # x
     assert np.all(wg[0]["encoder_input"].T == [[1, 2], [10, 20]])

@@ -1,7 +1,5 @@
-from ._functional import mape_loss, smape_loss
-
 from ..._mod_replace import replace_modname
-
+from ._functional import mape_loss, smape_loss
 
 for _mod in (mape_loss, smape_loss):
     replace_modname(_mod, __name__)

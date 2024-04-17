@@ -9,7 +9,7 @@ from transformertf.models.temporal_fusion_transformer import (
     TemporalFusionTransformerModule,
 )
 
-from ....conftest import CURRENT, FIELD, DF_PATH
+from ....conftest import CURRENT, DF_PATH, FIELD
 
 
 @pytest.fixture(scope="module")
@@ -25,6 +25,7 @@ def config() -> TemporalFusionTransformerConfig:
         target_depends_on=CURRENT,
         input_columns=[CURRENT],
         target_column=FIELD,
+        downsample=50,
     )
 
 
@@ -35,7 +36,7 @@ def tft_module(
     return TemporalFusionTransformerModule.from_config(config)
 
 
-@pytest.fixture
+@pytest.fixture()
 def datamodule(
     config: TemporalFusionTransformerConfig,
 ) -> EncoderDecoderDataModule:
@@ -57,11 +58,11 @@ def test_transformer_v2_forward_pass_simple(
         2,
     )
 
-    batch = dict(
-        encoder_input=x_past,
-        decoder_input=x_future,
-        encoder_lengths=torch.tensor([[1.0]]),
-    )
+    batch = {
+        "encoder_input": x_past,
+        "decoder_input": x_future,
+        "encoder_lengths": torch.tensor([[1.0]]),
+    }
 
     with torch.no_grad():
         y = tft_module(batch)["output"]

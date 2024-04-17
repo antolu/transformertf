@@ -89,11 +89,9 @@ class RunningNormalizer(BaseTransform):
         super().__init__()
 
         self.num_features_ = num_features_
-        center_ = torch.zeros(num_features_, requires_grad=False) + center_
-        scale_ = torch.zeros(num_features_, requires_grad=False) + scale_
-        n_samples_seen_ = torch.tensor(
-            [0], requires_grad=False, dtype=torch.long
-        )
+        center_ += torch.zeros(num_features_, requires_grad=False)
+        scale_ += torch.zeros(num_features_, requires_grad=False)
+        n_samples_seen_ = torch.tensor([0], requires_grad=False, dtype=torch.long)
 
         self.register_buffer("center_", center_)
         self.register_buffer("scale_", scale_)
@@ -147,8 +145,9 @@ class RunningNormalizer(BaseTransform):
         self,
         x: torch.Tensor | np.ndarray,
         y: None = None,
-        return_scales: typing.Literal[False] = False,
         target_scale: torch.Tensor | None = None,
+        *,
+        return_scales: typing.Literal[False] = False,
     ) -> torch.Tensor: ...
 
     @typing.overload
@@ -156,16 +155,18 @@ class RunningNormalizer(BaseTransform):
         self,
         x: torch.Tensor | np.ndarray,
         y: torch.Tensor | np.ndarray | None = None,
-        return_scales: typing.Literal[True] = True,
         target_scale: torch.Tensor | None = None,
+        *,
+        return_scales: typing.Literal[True] = True,
     ) -> tuple[torch.Tensor, torch.Tensor]: ...
 
     def transform(
         self,
         x: torch.Tensor | np.ndarray,
         y: torch.Tensor | np.ndarray | None = None,
-        return_scales: bool = False,
         target_scale: torch.Tensor | None = None,
+        *,
+        return_scales: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """
         Rescale data.
@@ -194,8 +195,7 @@ class RunningNormalizer(BaseTransform):
 
         if return_scales:
             return y_scaled, target_scale
-        else:
-            return y_scaled
+        return y_scaled
 
     def inverse_transform(
         self,
@@ -240,9 +240,7 @@ class RunningNormalizer(BaseTransform):
             self.scale_ = new_scale
         else:
             N = self.n_samples_seen_
-            self.center_ = (N * self.center_ + n_samples * new_mean) / (
-                N + n_samples
-            )
+            self.center_ = (N * self.center_ + n_samples * new_mean) / (N + n_samples)
 
             self.scale_ = torch.sqrt(
                 (
@@ -254,7 +252,7 @@ class RunningNormalizer(BaseTransform):
 
         self.n_samples_seen_ += n_samples
 
-    def __sklearn_is_fitted__(self) -> bool:
+    def __sklearn_is_fitted__(self) -> bool:  # noqa: PLW3201
         return self.n_samples_seen_.item() > 0
 
     def __str__(self) -> str:

@@ -6,7 +6,7 @@ from torch.nn import Module
 
 class Polynomial(Module):
     def __init__(self, degree: int):
-        super(Polynomial, self).__init__()
+        super().__init__()
         weights = torch.zeros(degree)
         self.weights = torch.nn.Parameter(weights)
         self.bias = torch.nn.Parameter(torch.zeros(1))
@@ -14,9 +14,7 @@ class Polynomial(Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         xx = x.unsqueeze(-1).pow(self.p.to(x))
-        return self.bias.to(x) + self.weights.to(x) @ torch.transpose(
-            xx, -1, -2
-        )
+        return self.bias.to(x) + self.weights.to(x) @ torch.transpose(xx, -1, -2)
 
 
 if __name__ == "__main__":

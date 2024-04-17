@@ -26,9 +26,9 @@ def _as_torch(
 def _as_numpy(x: np.ndarray | torch.Tensor | pd.Series) -> np.ndarray:
     if isinstance(x, np.ndarray):
         return x
-    elif isinstance(x, torch.Tensor):
+    if isinstance(x, torch.Tensor):
         return x.numpy()
-    elif isinstance(x, pd.Series):
+    if isinstance(x, pd.Series):
         return x.to_numpy()
-    else:
-        raise TypeError(f"Unsupported type: {type(x)}")
+    msg = f"Unsupported type: {type(x)}"
+    raise TypeError(msg)

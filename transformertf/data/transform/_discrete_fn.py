@@ -20,9 +20,7 @@ class DiscreteFunctionTransform(BaseTransform):
 
     _transform_type = TransformType.XY
 
-    def __init__(
-        self, x: np.ndarray | torch.Tensor, y: np.ndarray | torch.Tensor
-    ):
+    def __init__(self, x: np.ndarray | torch.Tensor, y: np.ndarray | torch.Tensor):
         super().__init__()
         self.xs = _as_numpy(x)
         self.ys = _as_numpy(y)
@@ -71,7 +69,8 @@ class DiscreteFunctionTransform(BaseTransform):
             y - f(x)
         """
         if y is None:
-            raise ValueError("DiscreteFunction requires y.")
+            msg = "DiscreteFunction requires y."
+            raise ValueError(msg)
 
         y_tensor = _as_torch(y)
 
@@ -84,7 +83,8 @@ class DiscreteFunctionTransform(BaseTransform):
         y: np.ndarray | torch.Tensor | None = None,
     ) -> torch.Tensor:
         if y is None:
-            raise ValueError("DiscreteFunctionTransform requires y.")
+            msg = "DiscreteFunctionTransform requires y."
+            raise ValueError(msg)
 
         y_tensor = _as_torch(y)
 
@@ -108,5 +108,5 @@ class DiscreteFunctionTransform(BaseTransform):
         """
         return DiscreteFunctionTransform(self.ys, self.xs)
 
-    def __sklearn_is_fitted__(self) -> bool:
+    def __sklearn_is_fitted__(self) -> bool:  # noqa: PLW3201
         return True

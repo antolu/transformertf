@@ -19,21 +19,20 @@ from ....conftest import CURRENT, DF_PATH, FIELD
 
 @pytest.fixture(scope="module")
 def config() -> PhyLSTMConfig:
-    config = PhyLSTMConfig(
+    return PhyLSTMConfig(
         train_dataset=DF_PATH,
         val_dataset=DF_PATH,
         num_workers=0,
         target_depends_on=CURRENT,
     )
-    return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def phylstm_module(config: PhyLSTMConfig) -> PhyLSTMModule:
     return PhyLSTMModule.from_config(config)
 
 
-@pytest.fixture
+@pytest.fixture()
 def phylstm_datamodule(config: PhyLSTMConfig) -> PhyLSTMDataModule:
     return PhyLSTMDataModule.from_parquet(config)
 

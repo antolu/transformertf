@@ -9,21 +9,23 @@ from __future__ import annotations
 
 import numpy as np
 import numpy.typing as npt
-import scipy.signal as signal
 from numba import njit, prange
+from scipy import signal
 
 __all__ = [
-    "perona_malik_smooth",
-    "convolve_PDE",
-    "butter_lowpass_filter",
     "butter_lowpass",
+    "butter_lowpass_filter",
+    "convolve_PDE",
     "mean_filter",
+    "perona_malik_smooth",
 ]
 
 
 @njit
-def convolve_PDE(
-    U: npt.NDArray[np.float64 | np.float32], sigma: float = 1, k: float = 0.05
+def convolve_PDE(  # noqa: N802
+    U: npt.NDArray[np.float64 | np.float32],  # noqa: N803
+    sigma: float = 1,
+    k: float = 0.05,
 ) -> npt.NDArray[np.float64]:
     """
     Perform Gaussian convolution by solving the heat equation with Neumann
@@ -41,7 +43,7 @@ def convolve_PDE(
     factor = 1 - 2 * k
 
     C = U.copy().astype(np.float64)
-    for t in prange(int(t_end / k)):
+    for _t in prange(int(t_end / k)):
         # Implementing the neumann boundary conditions
         C[0] = 2 * k * C[1] + factor * C[0]
         C[-1] = 2 * k * C[-2] + factor * C[-1]
@@ -109,7 +111,7 @@ def perona_malik_smooth(
 
     U = p.astype(np.float64)
 
-    for t in prange(int(t_end / k)):
+    for _t in prange(int(t_end / k)):
         # Find the convolution of U with the gaussian, this ensures that the
         # PDE problem is well posed
         C = convolve_PDE(U, k=k)
@@ -140,9 +142,7 @@ def butter_lowpass(cutoff: float, fs: float, order: int = 5) -> np.ndarray:
     :param order: The order of the filter.
 
     """
-    return signal.butter(
-        order, cutoff, fs=fs, btype="low", analog=False, output="sos"
-    )
+    return signal.butter(order, cutoff, fs=fs, btype="low", analog=False, output="sos")
 
 
 def butter_lowpass_filter(
@@ -155,8 +155,7 @@ def butter_lowpass_filter(
     :param order: The order of the filter.
     """
     sos = butter_lowpass(cutoff, fs, order)
-    y = signal.sosfiltfilt(sos, data)
-    return y
+    return signal.sosfiltfilt(sos, data)
 
 
 @njit
@@ -190,9 +189,7 @@ def mean_filter(
             smoothed_last = True
         elif smoothed_last and np.argmin(condition) > 1:
             first_false = np.argmin(condition)
-            new_arr[s.start : s.start + first_false] = np.mean(
-                arr_s[:first_false]
-            )
+            new_arr[s.start : s.start + first_false] = np.mean(arr_s[:first_false])
         else:
             new_arr[s.start : s.start + stride] = arr_s[:stride]
             smoothed_last = False

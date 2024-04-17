@@ -26,12 +26,12 @@ del _mod
 
 __all__ = [
     "BaseTransform",
-    "TransformType",
-    "TransformCollection",
-    "PolynomialTransform",
-    "FixedPolynomialTransform",
-    "RunningNormalizer",
-    "StandardScaler",
     "DiscreteFunctionTransform",
     "DivideByXTransform",
+    "FixedPolynomialTransform",
+    "PolynomialTransform",
+    "RunningNormalizer",
+    "StandardScaler",
+    "TransformCollection",
+    "TransformType",
 ]

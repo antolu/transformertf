@@ -18,6 +18,6 @@ def test_interpretable_multi_head_attention(sample: torch.Tensor) -> None:
         dropout=0.1,
     )
 
-    output, attn = model(sample, sample, sample, return_attn=True)
+    output, _attn = model(sample, sample, sample, return_attn=True)
 
     assert output.shape == sample.shape

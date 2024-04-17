@@ -35,7 +35,7 @@ def transformer_encoder_module(
     return TransformerEncoderModule.from_config(config)
 
 
-@pytest.fixture
+@pytest.fixture()
 def datamodule(config: TransformerEncoderConfig) -> EncoderDataModule:
     return EncoderDataModule.from_parquet(config)
 
@@ -45,20 +45,18 @@ def test_transformer_encoder_forward_pass_simple(
 ) -> None:
     x_past = torch.rand(
         1,
-        TransformerEncoderConfig.ctxt_seq_len
-        + TransformerEncoderConfig.tgt_seq_len,
+        TransformerEncoderConfig.ctxt_seq_len + TransformerEncoderConfig.tgt_seq_len,
         2,
     )
     x_future = torch.rand(
         1,
-        TransformerEncoderConfig.ctxt_seq_len
-        + TransformerEncoderConfig.tgt_seq_len,
+        TransformerEncoderConfig.ctxt_seq_len + TransformerEncoderConfig.tgt_seq_len,
         1,
     )
 
-    batch = dict(
-        encoder_input=x_past,
-    )
+    batch = {
+        "encoder_input": x_past,
+    }
 
     with torch.no_grad():
         y = transformer_encoder_module(batch)

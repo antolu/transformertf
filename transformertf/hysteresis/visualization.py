@@ -35,8 +35,7 @@ def plot_hysterion_density(
         assert fig is not None
         fig.colorbar(c)
         return fig, ax, c
-    else:
-        return fig, ax, c
+    return fig, ax, c
 
 
 def plot_bayes_predicition(
@@ -54,9 +53,9 @@ def plot_bayes_predicition(
     lower = y["mean"] - y["std"]
 
     if isinstance(baseline, torch.Tensor):
-        mean = mean - m
-        upper = upper - m
-        lower = lower - m
+        mean -= m
+        upper -= m
+        lower -= m
     ax.plot(mean, "C0", label="Model prediction")
     ax.fill_between(range(len(m)), int(upper), int(lower), alpha=0.25)
     ax.set_xlabel("step")

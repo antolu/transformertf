@@ -59,14 +59,12 @@ class ExactHybridGP(ModeModule, GP):
         super().__init__()
 
         if train_x.shape[0] != train_y.shape[0]:
-            raise ValueError(
-                "train_x and train_y must have the same number of samples"
-            )
+            msg = "train_x and train_y must have the same number of samples"
+            raise ValueError(msg)
 
         if len(train_y.shape) != 1:
-            raise ValueError(
-                "multi output models are not supported, train_y must be a 1D tensor"
-            )
+            msg = "multi output models are not supported, train_y must be a 1D tensor"
+            raise ValueError(msg)
 
         if not isinstance(hysteresis_models, list):
             self.hysteresis_models = torch.nn.ModuleList([hysteresis_models])
@@ -74,17 +72,15 @@ class ExactHybridGP(ModeModule, GP):
             self.hysteresis_models = torch.nn.ModuleList(hysteresis_models)
 
         # check if all elements are unique
-        if not (
-            len(set(self.hysteresis_models)) == len(self.hysteresis_models)
-        ):
-            raise ValueError("all hysteresis models must be unique")
+        if len(set(self.hysteresis_models)) != len(self.hysteresis_models):
+            msg = "all hysteresis models must be unique"
+            raise ValueError(msg)
 
         # check that training.py data is the correct size
         self.input_dim = train_x.shape[-1]
         if self.input_dim != len(self.hysteresis_models):
-            raise ValueError(
-                "training.py data must match the number of hysteresis models"
-            )
+            msg = "training.py data must match the number of hysteresis models"
+            raise ValueError(msg)
 
         # set hysteresis model history data
         self._set_hysteresis_model_train_data(train_x)
@@ -97,9 +93,7 @@ class ExactHybridGP(ModeModule, GP):
         # train outcome transform
         self.outcome_transform = Standardize(1)
         self.outcome_transform.train()
-        self.train_targets = self.outcome_transform(train_y.unsqueeze(1))[
-            0
-        ].flatten()
+        self.train_targets = self.outcome_transform(train_y.unsqueeze(1))[0].flatten()
         self.outcome_transform.eval()
 
         # get magnetization from hysteresis models
@@ -107,9 +101,7 @@ class ExactHybridGP(ModeModule, GP):
 
         self.gp = SingleTaskGP(train_m, train_y.unsqueeze(1), **kwargs)
 
-    def __call__(
-        self, *inputs: typing.Any, **kwargs: typing.Any
-    ) -> typing.Any:
+    def __call__(self, *inputs: typing.Any, **kwargs: typing.Any) -> typing.Any:
         return self.forward(*inputs, **kwargs)
 
     def _set_hysteresis_model_train_data(self, train_h: torch.Tensor) -> None:
@@ -136,13 +128,9 @@ class ExactHybridGP(ModeModule, GP):
         m = self.get_magnetization(X, mode)
 
         # check to see if a normalization model has been trained
-        if (
-            not self.m_transform.equals(Normalize(self.input_dim))
-            or self.training
-        ):
+        if not self.m_transform.equals(Normalize(self.input_dim)) or self.training:
             return self.m_transform(m)
-        else:
-            return m
+        return m
 
     def posterior(
         self,
@@ -151,7 +139,8 @@ class ExactHybridGP(ModeModule, GP):
         **kwargs: typing.Any,
     ) -> GPyTorchPosterior:
         if self.mode != NEXT:
-            raise HysteresisError("calling posterior requires NEXT mode")
+            msg = "calling posterior requires NEXT mode"
+            raise HysteresisError(msg)
         M = self.get_normalized_magnetization(X)
 
         return self.gp.posterior(
@@ -174,9 +163,8 @@ class ExactHybridGP(ModeModule, GP):
             lk = self.gp.likelihood(self.gp(train_m.unsqueeze(-1)))
             return self.outcome_transform.untransform_posterior(lk)
 
-        elif return_real:
+        if return_real:
             return self.outcome_transform.untransform_posterior(
                 self.gp(train_m.unsqueeze(-1))  # type: ignore
             )
-        else:
-            return self.gp(train_m)
+        return self.gp(train_m)

@@ -13,18 +13,13 @@ from ..utils import configure_lr_scheduler, configure_optimizers, ops
 
 if typing.TYPE_CHECKING:
     SameType = typing.TypeVar("SameType", bound="LightningModuleBase")
-    from ..utils import OPTIMIZER_DICT
+    from ..utils import OptimizerDict
     from .typing import LR_CALL_TYPE, MODEL_OUTPUT, OPT_CALL_TYPE, STEP_OUTPUT
 
 
 class LightningModuleBase(L.LightningModule):
-    _lr_scheduler: (
-        str
-        | typing.Callable[
-            [tuple[typing.Any, ...]], torch.optim.lr_scheduler.LRScheduler
-        ]
-        | None
-    )
+    _lr_scheduler: str | LR_CALL_TYPE | None
+    criterion: torch.nn.Module
 
     def __init__(
         self,
@@ -34,15 +29,18 @@ class LightningModuleBase(L.LightningModule):
         lr_scheduler_interval: str,
         max_epochs: int,
         reduce_on_plateau_patience: int,
-        log_grad_norm: bool,
         lr: float,
         weight_decay: float,
         momentum: float,
-        validate_every_n_epochs: int,
+        criterion: torch.nn.Module,
+        *,
+        log_grad_norm: bool,
         **kwargs: typing.Any,
     ) -> None:
         super().__init__()
         self.save_hyperparameters(ignore=["lr_scheduler", "criterion"])
+
+        self.criterion = criterion
 
         self._train_outputs: dict[int, list[MODEL_OUTPUT]] = {}
         self._val_outputs: dict[int, list[MODEL_OUTPUT]] = {}
@@ -53,7 +51,7 @@ class LightningModuleBase(L.LightningModule):
 
     @classmethod
     def from_config(
-        cls: typing.Type[SameType], config: BaseConfig, **kwargs: typing.Any
+        cls: type[SameType], config: BaseConfig, **kwargs: typing.Any
     ) -> SameType:
         return cls(**cls.parse_config_kwargs(config, **kwargs))
 
@@ -61,19 +59,18 @@ class LightningModuleBase(L.LightningModule):
     def parse_config_kwargs(
         cls, config: BaseConfig, **kwargs: typing.Any
     ) -> dict[str, typing.Any]:
-        default_kwargs = dict(
-            optimizer=config.optimizer,
-            optimizer_kwargs=config.optimizer_kwargs,
-            lr_scheduler=config.lr_scheduler,
-            lr_scheduler_interval=config.lr_scheduler_interval,
-            max_epochs=config.num_epochs,
-            reduce_on_plateau_patience=config.patience,
-            log_grad_norm=config.log_grad_norm,
-            lr=config.lr,
-            weight_decay=config.weight_decay,
-            momentum=config.momentum,
-            validate_every_n_epochs=config.validate_every,
-        )
+        default_kwargs = {
+            "optimizer": config.optimizer,
+            "optimizer_kwargs": config.optimizer_kwargs,
+            "lr_scheduler": config.lr_scheduler,
+            "lr_scheduler_interval": config.lr_scheduler_interval,
+            "max_epochs": config.num_epochs,
+            "reduce_on_plateau_patience": config.patience,
+            "log_grad_norm": config.log_grad_norm,
+            "lr": config.lr,
+            "weight_decay": config.weight_decay,
+            "momentum": config.momentum,
+        }
 
         default_kwargs.update(kwargs)
 
@@ -107,16 +104,14 @@ class LightningModuleBase(L.LightningModule):
 
     def on_validation_batch_end(
         self,
-        outputs: STEP_OUTPUT,
+        outputs: STEP_OUTPUT,  # type: ignore[override]
         batch: TimeSeriesSample,
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
         if dataloader_idx not in self._val_outputs:
             self._val_outputs[dataloader_idx] = []
-        self._val_outputs[dataloader_idx].append(
-            ops.to_cpu(ops.detach(outputs))
-        )
+        self._val_outputs[dataloader_idx].append(ops.to_cpu(ops.detach(outputs)))  # type: ignore[arg-type,type-var]
 
         if "prediction_type" not in self.hparams or (
             "prediction_type" in self.hparams
@@ -127,7 +122,9 @@ class LightningModuleBase(L.LightningModule):
             self.common_log_step(other_metrics, "validation")
 
     def calc_other_metrics(
-        self, outputs: STEP_OUTPUT, target: torch.Tensor
+        self,
+        outputs: STEP_OUTPUT,
+        target: torch.Tensor,  # type: ignore[override]
     ) -> dict[str, torch.Tensor]:
         """
         Calculate other metrics from the outputs of the model.
@@ -176,16 +173,14 @@ class LightningModuleBase(L.LightningModule):
 
     def on_test_batch_end(
         self,
-        outputs: STEP_OUTPUT,
+        outputs: STEP_OUTPUT,  # type: ignore[override]
         batch: TimeSeriesSample,
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
         if dataloader_idx not in self._test_outputs:
             self._test_outputs[dataloader_idx] = []
-        self._test_outputs[dataloader_idx].append(
-            ops.to_cpu(ops.detach(outputs))
-        )
+        self._test_outputs[dataloader_idx].append(ops.to_cpu(ops.detach(outputs)))  # type: ignore[type-var, arg-type]
 
     def on_predict_epoch_start(self) -> None:
         self._inference_outputs = {}
@@ -194,16 +189,14 @@ class LightningModuleBase(L.LightningModule):
 
     def on_predict_batch_end(
         self,
-        outputs: STEP_OUTPUT,
+        outputs: STEP_OUTPUT,  # type: ignore[override]
         batch: torch.Tensor,
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
         if dataloader_idx not in self._inference_outputs:
             self._inference_outputs[dataloader_idx] = []
-        self._inference_outputs[dataloader_idx].append(
-            ops.to_cpu(ops.detach(outputs))
-        )
+        self._inference_outputs[dataloader_idx].append(ops.to_cpu(ops.detach(outputs)))  # type: ignore[type-var, arg-type]
 
     def common_log_step(
         self,
@@ -222,17 +215,13 @@ class LightningModuleBase(L.LightningModule):
 
         return log_dict
 
-    def on_before_optimizer_step(
-        self, optimizer: torch.optim.Optimizer
-    ) -> None:
-        if "log_grad_norm" in self.hparams and self.hparams["log_grad_norm"]:
-            self.log_dict(
-                lightning.pytorch.utilities.grad_norm(self, norm_type=2)
-            )
+    def on_before_optimizer_step(self, optimizer: torch.optim.Optimizer) -> None:
+        if self.hparams.get("log_grad_norm") and self.global_rank == 0:
+            self.log_dict(lightning.pytorch.utilities.grad_norm(self, norm_type=2))
 
     def configure_optimizers(  # type: ignore[override]
         self,
-    ) -> torch.optim.Optimizer | OPTIMIZER_DICT:
+    ) -> torch.optim.Optimizer | OptimizerDict:
         lr: float = self.hparams["lr"]
         if lr == "auto":
             lr = 1e-3
@@ -253,9 +242,7 @@ class LightningModuleBase(L.LightningModule):
             monitor="loss/validation",
             scheduler_interval=self.hparams["lr_scheduler_interval"],
             max_epochs=self.hparams["max_epochs"],
-            reduce_on_plateau_patience=self.hparams[
-                "reduce_on_plateau_patience"
-            ],
+            reduce_on_plateau_patience=self.hparams["reduce_on_plateau_patience"],
         )
 
         return {"optimizer": optimizer, "lr_scheduler": scheduler_dict}

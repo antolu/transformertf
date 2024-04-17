@@ -34,9 +34,7 @@ class HysteresisTransform(Module):
         if isinstance(fixed_domain, torch.Tensor):
             self.set_fixed_domain(fixed_domain)
 
-        if isinstance(train_m, torch.Tensor) and isinstance(
-            train_h, torch.Tensor
-        ):
+        if isinstance(train_m, torch.Tensor) and isinstance(train_h, torch.Tensor):
             self.update_all(train_h, train_m)
         elif isinstance(train_h, torch.Tensor):
             self.update_h_transform(train_h)
@@ -55,12 +53,11 @@ class HysteresisTransform(Module):
     @domain.setter
     def domain(self, value: torch.Tensor) -> None:
         if self._fixed_domain:
-            raise RuntimeError(
-                "cannot set new domain when fixed domain is specified!"
-            )
-        else:
-            if value.shape != torch.Size([2]) or (value[1] < value[0]):
-                raise RuntimeError("domain value misspecified")
+            msg = "cannot set new domain when fixed domain is specified!"
+            raise RuntimeError(msg)
+        if value.shape != torch.Size([2]) or (value[1] < value[0]):
+            msg = "domain value misspecified"
+            raise RuntimeError(msg)
         self._domain = value
 
     @property
@@ -74,7 +71,8 @@ class HysteresisTransform(Module):
     @mrange.setter
     def mrange(self, value: torch.Tensor) -> None:
         if value.shape != torch.Size([2]) or (value[1] < value[0]):
-            raise RuntimeError("domain value misspecified")
+            msg = "domain value misspecified"
+            raise RuntimeError(msg)
         self._mrange = value
 
     @property
@@ -107,9 +105,7 @@ class HysteresisTransform(Module):
 
     def update_h_transform(self, train_h: torch.Tensor) -> None:
         if not self._fixed_domain:
-            self.domain = torch.tensor(
-                (torch.min(train_h), torch.max(train_h))
-            )
+            self.domain = torch.tensor((torch.min(train_h), torch.max(train_h)))
 
     def _norm_h(self, h: torch.Tensor) -> torch.Tensor:
         return (h - self.domain[0]) / self.domain_width
@@ -123,9 +119,7 @@ class HysteresisTransform(Module):
     def _unnorm_m(self, mn: torch.Tensor) -> torch.Tensor:
         return mn * self.mrange_width + self.mrange[0]
 
-    def update_m_transform(
-        self, train_h: torch.Tensor, train_m: torch.Tensor
-    ) -> None:
+    def update_m_transform(self, train_h: torch.Tensor, train_m: torch.Tensor) -> None:
         self.mrange = torch.tensor((min(train_m), max(train_h)))
         self.update_fit(self._norm_h(train_h), self._norm_m(train_m))
 
@@ -155,19 +149,14 @@ class HysteresisTransform(Module):
         self, h: torch.Tensor, m: torch.Tensor | None = None
     ) -> tuple[torch.Tensor, torch.Tensor | None]:
         hn = self._transform_h(h)
-        if isinstance(m, torch.Tensor):
-            mn = self._transform_m(h, m)
-        else:
-            mn = None
+        mn = self._transform_m(h, m) if isinstance(m, torch.Tensor) else None
 
         return hn, mn
 
     def _untransform_h(self, hn: torch.Tensor) -> torch.Tensor:
         return self._unnorm_h(hn)
 
-    def _untransform_m(
-        self, hn: torch.Tensor, mn: torch.Tensor
-    ) -> torch.Tensor:
+    def _untransform_m(self, hn: torch.Tensor, mn: torch.Tensor) -> torch.Tensor:
         fit = self._unnorm_m(self._poly_fit(hn))
         return self.scale_m * mn + fit.reshape(hn.shape) + self.offset_m
 
@@ -187,15 +176,13 @@ class HysteresisTransform(Module):
         # verify the inputs are in the normalized region within some machine epsilon
         epsilon = 1e-6
         if torch.min(hn) + epsilon < 0.0 or torch.max(hn) - epsilon > 1.0:
-            raise RuntimeWarning(
+            msg = (
                 "input bounds of hn are outside normalization "
                 "region, are you sure h is normalized?"
             )
+            raise RuntimeWarning(msg)
 
         h = self._untransform_h(hn)
-        if isinstance(mn, torch.Tensor):
-            m = self._untransform_m(hn, mn)
-        else:
-            m = None
+        m = self._untransform_m(hn, mn) if isinstance(mn, torch.Tensor) else None
 
         return h, m

@@ -86,12 +86,9 @@ class VanillaTransformer(torch.nn.Module):
 
         decoding = self.transformer(x, t, src_mask=src_mask, tgt_mask=tgt_mask)
 
-        out = self.fc(decoding)
-
-        return out
+        return self.fc(decoding)
 
 
 def generate_mask(size: int) -> torch.Tensor:
     mask = torch.triu(torch.ones(size, size), diagonal=1)
-    mask = mask.masked_fill(mask == 1, float("-inf"))
-    return mask
+    return mask.masked_fill(mask == 1, float("-inf"))

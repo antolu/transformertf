@@ -6,11 +6,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from ..data import (
-    DataModuleBase,
-    EncoderDecoderDataModule,
-    TimeSeriesDataModule,
-)
+from ..data import DataModuleBase, EncoderDecoderDataModule, TimeSeriesDataModule
 from ..data.dataset import EncoderDecoderPredictDataset
 from ..models import LightningModuleBase
 from ..models.phylstm import PhyLSTMDataModule, PhyLSTMModule
@@ -19,10 +15,12 @@ from ..utils import ops
 
 __all__ = [
     "predict",
-    "predict_timeseries",
-    "predict_phylstm",
     "predict_encoder_decoder",
+    "predict_phylstm",
+    "predict_timeseries",
 ]
+
+DEFAULT_DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def predict(
@@ -31,9 +29,7 @@ def predict(
     past_covariates: pd.DataFrame,
     future_covariates: pd.DataFrame,
     past_target: pd.DataFrame | np.ndarray | pd.Series | None = None,
-    device: torch.device = torch.device(
-        "cuda" if torch.cuda.is_available() else "cpu"
-    ),
+    device: torch.device = DEFAULT_DEVICE,
 ) -> np.ndarray:
     """
     Predict the target variable using the given module and datamodule.
@@ -51,9 +47,7 @@ def predict(
     -------
 
     """
-    if isinstance(datamodule, PhyLSTMDataModule) and isinstance(
-        module, PhyLSTMModule
-    ):
+    if isinstance(datamodule, PhyLSTMDataModule) and isinstance(module, PhyLSTMModule):
         return predict_phylstm(
             module,
             datamodule,
@@ -61,7 +55,7 @@ def predict(
             future_covariates,
             device,
         )
-    elif isinstance(datamodule, TimeSeriesDataModule):
+    if isinstance(datamodule, TimeSeriesDataModule):
         return predict_timeseries(
             module,
             datamodule,
@@ -69,7 +63,8 @@ def predict(
             future_covariates,
             device,
         )
-    elif isinstance(datamodule, EncoderDecoderDataModule):
+    if isinstance(datamodule, EncoderDecoderDataModule):
+        assert past_target is not None, "past_target must be provided"
         return predict_encoder_decoder(
             module,
             datamodule,
@@ -78,10 +73,8 @@ def predict(
             past_target,  # type: ignore
             device=device,
         )
-    else:
-        raise NotImplementedError(
-            f"Predicting with datamodule of type {type(datamodule)} is not implemented"
-        )
+    msg = f"Predicting with datamodule of type {type(datamodule)} is not implemented"
+    raise NotImplementedError(msg)
 
 
 def predict_timeseries(
@@ -89,9 +82,7 @@ def predict_timeseries(
     datamodule: TimeSeriesDataModule,
     past_covariates: pd.DataFrame,
     future_covariates: pd.DataFrame,
-    device: torch.device = torch.device(
-        "cuda" if torch.cuda.is_available() else "cpu"
-    ),
+    device: torch.device = DEFAULT_DEVICE,
 ) -> np.ndarray:
     """
     UNTESTED
@@ -111,12 +102,10 @@ def predict_timeseries(
     covariates = pd.concat((past_covariates, future_covariates))
 
     dataset = datamodule.make_dataset(covariates, predict=True)
-    dataloader = torch.utils.data.DataLoader(
-        dataset, batch_size=1, num_workers=0
-    )
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, num_workers=0)
 
     outputs = []
-    for idx, batch in enumerate(dataloader):
+    for _idx, batch in enumerate(dataloader):
         batch = ops.to(batch, device)
 
         model_output = module(batch)
@@ -125,20 +114,18 @@ def predict_timeseries(
 
         outputs.append(model_output)
 
-    outputs = torch.cat([o.squeeze(0) for o in outputs], dim=0)
+    outputs_t = torch.cat([o.squeeze(0) for o in outputs], dim=0)
 
     if datamodule.target_transform is not None:
-        outputs = datamodule.target_transform.inverse_transform(
+        outputs_t = datamodule.target_transform.inverse_transform(
             covariates[datamodule.hparams["input_columns"][0]].to_numpy(),
-            outputs,
+            outputs_t,
         )
 
     # truncate the outputs to the length of the future covariates
-    outputs = outputs[: dataset.num_points]
-    outputs = outputs[
-        len(past_covariates) // datamodule.hparams["downsample"] :
-    ]
-    return typing.cast(torch.Tensor, outputs).squeeze().numpy()
+    outputs_t = outputs_t[: dataset.num_points]
+    outputs_t = outputs_t[len(past_covariates) // datamodule.hparams["downsample"] :]
+    return typing.cast(torch.Tensor, outputs_t).squeeze().numpy()
 
 
 def predict_phylstm(
@@ -146,9 +133,7 @@ def predict_phylstm(
     datamodule: PhyLSTMDataModule,
     past_covariates: pd.DataFrame,
     future_covariates: pd.DataFrame,
-    device: torch.device = torch.device(
-        "cuda" if torch.cuda.is_available() else "cpu"
-    ),
+    device: torch.device = DEFAULT_DEVICE,
 ) -> np.ndarray:
     """
 
@@ -167,9 +152,7 @@ def predict_phylstm(
     covariates = pd.concat((past_covariates, future_covariates))
 
     dataset = datamodule.make_dataset(covariates, predict=True)
-    dataloader = torch.utils.data.DataLoader(
-        dataset, batch_size=1, num_workers=0
-    )
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, num_workers=0)
 
     outputs = []
     inputs = []
@@ -180,10 +163,10 @@ def predict_phylstm(
         batch = ops.to(batch, device)
 
         model_output = module.predict_step(batch, idx)
-        module.on_predict_batch_end(model_output, batch, idx)
+        module.on_predict_batch_end(model_output, batch, idx)  # type: ignore[arg-type]
 
-        model_output = ops.to_cpu(model_output)
-        model_output = ops.detach(model_output)
+        model_output = ops.to_cpu(model_output)  # type: ignore[type-var]
+        model_output = ops.detach(model_output)  # type: ignore[type-var]
 
         inputs.append(batch["input"])
         outputs.append(model_output)
@@ -191,29 +174,27 @@ def predict_phylstm(
     module.on_predict_epoch_end()
     module.on_predict_end()
 
-    predictions = torch.cat(
-        [o["output"]["z"].squeeze(0) for o in outputs], dim=0
-    )
+    predictions = torch.cat([o["output"]["z"].squeeze(0) for o in outputs], dim=0)
     predictions = predictions[..., 0]  # get B
 
-    inputs = torch.cat([i.squeeze(0) for i in inputs], dim=0).squeeze()
+    inputs_t = torch.cat([i.squeeze(0) for i in inputs], dim=0).squeeze()
 
     if datamodule.target_transform is not None:
         input_transform = datamodule.input_transforms[
             datamodule.hparams["input_columns"][0]
         ]
 
-        inputs = input_transform.inverse_transform(inputs)
+        inputs_t = input_transform.inverse_transform(inputs_t)
 
         predictions = datamodule.target_transform.inverse_transform(
-            inputs,
+            inputs_t,
             predictions,
         )
 
     # truncate the outputs to the length of the future covariates
     predictions = predictions[: dataset.num_points]
     predictions = predictions[
-        len(past_covariates) // datamodule.hparams["downsample"] :
+        len(past_covariates) // datamodule.hparams["downsample"] :  # noqa: E203
     ]
     return typing.cast(torch.Tensor, predictions).squeeze().numpy()
 
@@ -224,11 +205,10 @@ def predict_encoder_decoder(
     datamodule: EncoderDecoderDataModule,
     past_covariates: pd.DataFrame,
     future_covariates: pd.DataFrame,
-    past_target: pd.DataFrame,
+    past_target: pd.DataFrame | np.ndarray | pd.Series,
+    device: torch.device = DEFAULT_DEVICE,
+    *,
     raw_output: typing.Literal[False] = False,
-    device: torch.device = torch.device(
-        "cuda" if torch.cuda.is_available() else "cpu"
-    ),
 ) -> np.ndarray: ...
 
 
@@ -238,11 +218,10 @@ def predict_encoder_decoder(
     datamodule: EncoderDecoderDataModule,
     past_covariates: pd.DataFrame,
     future_covariates: pd.DataFrame,
-    past_target: np.ndarray,
+    past_target: pd.DataFrame | np.ndarray | pd.Series,
+    device: torch.device = DEFAULT_DEVICE,
+    *,
     raw_output: typing.Literal[True],
-    device: torch.device = torch.device(
-        "cuda" if torch.cuda.is_available() else "cpu"
-    ),
 ) -> torch.Tensor: ...
 
 
@@ -252,15 +231,12 @@ def predict_encoder_decoder(
     past_covariates: pd.DataFrame,
     future_covariates: pd.DataFrame,
     past_target: pd.DataFrame | np.ndarray | pd.Series,
+    device: torch.device = DEFAULT_DEVICE,
+    *,
     raw_output: bool = False,
-    device: torch.device = torch.device(
-        "cuda" if torch.cuda.is_available() else "cpu"
-    ),
 ) -> np.ndarray | torch.Tensor:
     if isinstance(past_target, pd.DataFrame):
-        past_target = past_target[
-            datamodule.hparams["target_column"]
-        ].to_numpy()
+        past_target = past_target[datamodule.hparams["target_column"]].to_numpy()
     elif isinstance(past_target, pd.Series):
         past_target = past_target.to_numpy()
 
@@ -282,9 +258,7 @@ def predict_encoder_decoder(
         input_columns=datamodule.hparams["input_columns"],
         target_column=datamodule.hparams["target_column"],
     )
-    dataloader = torch.utils.data.DataLoader(
-        dataset, batch_size=1, num_workers=0
-    )
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, num_workers=0)
 
     outputs = []
     for idx, batch in enumerate(dataloader):
@@ -308,40 +282,33 @@ def predict_encoder_decoder(
             ).squeeze()
             dataset.append_past_target(point_prediction)
 
-    outputs = torch.cat([o.squeeze(0) for o in outputs], dim=0)
+    outputs_t = torch.cat([o.squeeze(0) for o in outputs], dim=0)
 
     if raw_output:
-        return outputs.numpy()  # type: ignore[attr-defined]
+        return outputs_t.numpy()  # type: ignore[attr-defined]
 
-    outputs = to_point_prediction(outputs, module.criterion)
+    outputs_t = to_point_prediction(outputs_t, module.criterion)
 
     # truncate the outputs to the length of the future covariates
-    outputs = outputs[: len(future_covariates)]
+    outputs_t = outputs_t[: len(future_covariates)]
 
     if datamodule.target_transform is not None:
         future_x = future_covariates[datamodule.hparams["input_columns"][0]]
-        outputs = datamodule.target_transform.inverse_transform(
-            future_x, outputs
-        )
+        outputs_t = datamodule.target_transform.inverse_transform(future_x, outputs_t)
 
     # truncate the outputs to the length of the future covariates
-    outputs = outputs[: len(future_covariates)].numpy()  # type: ignore[attr-defined]
-
-    return outputs
+    return outputs_t[: len(future_covariates)].numpy()  # type: ignore[attr-defined]
 
 
 def to_point_prediction(
     model_output: torch.Tensor, criterion: torch.nn.Module
 ) -> torch.Tensor:
     if model_output.ndim < 2:
-        raise ValueError(
-            f"Model output must have at least 2 dimensions, got {model_output.ndim}"
-        )
+        msg = f"Model output must have at least 2 dimensions, got {model_output.ndim}"
+        raise ValueError(msg)
     if isinstance(criterion, QuantileLoss):
         if model_output.ndim == 2:
-            return criterion.point_prediction(
-                model_output.unsqueeze(0)
-            ).squeeze(0)
+            return criterion.point_prediction(model_output.unsqueeze(0)).squeeze(0)
         return criterion.point_prediction(model_output)
 
     return model_output

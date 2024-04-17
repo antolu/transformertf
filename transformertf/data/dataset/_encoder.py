@@ -21,6 +21,9 @@ from ._base import (
 log = logging.getLogger(__name__)
 
 
+RNG = np.random.default_rng()
+
+
 class EncoderDataset(AbstractTimeSeriesDataset):
     def __init__(
         self,
@@ -59,23 +62,23 @@ class EncoderDataset(AbstractTimeSeriesDataset):
 
         if randomize_seq_len:
             if min_tgt_seq_len is None:
-                raise ValueError(
+                msg = (
                     "min_tgt_seq_len must be specified when "
                     "randomize_seq_len is True"
                 )
+                raise ValueError(msg)
             if min_ctxt_seq_len is None:
-                raise ValueError(
+                msg = (
                     "min_ctx_seq_len must be specified when "
                     "randomize_seq_len is True"
                 )
+                raise ValueError(msg)
 
         self._input_data = convert_data(input_data, dtype=dtype)
         self._target_data = convert_data(target_data, dtype=dtype)
         _check_label_data_length(self._input_data, self._target_data)
 
-        self._dataset_type = (
-            DataSetType.VAL_TEST if predict else DataSetType.TRAIN
-        )
+        self._dataset_type = DataSetType.VAL_TEST if predict else DataSetType.TRAIN
 
         if predict:
             if stride != 1:
@@ -110,12 +113,11 @@ class EncoderDataset(AbstractTimeSeriesDataset):
             for input_, target_ in zip(
                 self._input_data,
                 self._target_data,
+                strict=False,
             )
         ]
 
-        self._cum_num_samples = np.cumsum(
-            [len(gen) for gen in self._sample_gen]
-        )
+        self._cum_num_samples = np.cumsum([len(gen) for gen in self._sample_gen])
         self._dtype = dtype
 
     @classmethod
@@ -172,23 +174,17 @@ class EncoderDataset(AbstractTimeSeriesDataset):
         # find which df to get samples from
         df_idx = np.argmax(self._cum_num_samples > idx)
 
-        shifted_idx = (
-            idx - self._cum_num_samples[df_idx - 1] if df_idx > 0 else idx
-        )
+        shifted_idx = idx - self._cum_num_samples[df_idx - 1] if df_idx > 0 else idx
 
         sample = self._sample_gen[df_idx][shifted_idx]
 
         if self._randomize_seq_len:
             assert self._min_ctxt_seq_len is not None
             assert self._min_tgt_seq_len is not None
-            random_len = np.random.randint(
-                self._min_ctxt_seq_len, self._ctxt_seq_len
-            )
+            random_len = RNG.integers(self._min_ctxt_seq_len, self._ctxt_seq_len)
             sample["encoder_input"][: self._ctxt_seq_len - random_len] = 0.0
 
-            random_len = np.random.randint(
-                self._min_tgt_seq_len, self._tgt_seq_len
-            )
+            random_len = RNG.integers(self._min_tgt_seq_len, self._tgt_seq_len)
             sample["decoder_input"][random_len:] = 0.0
 
             if "target" in sample:
@@ -203,13 +199,11 @@ class EncoderDataset(AbstractTimeSeriesDataset):
             dim=0,
         )
 
-        sample = {
+        return {
             "encoder_input": encoder_input,
             "encoder_mask": torch.ones_like(encoder_input),
             "target": target,
         }
-
-        return sample
 
     @property
     def ctxt_seq_len(self) -> int:

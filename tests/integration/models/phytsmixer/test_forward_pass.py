@@ -22,10 +22,10 @@ def test_phytsmixer_forward_pass(phytsmixer_module: PhyTSMixerModule) -> None:
     x_past = torch.rand(1, PhyTSMixerConfig.ctxt_seq_len, 2)
     x_future = torch.rand(1, PhyTSMixerConfig.tgt_seq_len, 1)
 
-    batch = dict(
-        encoder_input=x_past,
-        decoder_input=torch.cat([x_future, x_future], dim=-1),
-    )
+    batch = {
+        "encoder_input": x_past,
+        "decoder_input": torch.cat([x_future, x_future], dim=-1),
+    }
 
     with torch.no_grad():
         y = phytsmixer_module(batch)

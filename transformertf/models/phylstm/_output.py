@@ -1,20 +1,15 @@
 from __future__ import annotations
 
-import sys
-
-if sys.version_info >= (3, 10):
-    from typing import TypedDict
-else:
-    from typing_extensions import TypedDict
+from typing import TypedDict
 
 import torch
 
 __all__ = [
     "PhyLSTM1Output",
-    "PhyLSTM2Output",
-    "PhyLSTM3Output",
     "PhyLSTM1States",
+    "PhyLSTM2Output",
     "PhyLSTM2States",
+    "PhyLSTM3Output",
     "PhyLSTM3States",
 ]
 

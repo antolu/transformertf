@@ -39,9 +39,7 @@ class PolynomialTransform(BaseTransform):
 
         xx = x.unsqueeze(-1).pow(self.p.to(x))
 
-        return self.bias.to(x) + self.weights.to(x) @ torch.transpose(
-            xx, -1, -2
-        )
+        return self.bias.to(x) + self.weights.to(x) @ torch.transpose(xx, -1, -2)
 
     def fit(
         self,
@@ -52,7 +50,8 @@ class PolynomialTransform(BaseTransform):
         Fits the polynomial to the data.
         """
         if y is None:
-            raise ValueError("PolynomialTransform requires y.")
+            msg = "PolynomialTransform requires y."
+            raise ValueError(msg)
         x_tensor = _as_torch(x)
         y_tensor = _as_torch(y)
 
@@ -92,7 +91,8 @@ class PolynomialTransform(BaseTransform):
         Removes the polynomial fit from the data.
         """
         if y is None:
-            raise ValueError("PolynomialTransform requires y.")
+            msg = "PolynomialTransform requires y."
+            raise ValueError(msg)
 
         x_tensor = _as_torch(x)
         y_tensor = _as_torch(y)
@@ -109,7 +109,8 @@ class PolynomialTransform(BaseTransform):
         Adds the polynomial fit back to the data.
         """
         if y is None:
-            raise ValueError("PolynomialTransform requires y.")
+            msg = "PolynomialTransform requires y."
+            raise ValueError(msg)
 
         x_tensor = _as_torch(x)
         y_tensor = _as_torch(y)
@@ -127,17 +128,16 @@ class PolynomialTransform(BaseTransform):
         transform : PolynomialTransform
         """
         if self.degree == 0:
-            raise ValueError("Cannot get derivative of degree 0 transform.")
+            msg = "Cannot get derivative of degree 0 transform."
+            raise ValueError(msg)
 
         transform = PolynomialTransform(
             degree=self.degree - 1,
             num_iterations=self.num_iterations,
         )
-        transform._reset_parameters()
+        transform._reset_parameters()  # noqa: SLF001
 
-        transform.bias.data = (
-            (self.weights[0] * self.p[0]).unsqueeze(0).detach()
-        )
+        transform.bias.data = (self.weights[0] * self.p[0]).unsqueeze(0).detach()
         transform.weights.data = (self.weights[1:] * self.p[1:]).detach()
 
         return transform
@@ -147,10 +147,8 @@ class PolynomialTransform(BaseTransform):
         self.weights = torch.nn.Parameter(weights)
         self.bias = torch.nn.Parameter(torch.zeros(1))
 
-    def __sklearn_is_fitted__(self) -> bool:
-        return not bool(
-            torch.all(self.weights == 0.0) and torch.all(self.bias == 0.0)
-        )
+    def __sklearn_is_fitted__(self) -> bool:  # noqa: PLW3201
+        return not bool(torch.all(self.weights == 0.0) and torch.all(self.bias == 0.0))
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(degree={self.degree})"
@@ -167,22 +165,20 @@ class FixedPolynomialTransform(PolynomialTransform):
         self,
         degree: int,
         weights: list[float] | np.ndarray | torch.Tensor,
-        bias: float | np.ndarray | torch.Tensor = torch.zeros(1),
+        bias: float | np.ndarray | torch.Tensor = 1.0,
     ):
         super().__init__(degree=degree)
+        bias = torch.zeros(1) + bias if isinstance(bias, float) else _as_torch(bias)
         weights = _as_torch(weights)
 
-        if isinstance(bias, float):
-            bias = torch.zeros(1) + bias
-        else:
-            bias = _as_torch(bias)
+        bias = torch.zeros(1) + bias if isinstance(bias, float) else _as_torch(bias)
 
         if weights.shape != (degree,):
-            raise ValueError(
-                f"weights must have shape ({degree},), got {weights.shape}."
-            )
+            msg = f"weights must have shape ({degree},), got {weights.shape}."
+            raise ValueError(msg)
         if bias.shape != (1,):
-            raise ValueError(f"bias must have shape (1,), got {bias.shape}.")
+            msg = f"bias must have shape (1,), got {bias.shape}."
+            raise ValueError(msg)
 
         self.weights.data = weights
         self.bias.data = bias

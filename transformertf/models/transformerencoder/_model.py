@@ -75,6 +75,4 @@ class TransformerEncoder(torch.nn.Module):
 
         encoded = self.transformer(x)
 
-        out = self.fc(encoded)
-
-        return out
+        return self.fc(encoded)

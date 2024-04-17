@@ -32,8 +32,7 @@ class LSTMEmbedding(torch.nn.Module):
         x, _ = self.lstm(x)
         x = self.dropout(x)
         x = self.fc(x)
-        x = self.norm(x)
-        return x
+        return self.norm(x)
 
 
 class TransformerV2(torch.nn.Module):
@@ -78,7 +77,8 @@ class TransformerV2(torch.nn.Module):
                 self.num_features, self.n_dim_model
             )  # [bs, seq_len, n_dim_model]
         else:
-            raise ValueError(f"embedding model: {embedding} not supported")
+            msg = f"embedding model: {embedding} not supported"
+            raise ValueError(msg)
 
         self.pos_encoder = SimplePositionalEncoding(
             dim_model=self.n_dim_model, dropout=self.dropout
@@ -141,6 +141,4 @@ class TransformerV2(torch.nn.Module):
         decoding = self.glu3(decoding)
         decoding = self.norm3(decoding + target_emb)
 
-        out = self.fc(decoding)
-
-        return out
+        return self.fc(decoding)

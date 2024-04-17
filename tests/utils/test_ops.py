@@ -54,7 +54,7 @@ def list_of_dicts_torch() -> list[dict[str, torch.Tensor]]:
 
 
 @pytest.mark.parametrize(
-    "arr,shape",
+    ("arr", "shape"),
     [
         ("list_of_np_arrs", (100,)),
         ("list_of_torch_arrs", (100,)),
@@ -75,7 +75,7 @@ def test_concatenate_sequences(
 
 
 @pytest.mark.parametrize(
-    "arr,shape",
+    ("arr", "shape"),
     [
         ("list_of_dicts_numpy", (20,)),
         ("list_of_dicts_torch", (20,)),
