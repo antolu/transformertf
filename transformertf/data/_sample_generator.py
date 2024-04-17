@@ -354,7 +354,7 @@ class TransformerPredictionSampleGenerator(SampleGenerator[EncoderDecoderSample[
 
         if (
             len(known_past_covariates) + len(self._known_past_covariates)
-            > self._context_length
+            > self._total_context + self._context_length
         ):
             msg = (
                 "Known past covariates length plus past covariates length "
@@ -383,6 +383,16 @@ class TransformerPredictionSampleGenerator(SampleGenerator[EncoderDecoderSample[
                 f"Add more target context using the `add_target_context` method."
             )
             raise IndexError(msg)
+        if self._known_past_covariates is not None and ctxt_stop > len(
+            self._known_past_covariates
+        ):
+            msg = (
+                f"No known past context data available for index {idx}. "
+                f"The context has ended at length {len(self._known_past_covariates)}, "
+                f"but the index {idx} requires a length of {ctxt_stop}. "
+                f"Add more known past context using the `add_known_past_context` method."
+            )
+            raise IndexError(msg)
 
         src_l = [to_2dim(self._covariates[src_slice])]
         if self._known_past_covariates is not None:
@@ -391,7 +401,7 @@ class TransformerPredictionSampleGenerator(SampleGenerator[EncoderDecoderSample[
 
         tgt_l = [to_2dim(self._covariates[tgt_slice])]
         if self._known_past_covariates is not None:
-            tgt_l.append(to_2dim(self._known_past_covariates[tgt_slice]))
+            tgt_l.append(to_2dim(zeros_like(self._covariates[tgt_slice])))
         tgt_l.append(to_2dim(zeros_like(self._covariates[tgt_slice])))
 
         src = concat(*src_l, dim=-1)

@@ -14,12 +14,14 @@ PREDICTION_LENGTH = 2
 
 IN_NAME = "input"
 TGT_NAME = "target"
+OPT_NAME = "optional"
 
 
 @pytest.fixture()
 def past_covariates(x_data: np.ndarray, y_data: np.ndarray) -> pd.DataFrame:
     return pd.DataFrame({
         IN_NAME: x_data[:CONTEXT_LENGTH],
+        OPT_NAME: y_data[:CONTEXT_LENGTH],
         TGT_NAME: y_data[:CONTEXT_LENGTH],
     })
 
@@ -28,6 +30,7 @@ def past_covariates(x_data: np.ndarray, y_data: np.ndarray) -> pd.DataFrame:
 def future_covariates(x_data: np.ndarray, y_data: np.ndarray) -> pd.DataFrame:
     return pd.DataFrame({
         IN_NAME: x_data[CONTEXT_LENGTH:],
+        OPT_NAME: y_data[CONTEXT_LENGTH:],
     })
 
 
@@ -68,6 +71,27 @@ def test_create_predict_dataset_basic(
         prediction_length=PREDICTION_LENGTH,
         input_columns=[IN_NAME],
         target_column=TGT_NAME,
+        input_transforms={IN_NAME: input_transform},
+        target_transform=target_transform,
+    )
+
+
+def test_createpredict_dataset_with_known_past_covariates(
+    past_covariates: pd.DataFrame,
+    future_covariates: pd.DataFrame,
+    past_target: pd.DataFrame,
+    input_transform: TransformCollection,
+    target_transform: TransformCollection,
+) -> None:
+    EncoderDecoderPredictDataset(
+        past_covariates=past_covariates,
+        future_covariates=future_covariates,
+        past_target=past_target,
+        context_length=CONTEXT_LENGTH,
+        prediction_length=PREDICTION_LENGTH,
+        input_columns=[IN_NAME],
+        target_column=TGT_NAME,
+        known_past_columns=[OPT_NAME],
         input_transforms={IN_NAME: input_transform},
         target_transform=target_transform,
     )
@@ -336,6 +360,51 @@ def test_predict_dataset_iterate_with_extra_context(
             future_target[i * PREDICTION_LENGTH : (i + 1) * PREDICTION_LENGTH]
         )
         num_samples += 1
+
+        # access the last element
+        _ = dataset[i]
+
+    assert num_samples == 4
+
+
+def test_predict_dataset_iterate_with_extra_context_optional_columns(
+    past_covariates: pd.DataFrame,
+    future_covariates: pd.DataFrame,
+    past_target: pd.DataFrame,
+    future_target: np.ndarray,
+    input_transform: TransformCollection,
+    target_transform: TransformCollection,
+) -> None:
+    dataset = EncoderDecoderPredictDataset(
+        past_covariates=past_covariates,
+        future_covariates=future_covariates,
+        past_target=past_target,
+        context_length=CONTEXT_LENGTH,
+        prediction_length=PREDICTION_LENGTH,
+        input_columns=[IN_NAME],
+        target_column=TGT_NAME,
+        known_past_columns=[OPT_NAME],
+        input_transforms={IN_NAME: input_transform},
+        target_transform=target_transform,
+    )
+
+    num_samples = 0
+    for i, _ in enumerate(dataset):
+        # access the last element
+        _ = dataset[i]
+
+        dataset.append_past_target(
+            future_target[i * PREDICTION_LENGTH : (i + 1) * PREDICTION_LENGTH]
+        )
+        num_samples += 1
+
+        dataset.append_past_covariates(
+            future_covariates[OPT_NAME]
+            .iloc[i * PREDICTION_LENGTH : (i + 1) * PREDICTION_LENGTH]
+            .to_numpy()
+        )
+
+        _ = dataset[i]
 
     assert num_samples == 4
 

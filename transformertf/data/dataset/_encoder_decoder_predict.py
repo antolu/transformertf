@@ -98,15 +98,16 @@ class EncoderDecoderPredictDataset(
         self._target_length = prediction_length
         self._dtype = dtype
 
-        past_covariates = extract_covariates_from_df(past_covariates, input_columns)
-        future_covariates = extract_covariates_from_df(future_covariates, input_columns)
-        past_target = extract_covariates_from_df(past_target, target_column)
         past_known_covariates = (
             extract_covariates_from_df(past_covariates, known_past_columns)
             if known_past_columns is not None
             and isinstance(past_covariates, pd.DataFrame)
             else None
         )
+
+        past_covariates = extract_covariates_from_df(past_covariates, input_columns)
+        future_covariates = extract_covariates_from_df(future_covariates, input_columns)
+        past_target = extract_covariates_from_df(past_target, target_column)
 
         past_covariates = keep_only_context(past_covariates, context_length)
         past_target = keep_only_context(past_target, context_length)

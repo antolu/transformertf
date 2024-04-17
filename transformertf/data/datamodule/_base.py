@@ -249,14 +249,16 @@ class DataModuleBase(L.LightningDataModule):
 
             target_column = config.target_column
 
-        known_past_columns = config.known_past_columns
+        if "known_past_columns" not in kwargs:
+            kwargs.update(
+                known_past_columns=config.known_past_columns,
+            )
 
         return cls(
             train_df=train_df,
             val_df=val_df,
             input_columns=input_columns,
             target_column=target_column,
-            known_past_columns=known_past_columns,
             **cls.parse_config_kwargs(config, **kwargs),
         )
 
