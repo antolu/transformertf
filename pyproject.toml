@@ -67,6 +67,12 @@ exclude = ["tests", "tests.*", "build"]
 [project.scripts]
 # project endpoints here
 
+[tool.coverage.run]
+omit = [
+    "transformertf/_version.py",
+    "transformertf/hysteresis/*.py"
+]
+
 [tool.black]
 target-version = ["py311"]
 line-length = 88
