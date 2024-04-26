@@ -6,7 +6,7 @@ import torch
 
 from ...data import EncoderTargetSample
 from ...nn import QuantileLoss
-from ...utils import ACTIVATIONS
+from ...utils import VALID_ACTIVATIONS
 from ...utils.loss import get_loss
 from .._base_module import LightningModuleBase
 from ..typing import LR_CALL_TYPE, OPT_CALL_TYPE
@@ -26,7 +26,7 @@ class TransformerEncoderModule(LightningModuleBase):
         num_heads: int = 8,
         num_encoder_layers: int = 6,
         dropout: float = 0.1,
-        activation: ACTIVATIONS = "relu",
+        activation: VALID_ACTIVATIONS = "relu",
         fc_dim: int | tuple[int, ...] = 1024,
         output_dim: int = 7,
         lr: float = 1e-3,

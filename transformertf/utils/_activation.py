@@ -8,8 +8,8 @@ import typing
 
 import torch
 
-ACTIVATIONS = typing.Literal["elu", "relu", "gelu"]
-ACTIVATION_MAP: dict[ACTIVATIONS, type[torch.nn.Module]] = {
+VALID_ACTIVATIONS = typing.Literal["elu", "relu", "gelu"]
+_ACTIVATION_MAP: dict[VALID_ACTIVATIONS, type[torch.nn.Module]] = {
     "elu": torch.nn.ELU,  # type: ignore[attr-defined]
     "relu": torch.nn.ReLU,
     "gelu": torch.nn.GELU,
@@ -17,11 +17,11 @@ ACTIVATION_MAP: dict[ACTIVATIONS, type[torch.nn.Module]] = {
 
 
 def get_activation(
-    activation: ACTIVATIONS,
+    activation: VALID_ACTIVATIONS,
     **activation_kwargs: typing.Any,
 ) -> torch.nn.ELU | torch.nn.ReLU | torch.nn.GELU:
-    if activation not in ACTIVATION_MAP:
-        msg = f"activation must be one of {list(ACTIVATION_MAP)}, not {activation}"
+    if activation not in _ACTIVATION_MAP:
+        msg = f"activation must be one of {list(_ACTIVATION_MAP)}, not {activation}"
         raise ValueError(msg)
 
-    return ACTIVATION_MAP[activation](**activation_kwargs)  # type: ignore[call-arg]
+    return _ACTIVATION_MAP[activation](**activation_kwargs)  # type: ignore[call-arg]

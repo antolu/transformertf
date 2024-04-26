@@ -3,7 +3,7 @@ from __future__ import annotations
 import torch
 
 from ...nn import MLP
-from ...utils import ACTIVATIONS
+from ...utils import VALID_ACTIVATIONS
 from ..transformer import SimplePositionalEncoding
 from ..transformer._model import generate_mask
 
@@ -19,7 +19,7 @@ class TransformerEncoder(torch.nn.Module):
         num_heads: int = 8,
         num_encoder_layers: int = 6,
         dropout: float = 0.1,
-        activation: ACTIVATIONS = "relu",
+        activation: VALID_ACTIVATIONS = "relu",
         fc_dim: int | tuple[int, ...] = 1024,
         output_dim: int = 7,
     ):
