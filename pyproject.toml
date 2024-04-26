@@ -70,7 +70,7 @@ exclude = ["tests", "tests.*", "build"]
 [tool.coverage.run]
 omit = [
     "transformertf/_version.py",
-    "transformertf/hysteresis/*.py"
+    "transformertf/hysteresis/"
 ]
 
 [tool.black]
