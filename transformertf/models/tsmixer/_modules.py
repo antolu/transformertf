@@ -5,7 +5,7 @@ import typing
 import einops
 import torch
 
-from ...utils import get_activation
+from ...nn import get_activation
 
 
 @typing.overload

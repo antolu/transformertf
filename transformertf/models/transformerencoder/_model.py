@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import torch
 
-from ...nn import MLP
-from ...utils import VALID_ACTIVATIONS
+from ...nn import MLP, VALID_ACTIVATIONS
 from ..transformer import SimplePositionalEncoding
 from ..transformer._model import generate_mask
 

@@ -5,9 +5,7 @@ import typing
 import torch
 
 from ...data import EncoderTargetSample
-from ...nn import QuantileLoss
-from ...utils import VALID_ACTIVATIONS
-from ...utils.loss import get_loss
+from ...nn import VALID_ACTIVATIONS, QuantileLoss, get_loss
 from .._base_module import LightningModuleBase
 from ..typing import LR_CALL_TYPE, OPT_CALL_TYPE
 from ._config import TransformerEncoderConfig

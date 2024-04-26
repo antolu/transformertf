@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 import torch
 
-from transformertf.utils import get_activation
+from transformertf.nn import get_activation
 
 
 @pytest.mark.parametrize(

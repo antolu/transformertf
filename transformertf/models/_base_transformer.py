@@ -6,8 +6,7 @@ import torch
 
 from ..config import TransformerBaseConfig
 from ..data import EncoderDecoderTargetSample
-from ..nn import QuantileLoss
-from ..utils.loss import get_loss
+from ..nn import QuantileLoss, get_loss
 from ._base_module import LightningModuleBase
 
 

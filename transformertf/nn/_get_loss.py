@@ -4,7 +4,8 @@ import typing
 
 import torch
 
-from ..nn import QuantileLoss, WeightedHuberLoss, WeightedMAELoss, WeightedMSELoss
+from ._quantile_loss import QuantileLoss
+from ._weighted_loss import WeightedHuberLoss, WeightedMAELoss, WeightedMSELoss
 
 VALID_LOSS = typing.Literal["mse", "mae", "quantile", "huber"]
 

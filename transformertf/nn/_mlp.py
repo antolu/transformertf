@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import torch
 
-from ..utils._activation import VALID_ACTIVATIONS, get_activation
+from ._get_activation import VALID_ACTIVATIONS, get_activation
 
 
 class MLP(torch.nn.Module):

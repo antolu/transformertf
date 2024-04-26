@@ -3,8 +3,7 @@ from __future__ import annotations
 import pytest
 import torch
 
-from transformertf.nn import QuantileLoss
-from transformertf.utils import get_loss
+from transformertf.nn import QuantileLoss, get_loss
 
 
 @pytest.mark.parametrize(

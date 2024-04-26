@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import torch
 
-from ..utils import VALID_ACTIVATIONS, get_activation
+from ._get_activation import VALID_ACTIVATIONS, get_activation
 from ._glu import GatedLinearUnit
 from ._resample_norm import ResampleNorm
 
