@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import torch
 
-from ..utils._activation import ACTIVATIONS, get_activation
+from ._get_activation import VALID_ACTIVATIONS, get_activation
 
 
 class MLP(torch.nn.Module):
@@ -16,7 +16,7 @@ class MLP(torch.nn.Module):
         hidden_dim: int | tuple[int, ...] | None = None,
         output_dim: int = 1,
         dropout: float = 0.1,
-        activation: ACTIVATIONS = "relu",
+        activation: VALID_ACTIVATIONS = "relu",
     ):
         super().__init__()
 

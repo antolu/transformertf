@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import torch
 
-from ..utils import ACTIVATIONS, get_activation
+from ._get_activation import VALID_ACTIVATIONS, get_activation
 from ._glu import GatedLinearUnit
 from ._resample_norm import ResampleNorm
 
@@ -22,7 +22,7 @@ class GatedResidualNetwork(torch.nn.Module):
         hidden_dim: int | None = None,
         context_dim: int | None = None,
         dropout: float = 0.1,
-        activation: ACTIVATIONS = "elu",
+        activation: VALID_ACTIVATIONS = "elu",
     ):
         """
         Gated Residual Network (GRN) module, based on the equation:

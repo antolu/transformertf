@@ -5,7 +5,6 @@ This module contains functions to configure the optimizer and learning rate sche
 from __future__ import annotations
 
 import functools
-import inspect
 import logging
 import typing
 
@@ -43,8 +42,10 @@ __all__ = [
 
 
 def configure_optimizers(
-    optimizer: str | functools.partial,
-    lr: float,
+    optimizer: str
+    | functools.partial
+    | typing.Callable[[typing.Iterator[torch.nn.Parameter]], torch.optim.Optimizer],
+    lr: float | None | typing.Literal["auto"] = None,
     weight_decay: float | None = None,
     momentum: float | None = None,
     **optimizer_kwargs: typing.Any,
@@ -54,7 +55,7 @@ def configure_optimizers(
 
     Parameters
     ----------
-    optimizer : str | functools.partial
+    optimizer : str | functools.partial | typing.Callable[[typing.Iterator[torch.nn.Parameter]], torch.optim.Optimizer]
         The optimizer to use. Supported optimizers are: "adam", "adamw", "sgd", "ranger".
         If a functools.partial is passed, it is assumed that the partial is a function that takes an iterator of
         torch.nn.Parameter and returns a torch.optim.Optimizer object.
@@ -85,9 +86,13 @@ def configure_optimizers(
     >>> model = torch.nn.Linear(10, 10)
     >>> optimizer = configure_optimizers("adam", lr=1e-3)(model.parameters())
     """
-    if isinstance(optimizer, functools.partial):
+    # if optimizer is callable
+    if callable(optimizer):
         return optimizer
 
+    if lr is None:
+        msg = "lr must be specified if optimizer is not callable."
+        raise ValueError(msg)
     if lr == "auto":
         lr = 1e-3
 
@@ -137,6 +142,7 @@ def configure_lr_scheduler(
     scheduler_interval: typing.Literal["step", "epoch"] = "epoch",
     max_epochs: int | None = None,
     reduce_on_plateau_patience: int | None = None,
+    **lr_scheduler_kwargs: typing.Any,
 ) -> LrSchedulerDict | torch.optim.lr_scheduler.ReduceLROnPlateau:
     """
     Configure and return a learning rate scheduler for the optimizer.
@@ -201,13 +207,12 @@ def configure_lr_scheduler(
                 verbose=True,
                 patience=reduce_on_plateau_patience,
             )
-        if lr_scheduler == "constant_then_cosine":
-            msg = (
-                "max_epochs must be specified when using the "
-                "constant_then_cosine lr_scheduler."
-            )
-
+        elif lr_scheduler == "constant_then_cosine":
             if max_epochs is None:
+                msg = (
+                    "max_epochs must be specified when using the "
+                    "constant_then_cosine lr_scheduler."
+                )
                 raise ValueError(msg)
             scheduler = torch.optim.lr_scheduler.SequentialLR(
                 optimizer,
@@ -227,8 +232,8 @@ def configure_lr_scheduler(
         else:
             msg = f"Unknown lr_scheduler: {lr_scheduler}"
             raise ValueError(msg)
-    elif isinstance(lr_scheduler, functools.partial) or inspect.isclass(lr_scheduler):
-        scheduler = lr_scheduler(optimizer=optimizer)
+    elif isinstance(lr_scheduler, functools.partial) or callable(lr_scheduler):
+        scheduler = lr_scheduler(optimizer=optimizer, **lr_scheduler_kwargs)  # type: ignore
     else:
         msg = "Learning rate schedulers are not implemented yet."
         raise NotImplementedError(msg)

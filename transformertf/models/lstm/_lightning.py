@@ -6,8 +6,8 @@ from typing import NotRequired
 import torch
 
 from ...data import TimeSeriesSample
+from ...nn import get_loss
 from ...utils import ops
-from ...utils.loss import get_loss
 from .._base_module import LightningModuleBase
 from ..typing import LR_CALL_TYPE, OPT_CALL_TYPE
 
