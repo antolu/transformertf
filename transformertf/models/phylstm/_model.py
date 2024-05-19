@@ -106,6 +106,18 @@ class PhyLSTM1Model(nn.Module):
                 ("fc12", nn.Linear(hidden_dim_fc_, 3)),
             ])
         )
+        self.fc_e = nn.Sequential(
+            collections.OrderedDict([
+                ("fc_e1", nn.Linear(hidden_dim_, hidden_dim_fc_)),
+                ("lrelu_e2", nn.LeakyReLU()),
+                ("ln_e2", nn.LayerNorm(hidden_dim_fc_)),
+                ("fc_e2", nn.Linear(hidden_dim_fc_, 2)),
+            ])
+        )
+
+        self.eddy_a = nn.Parameter(torch.tensor(1.0))
+        self.eddy_b = nn.Parameter(torch.tensor(1.0))
+        self.eddy_c = nn.Parameter(torch.tensor(1.0))
 
         self.apply(self.weights_init)
 
@@ -179,8 +191,21 @@ class PhyLSTM1Model(nn.Module):
 
         z = self.fc1(o_lstm1)
 
+        Ie = self.fc_e(o_lstm1)
+
+        I_dot = torch.gradient(x, dim=1)[0]
+        Ie_dot = self.eddy_a * I_dot + self.eddy_b * Ie[..., 0, None]
+        Be = self.eddy_c * Ie[..., 0, None]
+        Be_dot = self.eddy_c * Ie_dot
+
+        # breakpoint(())
+        i = torch.cat([Ie, Ie_dot], dim=2)
+        z = torch.cat(
+            [z[..., 0, None] + Be, z[..., 1, None] + Be_dot, z[..., 2, None]], dim=2
+        )
+
         assert isinstance(h_lstm1, tuple)
-        output: PhyLSTM1Output = {"z": z}
+        output: PhyLSTM1Output = {"z": z, "i": i}
         states: PhyLSTM1States = {"lstm1": tuple(o.detach() for o in h_lstm1)}
 
         if return_states:
@@ -256,7 +281,7 @@ class PhyLSTM2Model(PhyLSTM1Model):
     ) -> tuple[PhyLSTM2Output, PhyLSTM2States]:  # type: ignore[override]
         ...
 
-    def forward(
+    def forward(  # type: ignore[override]
         self,
         x: torch.Tensor,
         hx: STATE2 | None = None,
@@ -366,7 +391,7 @@ class PhyLSTM3Model(PhyLSTM2Model):
         return_states: typing.Literal[True],
     ) -> tuple[PhyLSTM3Output, PhyLSTM3States]: ...
 
-    def forward(
+    def forward(  # type: ignore[override]
         self,
         x: torch.Tensor,
         hx: STATE3 | None = None,
