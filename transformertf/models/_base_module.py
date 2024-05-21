@@ -141,6 +141,8 @@ class LightningModuleBase(L.LightningModule):
 
 
 class LogMetricsMixin:
+    hparams: L.pytorch.utilities.parsing.AttributeDict
+
     def on_train_batch_end(
         self,
         outputs: torch.Tensor | typing.Mapping[str, typing.Any] | None,
@@ -155,9 +157,9 @@ class LogMetricsMixin:
             assert "target" in batch
             assert isinstance(outputs, dict)
             other_metrics = self.calc_other_metrics(outputs, batch["target"])
-            self.common_log_step(other_metrics, "train")
+            self.common_log_step(other_metrics, "train")  # type: ignore[attr-defined]
 
-        return super().on_train_batch_end(outputs, batch, batch_idx)
+        return super().on_train_batch_end(outputs, batch, batch_idx)  # type: ignore[misc]
 
     def on_validation_batch_end(
         self,
@@ -166,17 +168,13 @@ class LogMetricsMixin:
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
-        if dataloader_idx not in self._val_outputs:
-            self._val_outputs[dataloader_idx] = []
-        self._val_outputs[dataloader_idx].append(ops.to_cpu(ops.detach(outputs)))  # type: ignore[arg-type,type-var]
-
         if "prediction_type" not in self.hparams or (
             "prediction_type" in self.hparams
             and self.hparams["prediction_type"] == "point"
         ):
             assert "target" in batch
             other_metrics = self.calc_other_metrics(outputs, batch["target"])
-            self.common_log_step(other_metrics, "validation")
+            self.common_log_step(other_metrics, "validation")  # type: ignore[attr-defined]
 
     def calc_other_metrics(
         self,

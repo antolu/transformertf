@@ -5,28 +5,23 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import pytest
-import torch
 
-from transformertf.config import TimeSeriesBaseConfig
 from transformertf.data import TimeSeriesDataModule
-from transformertf.models.phylstm import PhyLSTMConfig, PhyLSTMDataModule
+from transformertf.models.phylstm import PhyLSTMDataModule
 from transformertf.utils import ops
 
 from ...conftest import CURRENT, DF_PATH, FIELD
 
-config = TimeSeriesBaseConfig(input_columns=CURRENT, target_column=FIELD)
-
 
 @pytest.fixture(scope="module")
-def dm() -> TimeSeriesDataModule:
-    dm = TimeSeriesDataModule.from_parquet(
-        config=config,
-        train_dataset=DF_PATH,
-        val_dataset=DF_PATH,
-        input_columns=[CURRENT],
-        target_column=FIELD,
+def dm(df_path: str, current_key: str, field_key: str) -> TimeSeriesDataModule:
+    dm = TimeSeriesDataModule(
+        train_df=df_path,
+        val_df=df_path,
+        input_columns=[current_key],
+        target_column=field_key,
         seq_len=500,
-        dtype=torch.float64,
+        dtype="float64",
     )
     dm.prepare_data()
     dm.setup()
@@ -74,16 +69,20 @@ def test_data_transform_inverse_transform(dm: TimeSeriesDataModule) -> None:
 
 
 @pytest.fixture(scope="module")
-def phylstm_dm() -> PhyLSTMDataModule:
-    config = PhyLSTMConfig(input_columns=CURRENT, target_column=FIELD)
-    dm = PhyLSTMDataModule.from_parquet(
-        config,
-        train_dataset=DF_PATH,
-        val_dataset=DF_PATH,
+def phylstm_dm(
+    df_path: str,
+    current_key: str,
+    field_key: str,
+) -> PhyLSTMDataModule:
+    dm = PhyLSTMDataModule(
+        train_df=df_path,
+        val_df=df_path,
         downsample=100,
         lowpass_filter=False,
-        dtype=torch.float64,
-        target_depends_on=CURRENT,
+        dtype="float32",
+        target_depends_on=current_key,
+        input_columns=current_key,
+        target_column=field_key,
     )
     dm.prepare_data()
     dm.setup()
@@ -93,11 +92,14 @@ def phylstm_dm() -> PhyLSTMDataModule:
 
 def test_phylstm_data_transform_inverse_transform(
     phylstm_dm: PhyLSTMDataModule,
+    df_path: str,
+    current_key: str,
+    field_key: str,
 ) -> None:
-    df = pd.read_parquet(DF_PATH)
+    df = pd.read_parquet(df_path)
     df = df.dropna()
     df = df.reset_index(drop=True)
-    df = df[[CURRENT, FIELD]].iloc[:: phylstm_dm.hparams["downsample"]]
+    df = df[[current_key, field_key]].iloc[:: phylstm_dm.hparams["downsample"]]
 
     dataset = phylstm_dm.val_dataset
 
@@ -116,7 +118,7 @@ def test_phylstm_data_transform_inverse_transform(
     assert len(x) == len(df)
     assert len(y) == len(df)
 
-    input_transform = phylstm_dm.input_transforms[CURRENT]
+    input_transform = phylstm_dm.input_transforms[current_key]
     target_transform = phylstm_dm.target_transform
 
     x = input_transform.inverse_transform(x)
@@ -124,8 +126,8 @@ def test_phylstm_data_transform_inverse_transform(
     x = x.numpy().flatten()
     y = y.numpy().flatten()
 
-    x_true = df[CURRENT].to_numpy()
-    y_true = df[FIELD].to_numpy()
+    x_true = df[current_key].to_numpy()
+    y_true = df[field_key].to_numpy()
 
     assert np.allclose(x, x_true)
     assert np.allclose(y, y_true, atol=1e-5)

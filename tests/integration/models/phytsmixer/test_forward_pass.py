@@ -1,26 +1,17 @@
 from __future__ import annotations
 
-import pytest
+import typing
+
 import torch
 
-from transformertf.models.phytsmixer import PhyTSMixer, PhyTSMixerConfig
+from transformertf.models.phytsmixer import PhyTSMixer
 
 
-@pytest.fixture(scope="module")
-def phytsmixer_module() -> PhyTSMixer:
-    return PhyTSMixer.from_config(
-        PhyTSMixerConfig(
-            num_blocks=2,
-            fc_dim=16,
-            input_columns=["I_meas_A"],
-            target_column="B_meas_T",
-        )
-    )
-
-
-def test_phytsmixer_forward_pass(phytsmixer_module: PhyTSMixer) -> None:
-    x_past = torch.rand(1, PhyTSMixerConfig.ctxt_seq_len, 2)
-    x_future = torch.rand(1, PhyTSMixerConfig.tgt_seq_len, 1)
+def test_phytsmixer_forward_pass(
+    phytsmixer_module: PhyTSMixer, phytsmixer_module_config: dict[str, typing.Any]
+) -> None:
+    x_past = torch.rand(1, phytsmixer_module_config["ctxt_seq_len"], 2)
+    x_future = torch.rand(1, phytsmixer_module_config["tgt_seq_len"], 1)
 
     batch = {
         "encoder_input": x_past,
@@ -30,4 +21,4 @@ def test_phytsmixer_forward_pass(phytsmixer_module: PhyTSMixer) -> None:
     with torch.no_grad():
         y = phytsmixer_module(batch)
 
-    assert y["z"].shape == (1, PhyTSMixerConfig.tgt_seq_len, 3)
+    assert y["z"].shape == (1, phytsmixer_module_config["tgt_seq_len"], 3)

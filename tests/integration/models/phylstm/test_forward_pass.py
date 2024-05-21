@@ -1,22 +1,18 @@
 from __future__ import annotations
 
-import pytest
+import typing
+
 import torch
 
-from transformertf.models.phylstm import PhyLSTM, PhyLSTMConfig
+from transformertf.models.phylstm import PhyLSTM
 
 
-@pytest.fixture(scope="module")
-def phylstm_module() -> PhyLSTM:
-    return PhyLSTM.from_config(
-        PhyLSTMConfig(num_layers=1, hidden_size=10, hidden_size_fc=16)
-    )
-
-
-def test_phylstm_forward_pass(phylstm_module: PhyLSTM) -> None:
-    x = torch.rand(1, PhyLSTMConfig.ctxt_seq_len, 1)
+def test_phylstm_forward_pass(
+    phylstm_module: PhyLSTM, phylstm_module_config: dict[str, typing.Any]
+) -> None:
+    x = torch.rand(1, phylstm_module_config["sequence_length"], 1)
 
     with torch.no_grad():
         y = phylstm_module(x)
 
-    assert y["z"].shape == (1, PhyLSTMConfig.ctxt_seq_len, 3)
+    assert y["z"].shape == (1, phylstm_module_config["sequence_length"], 3)

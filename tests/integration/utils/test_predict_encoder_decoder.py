@@ -10,10 +10,8 @@ import pandas as pd
 import pytest
 
 from transformertf.data.datamodule import EncoderDecoderDataModule
-from transformertf.data.transform import DivideByXTransform
 from transformertf.models.transformer import (
     VanillaTransformer,
-    VanillaTransformerConfig,
 )
 from transformertf.utils.predict import predict_encoder_decoder
 
@@ -34,43 +32,32 @@ def past_target(df: pd.DataFrame) -> pd.DataFrame:
 
 
 @pytest.fixture(scope="module")
-def encoder_decoder_config() -> VanillaTransformerConfig:
-    return VanillaTransformerConfig(
-        n_dim_model=16,
-        num_heads=2,
-        num_encoder_layers=2,
-        num_decoder_layers=2,
-        fc_dim=32,
-        dropout=0.0,
+def encoder_decoder_module() -> VanillaTransformer:
+    return VanillaTransformer(
+        num_features=2,
         ctxt_seq_len=100,
         tgt_seq_len=30,
-        batch_size=8,
-        normalize=True,
-        downsample=5,
-        downsample_method="average",
-        extra_transforms={"B_meas_T": [DivideByXTransform()]},
-        target_depends_on="I_meas_A",
-        input_columns=["I_meas_A"],
-        target_column="B_meas_T",
+        num_encoder_layers=3,
+        num_decoder_layers=3,
+        num_heads=4,
+        n_dim_model=32,
+        fc_dim=64,
     )
 
 
 @pytest.fixture(scope="module")
-def encoder_decoder_module(
-    encoder_decoder_config: VanillaTransformerConfig, df: pd.DataFrame
-) -> VanillaTransformer:
-    return VanillaTransformer.from_config(encoder_decoder_config)
-
-
-@pytest.fixture(scope="module")
 def encoder_decoder_datamodule(
-    df: pd.DataFrame,
-    encoder_decoder_config: VanillaTransformerConfig,
+    df_path: str,
+    current_key: str,
+    field_key: str,
 ) -> EncoderDecoderDataModule:
-    return EncoderDecoderDataModule.from_dataframe(
-        encoder_decoder_config,
-        train_df=df,
-        val_df=df,
+    return EncoderDecoderDataModule(
+        input_columns=[current_key],
+        target_column=field_key,
+        train_df=[df_path],
+        val_df=[df_path],
+        ctxt_seq_len=100,
+        tgt_seq_len=30,
     )
 
 

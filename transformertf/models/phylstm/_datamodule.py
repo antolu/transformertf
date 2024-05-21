@@ -10,7 +10,6 @@ from ...utils import signal
 
 if typing.TYPE_CHECKING:
     from ...data import BaseTransform
-    from ._config import PhyLSTMConfig
 
 __all__ = [
     "PhyLSTMDataModule",
@@ -49,8 +48,8 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
 
     def __init__(
         self,
-        train_df: pd.DataFrame | list[pd.DataFrame] | None = None,
-        val_df: pd.DataFrame | list[pd.DataFrame] | None = None,
+        train_df: str | list[str] | None = None,
+        val_df: str | list[str] | None = None,
         seq_len: int = 500,
         min_seq_len: int | None = None,
         randomize_seq_len: bool = False,  # noqa: FBT001, FBT002
@@ -87,7 +86,7 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
         super().__init__(
             train_df=train_df,
             val_df=val_df,
-            input_columns=input_columns,
+            input_columns=[input_columns],
             target_column=target_column,
             known_past_columns=known_past_columns,
             normalize=True,
@@ -104,25 +103,8 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
             dtype=dtype,
             distributed_sampler=distributed_sampler,
         )
-        self.save_hyperparameters(ignore=["train_df", "val_df"])
-
-    @classmethod
-    def parse_config_kwargs(  # type: ignore[override]
-        cls,
-        config: PhyLSTMConfig,
-        **kwargs: typing.Any,
-    ) -> dict[str, typing.Any]:
-        kwargs = super().parse_config_kwargs(config, **kwargs)
-        default_kwargs = {
-            "lowpass_filter": config.lowpass_filter,
-        }
-        default_kwargs.update(kwargs)
-
-        for key in ("normalize",):
-            if key in default_kwargs:
-                del default_kwargs[key]
-
-        return default_kwargs
+        self.save_hyperparameters()
+        self.hparams["input_columns"] = [input_columns]
 
     def preprocess_dataframe(
         self,
