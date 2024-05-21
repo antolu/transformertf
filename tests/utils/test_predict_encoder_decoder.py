@@ -12,8 +12,8 @@ import pytest
 from transformertf.data.datamodule import EncoderDecoderDataModule
 from transformertf.data.transform import DivideByXTransform
 from transformertf.models.transformer import (
+    VanillaTransformer,
     VanillaTransformerConfig,
-    VanillaTransformerModule,
 )
 from transformertf.utils.predict import predict_encoder_decoder
 
@@ -58,8 +58,8 @@ def encoder_decoder_config() -> VanillaTransformerConfig:
 @pytest.fixture(scope="module")
 def encoder_decoder_module(
     encoder_decoder_config: VanillaTransformerConfig, df: pd.DataFrame
-) -> VanillaTransformerModule:
-    return VanillaTransformerModule.from_config(encoder_decoder_config)
+) -> VanillaTransformer:
+    return VanillaTransformer.from_config(encoder_decoder_config)
 
 
 @pytest.fixture(scope="module")
@@ -75,7 +75,7 @@ def encoder_decoder_datamodule(
 
 
 def test_predict_encoder_decoder(
-    encoder_decoder_module: VanillaTransformerModule,
+    encoder_decoder_module: VanillaTransformer,
     encoder_decoder_datamodule: EncoderDecoderDataModule,
     past_covariates: pd.DataFrame,
     future_covariates: pd.DataFrame,

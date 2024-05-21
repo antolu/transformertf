@@ -3,12 +3,12 @@ from __future__ import annotations
 import pytest
 import torch
 
-from transformertf.models.phytsmixer import PhyTSMixerConfig, PhyTSMixerModule
+from transformertf.models.phytsmixer import PhyTSMixer, PhyTSMixerConfig
 
 
 @pytest.fixture(scope="module")
-def phytsmixer_module() -> PhyTSMixerModule:
-    return PhyTSMixerModule.from_config(
+def phytsmixer_module() -> PhyTSMixer:
+    return PhyTSMixer.from_config(
         PhyTSMixerConfig(
             num_blocks=2,
             fc_dim=16,
@@ -18,7 +18,7 @@ def phytsmixer_module() -> PhyTSMixerModule:
     )
 
 
-def test_phytsmixer_forward_pass(phytsmixer_module: PhyTSMixerModule) -> None:
+def test_phytsmixer_forward_pass(phytsmixer_module: PhyTSMixer) -> None:
     x_past = torch.rand(1, PhyTSMixerConfig.ctxt_seq_len, 2)
     x_future = torch.rand(1, PhyTSMixerConfig.tgt_seq_len, 1)
 

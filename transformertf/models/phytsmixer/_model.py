@@ -12,16 +12,16 @@ import einops
 import torch
 
 from ..phylstm import PhyLSTM3Output
-from ..tsmixer import BasicTSMixer, TSMixer
+from ..tsmixer import BasicTSMixerModel, TSMixerModel
 
 
-class PhyTSMixer(torch.nn.Module):
+class PhyTSMixerModel(torch.nn.Module):
     def __init__(
         self,
         num_features: int,
         num_future_features: int,
-        input_len: int = 600,
-        output_len: int = 200,
+        ctxt_seq_len: int = 600,
+        tgt_seq_len: int = 200,
         fc_dim: int = 1024,
         hidden_dim: int | None = None,
         hidden_dim_2: int = 64,
@@ -32,15 +32,15 @@ class PhyTSMixer(torch.nn.Module):
     ):
         super().__init__()
 
-        self.output_len = output_len
+        self.output_len = tgt_seq_len
         hidden_dim = hidden_dim_2 or num_future_features
 
-        self.ts1 = TSMixer(
+        self.ts1 = TSMixerModel(
             num_feat=num_features,
             num_future_feat=num_future_features,
-            seq_len=input_len,
-            out_seq_len=output_len,
-            out_dim=None,
+            ctxt_seq_len=ctxt_seq_len,
+            tgt_seq_len=tgt_seq_len,
+            output_dim=None,
             fc_dim=fc_dim,
             hidden_dim=hidden_dim,
             num_blocks=num_blocks,
@@ -63,9 +63,9 @@ class PhyTSMixer(torch.nn.Module):
 
         hidden_dim_2 //= 4
 
-        self.ts2 = BasicTSMixer(
+        self.ts2 = BasicTSMixerModel(
             num_features=3,
-            seq_len=output_len,
+            seq_len=tgt_seq_len,
             fc_dim=fc_dim,
             hidden_dim=hidden_dim_2,
             num_blocks=num_blocks,
@@ -93,9 +93,9 @@ class PhyTSMixer(torch.nn.Module):
             torch.nn.Linear(hidden_dim_2, 1),
         )
 
-        self.ts3 = BasicTSMixer(
+        self.ts3 = BasicTSMixerModel(
             num_features=2,
-            seq_len=output_len,
+            seq_len=tgt_seq_len,
             fc_dim=fc_dim,
             hidden_dim=hidden_dim_2,
             num_blocks=num_blocks,

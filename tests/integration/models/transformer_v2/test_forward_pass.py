@@ -6,7 +6,7 @@ import torch
 from transformertf.data import EncoderDecoderDataModule
 from transformertf.models.transformer_v2 import (
     TransformerV2Config,
-    TransformerV2Module,
+    VanillaTransformerV2,
 )
 
 from ....conftest import CURRENT, DF_PATH
@@ -34,8 +34,8 @@ def config() -> TransformerV2Config:
 @pytest.fixture(scope="module")
 def transformer_v2_module(
     config: TransformerV2Config,
-) -> TransformerV2Module:
-    return TransformerV2Module.from_config(config)
+) -> VanillaTransformerV2:
+    return VanillaTransformerV2.from_config(config)
 
 
 @pytest.fixture()
@@ -44,7 +44,7 @@ def datamodule(config: TransformerV2Config) -> EncoderDecoderDataModule:
 
 
 def test_transformer_v2_forward_pass_simple(
-    transformer_v2_module: TransformerV2Module,
+    transformer_v2_module: VanillaTransformerV2,
 ) -> None:
     x_past = torch.rand(
         1,
@@ -70,7 +70,7 @@ def test_transformer_v2_forward_pass_simple(
 
 def test_transformer_v2_forward_pass_point(
     datamodule: EncoderDecoderDataModule,
-    transformer_v2_module: TransformerV2Module,
+    transformer_v2_module: VanillaTransformerV2,
 ) -> None:
     datamodule.prepare_data()
     datamodule.setup()
@@ -114,7 +114,7 @@ def test_transformer_v2_forward_pass_point(
 
 def test_transformer_v2_forward_pass_delta(
     datamodule: EncoderDecoderDataModule,
-    transformer_v2_module: TransformerV2Module,
+    transformer_v2_module: VanillaTransformerV2,
 ) -> None:
     transformer_v2_module.hparams["prediction_type"] = "delta"
     datamodule.prepare_data()

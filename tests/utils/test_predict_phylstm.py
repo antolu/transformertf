@@ -5,9 +5,9 @@ import pytest
 
 from transformertf.data.transform import DivideByXTransform
 from transformertf.models.phylstm import (
+    PhyLSTM,
     PhyLSTMConfig,
     PhyLSTMDataModule,
-    PhyLSTMModule,
 )
 from transformertf.utils.predict import predict_phylstm
 
@@ -42,8 +42,8 @@ def phylstm_config() -> PhyLSTMConfig:
 
 
 @pytest.fixture(scope="module")
-def phylstm_module(phylstm_config: PhyLSTMConfig, df: pd.DataFrame) -> PhyLSTMModule:
-    return PhyLSTMModule.from_config(phylstm_config)
+def phylstm_module(phylstm_config: PhyLSTMConfig, df: pd.DataFrame) -> PhyLSTM:
+    return PhyLSTM.from_config(phylstm_config)
 
 
 @pytest.fixture(scope="module")
@@ -61,7 +61,7 @@ def phylstm_datamodule(
 
 
 def test_predict_phylstm(
-    phylstm_module: PhyLSTMModule,
+    phylstm_module: PhyLSTM,
     phylstm_datamodule: PhyLSTMDataModule,
     past_covariates: pd.DataFrame,
     future_covariates: pd.DataFrame,

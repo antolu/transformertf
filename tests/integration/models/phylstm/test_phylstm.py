@@ -9,9 +9,9 @@ import pytest
 import torch
 
 from transformertf.models.phylstm import (
+    PhyLSTM,
     PhyLSTMConfig,
     PhyLSTMDataModule,
-    PhyLSTMModule,
 )
 
 from ....conftest import CURRENT, DF_PATH, FIELD
@@ -28,8 +28,8 @@ def config() -> PhyLSTMConfig:
 
 
 @pytest.fixture()
-def phylstm_module(config: PhyLSTMConfig) -> PhyLSTMModule:
-    return PhyLSTMModule.from_config(config)
+def phylstm_module(config: PhyLSTMConfig) -> PhyLSTM:
+    return PhyLSTM.from_config(config)
 
 
 @pytest.fixture()
@@ -38,7 +38,7 @@ def phylstm_datamodule(config: PhyLSTMConfig) -> PhyLSTMDataModule:
 
 
 def test_phylstm_forward_pass(
-    phylstm_module: PhyLSTMModule,
+    phylstm_module: PhyLSTM,
     phylstm_datamodule: PhyLSTMDataModule,
     df: pd.DataFrame,
 ) -> None:

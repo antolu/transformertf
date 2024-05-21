@@ -1,9 +1,8 @@
 from ..._mod_replace import replace_modname
-from ._config import PhyLSTMConfig
 from ._datamodule import PhyLSTMDataModule
-from ._lightning import PhyLSTMModule, StepOutput
+from ._lightning import PhyLSTM, StepOutput
 from ._loss import LossWeights, PhyLSTMLoss
-from ._model import PhyLSTM1, PhyLSTM2, PhyLSTM3
+from ._model import PhyLSTM1Model, PhyLSTM2Model, PhyLSTM3Model
 from ._output import (
     PhyLSTM1Output,
     PhyLSTM1States,
@@ -14,12 +13,12 @@ from ._output import (
 )
 
 for _mod in (
+    LossWeights,
     PhyLSTMLoss,
-    PhyLSTMConfig,
-    PhyLSTM1,
-    PhyLSTM2,
-    PhyLSTM3,
-    PhyLSTMModule,
+    PhyLSTM1Model,
+    PhyLSTM2Model,
+    PhyLSTM3Model,
+    PhyLSTM,
     PhyLSTMDataModule,
 ):
     replace_modname(_mod, __name__)
@@ -30,18 +29,17 @@ del _mod
 
 __all__ = [
     "LossWeights",
-    "PhyLSTM1",
+    "PhyLSTM",
+    "PhyLSTM1Model",
     "PhyLSTM1Output",
     "PhyLSTM1States",
-    "PhyLSTM2",
+    "PhyLSTM2Model",
     "PhyLSTM2Output",
     "PhyLSTM2States",
-    "PhyLSTM3",
+    "PhyLSTM3Model",
     "PhyLSTM3Output",
     "PhyLSTM3States",
-    "PhyLSTMConfig",
     "PhyLSTMDataModule",
     "PhyLSTMLoss",
-    "PhyLSTMModule",
     "StepOutput",
 ]

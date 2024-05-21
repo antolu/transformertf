@@ -5,8 +5,8 @@ import torch
 
 from transformertf.data import EncoderDecoderDataModule
 from transformertf.models.temporal_fusion_transformer import (
+    TemporalFusionTransformer,
     TemporalFusionTransformerConfig,
-    TemporalFusionTransformerModule,
 )
 
 from ....conftest import CURRENT, DF_PATH, FIELD
@@ -32,8 +32,8 @@ def config() -> TemporalFusionTransformerConfig:
 @pytest.fixture(scope="module")
 def tft_module(
     config: TemporalFusionTransformerConfig,
-) -> TemporalFusionTransformerModule:
-    return TemporalFusionTransformerModule.from_config(config)
+) -> TemporalFusionTransformer:
+    return TemporalFusionTransformer.from_config(config)
 
 
 @pytest.fixture()
@@ -45,7 +45,7 @@ def datamodule(
 
 def test_transformer_v2_forward_pass_simple(
     config: TemporalFusionTransformerConfig,
-    tft_module: TemporalFusionTransformerModule,
+    tft_module: TemporalFusionTransformer,
 ) -> None:
     x_past = torch.rand(
         1,
@@ -72,7 +72,7 @@ def test_transformer_v2_forward_pass_simple(
 
 def test_transformer_v2_forward_pass(
     datamodule: EncoderDecoderDataModule,
-    tft_module: TemporalFusionTransformerModule,
+    tft_module: TemporalFusionTransformer,
 ) -> None:
     datamodule.prepare_data()
     datamodule.setup()

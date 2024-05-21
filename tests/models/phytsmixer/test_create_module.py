@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from transformertf.models.phytsmixer import PhyTSMixerConfig, PhyTSMixerModule
+from transformertf.models.phytsmixer import PhyTSMixer, PhyTSMixerConfig
 
 
 def test_create_module() -> None:
-    PhyTSMixerModule.from_config(PhyTSMixerConfig())
+    PhyTSMixer.from_config(PhyTSMixerConfig())

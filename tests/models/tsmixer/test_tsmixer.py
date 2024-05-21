@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import torch
 
-from transformertf.models.tsmixer import BasicTSMixer, TSMixer
+from transformertf.models.tsmixer import BasicTSMixerModel, TSMixerModel
 
 from .conftest import BATCH_SIZE, NUM_FEATURES, NUM_STATIC_FEATURES, SEQ_LEN
 
@@ -14,7 +14,7 @@ def test_tsmixer(
     future_covariates: torch.Tensor,
     static_covariates: torch.Tensor,
 ) -> None:
-    mixer = TSMixer(
+    mixer = TSMixerModel(
         num_feat=NUM_FEATURES,
         num_future_feat=NUM_FEATURES,
         num_static_real_feat=NUM_STATIC_FEATURES,
@@ -23,8 +23,8 @@ def test_tsmixer(
         dropout=0.1,
         norm="batch",
         activation="relu",
-        seq_len=SEQ_LEN,
-        out_seq_len=OUT_SEQ_LEN,
+        ctxt_seq_len=SEQ_LEN,
+        tgt_seq_len=OUT_SEQ_LEN,
     )
 
     out = mixer(sample, future_covariates, static_covariates)
@@ -54,7 +54,7 @@ def test_tsmixer_target_slice(
     future_covariates: torch.Tensor,
     static_covariates: torch.Tensor,
 ) -> None:
-    mixer = BasicTSMixer(
+    mixer = BasicTSMixerModel(
         num_features=NUM_FEATURES,
         num_blocks=3,
         fc_dim=64,

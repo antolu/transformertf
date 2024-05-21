@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import torch
 
-from transformertf.models.tsmixer import BasicTSMixer
+from transformertf.models.tsmixer import BasicTSMixerModel
 
 from .conftest import BATCH_SIZE, NUM_FEATURES, SEQ_LEN
 
@@ -10,7 +10,7 @@ OUT_SEQ_LEN = 12
 
 
 def test_basic_tsmixer(sample: torch.Tensor) -> None:
-    mixer = BasicTSMixer(
+    mixer = BasicTSMixerModel(
         num_features=NUM_FEATURES,
         num_blocks=3,
         fc_dim=64,
@@ -27,7 +27,7 @@ def test_basic_tsmixer(sample: torch.Tensor) -> None:
 
 
 def test_basic_tsmixer_headless(sample: torch.Tensor) -> None:
-    mixer = BasicTSMixer(
+    mixer = BasicTSMixerModel(
         num_features=NUM_FEATURES,
         num_blocks=3,
         fc_dim=64,
@@ -44,7 +44,7 @@ def test_basic_tsmixer_headless(sample: torch.Tensor) -> None:
 
 
 def test_basic_tsmixer_target_slice(sample: torch.Tensor) -> None:
-    mixer = BasicTSMixer(
+    mixer = BasicTSMixerModel(
         num_features=NUM_FEATURES,
         num_blocks=3,
         fc_dim=64,

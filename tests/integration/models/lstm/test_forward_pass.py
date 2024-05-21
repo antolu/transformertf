@@ -4,7 +4,7 @@ import pytest
 import torch
 
 from transformertf.data import TimeSeriesSample
-from transformertf.models.lstm import LSTMConfig, LSTMModule
+from transformertf.models.lstm import LSTM, LSTMConfig
 
 BATCH_SIZE = 4
 SEQ_LEN = 100
@@ -28,16 +28,14 @@ def sample(batch: tuple[torch.Tensor, torch.Tensor]) -> TimeSeriesSample:
 
 
 @pytest.fixture()
-def module() -> LSTMModule:
+def module() -> LSTM:
     config = LSTMConfig(hidden_size=10, hidden_size_fc=16, num_layers=1)
-    module = LSTMModule.from_config(config, num_features=1)
+    module = LSTM.from_config(config, num_features=1)
     assert module is not None
     return module
 
 
-def test_forward_pass(
-    module: LSTMModule, batch: tuple[torch.Tensor, torch.Tensor]
-) -> None:
+def test_forward_pass(module: LSTM, batch: tuple[torch.Tensor, torch.Tensor]) -> None:
     x, y = batch
     with torch.no_grad():
         y_hat = module(x)
@@ -45,7 +43,7 @@ def test_forward_pass(
 
 
 def test_forward_pass_with_states(
-    module: LSTMModule, batch: tuple[torch.Tensor, torch.Tensor]
+    module: LSTM, batch: tuple[torch.Tensor, torch.Tensor]
 ) -> None:
     x, y = batch
     with torch.no_grad():
@@ -53,13 +51,13 @@ def test_forward_pass_with_states(
     assert y_hat.shape == y.shape
 
 
-def test_training_step(module: LSTMModule, sample: TimeSeriesSample) -> None:
+def test_training_step(module: LSTM, sample: TimeSeriesSample) -> None:
     with torch.no_grad():
         loss = module.training_step(sample, batch_idx=0)
     assert loss is not None
 
 
-def test_validation_step(module: LSTMModule, sample: TimeSeriesSample) -> None:
+def test_validation_step(module: LSTM, sample: TimeSeriesSample) -> None:
     with torch.no_grad():
         loss = module.validation_step(sample, batch_idx=0)
     assert loss is not None

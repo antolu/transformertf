@@ -9,7 +9,7 @@ import torch
 from ..data import DataModuleBase, EncoderDecoderDataModule, TimeSeriesDataModule
 from ..data.dataset import EncoderDecoderPredictDataset
 from ..models import LightningModuleBase
-from ..models.phylstm import PhyLSTMDataModule, PhyLSTMModule
+from ..models.phylstm import PhyLSTM, PhyLSTMDataModule
 from ..nn import QuantileLoss
 from ..utils import ops
 
@@ -47,7 +47,7 @@ def predict(
     -------
 
     """
-    if isinstance(datamodule, PhyLSTMDataModule) and isinstance(module, PhyLSTMModule):
+    if isinstance(datamodule, PhyLSTMDataModule) and isinstance(module, PhyLSTM):
         return predict_phylstm(
             module,
             datamodule,
@@ -129,7 +129,7 @@ def predict_timeseries(
 
 
 def predict_phylstm(
-    module: PhyLSTMModule,
+    module: PhyLSTM,
     datamodule: PhyLSTMDataModule,
     past_covariates: pd.DataFrame,
     future_covariates: pd.DataFrame,

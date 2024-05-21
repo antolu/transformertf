@@ -9,18 +9,9 @@ from transformertf.data import (
     TimeSeriesDataModule,  # noqa: F401
 )
 from transformertf.models.lstm import LSTM  # noqa: F401
-from transformertf.models.phylstm import PhyLSTMModule as PhyLSTM  # noqa: F401
-from transformertf.models.temporal_fusion_transformer import (  # noqa: F401
-    TemporalFusionTransformerModule as TemporalFusionTransformer,
-)
-from transformertf.models.transformer import (  # noqa: F401
-    VanillaTransformerModule as VanillaTransformer,
-)
-from transformertf.models.transformer_v2 import (  # noqa: F401
-    TransformerV2Module as VanillaTransformerV2,
-)
-from transformertf.models.tsmixer import TSMixerModule as TSMixer  # noqa: F401
+from transformertf.models.phylstm import PhyLSTM  # noqa: F401
+from transformertf.models.tsmixer import TSMixer  # noqa: F401
 
 
 def main() -> None:
-    lightning.pytorch.cli.LightningCLI()
+    lightning.pytorch.cli.LightningCLI(parser_kwargs={"parser_mode": "omegaconf"})

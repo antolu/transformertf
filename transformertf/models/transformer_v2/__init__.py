@@ -1,12 +1,10 @@
 from ..._mod_replace import replace_modname
-from ._config import TransformerV2Config
-from ._lightning import TransformerV2Module
-from ._model import TransformerV2
+from ._lightning import VanillaTransformerV2
+from ._model import TransformerV2Model
 
 for _mod in (
-    TransformerV2,
-    TransformerV2Config,
-    TransformerV2Module,
+    TransformerV2Model,
+    VanillaTransformerV2,
 ):
     replace_modname(_mod, __name__)
 
@@ -14,7 +12,6 @@ del replace_modname
 del _mod
 
 __all__ = [
-    "TransformerV2",
-    "TransformerV2Config",
-    "TransformerV2Module",
+    "TransformerV2Model",
+    "VanillaTransformerV2",
 ]

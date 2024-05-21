@@ -11,10 +11,10 @@ from ...nn import (
     VariableSelection,
 )
 
-__all__ = ["TemporalFusionTransformer"]
+__all__ = ["TemporalFusionTransformerModel"]
 
 
-class TemporalFusionTransformer(torch.nn.Module):
+class TemporalFusionTransformerModel(torch.nn.Module):
     def __init__(
         self,
         num_past_features: int,

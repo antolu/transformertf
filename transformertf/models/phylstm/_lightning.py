@@ -8,9 +8,8 @@ import torch
 from ...data import TimeSeriesSample
 from ...utils import ops
 from .._base_module import LightningModuleBase
-from ..typing import LR_CALL_TYPE, OPT_CALL_TYPE
 from ._loss import PhyLSTMLoss
-from ._model import PhyLSTM1, PhyLSTM2, PhyLSTM3
+from ._model import PhyLSTM1Model, PhyLSTM2Model, PhyLSTM3Model
 from ._output import (
     PhyLSTM1Output,
     PhyLSTM1States,
@@ -19,12 +18,6 @@ from ._output import (
     PhyLSTM3Output,
     PhyLSTM3States,
 )
-
-if typing.TYPE_CHECKING:
-    from ._config import PhyLSTMConfig
-
-    SameType = typing.TypeVar("SameType", bound="PhyLSTMModule")
-
 
 HiddenState: typing.TypeAlias = PhyLSTM1States | PhyLSTM2States | PhyLSTM3States
 HiddenStateNone: typing.TypeAlias = (
@@ -51,7 +44,7 @@ class PredictOutput(typing.TypedDict):
     state: HiddenState
 
 
-class PhyLSTMModule(LightningModuleBase):
+class PhyLSTM(LightningModuleBase):
     def __init__(
         self,
         num_layers: int | tuple[int, ...] = 3,
@@ -59,17 +52,8 @@ class PhyLSTMModule(LightningModuleBase):
         hidden_dim: int | tuple[int, ...] = 350,
         hidden_dim_fc: int | tuple[int, ...] | None = None,
         dropout: float | tuple[float, ...] = 0.2,
-        lr: float = 1e-3,
-        weight_decay: float = 1e-4,
-        momentum: float = 0.9,
-        optimizer: str | OPT_CALL_TYPE = "ranger",
-        optimizer_kwargs: dict[str, typing.Any] | None = None,
-        reduce_on_plateau_patience: int = 200,
-        max_epochs: int = 1000,
         phylstm: typing.Literal[1, 2, 3] | None = 3,
         criterion: PhyLSTMLoss | None = None,
-        lr_scheduler: str | LR_CALL_TYPE | None = None,
-        lr_scheduler_interval: typing.Literal["epoch", "step"] = "epoch",
         *,
         log_grad_norm: bool = False,
     ):
@@ -100,34 +84,21 @@ class PhyLSTMModule(LightningModuleBase):
         :param datamodule: The data module to be get the dataloaders from,
             if a Trainer is not attached.
         """
-        self.criterion: PhyLSTMLoss
-        criterion = criterion or PhyLSTMLoss()
-        self.save_hyperparameters(ignore=["criterion", "lr_scheduler", "datamodule"])
-        super().__init__(
-            lr=lr,
-            weight_decay=weight_decay,
-            momentum=momentum,
-            optimizer=optimizer,
-            optimizer_kwargs=optimizer_kwargs or {},
-            reduce_on_plateau_patience=reduce_on_plateau_patience,
-            max_epochs=max_epochs,
-            log_grad_norm=log_grad_norm,
-            lr_scheduler_interval=lr_scheduler_interval,
-            lr_scheduler=lr_scheduler,
-            criterion=criterion,
-        )
+        super().__init__()
+        self.criterion = criterion or PhyLSTMLoss()
+        self.save_hyperparameters(ignore=["criterion"])
 
         self._val_hidden: HiddenStateNone = []  # type: ignore[assignment]
         self._test_hidden: HiddenStateNone = []  # type: ignore[assignment]
         self._predict_hidden: HiddenStateNone = []  # type: ignore[assignment]
 
-        model_cls: type[PhyLSTM1 | PhyLSTM2 | PhyLSTM3]
+        model_cls: type[PhyLSTM1Model | PhyLSTM2Model | PhyLSTM3Model]
         if phylstm == 1:
-            model_cls = PhyLSTM1
+            model_cls = PhyLSTM1Model
         elif phylstm == 2:
-            model_cls = PhyLSTM2
+            model_cls = PhyLSTM2Model
         elif phylstm == 3 or phylstm is None:
-            model_cls = PhyLSTM3
+            model_cls = PhyLSTM3Model
         else:
             msg = "phylstm must be 1, 2 or 3"
             raise ValueError(msg)
@@ -143,7 +114,7 @@ class PhyLSTMModule(LightningModuleBase):
     def forward(
         self,
         x: torch.Tensor,
-        hidden_state: HiddenState | None = None,
+        hx: HiddenState | None = None,
         *,
         return_states: typing.Literal[False] = False,
     ) -> PhyLSTMOutput: ...
@@ -152,7 +123,7 @@ class PhyLSTMModule(LightningModuleBase):
     def forward(
         self,
         x: torch.Tensor,
-        hidden_state: HiddenState | None = None,
+        hx: HiddenState | None = None,
         *,
         return_states: typing.Literal[True],
     ) -> tuple[PhyLSTMOutput, HiddenState]: ...
@@ -160,7 +131,7 @@ class PhyLSTMModule(LightningModuleBase):
     def forward(
         self,
         x: torch.Tensor,
-        hidden_state: HiddenState | None = None,
+        hx: HiddenState | None = None,
         *,
         return_states: bool = False,
     ) -> PhyLSTMOutput | tuple[PhyLSTMOutput, HiddenState]:
@@ -174,35 +145,7 @@ class PhyLSTMModule(LightningModuleBase):
         :param return_states: Whether to return the hidden states.
         :return: The model output.
         """
-        return self.model(x, hidden_state=hidden_state, return_states=return_states)
-
-    @classmethod
-    def parse_config_kwargs(  # type: ignore[override]
-        cls,
-        config: PhyLSTMConfig,
-        **kwargs: typing.Any,
-    ) -> dict[str, typing.Any]:
-        kwargs = super().parse_config_kwargs(config, **kwargs)
-        default_kwargs = {
-            "phylstm": config.phylstm,
-            "num_layers": config.num_layers,
-            "sequence_length": config.seq_len,
-            "hidden_dim": config.hidden_size,
-            "hidden_dim_fc": config.hidden_size_fc,
-            "dropout": config.dropout,
-            "lr": config.lr,
-            "max_epochs": config.num_epochs,
-            "optimizer": config.optimizer,
-            "optimizer_kwargs": config.optimizer_kwargs,
-            "log_grad_norm": config.log_grad_norm,
-            "criterion": PhyLSTMLoss.from_config(config),
-            "lr_scheduler": config.lr_scheduler,
-            "lr_scheduler_interval": config.lr_scheduler_interval,
-        }
-
-        default_kwargs.update(kwargs)
-
-        return default_kwargs
+        return self.model(x, hx=hx, return_states=return_states)
 
     def on_validation_epoch_start(self) -> None:
         """Reset the hidden states"""
@@ -234,7 +177,7 @@ class PhyLSTMModule(LightningModuleBase):
         hidden: HiddenState
         output, hidden = self.forward(
             batch["input"],
-            hidden_state=hidden_state,
+            hx=hidden_state,
             return_states=True,
         )
 
@@ -332,7 +275,7 @@ class PhyLSTMModule(LightningModuleBase):
         prev_hidden = self._predict_hidden[dataloader_idx]
 
         model_output, hidden = self.forward(
-            batch["input"], hidden_state=prev_hidden, return_states=True
+            batch["input"], hx=prev_hidden, return_states=True
         )
         self._predict_hidden[dataloader_idx] = hidden  # type: ignore[assignment]
 
