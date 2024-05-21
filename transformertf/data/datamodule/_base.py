@@ -24,7 +24,7 @@ from ..transform import (
 )
 
 if typing.TYPE_CHECKING:
-    from ...config import BaseConfig
+    pass
 
 __all__ = ["DataModuleBase"]
 
@@ -62,12 +62,8 @@ class DataModuleBase(L.LightningDataModule):
         input_columns: str | typing.Sequence[str],
         target_column: str,
         known_past_columns: str | typing.Sequence[str] | None = None,
-        train_df: pd.DataFrame
-        | list[pd.DataFrame]
-        | None = None,  # for checkpoint restore
-        val_df: pd.DataFrame
-        | list[pd.DataFrame]
-        | None = None,  # for checkpoint restore
+        train_df: str | list[str] | None = None,
+        val_df: str | list[str] | None = None,
         normalize: bool = True,  # noqa: FBT001, FBT002
         downsample: int = 1,
         downsample_method: typing.Literal[
@@ -82,7 +78,7 @@ class DataModuleBase(L.LightningDataModule):
         distributed_sampler: bool = False,
     ):
         super().__init__()
-        self.save_hyperparameters(ignore=["train_df", "val_df"])
+        self.save_hyperparameters()
 
         input_columns = _to_list(input_columns)
         known_past_columns = _to_list(known_past_columns) if known_past_columns else []
@@ -92,20 +88,8 @@ class DataModuleBase(L.LightningDataModule):
 
         self._create_transforms()
 
-        if train_df is None and val_df is None:
-            self._raw_train_df: list[pd.DataFrame] = []
-            self._raw_val_df: list[pd.DataFrame] = []
-        elif train_df is None and val_df is not None:
-            msg = "val_df must be None if train_df is None."
-            raise ValueError(msg)
-        elif train_df is not None and val_df is None:
-            msg = "train_df must be None if val_df is None."
-            raise ValueError(msg)
-        else:
-            assert train_df is not None
-            assert val_df is not None
-            self._raw_train_df = _to_list(train_df)
-            self._raw_val_df = _to_list(val_df)
+        self._train_df_pths = _to_list(train_df) if train_df is not None else []
+        self._val_df_pths = _to_list(val_df) if val_df is not None else []
 
         # these will be set by prepare_data
         self._train_df: list[pd.DataFrame] = []
@@ -131,28 +115,6 @@ class DataModuleBase(L.LightningDataModule):
         predict: bool = False,
     ) -> torch.utils.data.Dataset:
         raise NotImplementedError
-
-    @classmethod
-    def parse_config_kwargs(
-        cls, config: BaseConfig, **kwargs: typing.Any
-    ) -> dict[str, typing.Any]:
-        """
-        To be overridden by subclasses to parse other config subclasses.
-        """
-
-        default_kwargs = {
-            "normalize": config.normalize,
-            "downsample": config.downsample,
-            "downsample_method": config.downsample_method,
-            "target_depends_on": config.target_depends_on,
-            "extra_transforms": config.extra_transforms,
-            "batch_size": config.batch_size,
-            "num_workers": config.num_workers,
-        }
-
-        default_kwargs.update(kwargs)
-
-        return default_kwargs
 
     """ End override """
 
@@ -201,127 +163,6 @@ class DataModuleBase(L.LightningDataModule):
             transform_type=TransformType.XY,
         )
 
-    @classmethod
-    def from_dataframe(
-        cls: type[SameType],
-        config: BaseConfig,
-        train_df: pd.DataFrame | list[pd.DataFrame],
-        val_df: pd.DataFrame | list[pd.DataFrame],
-        input_columns: str | typing.Sequence[str] | None = None,
-        target_column: str | None = None,
-        **kwargs: typing.Any,
-    ) -> SameType:
-        """
-        Create a datamodule instance from dataframes and a config.
-        This function does not need to be overridden by subclasses.
-
-        Parameters
-        ----------
-        config : BaseConfig
-            The config or config subclass instance to instanitate the datamodule with.
-        train_df : pd.DataFrame | list[pd.DataFrame]
-            Dataframes containing the training data.
-        val_df : pd.DataFrame | list[pd.DataFrame]
-            Dataframes containing the validation data.
-        kwargs : typing.Any
-            Additional keyword arguments to pass to the datamodule constructor.
-            These will override the values specified in the config.
-
-        Returns
-        -------
-        SameType
-            The created datamodule instance.
-        """
-        train_df = _to_list(train_df)
-        val_df = _to_list(val_df)
-
-        if input_columns is None:
-            if config.input_columns is None:
-                msg = "Either input_columns or config.input_columns must be set."
-                raise ValueError(msg)
-
-            input_columns = _to_list(config.input_columns)
-
-        if target_column is None:
-            if config.target_column is None:
-                msg = "Either target_column or config.target_column must be set."
-                raise ValueError(msg)
-
-            target_column = config.target_column
-
-        if "known_past_columns" not in kwargs:
-            kwargs.update(
-                known_past_columns=config.known_past_columns,
-            )
-
-        return cls(
-            train_df=train_df,
-            val_df=val_df,
-            input_columns=input_columns,
-            target_column=target_column,
-            **cls.parse_config_kwargs(config, **kwargs),
-        )
-
-    @classmethod
-    def from_parquet(
-        cls: type[SameType],
-        config: BaseConfig,
-        train_dataset: str | typing.Sequence[str] | None = None,
-        val_dataset: str | typing.Sequence[str] | None = None,
-        **kwargs: typing.Any,
-    ) -> SameType:
-        """
-        Create a datamodule instance from a dataset on disk and a config.
-        This function does not need to be overridden by subclasses.
-
-        Parameters
-        ----------
-        config : BaseConfig
-            The config or config subclass instance to instanitate the datamodule with.
-        train_dataset : str | typing.Sequence[str] | None
-            Path to the training dataset, one path per dataframe. If None, the
-            path is taken from the config.
-        val_dataset : str | typing.Sequence[str] | None
-            Path to the validation dataset, one path per dataframe. If None, the
-            path is taken from the config.
-        kwargs : typing.Any
-            Additional keyword arguments to pass to the datamodule constructor.
-            These will override the values specified in the config.
-
-        Returns
-        -------
-        SameType
-            The datamodule created instance.
-        """
-        if train_dataset is None and val_dataset is None:
-            if config.train_dataset is None and config.val_dataset is None:
-                msg = "train_dataset and val_dataset must not be None."
-                raise ValueError(msg)
-            train_dataset = config.train_dataset
-            val_dataset = config.val_dataset
-        elif train_dataset is None and val_dataset is not None:
-            msg = "val_dataset must be None if train_dataset is None."
-            raise ValueError(msg)
-        elif train_dataset is not None and val_dataset is None:
-            msg = "train_dataset must be None if val_dataset is None."
-            raise ValueError(msg)
-
-        assert train_dataset is not None
-        assert val_dataset is not None
-
-        train_dataset = _to_list(train_dataset)
-        val_dataset = _to_list(val_dataset)
-
-        train_df = [pd.read_parquet(pth) for pth in train_dataset]
-        val_df = [pd.read_parquet(pth) for pth in val_dataset]
-
-        return cls.from_dataframe(
-            config,
-            train_df,
-            val_df,
-            **kwargs,
-        )
-
     def prepare_data(self, *, save: bool = True) -> None:
         """
         Loads and preprocesses data dataframes.
@@ -338,8 +179,17 @@ class DataModuleBase(L.LightningDataModule):
 
         """
         # load all data into memory and then apply transforms
-        train_df = list(map(self.preprocess_dataframe, self._raw_train_df))
-        val_df = list(map(self.preprocess_dataframe, self._raw_val_df))
+        train_pths = [Path(pth).expanduser() for pth in self._train_df_pths]
+        val_pths = [Path(pth).expanduser() for pth in self._val_df_pths]
+
+        train_df = list(map(pd.read_parquet, train_pths))
+        val_df = list(map(pd.read_parquet, val_pths))
+
+        self._raw_train_df = train_df
+        self._raw_val_df = val_df
+
+        train_df = list(map(self.preprocess_dataframe, train_df))
+        val_df = list(map(self.preprocess_dataframe, val_df))
 
         if not self._scalers_fitted():
             self._fit_transforms(pd.concat(train_df))
@@ -348,7 +198,8 @@ class DataModuleBase(L.LightningDataModule):
         self._val_df = list(map(self.apply_transforms, val_df))
 
         if save:
-            self.save_data(self._tmp_dir.name)
+            save_data(self._train_df, "train", self._tmp_dir.name)
+            save_data(self._val_df, "val", self._tmp_dir.name)
 
     def setup(
         self,
@@ -368,7 +219,7 @@ class DataModuleBase(L.LightningDataModule):
             dir_: str | None = None,
         ) -> list[pd.DataFrame]:
             """Convenience function to load data from parquet files."""
-            paths = self._tmp_data_paths(name, dir_)
+            paths = tmp_data_paths(None, name, dir_)
             dfs = []
             for pth in paths:
                 df = pd.read_parquet(pth)
@@ -662,29 +513,6 @@ class DataModuleBase(L.LightningDataModule):
             return make_dataloader(self.val_dataset)  # type: ignore[arg-type]
         return [make_dataloader(ds) for ds in self.val_dataset]  # type: ignore[arg-type]
 
-    def save_data(self, save_dir: str | None = None) -> None:
-        """
-        Saves the data to the model directory.
-        """
-        if save_dir is None:
-            save_dir = self.hparams["model_dir"]
-
-        def save_parquet(
-            dfs: list[pd.DataFrame] | None,
-            name: typing.Literal["train", "val", "test", "predict"],
-        ) -> None:
-            if dfs is None:
-                return
-
-            paths = self._tmp_data_paths(name, save_dir)
-            for i, df in enumerate(dfs):
-                if len(df) == 0:
-                    continue
-                df.reset_index(drop=True).to_parquet(paths[i])
-
-        save_parquet(self._train_df, "train")
-        save_parquet(self._val_df, "val")
-
     def state_dict(self) -> dict[str, typing.Any]:
         state = super().state_dict()
         if self._input_transforms is not None:
@@ -712,47 +540,6 @@ class DataModuleBase(L.LightningDataModule):
             state.pop("target_transform")
 
         super().load_state_dict(state)
-
-    def _tmp_data_paths(
-        self,
-        name: typing.Literal["train", "val", "test", "predict"],
-        dir_: str | None = None,
-    ) -> list[Path]:
-        """
-        Returns a list of paths to the data files.
-        If the data is not saved yet, the paths are generated,
-        otherwise the paths are searched for in the model directory.
-
-        :param name: Name of the data set.
-        :param dir_: Directory to look for the data files in.
-        :return: List of paths to the data files.
-        """
-        if dir_ is None:
-            dir_ = typing.cast(str, self.hparams["model_dir"])
-        dfs = getattr(self, f"_{name}_df")
-
-        if dfs is not None and len(dfs) > 0:  # for saving
-            if len(dfs) == 1 or isinstance(dfs, pd.DataFrame):
-                return [Path(dir_) / f"{name}.parquet"]
-            return [Path(dir_) / f"{name}_{i}.parquet" for i in range(len(dfs))]
-        # for loading
-        # try to find the data files
-        single_df_path = Path(dir_) / f"{name}.parquet"
-        if single_df_path.exists():
-            return [single_df_path]
-        paths = []
-        multi_file_stem = path.join(dir_, f"{name}_{{}}.parquet")
-        # find all files with the same stem
-        i = 0
-        while True:
-            p = Path(multi_file_stem.format(i))
-            if p.exists():
-                paths.append(p)
-            else:
-                break
-            i += 1
-
-        return paths
 
     def _scalers_fitted(self) -> bool:
         fitted = all(
@@ -843,6 +630,62 @@ class DataModuleBase(L.LightningDataModule):
             df[TIME] = np.arange(len(df))
 
         return df
+
+
+def save_data(
+    dfs: list[pd.DataFrame] | None,
+    name: typing.Literal["train", "val", "test", "predict"],
+    save_dir: str,
+) -> None:
+    """
+    Saves the data to the model directory.
+    """
+    if dfs is None:
+        return
+
+    paths = tmp_data_paths(dfs, name, save_dir)
+    for i, df in enumerate(dfs):
+        if len(df) == 0:
+            continue
+        df.reset_index(drop=True).to_parquet(paths[i])
+
+
+def tmp_data_paths(
+    dfs: list[pd.DataFrame] | None,
+    name: typing.Literal["train", "val", "test", "predict"],
+    dir_: str | None,
+) -> list[Path]:
+    """
+    Returns a list of paths to the data files.
+    If the data is not saved yet, the paths are generated,
+    otherwise the paths are searched for in the model directory.
+
+    :param name: Name of the data set.
+    :param dir_: Directory to look for the data files in.
+    :return: List of paths to the data files.
+    """
+    if dfs is not None and len(dfs) > 0:  # for saving
+        if len(dfs) == 1 or isinstance(dfs, pd.DataFrame):
+            return [Path(dir_) / f"{name}.parquet"]
+        return [Path(dir_) / f"{name}_{i}.parquet" for i in range(len(dfs))]
+    # for loading
+    # try to find the data files
+    single_df_path = Path(dir_) / f"{name}.parquet"
+    if single_df_path.exists():
+        return [single_df_path]
+    paths = []
+    multi_file_stem = path.join(dir_, f"{name}_{{}}.parquet")
+    # find all files with the same stem
+    i = 0
+    while True:
+        p = Path(multi_file_stem.format(i))
+        if p.exists():
+            paths.append(p)
+        else:
+            break
+        i += 1
+
+    return paths
 
 
 T = typing.TypeVar("T")

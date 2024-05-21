@@ -8,26 +8,25 @@ from ._base import DataModuleBase
 
 if typing.TYPE_CHECKING:
     import numpy as np
-    import pandas as pd
 
-    from ...config import TransformerBaseConfig
     from ..transform import BaseTransform
 
 
 class TransformerDataModule(DataModuleBase):
     def __init__(
         self,
+        *,
         input_columns: str | typing.Sequence[str],
         target_column: str,
         known_past_columns: str | typing.Sequence[str] | None = None,
-        train_df: pd.DataFrame | list[pd.DataFrame] | None = None,
-        val_df: pd.DataFrame | list[pd.DataFrame] | None = None,
-        normalize: bool = True,  # noqa: FBT001, FBT002
+        train_df: str | list[str] | None = None,
+        val_df: str | list[str] | None = None,
+        normalize: bool = True,
         ctxt_seq_len: int = 500,
         tgt_seq_len: int = 300,
         min_ctxt_seq_len: int | None = None,
         min_tgt_seq_len: int | None = None,
-        randomize_seq_len: bool = False,  # noqa: FBT001, FBT002
+        randomize_seq_len: bool = False,
         stride: int = 1,
         downsample: int = 1,
         downsample_method: typing.Literal[
@@ -38,7 +37,6 @@ class TransformerDataModule(DataModuleBase):
         batch_size: int = 128,
         num_workers: int = 0,
         dtype: str = "float32",
-        *,
         distributed_sampler: bool = False,
     ):
         super().__init__(
@@ -57,26 +55,7 @@ class TransformerDataModule(DataModuleBase):
             distributed_sampler=distributed_sampler,
         )
 
-        self.save_hyperparameters(ignore=["train_df", "val_df"])
-
-    @classmethod
-    def parse_config_kwargs(  # type: ignore[override]
-        cls,
-        config: TransformerBaseConfig,
-        **kwargs: typing.Any,
-    ) -> dict[str, typing.Any]:
-        kwargs = super().parse_config_kwargs(config, **kwargs)
-        default_kwargs = {
-            "ctxt_seq_len": config.ctxt_seq_len,
-            "tgt_seq_len": config.tgt_seq_len,
-            "min_ctxt_seq_len": config.min_ctxt_seq_len,
-            "min_tgt_seq_len": config.min_tgt_seq_len,
-            "randomize_seq_len": config.randomize_seq_len,
-            "stride": config.stride,
-        }
-        default_kwargs.update(kwargs)
-
-        return default_kwargs
+        self.save_hyperparameters()
 
 
 class EncoderDecoderDataModule(TransformerDataModule):
