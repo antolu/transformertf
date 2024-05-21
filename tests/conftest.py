@@ -30,3 +30,18 @@ def df() -> pd.DataFrame:
     df[FIELD_DOT] = numpy.gradient(df[FIELD].to_numpy())
 
     return df
+
+
+@pytest.fixture(scope="session")
+def df_path() -> str:
+    return DF_PATH
+
+
+@pytest.fixture(scope="session")
+def current_key() -> str:
+    return CURRENT
+
+
+@pytest.fixture(scope="session")
+def field_key() -> str:
+    return FIELD

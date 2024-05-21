@@ -216,7 +216,7 @@ class DataModuleBase(L.LightningDataModule):
 
         def load_parquet(
             name: typing.Literal["train", "val", "test", "predict"],
-            dir_: str | None = None,
+            dir_: str,
         ) -> list[pd.DataFrame]:
             """Convenience function to load data from parquet files."""
             paths = tmp_data_paths(None, name, dir_)
@@ -653,7 +653,7 @@ def save_data(
 def tmp_data_paths(
     dfs: list[pd.DataFrame] | None,
     name: typing.Literal["train", "val", "test", "predict"],
-    dir_: str | None,
+    dir_: str,
 ) -> list[Path]:
     """
     Returns a list of paths to the data files.
