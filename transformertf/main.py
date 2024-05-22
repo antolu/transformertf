@@ -35,6 +35,64 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
             help="Do not compile the model with torch.",
         )
 
+        parser.add_lightning_class_args(
+            lightning.pytorch.callbacks.LearningRateMonitor, "lr_monitor"
+        )
+        parser.set_defaults({"lr_monitor": {"logging_interval": "epoch"}})
+
+        parser.add_lightning_class_args(
+            lightning.pytorch.callbacks.RichProgressBar, "progress_bar"
+        )
+        parser.set_defaults({"progress_bar": {"refresh_rate": 1}})
+
+        parser.add_lightning_class_args(
+            lightning.pytorch.callbacks.RichModelSummary, "model_summary"
+        )
+        parser.set_defaults({"model_summary": {"max_depth": 2}})
+
+        parser.add_lightning_class_args(
+            lightning.pytorch.callbacks.ModelCheckpoint, "checkpoint_every"
+        )
+        parser.set_defaults({
+            "checkpoint_every": {
+                "save_top_k": -1,
+                "monitor": "loss/validation",
+                "mode": "min",
+                "every_n_epochs": 1,
+                "filename": "epoch={epoch}-every-valloss={loss/validation:.4f}",
+            }
+        })
+
+        parser.add_lightning_class_args(
+            lightning.pytorch.callbacks.ModelCheckpoint, "checkpoint_best"
+        )
+        parser.set_defaults({
+            "checkpoint_best": {
+                "save_top_k": 1,
+                "monitor": "loss/validation",
+                "mode": "min",
+                "dirpath": "checkpoints",
+                "filename": "epoch={epoch}-valloss={loss/validation:.4f}",
+                "save_last": "link",
+                "save_weights_only": False,
+                "auto_insert_metric_name": False,
+                "enable_version_counter": False,
+            }
+        })
+
+        parser.set_defaults({
+            "trainer": {
+                "logger": {
+                    "class_path": "lightning.pytorch.loggers.TensorBoardLogger",
+                    "init_args": {
+                        "log_graph": True,
+                        "save_dir": "logs",
+                        "name": None,
+                    },
+                }
+            }
+        })
+
     def before_fit(self) -> None:
         self.model = self._maybe_compile(self.model)
 
