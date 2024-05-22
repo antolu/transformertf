@@ -5,10 +5,8 @@ import typing
 import torch
 
 from ...data import EncoderTargetSample
-from ...nn import VALID_ACTIVATIONS, QuantileLoss, get_loss
+from ...nn import VALID_ACTIVATIONS, QuantileLoss
 from .._base_module import LightningModuleBase
-from ..typing import LR_CALL_TYPE, OPT_CALL_TYPE
-from ._config import TransformerEncoderConfig
 from ._model import TransformerEncoder
 
 if typing.TYPE_CHECKING:
@@ -27,19 +25,10 @@ class TransformerEncoderModule(LightningModuleBase):
         activation: VALID_ACTIVATIONS = "relu",
         fc_dim: int | tuple[int, ...] = 1024,
         output_dim: int = 7,
-        lr: float = 1e-3,
-        weight_decay: float = 1e-4,
-        momentum: float = 0.9,
-        optimizer: str | OPT_CALL_TYPE = "adam",
-        optimizer_kwargs: dict[str, typing.Any] | None = None,
-        reduce_on_plateau_patience: int = 200,
-        max_epochs: int = 1000,
         criterion: (QuantileLoss | torch.nn.MSELoss | torch.nn.HuberLoss | None) = None,
-        lr_scheduler: str | LR_CALL_TYPE | None = None,
-        lr_scheduler_interval: typing.Literal["epoch", "step"] = "epoch",
-        *,
-        log_grad_norm: bool = False,
     ):
+        super().__init__()
+        self.save_hyperparameters(ignore=["criterion"])
         if isinstance(criterion, QuantileLoss):
             if output_dim != len(criterion.quantiles):
                 msg = (
@@ -59,21 +48,7 @@ class TransformerEncoderModule(LightningModuleBase):
             raise ValueError(msg)
         elif criterion is None:
             criterion = QuantileLoss()
-
-        super().__init__(
-            lr=lr,
-            weight_decay=weight_decay,
-            momentum=momentum,
-            optimizer=optimizer,
-            optimizer_kwargs=optimizer_kwargs or {},
-            reduce_on_plateau_patience=reduce_on_plateau_patience,
-            max_epochs=max_epochs,
-            log_grad_norm=log_grad_norm,
-            lr_scheduler=lr_scheduler,
-            lr_scheduler_interval=lr_scheduler_interval,
-            criterion=criterion,
-        )
-        self.save_hyperparameters(ignore=["lr_scheduler", "criterion"])
+        self.criterion = criterion
 
         self.model = TransformerEncoder(
             num_features=num_features,
@@ -86,47 +61,6 @@ class TransformerEncoderModule(LightningModuleBase):
             fc_dim=fc_dim,
             output_dim=output_dim,
         )
-
-    @classmethod
-    def parse_config_kwargs(  # type: ignore[override]
-        cls,
-        config: TransformerEncoderConfig,
-        **kwargs: typing.Any,
-    ) -> dict[str, typing.Any]:
-        default_kwargs = super().parse_config_kwargs(config, **kwargs)
-        num_features = (
-            len(config.input_columns) if config.input_columns is not None else 0
-        )
-        num_features += 1  # add target
-
-        if num_features == 1:
-            msg = (
-                "num_features must be greater than 1. "
-                "Please specify input_columns in config, or "
-                "pass in a different value for num_features."
-            )
-            raise ValueError(msg)
-
-        default_kwargs.update({
-            "num_features": num_features,
-            "seq_len": config.ctxt_seq_len + config.tgt_seq_len,
-            "n_dim_model": config.n_dim_model,
-            "num_heads": config.num_heads,
-            "num_encoder_layers": config.num_encoder_layers,
-            "dropout": config.dropout,
-            "activation": config.activation,
-            "fc_dim": config.fc_dim,
-            "output_dim": config.output_dim,
-        })
-
-        default_kwargs.update(kwargs)
-
-        if "criterion" in default_kwargs and isinstance(
-            default_kwargs["criterion"], str
-        ):
-            default_kwargs["criterion"] = get_loss(default_kwargs["criterion"])  # type: ignore[arg-type]
-
-        return default_kwargs
 
     def forward(self, x: EncoderTargetSample) -> torch.Tensor:
         return self.model(
