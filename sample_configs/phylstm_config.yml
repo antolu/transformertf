@@ -41,17 +41,14 @@ model:
     hidden_dim_fc: 512
     phylstm: 3
     dropout: 0.2
-    criterion:
-        class_path: transformertf.models.phylstm.PhyLSTMLoss
-#        init_args:
-#          loss_weights:
-#            class_path: transformertf.models.phylstm.LossWeights
-#            init_args:
-#              alpha: 1.0
-#              beta: 1.0
-#              gamma: 1.0
-#              eta: 1.0
-#              kappa: 1.0
+    loss_weights:
+      class_path: transformertf.models.phylstm.PhyLSTMLoss.LossWeights
+      init_args:
+        alpha: 1.0
+        beta: 1.0
+        gamma: 1.0
+        eta: 1.0
+        kappa: 1.0
 
     log_grad_norm: true
 data:

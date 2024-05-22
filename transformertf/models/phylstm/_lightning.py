@@ -53,7 +53,7 @@ class PhyLSTM(LightningModuleBase):
         hidden_dim_fc: int | tuple[int, ...] | None = None,
         dropout: float | tuple[float, ...] = 0.2,
         phylstm: typing.Literal[1, 2, 3] | None = 3,
-        criterion: PhyLSTMLoss | None = None,
+        loss_weights: PhyLSTMLoss.LossWeights | None = None,
         *,
         log_grad_norm: bool = False,
     ):
@@ -85,8 +85,8 @@ class PhyLSTM(LightningModuleBase):
             if a Trainer is not attached.
         """
         super().__init__()
-        self.criterion = criterion or PhyLSTMLoss()
-        self.save_hyperparameters(ignore=["criterion"])
+        self.criterion = PhyLSTMLoss(loss_weights=loss_weights)
+        self.save_hyperparameters(ignore=["criterion", "loss_weights"])
 
         self._val_hidden: HiddenStateNone = []  # type: ignore[assignment]
         self._test_hidden: HiddenStateNone = []  # type: ignore[assignment]

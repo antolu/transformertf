@@ -1,7 +1,7 @@
 from ..._mod_replace import replace_modname
 from ._datamodule import PhyLSTMDataModule
 from ._lightning import PhyLSTM, StepOutput
-from ._loss import LossWeights, PhyLSTMLoss
+from ._loss import PhyLSTMLoss
 from ._model import PhyLSTM1Model, PhyLSTM2Model, PhyLSTM3Model
 from ._output import (
     PhyLSTM1Output,
@@ -13,7 +13,6 @@ from ._output import (
 )
 
 for _mod in (
-    LossWeights,
     PhyLSTMLoss,
     PhyLSTM1Model,
     PhyLSTM2Model,
@@ -28,7 +27,6 @@ del replace_modname
 del _mod
 
 __all__ = [
-    "LossWeights",
     "PhyLSTM",
     "PhyLSTM1Model",
     "PhyLSTM1Output",

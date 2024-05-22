@@ -14,9 +14,7 @@ from transformertf.data import (
 )
 from transformertf.models.lstm import LSTM  # noqa: F401
 from transformertf.models.phylstm import (  # noqa: F401
-    LossWeights,
     PhyLSTM,
-    PhyLSTMLoss,
 )
 from transformertf.models.tsmixer import TSMixer  # noqa: F401
 
