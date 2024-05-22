@@ -29,6 +29,7 @@ dependencies = [
     "scikit-learn >= 1.4",
     "scipy >= 1.12",
     "torch >= 2.2, < 3.0",
+    "omegaconf >= 2.1"
 ]
 
 [[project.authors]]
@@ -117,7 +118,6 @@ exclude = [
     "node_modules",
     "venv",
     ".venv",
-    "transformertf/hysteresis"
 ]
 
 line-length = 88
