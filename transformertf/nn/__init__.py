@@ -1,5 +1,6 @@
 from .._mod_replace import replace_modname
 from ._add_norm import AddNorm
+from ._gate_add_norm import GateAddNorm
 from ._get_activation import VALID_ACTIVATIONS, get_activation
 from ._get_loss import VALID_LOSS, get_loss
 from ._glu import GatedLinearUnit
@@ -13,6 +14,7 @@ from ._weighted_loss import WeightedHuberLoss, WeightedMAELoss, WeightedMSELoss
 
 for _mod in (
     AddNorm,
+    GateAddNorm,
     GatedLinearUnit,
     GatedResidualNetwork,
     get_loss,
@@ -38,6 +40,7 @@ __all__ = [
     "VALID_ACTIVATIONS",
     "VALID_LOSS",
     "AddNorm",
+    "GateAddNorm",
     "GatedLinearUnit",
     "GatedResidualNetwork",
     "InterpretableMultiHeadAttention",
