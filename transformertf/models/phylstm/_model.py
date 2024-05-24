@@ -13,6 +13,7 @@ try:
 except ImportError:
     from torch.optim.lr_scheduler import _LRScheduler as LRScheduler  # noqa
 
+from ...nn import GateAddNorm, GatedResidualNetwork, VariableSelection
 from ...utils import ops
 from ._output import (
     PhyLSTM1Output,
@@ -85,39 +86,61 @@ class PhyLSTM1Model(nn.Module):
         self.sequence_length = sequence_length
         self.hidden_dim = hidden_dim_
 
+        self.variable_selection = VariableSelection(
+            n_features=1,
+            hidden_dim=hidden_dim_,
+            n_dim_model=hidden_dim_,
+            context_size=None,
+            dropout=dropout_,
+        )
+
         # state space variable modeling
         self.lstm1 = nn.LSTM(
-            input_size=1,
+            input_size=hidden_dim_,
             hidden_size=hidden_dim_,
             num_layers=num_layers_,
             batch_first=True,
             dropout=dropout_,
         )
 
-        if hidden_dim_fc is None:
-            hidden_dim_fc_ = hidden_dim_ // 2
-        else:
-            hidden_dim_fc_ = _parse_vararg(hidden_dim_fc, 1)
-        self.fc1 = nn.Sequential(
-            collections.OrderedDict([
-                ("fc11", nn.Linear(hidden_dim_, hidden_dim_fc_)),
-                ("lrelu1", nn.LeakyReLU()),
-                ("ln1", nn.LayerNorm(hidden_dim_fc_)),
-                ("fc12", nn.Linear(hidden_dim_fc_, 3)),
-            ])
-        )
-        self.fc_e = nn.Sequential(
-            collections.OrderedDict([
-                ("fc_e1", nn.Linear(hidden_dim_, hidden_dim_fc_)),
-                ("lrelu_e2", nn.LeakyReLU()),
-                ("ln_e2", nn.LayerNorm(hidden_dim_fc_)),
-                ("fc_e2", nn.Linear(hidden_dim_fc_, 2)),
-            ])
+        self.post_lstm_gate = GateAddNorm(
+            input_dim=hidden_dim_,
+            output_dim=hidden_dim_,
+            dropout=dropout_,
         )
 
-        self.eddy_a = nn.Parameter(torch.tensor(1.0))
-        self.eddy_b = nn.Parameter(torch.tensor(1.0))
-        self.eddy_c = nn.Parameter(torch.tensor(1.0))
+        self.ff_z = GatedResidualNetwork(
+            input_dim=hidden_dim_,
+            output_dim=hidden_dim_,
+            dropout=dropout_,
+        )
+
+        self.ff_idot = GatedResidualNetwork(
+            input_dim=1,
+            output_dim=hidden_dim_,
+            dropout=dropout_,
+        )
+
+        self.ff_bi = GatedResidualNetwork(
+            input_dim=hidden_dim_,
+            output_dim=hidden_dim_,
+            context_dim=hidden_dim_,
+            dropout=dropout_,
+        )
+        self.ff_b = GatedResidualNetwork(
+            input_dim=hidden_dim_,
+            output_dim=hidden_dim_,
+            dropout=dropout_,
+            activation="relu",
+        )
+
+        self.fc_z = nn.Linear(hidden_dim_, 3)
+        self.fc_b = nn.Linear(hidden_dim_, 2)
+
+        if hidden_dim_fc is None:
+            hidden_dim_ // 2
+        else:
+            _parse_vararg(hidden_dim_fc, 1)
 
         self.apply(self.weights_init)
 
@@ -185,27 +208,24 @@ class PhyLSTM1Model(nn.Module):
 
         :return: Output torch.Tensor of shape (batch_size, sequence_length, 1).
         """
+        x_vs = self.variable_selection(x)[0]
+
         h_lstm1 = hx["lstm1"] if hx is not None else None
 
-        o_lstm1, h_lstm1 = self.lstm1(x, hx=h_lstm1)
+        o_lstm1, h_lstm1 = self.lstm1(x_vs, hx=h_lstm1)
 
-        z = self.fc1(o_lstm1)
+        o_lstm1 = self.post_lstm_gate(o_lstm1, x_vs)
 
-        Ie = self.fc_e(o_lstm1)
+        z = self.ff_z(o_lstm1)
+        z = self.fc_z(z)
 
-        I_dot = torch.gradient(x, dim=1)[0]
-        Ie_dot = self.eddy_a * I_dot + self.eddy_b * Ie[..., 0, None]
-        Be = self.eddy_c * Ie[..., 0, None]
-        Be_dot = self.eddy_c * Ie_dot
+        idot = self.ff_idot(torch.gradient(x, dim=1)[0])
 
-        # breakpoint(())
-        i = torch.cat([Ie, Ie_dot], dim=2)
-        z = torch.cat(
-            [z[..., 0, None] + Be, z[..., 1, None] + Be_dot, z[..., 2, None]], dim=2
-        )
+        b = self.ff_bi(o_lstm1, idot)
+        b = self.fc_b(b)
 
         assert isinstance(h_lstm1, tuple)
-        output: PhyLSTM1Output = {"z": z, "i": i}
+        output: PhyLSTM1Output = {"z": z, "b": b}
         states: PhyLSTM1States = {"lstm1": tuple(o.detach() for o in h_lstm1)}
 
         if return_states:

@@ -135,7 +135,7 @@ class PhyLSTMLoss(nn.Module):
         """
         return self.forward_explicit(
             z=y_hat["z"],
-            i=y_hat.get("i"),
+            b=y_hat.get("b"),
             y=targets,
             dz_dt=y_hat.get("dz_dt"),
             dr_dt=y_hat.get("dr_dt"),
@@ -149,7 +149,7 @@ class PhyLSTMLoss(nn.Module):
         self,
         z: torch.Tensor,
         y: torch.Tensor,
-        i: torch.Tensor | None,
+        b: torch.Tensor | None,
         dz_dt: torch.Tensor | None,
         gx: torch.Tensor | None,
         dr_dt: torch.Tensor | None,
@@ -163,7 +163,7 @@ class PhyLSTMLoss(nn.Module):
         self,
         z: torch.Tensor,
         y: torch.Tensor,
-        i: torch.Tensor | None,
+        b: torch.Tensor | None,
         dz_dt: torch.Tensor | None,
         gx: torch.Tensor | None,
         dr_dt: torch.Tensor | None,
@@ -177,7 +177,7 @@ class PhyLSTMLoss(nn.Module):
         self,
         z: torch.Tensor,
         y: torch.Tensor,
-        i: torch.Tensor | None,
+        b: torch.Tensor | None,
         dz_dt: torch.Tensor | None,
         gx: torch.Tensor | None,
         dr_dt: torch.Tensor | None,
@@ -191,7 +191,7 @@ class PhyLSTMLoss(nn.Module):
         self,
         z: torch.Tensor,
         y: torch.Tensor,
-        i: torch.Tensor | None,
+        b: torch.Tensor | None,
         dz_dt: torch.Tensor | None,
         gx: torch.Tensor | None,
         dr_dt: torch.Tensor | None,
@@ -204,7 +204,7 @@ class PhyLSTMLoss(nn.Module):
         self,
         z: torch.Tensor,
         y: torch.Tensor,
-        i: torch.Tensor | None,
+        b: torch.Tensor | None,
         dz_dt: torch.Tensor | None,
         gx: torch.Tensor | None,
         dr_dt: torch.Tensor | None,
@@ -216,7 +216,7 @@ class PhyLSTMLoss(nn.Module):
         Computes the loss function.
 
         :param z: The output of the PhyLSTM1 model.
-        :param i: Eddy current estimation.
+        :param b: Eddy current estimation, Be
         :param y: The target values, i.e. the B field and its derivative.
         :param dz_dt: The time derivative of the output of the PhyLSTM2 model.
         :param gx: The output of the MLP, computed from PhyLSTM2.
@@ -248,39 +248,59 @@ class PhyLSTMLoss(nn.Module):
 
         mse = functools.partial(F.mse_loss, reduction="sum")
         loss_dict: dict[str, torch.Tensor] = {}
-        with torch.no_grad():
-            y_dot = torch.gradient(y[..., 0], dim=1)[0]
 
-            if i is not None:
-                i_dot = torch.gradient(i[..., 0], dim=1)[0]
+        B = y[..., 0]
+        with torch.no_grad():
+            B_dot = torch.gradient(y[..., 0], dim=1)[0]
+
+        Bh_hat = z[..., 0]
+        Bh_dot_hat = z[..., 1]
+        z[..., 2]
+
+        if dz_dt is not None:
+            Bh_hat_dot = dz_dt[..., 0]
+            Bh_dot_hat_dot = dz_dt[..., 1]
+            r_dot = dz_dt[..., 2]
+
+        if b is not None:
+            Be_hat = b[..., 0]
+            Be_dot_hat = b[..., 1]
+
+            Be_hat_dot = torch.gradient(b[..., 0], dim=1)[0]
+            torch.gradient(b[..., 1], dim=1)[0]
+
+            B_hat = Bh_hat + Be_hat
+            B_dot_hat = Bh_dot_hat + Be_dot_hat
+
+            if dz_dt is not None:
+                Bh_hat_dot + Be_hat_dot
+                B_dot_hat_dot = Bh_dot_hat_dot  # no eddy current in the derivative of the derivative
+        else:
+            B_hat = Bh_hat
+            B_dot_hat = Bh_dot_hat
+
+            if dz_dt is not None:
+                B_dot_hat_dot = Bh_dot_hat_dot
 
         # PhyLSTM1 loss
-        loss_dict["loss1"] = alpha * mse(z[..., 0], y[..., 0])  # ||z1 - y1||^2
-        loss_dict["loss2"] = beta * mse(z[..., 1], y_dot)  # ||z2 - y2||^2
-
-        if i is not None:
-            loss_dict["loss_eddy_1"] = mse(i_dot, i[..., 1])
-            loss_dict["loss_eddy_2"] = mse(i[..., 1], i[..., 2])
+        loss_dict["loss1"] = alpha * mse(B, B_hat)  # ||z1 - y1||^2
+        loss_dict["loss2"] = beta * mse(B_dot, B_dot_hat)  # ||z2 - y2||^2
 
         if dz_dt is not None and gx is not None:
             # PhyLSTM2 loss
             loss_dict["loss3"] = gamma * mse(
-                z[..., 1],
-                dz_dt[..., 0],
+                Bh_hat_dot,
+                Bh_dot_hat,
             )  # ||dz1/dt - z2||^2
-            loss_dict["loss3"] += gamma * mse(
-                dz_dt[..., 0],
-                y_dot,
-            )
 
             loss_dict["loss4"] = eta * mse(
-                dz_dt[..., 1, None], -gx
+                B_dot_hat_dot[..., None], -gx
             )  # ||dz2/dt + MLP(g, i)||^2
 
         if dr_dt is not None and dz_dt is not None:
             # PhyLSTM3 loss
             loss_dict["loss5"] = kappa * mse(
-                dr_dt, dz_dt[..., 2, None]
+                dr_dt, r_dot[..., None]
             )  # ||dr/dt - dz3/dt||^2
 
         total_loss: torch.Tensor = torch.stack(list(loss_dict.values())).sum()
