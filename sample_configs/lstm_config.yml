@@ -71,7 +71,7 @@ model:
     dropout: 0.2
     lr: 0.001
     criterion:
-        class_path: torch.nn.MSELoss
+        class_path: transformertf.nn.QuantileLoss
     log_grad_norm: true
 data:
   class_path: transformertf.data.TimeSeriesDataModule

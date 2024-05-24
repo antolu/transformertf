@@ -5,6 +5,7 @@ import typing
 import torch
 
 from ...data import TimeSeriesSample
+from ...nn import QuantileLoss
 from ...utils import ops
 from .._base_module import LightningModuleBase, LogMetricsMixin
 
@@ -17,7 +18,7 @@ class StepOutput(typing.TypedDict):
     state: HIDDEN_STATE
 
 
-class LSTM(LightningModuleBase):
+class LSTM(LightningModuleBase, LogMetricsMixin):
     def __init__(
         self,
         num_features: int = 1,
@@ -25,6 +26,7 @@ class LSTM(LightningModuleBase):
         sequence_length: int = 500,
         hidden_dim: int = 350,
         hidden_dim_fc: int = 1024,
+        output_dim: int = 1,
         dropout: float = 0.2,
         lr: float = 1e-3,
         criterion: torch.nn.Module | None = None,
@@ -61,7 +63,7 @@ class LSTM(LightningModuleBase):
             dropout=dropout,
             batch_first=True,
         )
-        self.fc = torch.nn.Linear(hidden_dim, 1)
+        self.fc = torch.nn.Linear(hidden_dim, output_dim)
 
     @typing.overload
     def forward(
@@ -147,7 +149,14 @@ class LSTM(LightningModuleBase):
 
         self.common_log_step({"loss": loss}, "train")
 
-        return loss
+        out = {
+            "loss": loss,
+            "output": ops.to_cpu(ops.detach(model_output)),
+        }
+        if isinstance(self.criterion, QuantileLoss):
+            out["point_prediction"] = self.criterion.point_prediction(model_output)
+
+        return out
 
     def validation_step(
         self,
@@ -168,11 +177,13 @@ class LSTM(LightningModuleBase):
 
         self.common_log_step(loss, "validation")
 
-        return typing.cast(
-            StepOutput,
-            loss
-            | {
-                "state": ops.to_cpu(ops.detach(hidden)),
-                "output": ops.to_cpu(ops.detach(model_output)),
-            },
-        )
+        output_dict = {
+            "state": ops.to_cpu(ops.detach(hidden)),
+            "output": ops.to_cpu(ops.detach(model_output)),
+        }
+        if isinstance(self.criterion, QuantileLoss):
+            output_dict["point_prediction"] = self.criterion.point_prediction(
+                model_output
+            )
+
+        return typing.cast(StepOutput, loss | output_dict)
