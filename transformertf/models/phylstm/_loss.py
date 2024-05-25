@@ -273,7 +273,7 @@ class PhyLSTMLoss(nn.Module):
             B_dot_hat = Bh_dot_hat + Be_dot_hat
 
             if dz_dt is not None:
-                Bh_hat_dot + Be_hat_dot
+                B_hat_dot = Bh_hat_dot + Be_hat_dot
                 B_dot_hat_dot = Bh_dot_hat_dot  # no eddy current in the derivative of the derivative
         else:
             B_hat = Bh_hat
@@ -289,8 +289,8 @@ class PhyLSTMLoss(nn.Module):
         if dz_dt is not None and gx is not None:
             # PhyLSTM2 loss
             loss_dict["loss3"] = gamma * mse(
-                Bh_hat_dot,
-                Bh_dot_hat,
+                B_hat_dot,
+                B_dot_hat,
             )  # ||dz1/dt - z2||^2
 
             loss_dict["loss4"] = eta * mse(

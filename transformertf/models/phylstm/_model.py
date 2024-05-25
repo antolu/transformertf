@@ -222,6 +222,7 @@ class PhyLSTM1Model(nn.Module):
         idot = self.ff_idot(torch.gradient(x, dim=1)[0])
 
         b = self.ff_bi(o_lstm1, idot)
+        b = self.ff_b(b)
         b = self.fc_b(b)
 
         assert isinstance(h_lstm1, tuple)
