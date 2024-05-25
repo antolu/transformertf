@@ -30,13 +30,6 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
         super().__init__(*args, parser_kwargs={"parser_mode": "omegaconf"}, **kwargs)
 
     def add_arguments_to_parser(self, parser: LightningArgumentParser) -> None:
-        parser.add_argument(
-            "--no-compile",
-            action="store_true",
-            dest="no_compile",
-            help="Do not compile the model with torch.",
-        )
-
         parser.add_lightning_class_args(
             lightning.pytorch.callbacks.LearningRateMonitor, "lr_monitor"
         )
@@ -88,8 +81,6 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
         })
 
     def before_fit(self) -> None:
-        self.model = self._maybe_compile(self.model)
-
         # hijack model checkpoint callbacks to save to checkpoint_dir/version_{version}
         version = self.trainer.logger.version
         version_str = f"version_{version}"
@@ -97,23 +88,6 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
         for callback in self.trainer.callbacks:
             if isinstance(callback, lightning.pytorch.callbacks.ModelCheckpoint):
                 callback.dirpath = os.path.join(callback.dirpath, version_str)
-
-    def before_validate(self) -> None:
-        self.model = self._maybe_compile(self.model)
-
-    def before_test(self) -> None:
-        self.model = self._maybe_compile(self.model)
-
-    def before_predict(self) -> None:
-        self.model = self._maybe_compile(self.model)
-
-    def _maybe_compile(self, model: torch.nn.Module) -> torch.nn.Module:
-        if not self.config.fit.no_compile and not isinstance(
-            self.model,
-            torch._dynamo.eval_frame.OptimizedModule,  # noqa: SLF001
-        ):
-            model = torch.compile(model)
-        return model
 
 
 def main() -> None:
