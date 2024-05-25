@@ -27,6 +27,7 @@ class TemporalFusionTransformer(TransformerModuleBase):
         *,
         prediction_type: typing.Literal["delta", "point"] = "point",
         log_grad_norm: bool = False,
+        compile_model: bool = False,
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["lr_scheduler", "criterion"])

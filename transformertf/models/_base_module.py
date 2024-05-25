@@ -16,6 +16,7 @@ if typing.TYPE_CHECKING:
 
 
 class LightningModuleBase(L.LightningModule):
+    model: torch.nn.Module
     criterion: torch.nn.Module
 
     def __init__(self) -> None:
@@ -26,6 +27,22 @@ class LightningModuleBase(L.LightningModule):
         self._val_outputs: dict[int, list[MODEL_OUTPUT]] = {}
         self._test_outputs: dict[int, list[MODEL_OUTPUT]] = {}
         self._inference_outputs: dict[int, list[MODEL_OUTPUT]] = {}
+
+    def on_fit_start(self) -> None:
+        self.maybe_compile_model()
+
+    def maybe_compile_model(self) -> None:
+        """
+        Compile the model if the "compile_model" key is present in the hyperparameters
+        and is set to True. This is up to the subclass to implement. This also
+        requires the model to be set to the "model" attribute.
+        """
+        if (
+            "compile_model" in self.hparams
+            and self.hparams["compile_model"]
+            and hasattr(self, "model")
+        ):
+            self.model = torch.compile(self.model)
 
     def on_train_start(self) -> None:
         self._train_outputs = {}
@@ -138,6 +155,27 @@ class LightningModuleBase(L.LightningModule):
             Inference outputs, where the keys are the dataloader indices and the values are lists of model outputs.
         """
         return self._inference_outputs
+
+    def state_dict(
+        self,
+        *args: typing.Any,
+        destination: dict[str, torch.Tensor] | None = None,
+        prefix: str = "",
+        keep_vars: bool = False,
+    ) -> dict[str, torch.Tensor]:
+        state_dict = super().state_dict(
+            *args, destination=destination, prefix=prefix, keep_vars=keep_vars
+        )
+
+        # hack to save the original model state dict and not the compiled one
+        # this assumes that internally the model is stored in the `model` attribute
+        # and that the model is not compiled when the LightningModule is instantiated
+        if hasattr(self, "model"):
+            state_dict["model"] = getattr("model", "_orig_mod", self.model).state_dict(
+                *args, destination=destination, prefix=prefix, keep_vars=keep_vars
+            )
+
+        return state_dict
 
 
 class LogMetricsMixin:

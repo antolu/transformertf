@@ -26,6 +26,7 @@ class PhyTSMixer(LightningModuleBase):
         criterion: PhyLSTMLoss | None = None,
         *,
         log_grad_norm: bool = False,
+        compile_model: bool = False,
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["criterion"])

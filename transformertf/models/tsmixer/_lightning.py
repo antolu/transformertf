@@ -26,6 +26,7 @@ class TSMixer(LightningModuleBase, LogMetricsMixin):
         criterion: (QuantileLoss | torch.nn.MSELoss | torch.nn.HuberLoss | None) = None,
         *,
         log_grad_norm: bool = False,
+        compile_model: bool = False,
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["lr_scheduler", "criterion"])
