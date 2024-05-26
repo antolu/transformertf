@@ -7,15 +7,14 @@ import numpy as np
 import pandas as pd
 import torch
 
+from .._dtype import DATA_SOURCE, VALID_DTYPES, convert_data
 from .._sample_generator import EncoderTargetSample, TransformerSampleGenerator
 from ..transform import BaseTransform
 from ._base import (
-    DATA_SOURCE,
     AbstractTimeSeriesDataset,
     DataSetType,
     _check_index,
     _check_label_data_length,
-    convert_data,
 )
 
 log = logging.getLogger(__name__)
@@ -40,7 +39,7 @@ class EncoderDataset(AbstractTimeSeriesDataset):
         randomize_seq_len: bool = False,
         input_transform: dict[str, BaseTransform] | None = None,
         target_transform: BaseTransform | None = None,
-        dtype: torch.dtype = torch.float32,
+        dtype: VALID_DTYPES = "float32",
     ):
         """
         Dataset to train a transformer

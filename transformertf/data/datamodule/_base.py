@@ -23,21 +23,23 @@ from ..transform import (
     TransformType,
 )
 
-if typing.TYPE_CHECKING:
-    pass
-
 __all__ = ["DataModuleBase"]
 
 log = logging.getLogger(__name__)
 
 if typing.TYPE_CHECKING:
-    SameType = typing.TypeVar("SameType", bound="DataModuleBase")
+    SameType_co = typing.TypeVar("SameType_co", bound="DataModuleBase", covariant=True)
 
 TIME = "time_ms"
 
 
 @dataclasses.dataclass
 class TmpDir:
+    """
+    Utility class to handle temporary directories for when distributed
+    training is used, and a datamodule is created on each worker.
+    """
+
     name: str
 
 

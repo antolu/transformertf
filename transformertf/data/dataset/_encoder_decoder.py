@@ -3,8 +3,9 @@ from __future__ import annotations
 import numpy as np
 import torch
 
+from .._dtype import get_dtype
 from .._sample_generator import EncoderDecoderTargetSample
-from ._base import _check_index, get_dtype
+from ._base import _check_index
 from ._encoder import EncoderDataset
 
 RND_G = np.random.default_rng()
