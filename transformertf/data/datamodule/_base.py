@@ -54,7 +54,7 @@ class DataModuleBase(L.LightningDataModule):
     subclass constructor.
     """
 
-    _input_transforms: dict[str, TransformCollection]
+    _input_transforms: torch.nn.ModuleDict[str, TransformCollection]
     _target_transform: TransformCollection
 
     def __init__(
@@ -78,13 +78,15 @@ class DataModuleBase(L.LightningDataModule):
         distributed_sampler: bool = False,
     ):
         super().__init__()
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=["extra_transforms"])
 
         input_columns = _to_list(input_columns)
         known_past_columns = _to_list(known_past_columns) if known_past_columns else []
 
         self.hparams["input_columns"] = input_columns
         self.hparams["known_past_columns"] = known_past_columns
+
+        self._extra_transforms_source = extra_transforms or {}
 
         self._create_transforms()
 
@@ -129,31 +131,27 @@ class DataModuleBase(L.LightningDataModule):
         input_transforms = {col: [] for col in self.hparams["input_columns"]}
         input_transforms |= {col: [] for col in self.hparams["known_past_columns"]}
 
-        if self.hparams["extra_transforms"] is not None:
-            for col, transforms in self.hparams["extra_transforms"].items():
-                if col == self.hparams["target_column"]:
-                    continue
-                if col not in input_transforms:
-                    msg = f"Unknown column {col} in extra_transforms."
-                    raise ValueError(msg)
-                input_transforms[col].extend(transforms)
+        for col, transforms in self._extra_transforms_source.items():
+            if col == self.hparams["target_column"]:
+                continue
+            if col not in input_transforms:
+                msg = f"Unknown column {col} in extra_transforms."
+                raise ValueError(msg)
+            input_transforms[col].extend(transforms)
 
         for input_col in self.hparams["input_columns"]:
             if normalize:
                 input_transforms[input_col].append(StandardScaler(num_features_=1))
 
-        self._input_transforms = {
+        self._input_transforms = torch.nn.ModuleDict({
             col: TransformCollection(transforms)
             for col, transforms in input_transforms.items()
-        }
+        })
 
         target_transform = []
-        if (
-            self.hparams["extra_transforms"] is not None
-            and self.hparams["target_column"] in self.hparams["extra_transforms"]
-        ):
+        if self.hparams["target_column"] in self._extra_transforms_source:
             target_transform.extend(
-                self.hparams["extra_transforms"][self.hparams["target_column"]]
+                self._extra_transforms_source[self.hparams["target_column"]]
             )
         if normalize:
             target_transform.append(StandardScaler(num_features_=1))
@@ -512,34 +510,6 @@ class DataModuleBase(L.LightningDataModule):
         if len(self._val_df) == 1:
             return make_dataloader(self.val_dataset)  # type: ignore[arg-type]
         return [make_dataloader(ds) for ds in self.val_dataset]  # type: ignore[arg-type]
-
-    def state_dict(self) -> dict[str, typing.Any]:
-        state = super().state_dict()
-        if self._input_transforms is not None:
-            state["input_transforms"] = {
-                col: transform.state_dict()
-                for col, transform in self._input_transforms.items()
-            }
-        if self._target_transform is not None:
-            state["target_transform"] = self._target_transform.state_dict()
-
-        return state
-
-    def load_state_dict(self, state: dict[str, typing.Any]) -> None:
-        if "input_transforms" in state:
-            for col, transform in self._input_transforms.items():
-                if col not in state["input_transforms"]:
-                    log.warning(f"Could not find state for {col}.")
-                transform.load_state_dict(state["input_transforms"][col])
-
-            state.pop("input_transforms")
-
-        if "target_transform" in state:
-            self._target_transform.load_state_dict(state["target_transform"])
-
-            state.pop("target_transform")
-
-        super().load_state_dict(state)
 
     def _scalers_fitted(self) -> bool:
         fitted = all(
