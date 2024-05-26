@@ -25,7 +25,7 @@ def phylstm_datamodule_config(
 @pytest.fixture(scope="module")
 def phylstm_module_config() -> dict[str, typing.Any]:
     return {
-        "sequence_length": 100,
+        "seq_len": 100,
         "num_layers": 1,
         "hidden_dim": 10,
         "hidden_dim_fc": 16,
