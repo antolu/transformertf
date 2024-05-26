@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 import os
 import typing
 
 import jsonargparse
 import lightning.pytorch.cli
 import pytorch_optimizer  # noqa: F401
+import rich
+import rich.logging
 import torch
 from lightning.pytorch.cli import LightningArgumentParser
 
@@ -23,13 +26,49 @@ from transformertf.models.phylstm import (  # noqa: F401
 from transformertf.models.tsmixer import TSMixer  # noqa: F401
 
 
+def setup_logger(logging_level: int = 0) -> None:
+    log = logging.getLogger()
+
+    ch = rich.logging.RichHandler()
+
+    formatter = logging.Formatter(
+        "%(message)s",
+        "%Y-%m-%d %H:%M:%S",
+    )
+    ch.setFormatter(formatter)
+    log.addHandler(ch)
+
+    if logging_level >= 2:
+        log.setLevel(logging.DEBUG)
+        ch.setLevel(logging.DEBUG)
+    elif logging_level >= 1:
+        log.setLevel(logging.INFO)
+        log.setLevel(logging.INFO)
+    else:
+        log.setLevel(logging.WARNING)
+        log.setLevel(logging.WARNING)
+
+    logging.getLogger("matplotlib").setLevel(logging.WARNING)
+
+
 class LightningCLI(lightning.pytorch.cli.LightningCLI):
     model: torch.nn.Module
 
     def __init__(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         super().__init__(*args, parser_kwargs={"parser_mode": "omegaconf"}, **kwargs)
 
+    def before_instantiate_classes(self) -> None:
+        setup_logger(self.config.fit.verbose)
+
     def add_arguments_to_parser(self, parser: LightningArgumentParser) -> None:
+        parser.add_argument(
+            "-v",
+            dest="verbose",
+            action="count",
+            default=0,
+            help="Verbose flag. Can be used more than once.",
+        )
+
         parser.add_lightning_class_args(
             lightning.pytorch.callbacks.LearningRateMonitor, "lr_monitor"
         )
@@ -80,6 +119,24 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
             ),
         })
 
+        parser.link_arguments(
+            "data.seq_len",
+            "model.init_args.seq_len",
+            apply_on="instantiate",
+        )
+
+        parser.link_arguments(
+            "data.ctxt_seq_len",
+            "model.init_args.ctxt_seq_len",
+            apply_on="instantiate",
+        )
+
+        parser.link_arguments(
+            "data.tgt_seq_len",
+            "model.init_args.tgt_seq_len",
+            apply_on="instantiate",
+        )
+
     def before_fit(self) -> None:
         # hijack model checkpoint callbacks to save to checkpoint_dir/version_{version}
         version = self.trainer.logger.version
@@ -92,5 +149,8 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
 
 def main() -> None:
     LightningCLI(
-        subclass_mode_model=LightningModuleBase, subclass_mode_data=DataModuleBase
+        model_class=LightningModuleBase,
+        datamodule_class=DataModuleBase,
+        subclass_mode_model=True,
+        subclass_mode_data=True,
     )

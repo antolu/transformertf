@@ -57,6 +57,14 @@ class TransformerDataModule(DataModuleBase):
 
         self.save_hyperparameters()
 
+    @property
+    def ctxt_seq_len(self) -> int:
+        return self.hparams["ctxt_seq_len"]
+
+    @property
+    def tgt_seq_len(self) -> int:
+        return self.hparams["tgt_seq_len"]
+
 
 class EncoderDecoderDataModule(TransformerDataModule):
     def _make_dataset_from_arrays(

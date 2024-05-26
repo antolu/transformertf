@@ -48,7 +48,7 @@ class PhyLSTM(LightningModuleBase):
     def __init__(
         self,
         num_layers: int | tuple[int, ...] = 3,
-        sequence_length: int = 500,
+        seq_len: int = 500,
         hidden_dim: int | tuple[int, ...] = 350,
         hidden_dim_fc: int | tuple[int, ...] | None = None,
         dropout: float | tuple[float, ...] = 0.2,
@@ -65,7 +65,7 @@ class PhyLSTM(LightningModuleBase):
         The model parameters are saved to the model directory by Lightning.
 
         :param num_layers: The number of LSTM layers.
-        :param sequence_length: The length of the input sequence.
+        :param seq_len: The length of the input sequence.
         :param hidden_dim: The number of hidden units in each LSTM layer.
         :param dropout: The dropout probability.
         :param lr: The optimizer learning rate. This may be set to "auto"
@@ -105,7 +105,7 @@ class PhyLSTM(LightningModuleBase):
 
         self.model = model_cls(
             num_layers=num_layers,
-            sequence_length=sequence_length,
+            sequence_length=seq_len,
             hidden_dim=hidden_dim,
             dropout=dropout,
         )

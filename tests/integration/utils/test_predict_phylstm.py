@@ -22,7 +22,7 @@ def future_covariates(df: pd.DataFrame) -> pd.DataFrame:
 
 @pytest.fixture(scope="module")
 def phylstm_module() -> PhyLSTM:
-    return PhyLSTM(sequence_length=100)
+    return PhyLSTM(seq_len=100)
 
 
 @pytest.fixture(scope="module")

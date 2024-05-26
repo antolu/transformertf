@@ -36,7 +36,6 @@ model:
   class_path: transformertf.models.phylstm.PhyLSTM
   init_args:
     num_layers: 3
-    sequence_length: 500
     hidden_dim: 48
     hidden_dim_fc: 512
     phylstm: 3
@@ -66,7 +65,7 @@ data:
       - "~/cernbox/hysteresis/dipole/datasets/val/SPS-BTRAIN-20231102-114546---20231102-115239_post_funky_preprocessed.parquet"
       - "~/cernbox/hysteresis/dipole/datasets/val/SPS-BTRAIN-20240328-160004---20240328-160821_DYNECO_preprocessed.parquet"
     normalize: true
-    seq_len: ${model.init_args.sequence_length}
+    seq_len: 100
     min_seq_len: null
     randomize_seq_len: false
     stride: 1

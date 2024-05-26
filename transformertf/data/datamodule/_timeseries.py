@@ -82,3 +82,16 @@ class TimeSeriesDataModule(DataModuleBase):
             target_transform=self.target_transform,
             dtype=self.hparams["dtype"],
         )
+
+    @property
+    def seq_len(self) -> int:
+        """
+        Returns the sample sequence length. This is used by LightningCLI
+        to link arguments to the model.
+
+        Returns
+        -------
+        int
+            Sample sequence length
+        """
+        return self.hparams["seq_len"]
