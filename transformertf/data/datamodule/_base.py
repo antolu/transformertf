@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import sys
 import tempfile
 import typing
 from os import path
@@ -22,6 +23,11 @@ from ..transform import (
     TransformCollection,
     TransformType,
 )
+
+if sys.version_info < (3, 12):
+    from typing_extensions import override
+else:
+    from typing import override
 
 __all__ = ["DataModuleBase"]
 
@@ -165,6 +171,7 @@ class DataModuleBase(L.LightningDataModule):
             transform_type=TransformType.XY,
         )
 
+    @override  # type: ignore[misc]
     def prepare_data(self, *, save: bool = True) -> None:
         """
         Loads and preprocesses data dataframes.
@@ -180,6 +187,7 @@ class DataModuleBase(L.LightningDataModule):
             Whether to save the dataframes to parquet files.
 
         """
+        super().prepare_data()
         # load all data into memory and then apply transforms
         train_pths = [Path(pth).expanduser() for pth in self._train_df_pths]
         val_pths = [Path(pth).expanduser() for pth in self._val_df_pths]
@@ -203,6 +211,7 @@ class DataModuleBase(L.LightningDataModule):
             save_data(self._train_df, "train", self._tmp_dir.name)
             save_data(self._val_df, "val", self._tmp_dir.name)
 
+    @override  # type: ignore[misc]
     def setup(
         self,
         stage: typing.Literal["fit", "train", "val", "test", "predict"] | None = None,
@@ -358,7 +367,7 @@ class DataModuleBase(L.LightningDataModule):
             or using a datamodule that has previously not been trained on.
         """
         skip_target = self.hparams["target_column"] not in input_.columns
-        df = self.read_input(
+        df = self.parse_dataframe(
             input_,
             timestamp=timestamp,
             input_columns=self.hparams["input_columns"],
@@ -461,6 +470,7 @@ class DataModuleBase(L.LightningDataModule):
 
         return datasets[0] if len(datasets) == 1 else datasets
 
+    @override  # type: ignore[misc]
     def train_dataloader(
         self,
     ) -> torch.utils.data.DataLoader | typing.Sequence[torch.utils.data.DataLoader]:
@@ -482,6 +492,7 @@ class DataModuleBase(L.LightningDataModule):
             sampler=sampler,
         )
 
+    @override  # type: ignore[misc]
     def val_dataloader(
         self,
     ) -> torch.utils.data.DataLoader | typing.Sequence[torch.utils.data.DataLoader]:
@@ -545,20 +556,22 @@ class DataModuleBase(L.LightningDataModule):
         self,
     ) -> tuple[dict[str, TransformCollection], TransformCollection]:
         return (
-            self._input_transforms,
+            {col: self._input_transforms[col] for col in self.hparams["input_columns"]},
             self._target_transform,
         )
 
     @property
     def input_transforms(self) -> dict[str, TransformCollection]:
-        return self._input_transforms
+        return {
+            col: self._input_transforms[col] for col in self.hparams["input_columns"]
+        }
 
     @property
     def target_transform(self) -> TransformCollection:
         return self._target_transform
 
     @staticmethod
-    def read_input(
+    def parse_dataframe(
         df: pd.DataFrame,
         input_columns: str | typing.Sequence[str],
         target_column: str | None = None,
