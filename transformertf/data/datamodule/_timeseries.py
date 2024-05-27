@@ -9,6 +9,7 @@ from ._base import DataModuleBase
 if typing.TYPE_CHECKING:
     import numpy as np
 
+    from .._downsample import DOWNSAMPLE_METHODS
     from ..transform import BaseTransform
 
 
@@ -27,9 +28,7 @@ class TimeSeriesDataModule(DataModuleBase):
         randomize_seq_len: bool = False,
         stride: int = 1,
         downsample: int = 1,
-        downsample_method: typing.Literal[
-            "interval", "average", "convolve"
-        ] = "interval",
+        downsample_method: DOWNSAMPLE_METHODS = "interval",
         target_depends_on: str | None = None,
         extra_transforms: dict[str, list[BaseTransform]] | None = None,
         batch_size: int = 128,
@@ -54,7 +53,7 @@ class TimeSeriesDataModule(DataModuleBase):
             distributed_sampler=distributed_sampler,
         )
 
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=["extra_transforms"])
 
     def _make_dataset_from_arrays(
         self,

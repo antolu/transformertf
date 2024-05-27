@@ -16,7 +16,7 @@ import torch.utils.data
 
 from transformertf.data.dataset import AbstractTimeSeriesDataset
 
-from .._downsample import downsample
+from .._downsample import DOWNSAMPLE_METHODS, downsample
 from ..transform import (
     BaseTransform,
     StandardScaler,
@@ -74,9 +74,7 @@ class DataModuleBase(L.LightningDataModule):
         val_df_paths: str | list[str] | None = None,
         normalize: bool = True,  # noqa: FBT001, FBT002
         downsample: int = 1,
-        downsample_method: typing.Literal[
-            "interval", "average", "convolve"
-        ] = "interval",
+        downsample_method: DOWNSAMPLE_METHODS = "interval",
         target_depends_on: str | None = None,
         extra_transforms: dict[str, list[BaseTransform]] | None = None,
         batch_size: int = 128,

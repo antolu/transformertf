@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import typing
 
-from transformertf.data.dataset import EncoderDataset, EncoderDecoderDataset
-
+from .._downsample import DOWNSAMPLE_METHODS
+from ..dataset import EncoderDataset, EncoderDecoderDataset
 from ._base import DataModuleBase
 
 if typing.TYPE_CHECKING:
@@ -29,9 +29,7 @@ class TransformerDataModule(DataModuleBase):
         randomize_seq_len: bool = False,
         stride: int = 1,
         downsample: int = 1,
-        downsample_method: typing.Literal[
-            "interval", "average", "convolve"
-        ] = "interval",
+        downsample_method: DOWNSAMPLE_METHODS = "interval",
         target_depends_on: str | None = None,
         extra_transforms: dict[str, list[BaseTransform]] | None = None,
         batch_size: int = 128,
@@ -49,13 +47,14 @@ class TransformerDataModule(DataModuleBase):
             downsample=downsample,
             downsample_method=downsample_method,
             target_depends_on=target_depends_on,
+            extra_transforms=extra_transforms,
             batch_size=batch_size,
             num_workers=num_workers,
             dtype=dtype,
             distributed_sampler=distributed_sampler,
         )
 
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=["extra_transforms"])
 
     @property
     def ctxt_seq_len(self) -> int:
