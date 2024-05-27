@@ -8,14 +8,11 @@ from pathlib import Path
 
 import pytest
 
-from transformertf.config import TransformerBaseConfig
 from transformertf.data import EncoderDecoderDataModule
 
 DF_PATH = str(Path(__file__).parent.parent.parent / "sample_data.parquet")
 CURRENT = "I_meas_A"
 FIELD = "B_meas_T"
-
-config = TransformerBaseConfig()
 
 
 @pytest.fixture(scope="module")
