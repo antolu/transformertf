@@ -63,9 +63,6 @@ class TimeSeriesDataModule(DataModuleBase):
         self.hparams["known_covariates"] = self._to_list(
             self.hparams["known_covariates"]
         )
-        self.hparams["known_past_covariates"] = self._to_list(
-            self.hparams["known_past_covariates"]
-        )
 
     def _make_dataset_from_arrays(
         self,

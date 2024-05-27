@@ -59,8 +59,10 @@ class TransformerDataModule(DataModuleBase):
         self.hparams["known_covariates"] = self._to_list(
             self.hparams["known_covariates"]
         )
-        self.hparams["known_past_covariates"] = self._to_list(
-            self.hparams["known_past_covariates"]
+        self.hparams["known_past_covariates"] = (
+            self._to_list(self.hparams["known_past_covariates"])
+            if self.hparams["known_past_covariates"] is not None
+            else []
         )
 
     @property
