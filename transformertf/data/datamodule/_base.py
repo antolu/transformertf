@@ -196,6 +196,46 @@ class DataModuleBase(L.LightningDataModule):
 
     """ End override """
 
+    @property
+    def num_past_known_covariates(self) -> int:
+        """
+        The number of past known covariates.
+
+        Returns
+        -------
+        int
+            The number of past known covariates.
+        """
+        return (
+            len(self.hparams["known_covariates"])
+            + len(self.hparams["known_past_covariates"])
+            + 1
+        )
+
+    @property
+    def num_future_known_covariates(self) -> int:
+        """
+        The number of future known covariates.
+
+        Returns
+        -------
+        int
+            The number of future known covariates.
+        """
+        return len(self.hparams["known_covariates"]) + 1
+
+    @property
+    def num_static_real_features(self) -> int:
+        """
+        The number of static real features.
+
+        Returns
+        -------
+        int
+            The number of static real features.
+        """
+        return 0
+
     @override  # type: ignore[misc]
     def prepare_data(self) -> None:
         """

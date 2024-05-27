@@ -78,7 +78,10 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
         })
 
         add_callback_defaults(parser)
+
         add_seq_len_link(parser)
+
+        add_num_features_link(parser)
 
     def before_fit(self) -> None:
         # hijack model checkpoint callbacks to save to checkpoint_dir/version_{version}
@@ -150,6 +153,29 @@ def add_seq_len_link(parser: LightningArgumentParser) -> None:
     parser.link_arguments(
         "data.tgt_seq_len",
         "model.init_args.tgt_seq_len",
+        apply_on="instantiate",
+    )
+
+
+def add_num_features_link(
+    parser: LightningArgumentParser,
+) -> None:
+    # encoder-decoder models
+    parser.link_arguments(
+        "data.num_known_past_covariates",
+        "model.init_args.num_past_features",
+        apply_on="instantiate",
+    )
+    parser.link_arguments(
+        "data.num_known_future_covariates",
+        "model.init_args.num_future_features",
+        apply_on="instantiate",
+    )
+
+    # seq2seq models
+    parser.link_arguments(
+        "data.num_known_past_covariates",
+        "model.init_args.num_features",
         apply_on="instantiate",
     )
 
