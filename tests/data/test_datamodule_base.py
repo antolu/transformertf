@@ -12,8 +12,8 @@ from transformertf.data import TimeSeriesDataModule
 @pytest.fixture(scope="module")
 def timeseries_datamodule_config(df_path: str) -> dict[str, typing.Any]:
     return {
-        "input_columns": ["a"],
-        "target_column": "b",
+        "known_covariates": ["a"],
+        "target_covariate": "b",
         "train_df_paths": df_path,
         "val_df_paths": df_path,
         "normalize": True,
@@ -47,8 +47,8 @@ def test_datamodule_base_prepare_data(
     field_key: str,
 ) -> None:
     timeseries_datamodule_config = timeseries_datamodule_config | {
-        "input_columns": [current_key],
-        "target_column": field_key,
+        "known_covariates": [current_key],
+        "target_covariate": field_key,
     }
     dm = TimeSeriesDataModule(**timeseries_datamodule_config)
     dm.prepare_data()
@@ -62,8 +62,8 @@ def test_datamodule_base_setup_before_prepare_data(
     field_key: str,
 ) -> None:
     timeseries_datamodule_config = timeseries_datamodule_config | {
-        "input_columns": [current_key],
-        "target_column": field_key,
+        "known_covariates": [current_key],
+        "target_covariate": field_key,
     }
     dm = TimeSeriesDataModule(**timeseries_datamodule_config)
     dm.setup()
@@ -84,8 +84,8 @@ def timeseries_datamodule(
     field_key: str,
 ) -> TimeSeriesDataModule:
     timeseries_datamodule_config = timeseries_datamodule_config | {
-        "input_columns": [current_key],
-        "target_column": field_key,
+        "known_covariates": [current_key],
+        "target_covariate": field_key,
     }
     dm = TimeSeriesDataModule(**timeseries_datamodule_config)
     dm.prepare_data()

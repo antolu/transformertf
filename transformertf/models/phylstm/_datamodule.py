@@ -62,7 +62,6 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
         extra_transforms: dict[str, list[BaseTransform]] | None = None,
         known_covariates: str = CURRENT,
         target_covariate: str = FIELD,
-        known_past_covariates: str | typing.Sequence[str] | None = None,
         batch_size: int = 128,
         num_workers: int = 0,
         model_dir: str | None = None,
@@ -87,7 +86,6 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
             val_df_paths=val_df_paths,
             known_covariates=[known_covariates],
             target_covariate=target_covariate,
-            known_past_covariates=known_past_covariates,
             normalize=True,
             downsample=downsample,
             downsample_method=downsample_method,
@@ -102,8 +100,11 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
             dtype=dtype,
             distributed_sampler=distributed_sampler,
         )
-        self.save_hyperparameters()
-        self.hparams["input_columns"] = [known_covariates]
+        self.save_hyperparameters(ignore=["extra_transforms"])
+
+        self.hparams["known_covariates"] = self._to_list(
+            self.hparams["known_covariates"]
+        )
 
     def preprocess_dataframe(
         self,
@@ -124,8 +125,8 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
             The preprocessed dataframe.
         """
 
-        current: str = self.hparams["input_columns"][0]
-        field: str | None = self.hparams["target_column"]
+        current: str = self.hparams["known_covariates"][0]
+        field: str | None = self.hparams["target_covariate"]
 
         # signal processing: lowpass filter
         if self.hparams["lowpass_filter"]:

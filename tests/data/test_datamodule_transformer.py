@@ -14,8 +14,8 @@ def transformer_datamodule_config(
     df_path: str, current_key: str, field_key: str
 ) -> dict[str, typing.Any]:
     return {
-        "input_columns": [current_key],
-        "target_column": field_key,
+        "known_covariates": [current_key],
+        "target_covariate": field_key,
         "train_df_paths": df_path,
         "val_df_paths": df_path,
         "normalize": True,

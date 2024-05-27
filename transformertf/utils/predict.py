@@ -181,7 +181,7 @@ def predict_phylstm(
 
     if datamodule.target_transform is not None:
         input_transform = datamodule.input_transforms[
-            datamodule.hparams["input_columns"][0]
+            datamodule.hparams["known_covariates"][0]
         ]
 
         inputs_t = input_transform.inverse_transform(inputs_t)
@@ -236,11 +236,11 @@ def predict_encoder_decoder(
     raw_output: bool = False,
 ) -> np.ndarray | torch.Tensor:
     if isinstance(past_target, pd.DataFrame):
-        past_target = past_target[datamodule.hparams["target_column"]].to_numpy()
+        past_target = past_target[datamodule.hparams["target_covariate"]].to_numpy()
     elif isinstance(past_target, pd.Series):
         past_target = past_target.to_numpy()
 
-    known_past_columns = datamodule.hparams.get("known_past_columns")
+    known_past_columns = datamodule.hparams.get("known_past_covariates")
 
     past_covariates["target"] = past_target
     past_df = datamodule.preprocess_dataframe(past_covariates)
@@ -258,8 +258,8 @@ def predict_encoder_decoder(
         prediction_length=datamodule.hparams["tgt_seq_len"],
         input_transforms=datamodule.input_transforms,
         target_transform=datamodule.target_transform,
-        input_columns=datamodule.hparams["input_columns"],
-        target_column=datamodule.hparams["target_column"],
+        input_columns=datamodule.hparams["known_covariates"],
+        target_column=datamodule.hparams["target_covariate"],
     )
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, num_workers=0)
 
@@ -296,7 +296,7 @@ def predict_encoder_decoder(
     outputs_t = outputs_t[: len(future_covariates)]
 
     if datamodule.target_transform is not None:
-        future_x = future_covariates[datamodule.hparams["input_columns"][0]]
+        future_x = future_covariates[datamodule.hparams["known_covariates"][0]]
         outputs_t = datamodule.target_transform.inverse_transform(future_x, outputs_t)
 
     # truncate the outputs to the length of the future covariates

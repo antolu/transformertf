@@ -36,6 +36,7 @@ log = logging.getLogger(__name__)
 if typing.TYPE_CHECKING:
     SameType_co = typing.TypeVar("SameType_co", bound="DataModuleBase", covariant=True)
 
+T = typing.TypeVar("T")
 TIME = "time_ms"
 
 
@@ -84,8 +85,7 @@ class DataModuleBase(L.LightningDataModule):
         distributed_sampler: bool = False,
     ):
         """
-        Initializes the datamodule. This class should not be used directly,
-        but instead subclassed.
+        Initializes the datamodule.
 
         Parameters
         ----------
@@ -146,9 +146,11 @@ class DataModuleBase(L.LightningDataModule):
         super().__init__()
         self.save_hyperparameters(ignore=["extra_transforms"])
 
-        known_covariates = _to_list(known_covariates)
+        known_covariates = DataModuleBase._to_list(known_covariates)
         known_past_covariates = (
-            _to_list(known_past_covariates) if known_past_covariates else []
+            DataModuleBase._to_list(known_past_covariates)
+            if known_past_covariates
+            else []
         )
 
         self.hparams["known_covariates"] = known_covariates
@@ -159,9 +161,13 @@ class DataModuleBase(L.LightningDataModule):
         self._create_transforms()
 
         self._train_df_pths = (
-            _to_list(train_df_paths) if train_df_paths is not None else []
+            DataModuleBase._to_list(train_df_paths)
+            if train_df_paths is not None
+            else []
         )
-        self._val_df_pths = _to_list(val_df_paths) if val_df_paths is not None else []
+        self._val_df_pths = (
+            DataModuleBase._to_list(val_df_paths) if val_df_paths is not None else []
+        )
 
         # these will be set by prepare_data
         self._train_df: list[pd.DataFrame] = []
@@ -537,13 +543,13 @@ class DataModuleBase(L.LightningDataModule):
         pd.DataFrame
             The transformed dataframe.
         """
-        input_columns = _to_list(input_columns)
+        input_columns = DataModuleBase._to_list(input_columns)
 
         df = df.dropna(how="all", axis="columns")
 
         col_filter = input_columns
         if target_column is not None:
-            col_filter += _to_list(target_column)
+            col_filter += DataModuleBase._to_list(target_column)
 
         df = df[col_filter]
 
@@ -795,6 +801,14 @@ class DataModuleBase(L.LightningDataModule):
                 torch.from_numpy(df[self.hparams["target_covariate"]].to_numpy()),
             )
 
+    @staticmethod
+    def _to_list(x: T | typing.Sequence[T]) -> list[T]:
+        if isinstance(x, typing.Sequence) and not isinstance(
+            x, str | pd.Series | np.ndarray | torch.Tensor | pd.DataFrame
+        ):
+            return list(x)
+        return typing.cast(list[T], [x])
+
 
 def save_data(
     dfs: list[pd.DataFrame] | None,
@@ -860,14 +874,3 @@ def tmp_data_paths(
         i += 1
 
     return paths
-
-
-T = typing.TypeVar("T")
-
-
-def _to_list(x: T | typing.Sequence[T]) -> list[T]:
-    if isinstance(x, typing.Sequence) and not isinstance(
-        x, str | pd.Series | np.ndarray | torch.Tensor | pd.DataFrame
-    ):
-        return list(x)
-    return typing.cast(list[T], [x])

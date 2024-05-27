@@ -14,12 +14,17 @@ if typing.TYPE_CHECKING:
 
 
 class TimeSeriesDataModule(DataModuleBase):
+    """
+    Specfic datamodule for time series data, where
+    the models map a sequence of input covariates to a target covariate,
+    i.e. I: [bs, seq_len, n_covariates] -> T: [bs, seq_len, 1].
+    """
+
     def __init__(
         self,
         *,
         known_covariates: str | typing.Sequence[str],
         target_covariate: str,
-        known_past_covariates: str | typing.Sequence[str] | None = None,
         train_df_paths: str | list[str] | None = None,
         val_df_paths: str | list[str] | None = None,
         normalize: bool = True,
@@ -41,7 +46,7 @@ class TimeSeriesDataModule(DataModuleBase):
             val_df_paths=val_df_paths,
             known_covariates=known_covariates,
             target_covariate=target_covariate,
-            known_past_covariates=known_past_covariates,
+            known_past_covariates=None,
             normalize=normalize,
             downsample=downsample,
             downsample_method=downsample_method,
@@ -55,6 +60,10 @@ class TimeSeriesDataModule(DataModuleBase):
 
         self.save_hyperparameters(ignore=["extra_transforms"])
 
+        self.hparams["known_covariates"] = self._to_list(
+            self.hparams["known_covariates"]
+        )
+
     def _make_dataset_from_arrays(
         self,
         input_data: np.ndarray,
@@ -63,7 +72,7 @@ class TimeSeriesDataModule(DataModuleBase):
         *,
         predict: bool = False,
     ) -> TimeSeriesDataset:
-        if known_past_data is not None:
+        if known_past_data is not None and known_past_data.size > 0:
             msg = "known_past_data is not used in this class."
             raise NotImplementedError(msg)
 

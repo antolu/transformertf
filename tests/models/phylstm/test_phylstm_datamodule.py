@@ -22,8 +22,8 @@ def phylstm_datamodule_config(
         "batch_size": 128,
         "num_workers": 4,
         "model_dir": "model_dir",
-        "input_columns": current_key,
-        "target_column": field_key,
+        "known_covariates": current_key,
+        "target_covariate": field_key,
     }
 
 
@@ -52,8 +52,8 @@ def test_phylstm_datamodule_hparams_correct(df_path: str) -> None:
         "downsample_method": "interval",
         "batch_size": 32,
         "num_workers": 4,
-        "input_columns": "a",
-        "target_column": "b",
+        "known_covariates": "a",
+        "target_covariate": "b",
         "target_depends_on": "a",
         "model_dir": "model_dir",
     }
@@ -74,9 +74,9 @@ def test_phylstm_datamodule_hparams_correct(df_path: str) -> None:
         "downsample_method": "interval",
         "batch_size": 32,
         "num_workers": 4,
-        "input_columns": ["a"],
-        "target_column": "b",
-        "known_past_columns": None,
+        "known_covariates": ["a"],
+        "target_covariate": "b",
+        "known_past_covariates": [],
         "model_dir": "model_dir",
         "normalize": True,
         "target_depends_on": "a",
@@ -88,8 +88,7 @@ def test_phylstm_datamodule_hparams_correct(df_path: str) -> None:
     for key, value in correct_hparams.items():
         assert hparams.pop(key) == value
 
-    assert len(hparams) == 3
-    assert "extra_transforms" in hparams
+    assert len(hparams) == 2
     assert "train_df_paths" in hparams
     assert "val_df_paths" in hparams
 
