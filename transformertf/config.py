@@ -107,7 +107,7 @@ class TransformerBaseConfig(BaseConfig):
     randomize_seq_len: bool = False
     stride: int = 1
 
-    loss_fn: typing.Literal["mse", "mse", "huber", "quantile"] = "quantile"
+    loss_fn: typing.Literal["mse", "mae", "huber", "quantile"] = "quantile"
     quantiles: list[float] = field(
         default_factory=lambda: [0.02, 0.1, 0.25, 0.5, 0.75, 0.9, 0.98]  # type: ignore[arg-type]
     )
