@@ -16,8 +16,8 @@ def transformer_datamodule_config(
     return {
         "input_columns": [current_key],
         "target_column": field_key,
-        "train_df": df_path,
-        "val_df": df_path,
+        "train_df_paths": df_path,
+        "val_df_paths": df_path,
         "normalize": True,
         "ctxt_seq_len": 200,
         "tgt_seq_len": 100,
@@ -105,7 +105,7 @@ def test_datamodule_transformer_read_input(
     current_key: str,
     field_key: str,
 ) -> None:
-    processed_df = datamodule_transformer.read_input(
+    processed_df = datamodule_transformer.parse_dataframe(
         df, input_columns=[current_key], target_column=field_key
     )
 

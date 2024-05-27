@@ -48,8 +48,8 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
 
     def __init__(
         self,
-        train_df: str | list[str] | None = None,
-        val_df: str | list[str] | None = None,
+        train_df_paths: str | list[str] | None = None,
+        val_df_paths: str | list[str] | None = None,
         seq_len: int = 500,
         min_seq_len: int | None = None,
         randomize_seq_len: bool = False,  # noqa: FBT001, FBT002
@@ -84,8 +84,8 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
 
         """
         super().__init__(
-            train_df=train_df,
-            val_df=val_df,
+            train_df_paths=train_df_paths,
+            val_df_paths=val_df_paths,
             input_columns=[input_columns],
             target_column=target_column,
             known_past_columns=known_past_columns,

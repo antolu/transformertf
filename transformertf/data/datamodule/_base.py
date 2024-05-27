@@ -64,8 +64,8 @@ class DataModuleBase(L.LightningDataModule):
         input_columns: str | typing.Sequence[str],
         target_column: str,
         known_past_columns: str | typing.Sequence[str] | None = None,
-        train_df: str | list[str] | None = None,
-        val_df: str | list[str] | None = None,
+        train_df_paths: str | list[str] | None = None,
+        val_df_paths: str | list[str] | None = None,
         normalize: bool = True,  # noqa: FBT001, FBT002
         downsample: int = 1,
         downsample_method: typing.Literal[
@@ -92,8 +92,10 @@ class DataModuleBase(L.LightningDataModule):
 
         self._create_transforms()
 
-        self._train_df_pths = _to_list(train_df) if train_df is not None else []
-        self._val_df_pths = _to_list(val_df) if val_df is not None else []
+        self._train_df_pths = (
+            _to_list(train_df_paths) if train_df_paths is not None else []
+        )
+        self._val_df_pths = _to_list(val_df_paths) if val_df_paths is not None else []
 
         # these will be set by prepare_data
         self._train_df: list[pd.DataFrame] = []

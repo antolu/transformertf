@@ -33,8 +33,8 @@ def test_phylstm_datamodule_create(
     field_key: str,
 ) -> None:
     dm = PhyLSTMDataModule(
-        train_df=df_path,
-        val_df=df_path,
+        train_df_paths=df_path,
+        val_df_paths=df_path,
         seq_len=500,
         stride=1,
         input_columns=current_key,
@@ -59,8 +59,8 @@ def test_phylstm_datamodule_hparams_correct(df_path: str) -> None:
     }
 
     dm = PhyLSTMDataModule(
-        train_df=df_path,
-        val_df=df_path,
+        train_df_paths=df_path,
+        val_df_paths=df_path,
         **kwargs,  # type: ignore[arg-type]
     )
 
@@ -90,8 +90,8 @@ def test_phylstm_datamodule_hparams_correct(df_path: str) -> None:
 
     assert len(hparams) == 3
     assert "extra_transforms" in hparams
-    assert "train_df" in hparams
-    assert "val_df" in hparams
+    assert "train_df_paths" in hparams
+    assert "val_df_paths" in hparams
 
 
 def test_phylstm_datamodule_prepare_data(
@@ -99,8 +99,8 @@ def test_phylstm_datamodule_prepare_data(
     df_path: str,
 ) -> None:
     dm = PhyLSTMDataModule(
-        train_df=df_path,
-        val_df=df_path,
+        train_df_paths=df_path,
+        val_df_paths=df_path,
         **phylstm_datamodule_config,
     )
 
@@ -112,8 +112,8 @@ def test_phylstm_datamodule_setup_before_prepare(
     df_path: str,
 ) -> None:
     dm = PhyLSTMDataModule(
-        train_df=df_path,
-        val_df=df_path,
+        train_df_paths=df_path,
+        val_df_paths=df_path,
         **phylstm_datamodule_config,
     )
 
@@ -132,8 +132,8 @@ def phylstm_datamodule(
     df_path: str,
 ) -> PhyLSTMDataModule:
     dm = PhyLSTMDataModule(
-        train_df=df_path,
-        val_df=df_path,
+        train_df_paths=df_path,
+        val_df_paths=df_path,
         **phylstm_datamodule_config,
     )
 

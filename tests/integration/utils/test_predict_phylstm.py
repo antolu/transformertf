@@ -35,8 +35,8 @@ def phylstm_datamodule(
         input_columns=current_key,
         target_column=field_key,
         seq_len=100,
-        train_df=df_path,
-        val_df=df_path,
+        train_df_paths=df_path,
+        val_df_paths=df_path,
     )
     dm.prepare_data()
     return dm

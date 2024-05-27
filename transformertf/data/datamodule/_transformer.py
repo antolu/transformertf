@@ -19,8 +19,8 @@ class TransformerDataModule(DataModuleBase):
         input_columns: str | typing.Sequence[str],
         target_column: str,
         known_past_columns: str | typing.Sequence[str] | None = None,
-        train_df: str | list[str] | None = None,
-        val_df: str | list[str] | None = None,
+        train_df_paths: str | list[str] | None = None,
+        val_df_paths: str | list[str] | None = None,
         normalize: bool = True,
         ctxt_seq_len: int = 500,
         tgt_seq_len: int = 300,
@@ -40,8 +40,8 @@ class TransformerDataModule(DataModuleBase):
         distributed_sampler: bool = False,
     ):
         super().__init__(
-            train_df=train_df,
-            val_df=val_df,
+            train_df_paths=train_df_paths,
+            val_df_paths=val_df_paths,
             input_columns=input_columns,
             target_column=target_column,
             known_past_columns=known_past_columns,

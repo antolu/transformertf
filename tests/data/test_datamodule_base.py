@@ -14,8 +14,8 @@ def timeseries_datamodule_config(df_path: str) -> dict[str, typing.Any]:
     return {
         "input_columns": ["a"],
         "target_column": "b",
-        "train_df": df_path,
-        "val_df": df_path,
+        "train_df_paths": df_path,
+        "val_df_paths": df_path,
         "normalize": True,
         "seq_len": 200,
         "min_seq_len": None,
@@ -132,7 +132,7 @@ def test_datamodule_base_read_input(
     current_key: str,
     field_key: str,
 ) -> None:
-    processed_df = timeseries_datamodule.read_input(
+    processed_df = timeseries_datamodule.parse_dataframe(
         df, input_columns=[current_key], target_column=field_key
     )
 

@@ -16,8 +16,8 @@ from ...conftest import CURRENT, DF_PATH, FIELD
 @pytest.fixture(scope="module")
 def dm(df_path: str, current_key: str, field_key: str) -> TimeSeriesDataModule:
     dm = TimeSeriesDataModule(
-        train_df=df_path,
-        val_df=df_path,
+        train_df_paths=df_path,
+        val_df_paths=df_path,
         input_columns=[current_key],
         target_column=field_key,
         seq_len=500,
@@ -75,8 +75,8 @@ def phylstm_dm(
     field_key: str,
 ) -> PhyLSTMDataModule:
     dm = PhyLSTMDataModule(
-        train_df=df_path,
-        val_df=df_path,
+        train_df_paths=df_path,
+        val_df_paths=df_path,
         downsample=100,
         lowpass_filter=False,
         dtype="float32",

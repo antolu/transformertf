@@ -23,8 +23,8 @@ def datamodule_transformer(
     df_path: str, current_key: str, field_key: str
 ) -> EncoderDecoderDataModule:
     dm = EncoderDecoderDataModule(
-        train_df=df_path,
-        val_df=df_path,
+        train_df_paths=df_path,
+        val_df_paths=df_path,
         input_columns=[current_key],
         target_column=field_key,
         known_past_columns=["time_ms"],

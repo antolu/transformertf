@@ -12,8 +12,8 @@ def phylstm_datamodule_config(
     df_path: str, current_key: str, field_key: str
 ) -> dict[str, typing.Any]:
     return {
-        "train_df": df_path,
-        "val_df": df_path,
+        "train_df_paths": df_path,
+        "val_df_paths": df_path,
         "num_workers": 0,
         "target_depends_on": current_key,
         "input_columns": current_key,
