@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import pathlib
 import sys
 import tempfile
 import typing
@@ -261,8 +262,8 @@ class DataModuleBase(L.LightningDataModule):
         train_pths = [Path(pth).expanduser() for pth in self._train_df_pths]
         val_pths = [Path(pth).expanduser() for pth in self._val_df_pths]
 
-        train_df = list(map(pd.read_parquet, train_pths))
-        val_df = list(map(pd.read_parquet, val_pths))
+        train_df = list(map(read_dataframe, train_pths))
+        val_df = list(map(read_dataframe, val_pths))
 
         self._raw_train_df = train_df
         self._raw_val_df = val_df
@@ -848,6 +849,40 @@ class DataModuleBase(L.LightningDataModule):
         ):
             return list(x)
         return typing.cast(list[T], [x])
+
+
+EXT2READER: dict[str, typing.Callable[[typing.Any], pd.DataFrame]] = {
+    ".parquet": pd.read_parquet,
+    ".csv": pd.read_csv,
+    ".tsv": pd.read_csv,
+    ".xlsx": pd.read_excel,
+    ".xls": pd.read_excel,
+    ".json": pd.read_json,
+}
+
+
+def read_dataframe(pth: pathlib.Path) -> pd.DataFrame:
+    """
+    Reads a dataframe in different formats.
+
+    The function will automatically determine the format of the file
+    based on the file extension.
+
+    Parameters
+    ----------
+    pth : pathlib.Path
+        The path to the parquet file.
+
+    Returns
+    -------
+    pd.DataFrame
+        The dataframe.
+    """
+    extension = pth.suffix
+    if extension not in EXT2READER:
+        msg = f"Unknown file extension {extension}."
+        raise ValueError(msg)
+    return EXT2READER[extension](pth)
 
 
 def save_data(
