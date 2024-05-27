@@ -23,7 +23,7 @@ class LSTM(LightningModuleBase, LogMetricsMixin):
         self,
         num_features: int = 1,
         num_layers: int = 3,
-        sequence_length: int = 500,
+        seq_len: int = 500,
         hidden_dim: int = 350,
         hidden_dim_fc: int = 1024,
         output_dim: int = 1,
@@ -53,6 +53,10 @@ class LSTM(LightningModuleBase, LogMetricsMixin):
 
         self.criterion = criterion or torch.nn.MSELoss()
         self.save_hyperparameters(ignore=["criterion"])
+
+        if isinstance(self.criterion, QuantileLoss):
+            output_dim = self.criterion.num_quantiles
+            self.hparams["output_dim"] = output_dim
 
         self._val_hidden: list[HIDDEN_STATE | None] = []
 
