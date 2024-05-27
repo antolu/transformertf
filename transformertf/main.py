@@ -69,48 +69,6 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
             help="Verbose flag. Can be used more than once.",
         )
 
-        parser.add_lightning_class_args(
-            lightning.pytorch.callbacks.LearningRateMonitor, "lr_monitor"
-        )
-        parser.set_defaults({"lr_monitor.logging_interval": "epoch"})
-
-        parser.add_lightning_class_args(
-            lightning.pytorch.callbacks.RichProgressBar, "progress_bar"
-        )
-        parser.set_defaults({"progress_bar.refresh_rate": 1})
-
-        parser.add_lightning_class_args(
-            lightning.pytorch.callbacks.RichModelSummary, "model_summary"
-        )
-        parser.set_defaults({"model_summary.max_depth": 2})
-
-        parser.add_lightning_class_args(
-            lightning.pytorch.callbacks.ModelCheckpoint, "checkpoint_every"
-        )
-        parser.set_defaults({
-            "checkpoint_every.save_top_k": -1,
-            "checkpoint_every.monitor": "loss/validation",
-            "checkpoint_every.mode": "min",
-            "checkpoint_every.dirpath": "checkpoints",
-            "checkpoint_every.filename": "epoch={epoch}-valloss={loss/validation:.4f}",
-            "checkpoint_every.every_n_epochs": 50,
-        })
-
-        parser.add_lightning_class_args(
-            lightning.pytorch.callbacks.ModelCheckpoint, "checkpoint_best"
-        )
-        parser.set_defaults({
-            "checkpoint_best.save_top_k": 1,
-            "checkpoint_best.monitor": "loss/validation",
-            "checkpoint_best.mode": "min",
-            "checkpoint_best.dirpath": "checkpoints",
-            "checkpoint_best.filename": "epoch={epoch}-valloss={loss/validation:.4f}",
-            "checkpoint_best.save_last": "link",
-            "checkpoint_best.save_weights_only": False,
-            "checkpoint_best.auto_insert_metric_name": False,
-            "checkpoint_best.enable_version_counter": False,
-        })
-
         parser.set_defaults({
             "trainer.logger": jsonargparse.lazy_instance(
                 lightning.pytorch.loggers.TensorBoardLogger,
@@ -119,23 +77,8 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
             ),
         })
 
-        parser.link_arguments(
-            "data.seq_len",
-            "model.init_args.seq_len",
-            apply_on="instantiate",
-        )
-
-        parser.link_arguments(
-            "data.ctxt_seq_len",
-            "model.init_args.ctxt_seq_len",
-            apply_on="instantiate",
-        )
-
-        parser.link_arguments(
-            "data.tgt_seq_len",
-            "model.init_args.tgt_seq_len",
-            apply_on="instantiate",
-        )
+        add_callback_defaults(parser)
+        add_seq_len_link(parser)
 
     def before_fit(self) -> None:
         # hijack model checkpoint callbacks to save to checkpoint_dir/version_{version}
@@ -145,6 +88,70 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
         for callback in self.trainer.callbacks:
             if isinstance(callback, lightning.pytorch.callbacks.ModelCheckpoint):
                 callback.dirpath = os.path.join(callback.dirpath, version_str)
+
+
+def add_callback_defaults(parser: LightningArgumentParser) -> None:
+    parser.add_lightning_class_args(
+        lightning.pytorch.callbacks.LearningRateMonitor, "lr_monitor"
+    )
+    parser.set_defaults({"lr_monitor.logging_interval": "epoch"})
+
+    parser.add_lightning_class_args(
+        lightning.pytorch.callbacks.RichProgressBar, "progress_bar"
+    )
+    parser.set_defaults({"progress_bar.refresh_rate": 1})
+
+    parser.add_lightning_class_args(
+        lightning.pytorch.callbacks.RichModelSummary, "model_summary"
+    )
+    parser.set_defaults({"model_summary.max_depth": 2})
+
+    parser.add_lightning_class_args(
+        lightning.pytorch.callbacks.ModelCheckpoint, "checkpoint_every"
+    )
+    parser.set_defaults({
+        "checkpoint_every.save_top_k": -1,
+        "checkpoint_every.monitor": "loss/validation",
+        "checkpoint_every.mode": "min",
+        "checkpoint_every.dirpath": "checkpoints",
+        "checkpoint_every.filename": "epoch={epoch}-valloss={loss/validation:.4f}",
+        "checkpoint_every.every_n_epochs": 50,
+    })
+
+    parser.add_lightning_class_args(
+        lightning.pytorch.callbacks.ModelCheckpoint, "checkpoint_best"
+    )
+    parser.set_defaults({
+        "checkpoint_best.save_top_k": 1,
+        "checkpoint_best.monitor": "loss/validation",
+        "checkpoint_best.mode": "min",
+        "checkpoint_best.dirpath": "checkpoints",
+        "checkpoint_best.filename": "epoch={epoch}-valloss={loss/validation:.4f}",
+        "checkpoint_best.save_last": "link",
+        "checkpoint_best.save_weights_only": False,
+        "checkpoint_best.auto_insert_metric_name": False,
+        "checkpoint_best.enable_version_counter": False,
+    })
+
+
+def add_seq_len_link(parser: LightningArgumentParser) -> None:
+    parser.link_arguments(
+        "data.seq_len",
+        "model.init_args.seq_len",
+        apply_on="instantiate",
+    )
+
+    parser.link_arguments(
+        "data.ctxt_seq_len",
+        "model.init_args.ctxt_seq_len",
+        apply_on="instantiate",
+    )
+
+    parser.link_arguments(
+        "data.tgt_seq_len",
+        "model.init_args.tgt_seq_len",
+        apply_on="instantiate",
+    )
 
 
 def main() -> None:
