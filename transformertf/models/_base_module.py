@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import logging
 import typing
 
 import lightning as L
 import lightning.pytorch.utilities
 import torch
 
+from .. import __version__
 from ..data import TimeSeriesSample
 from ..nn import functional as F
 from ..utils import ops
@@ -13,6 +15,9 @@ from ..utils import ops
 if typing.TYPE_CHECKING:
     SameType = typing.TypeVar("SameType", bound="LightningModuleBase")
     from .typing import MODEL_OUTPUT, STEP_OUTPUT
+
+
+log = logging.getLogger(__name__)
 
 
 class LightningModuleBase(L.LightningModule):
@@ -175,7 +180,36 @@ class LightningModuleBase(L.LightningModule):
                 *args, destination=destination, prefix=prefix, keep_vars=keep_vars
             )
 
+        # add transformertf version to state dict
+        state_dict["transformertf_version"] = __version__
+
         return state_dict
+
+    def load_state_dict(
+        self,
+        state_dict: dict[str, torch.Tensor],
+        *args: typing.Any,
+        strict: bool = True,
+        prefix: str = "",
+        **kwargs: typing.Any,
+    ) -> None:
+        # load the model state dict
+        if (
+            "transformertf_version" in state_dict
+            and state_dict["transformertf_version"] != __version__
+        ):
+            msg = (
+                f"Model was saved with transformertf version {state_dict['transformertf_version']} "
+                f"but current version is {__version__}. The model may not behave as expected."
+            )
+            log.warning(msg)
+
+            state_dict.pop("transformertf_version")
+
+        # load the rest of the state dict
+        super().load_state_dict(
+            state_dict, *args, strict=strict, prefix=prefix, **kwargs
+        )
 
 
 class LogMetricsMixin:
