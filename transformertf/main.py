@@ -162,19 +162,19 @@ def add_num_features_link(
 ) -> None:
     # encoder-decoder models
     parser.link_arguments(
-        "data.num_known_past_covariates",
+        "data.num_past_known_covariates",
         "model.init_args.num_past_features",
         apply_on="instantiate",
     )
     parser.link_arguments(
-        "data.num_known_future_covariates",
+        "data.num_future_known_covariates",
         "model.init_args.num_future_features",
         apply_on="instantiate",
     )
 
     # seq2seq models
     parser.link_arguments(
-        "data.num_known_past_covariates",
+        "data.num_past_known_covariates",
         "model.init_args.num_features",
         apply_on="instantiate",
     )
