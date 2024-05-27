@@ -6,6 +6,7 @@ import typing
 import pandas as pd
 
 from ...data import TimeSeriesDataModule
+from ...data._downsample import DOWNSAMPLE_METHODS
 from ...utils import signal
 
 if typing.TYPE_CHECKING:
@@ -55,15 +56,13 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
         randomize_seq_len: bool = False,  # noqa: FBT001, FBT002
         stride: int = 1,
         downsample: int = 1,
-        downsample_method: typing.Literal[
-            "interval", "average", "convolve"
-        ] = "interval",
+        downsample_method: DOWNSAMPLE_METHODS = "interval",
         lowpass_filter: bool = False,  # noqa: FBT001, FBT002
         target_depends_on: str | None = None,
         extra_transforms: dict[str, list[BaseTransform]] | None = None,
-        input_columns: str = CURRENT,
-        target_column: str = FIELD,
-        known_past_columns: str | typing.Sequence[str] | None = None,
+        known_covariates: str = CURRENT,
+        target_covariate: str = FIELD,
+        known_past_covariates: str | typing.Sequence[str] | None = None,
         batch_size: int = 128,
         num_workers: int = 0,
         model_dir: str | None = None,
@@ -86,9 +85,9 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
         super().__init__(
             train_df_paths=train_df_paths,
             val_df_paths=val_df_paths,
-            input_columns=[input_columns],
-            target_column=target_column,
-            known_past_columns=known_past_columns,
+            known_covariates=[known_covariates],
+            target_covariate=target_covariate,
+            known_past_covariates=known_past_covariates,
             normalize=True,
             downsample=downsample,
             downsample_method=downsample_method,
@@ -104,7 +103,7 @@ class PhyLSTMDataModule(TimeSeriesDataModule):
             distributed_sampler=distributed_sampler,
         )
         self.save_hyperparameters()
-        self.hparams["input_columns"] = [input_columns]
+        self.hparams["input_columns"] = [known_covariates]
 
     def preprocess_dataframe(
         self,

@@ -18,8 +18,8 @@ def dm(df_path: str, current_key: str, field_key: str) -> TimeSeriesDataModule:
     dm = TimeSeriesDataModule(
         train_df_paths=df_path,
         val_df_paths=df_path,
-        input_columns=[current_key],
-        target_column=field_key,
+        known_covariates=[current_key],
+        target_covariate=field_key,
         seq_len=500,
         dtype="float64",
     )
@@ -81,8 +81,8 @@ def phylstm_dm(
         lowpass_filter=False,
         dtype="float32",
         target_depends_on=current_key,
-        input_columns=current_key,
-        target_column=field_key,
+        known_covariates=current_key,
+        target_covariate=field_key,
     )
     dm.prepare_data()
     dm.setup()

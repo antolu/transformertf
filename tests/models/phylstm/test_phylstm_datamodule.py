@@ -37,8 +37,8 @@ def test_phylstm_datamodule_create(
         val_df_paths=df_path,
         seq_len=500,
         stride=1,
-        input_columns=current_key,
-        target_column=field_key,
+        known_covariates=current_key,
+        target_covariate=field_key,
     )
     assert dm is not None
 

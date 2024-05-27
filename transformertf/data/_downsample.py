@@ -13,7 +13,7 @@ __all__ = ["DOWNSAMPLE_METHODS", "downsample"]
 
 
 MIN_DOWNSAMPLE_FACTOR = 1
-DOWNSAMPLE_METHODS: typing.TypeAlias = typing.Literal["interval", "average", "convolve"]
+DOWNSAMPLE_METHODS: typing.TypeAlias = typing.Literal["interval", "median", "convolve"]
 
 
 if typing.TYPE_CHECKING:
@@ -97,8 +97,8 @@ def downsample_array(
 
     if method == "interval":
         return v[::factor]
-    if method == "average":
-        return downsample_mean(v, factor)
+    if method == "median":
+        return downsample_median(v, factor)
     if method == "convolve":
         return downsample_convolve(v, factor)
 
@@ -129,7 +129,7 @@ def downsample_convolve(
     return np.convolve(v, box, mode="valid")[::factor]
 
 
-def downsample_mean(
+def downsample_median(
     v: np.ndarray | torch.Tensor | pd.Series, factor: int
 ) -> np.ndarray:
     """

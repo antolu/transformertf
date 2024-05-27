@@ -32,8 +32,8 @@ def phylstm_datamodule(
     field_key: str,
 ) -> PhyLSTMDataModule:
     dm = PhyLSTMDataModule(
-        input_columns=current_key,
-        target_column=field_key,
+        known_covariates=current_key,
+        target_covariate=field_key,
         seq_len=100,
         train_df_paths=df_path,
         val_df_paths=df_path,

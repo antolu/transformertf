@@ -67,9 +67,9 @@ class DataModuleBase(L.LightningDataModule):
 
     def __init__(
         self,
-        input_columns: str | typing.Sequence[str],
-        target_column: str,
-        known_past_columns: str | typing.Sequence[str] | None = None,
+        known_covariates: str | typing.Sequence[str],
+        target_covariate: str,
+        known_past_covariates: str | typing.Sequence[str] | None = None,
         train_df_paths: str | list[str] | None = None,
         val_df_paths: str | list[str] | None = None,
         normalize: bool = True,  # noqa: FBT001, FBT002
@@ -83,14 +83,76 @@ class DataModuleBase(L.LightningDataModule):
         *,
         distributed_sampler: bool = False,
     ):
+        """
+        Initializes the datamodule. This class should not be used directly,
+        but instead subclassed.
+
+        Parameters
+        ----------
+        known_covariates : str | typing.Sequence[str]
+            The columns in the data that are known in the past and future. These
+            columns are used as input to the model. If the input to the model
+            follows encoder-decoder architecture, these columns are used as the
+            encoder *and* decoder input.
+        target_covariate : str
+            The column in the data that is the target of the model. This column
+            is used as the target in the model, and if the input to the model
+            follows encoder-decoder architecture, this column is used as the
+            decoder input.
+        known_past_covariates : str | typing.Sequence[str] | None
+            The columns in the data that are known in the past. These columns
+            are used as input to the model, but only as the encoder input. This
+            column should not be used for normal sequence-to-sequence models.
+        train_df_paths : str | list[str] | None
+            The path to the training data. If a list is provided, the dataframes
+            are concatenated. If None, the training data is not loaded, which is
+            useful for when loading the datamodule from a checkpoint.
+        val_df_paths : str | list[str] | None
+            The path to the validation data. If a list is provided, multiple validation
+            datasets are created, and the :meth:`val_dataloader` method returns a list
+            of dataloaders. If None, the validation data is not loaded, which is useful
+            for when loading the datamodule from a checkpoint.
+        normalize : bool
+            Whether to normalize the data. If True, the data is normalized using
+            a standard scaler. If False, the data is not normalized.
+        downsample : int
+            The factor to downsample the data by. If 1, the data is not downsampled.
+        downsample_method : typing.Literal["interval", "average", "convolve"]
+            The method to use for downsampling the data. The options are "interval",
+            "median", and "convolve".
+        target_depends_on : str | None
+            The column that the target depends on if additional transforms are provided in the
+            ``extra_transforms`` parameter, and are of type :class:`TransformType.XY`, where
+            the target depends on another column. If None, the target does not depend on any
+            other column.
+        extra_transforms : dict[str, list[BaseTransform]] | None
+            Additional transforms to apply to the data. The dictionary should have the column
+            name as the key, and a list of transforms as the value. If None, no additional
+            transforms are applied. By default, the data is normalized using a standard scaler.
+            If additional transforms are provided, the data is normalized after the additional
+            transforms are applied.
+        batch_size : int
+            The batch size to use for the dataloaders.
+        num_workers : int
+             Number of workers to use for the dataloaders.
+        dtype : str
+            The data type to use for the data. This is passed to the datasets which convert
+            the data to this type when samples are created.
+        distributed_sampler : bool
+            Whether to use a distributed sampler for the dataloaders. If True, the dataloader
+            is wrapped in a :class:`torch.utils.data.distributed.DistributedSampler`, which must
+            be used by distributed training strategies.
+        """
         super().__init__()
         self.save_hyperparameters(ignore=["extra_transforms"])
 
-        input_columns = _to_list(input_columns)
-        known_past_columns = _to_list(known_past_columns) if known_past_columns else []
+        known_covariates = _to_list(known_covariates)
+        known_past_covariates = (
+            _to_list(known_past_covariates) if known_past_covariates else []
+        )
 
-        self.hparams["input_columns"] = input_columns
-        self.hparams["known_past_columns"] = known_past_columns
+        self.hparams["known_covariates"] = known_covariates
+        self.hparams["known_past_covariates"] = known_past_covariates
 
         self._extra_transforms_source = extra_transforms or {}
 
@@ -129,13 +191,17 @@ class DataModuleBase(L.LightningDataModule):
     """ End override """
 
     @override  # type: ignore[misc]
-    def prepare_data(self, *, save: bool = True) -> None:
+    def prepare_data(self) -> None:
         """
         Loads and preprocesses data dataframes.
 
+        The dataframes are loaded from parquet files, and then preprocessed
+        and normalized. The dataframes are then saved to parquet files in the temporary
+        directory, which are then loaded in the :meth:`setup` method, on all the nodes.
+
         The dataframes are purposely *not* concatenated to keep
         distinct data from different sources separate.
-        The data will be concatenated in :class:`TimeSeriesDataset`
+        The data will be concatenated in subclasses of :class:`AbstractTimeSeriesDataset`
         after data has been split and samples created using the sliding window technique.
 
         Parameters
@@ -164,9 +230,8 @@ class DataModuleBase(L.LightningDataModule):
         self._train_df = list(map(self.apply_transforms, train_df))
         self._val_df = list(map(self.apply_transforms, val_df))
 
-        if save:
-            save_data(self._train_df, "train", self._tmp_dir.name)
-            save_data(self._val_df, "val", self._tmp_dir.name)
+        save_data(self._train_df, "train", self._tmp_dir.name)
+        save_data(self._val_df, "val", self._tmp_dir.name)
 
     @override  # type: ignore[misc]
     def setup(
@@ -175,6 +240,7 @@ class DataModuleBase(L.LightningDataModule):
     ) -> None:
         """
         Sets up the data for training, validation or testing.
+        Loads the preprocessed data from the temporary directory.
 
         Parameters
         ----------
@@ -216,24 +282,33 @@ class DataModuleBase(L.LightningDataModule):
             raise ValueError(msg)
 
     @property
-    def train_dataset(self) -> torch.utils.data.Dataset:
+    def train_dataset(self) -> AbstractTimeSeriesDataset:
+        """
+        The training dataset. This is a concatenation of all the training dataframes
+        that have been loaded and preprocessed.
+
+        Returns
+        -------
+        AbstractTimeSeriesDataset
+            The training dataset.
+        """
         if self._train_df is None or len(self._train_df) == 0:
             msg = "No training data available."
             raise ValueError(msg)
 
         input_data = np.concatenate([
-            df[self.hparams["input_columns"]].to_numpy() for df in self._train_df
+            df[self.hparams["known_covariates"]].to_numpy() for df in self._train_df
         ])
         known_past_data = (
             np.concatenate([
-                df[self.hparams["known_past_columns"]].to_numpy()
+                df[self.hparams["known_past_covariates"]].to_numpy()
                 for df in self._train_df
             ])
-            if self.hparams["known_past_columns"] is not None
+            if self.hparams["known_past_covariates"] is not None
             else None
         )
         target_data = np.concatenate([
-            df[self.hparams["target_column"]].to_numpy() for df in self._train_df
+            df[self.hparams["target_covariate"]].to_numpy() for df in self._train_df
         ])
 
         return self._make_dataset_from_arrays(
@@ -243,7 +318,17 @@ class DataModuleBase(L.LightningDataModule):
     @property
     def val_dataset(
         self,
-    ) -> torch.utils.data.Dataset | typing.Sequence[torch.utils.data.Dataset]:
+    ) -> AbstractTimeSeriesDataset | typing.Sequence[AbstractTimeSeriesDataset]:
+        """
+        The validation dataset(s). If more than one dataframe was provided in the
+        constructor, this method returns a list of datasets, one for each dataframe.
+        Otherwise, it returns a single dataset.
+
+        Returns
+        -------
+        AbstractTimeSeriesDataset | typing.Sequence[AbstractTimeSeriesDataset]
+            The validation dataset(s).
+        """
         if self._val_df is None or len(self._val_df) == 0:
             msg = "No validation data available."
             raise ValueError(msg)
@@ -255,7 +340,16 @@ class DataModuleBase(L.LightningDataModule):
     @override  # type: ignore[misc]
     def train_dataloader(
         self,
-    ) -> torch.utils.data.DataLoader | typing.Sequence[torch.utils.data.DataLoader]:
+    ) -> torch.utils.data.DataLoader:
+        """
+        Returns the training dataloader. If the datamodule is used in distributed
+        training, the dataloader is wrapped in a :class:`torch.utils.data.distributed.DistributedSampler`.
+
+        Returns
+        -------
+        torch.utils.data.DataLoader
+            The training dataloader.
+        """
         sampler: torch.utils.data.Sampler | None = None
         if self.hparams["distributed_sampler"]:
             sampler = torch.utils.data.distributed.DistributedSampler(
@@ -278,6 +372,15 @@ class DataModuleBase(L.LightningDataModule):
     def val_dataloader(
         self,
     ) -> torch.utils.data.DataLoader | typing.Sequence[torch.utils.data.DataLoader]:
+        """
+        Returns the validation dataloader(s). If the datamodule is used in distributed
+        training, the dataloaders are wrapped in a :class:`torch.utils.data.distributed.DistributedSampler`.
+
+        Returns
+        -------
+        torch.utils.data.DataLoader | typing.Sequence[torch.utils.data.DataLoader]
+            The validation dataloader(s).
+        """
         if self._val_df is None or len(self._val_df) == 0:
             msg = "No validation data available."
             raise ValueError(msg)
@@ -311,19 +414,46 @@ class DataModuleBase(L.LightningDataModule):
     def get_transforms(
         self,
     ) -> tuple[dict[str, TransformCollection], TransformCollection]:
+        """
+        Returns the input and target transforms used by the datamodule.
+
+        Returns
+        -------
+        tuple[dict[str, TransformCollection], TransformCollection]
+            The input and target transforms.
+        """
         return (
-            {col: self._input_transforms[col] for col in self.hparams["input_columns"]},
+            {
+                col: self._input_transforms[col]
+                for col in self.hparams["known_covariates"]
+            },
             self._target_transform,
         )
 
     @property
     def input_transforms(self) -> dict[str, TransformCollection]:
+        """
+        The input transforms used by the datamodule.
+
+        Returns
+        -------
+        dict[str, TransformCollection]
+            The input transforms.
+        """
         return {
-            col: self._input_transforms[col] for col in self.hparams["input_columns"]
+            col: self._input_transforms[col] for col in self.hparams["known_covariates"]
         }
 
     @property
     def target_transform(self) -> TransformCollection:
+        """
+        The target transform used by the datamodule.
+
+        Returns
+        -------
+        TransformCollection
+            The target transform.
+        """
         return self._target_transform
 
     def transform_input(
@@ -361,12 +491,14 @@ class DataModuleBase(L.LightningDataModule):
             This is caused by calling ``transform_input`` before ``prepare_data``,
             or using a datamodule that has previously not been trained on.
         """
-        skip_target = self.hparams["target_column"] not in df.columns
+        skip_target = self.hparams["target_covariate"] not in df.columns
         df = self.parse_dataframe(
             df,
             timestamp=timestamp,
-            input_columns=self.hparams["input_columns"],
-            target_column=(self.hparams["target_column"] if not skip_target else None),
+            input_columns=self.hparams["known_covariates"],
+            target_column=(
+                self.hparams["target_covariate"] if not skip_target else None
+            ),
         )
         df = self.preprocess_dataframe(df)
 
@@ -492,7 +624,7 @@ class DataModuleBase(L.LightningDataModule):
             raise RuntimeError(msg)
 
         out = pd.DataFrame(df)
-        for col in self.hparams["input_columns"]:
+        for col in self.hparams["known_covariates"]:
             out[col] = self._input_transforms[col].transform(
                 torch.from_numpy(df[col].to_numpy())
             )
@@ -501,14 +633,14 @@ class DataModuleBase(L.LightningDataModule):
             return out
 
         if self.hparams["target_depends_on"] is not None:
-            out[self.hparams["target_column"]] = self._target_transform.transform(
+            out[self.hparams["target_covariate"]] = self._target_transform.transform(
                 torch.from_numpy(df[self.hparams["target_depends_on"]].to_numpy()),
-                torch.from_numpy(df[self.hparams["target_column"]].to_numpy()),
+                torch.from_numpy(df[self.hparams["target_covariate"]].to_numpy()),
             )
         else:
-            out[self.hparams["target_column"]] = self._target_transform.transform(
+            out[self.hparams["target_covariate"]] = self._target_transform.transform(
                 torch.tensor([]),
-                torch.from_numpy(df[self.hparams["target_column"]].to_numpy()),
+                torch.from_numpy(df[self.hparams["target_covariate"]].to_numpy()),
             )
 
         return out
@@ -584,13 +716,13 @@ class DataModuleBase(L.LightningDataModule):
         self, df: pd.DataFrame, *, predict: bool = False
     ) -> AbstractTimeSeriesDataset:
         target_data: np.ndarray | None = None
-        if self.hparams["target_column"] in df.columns:
-            target_data = df[self.hparams["target_column"]].to_numpy()
+        if self.hparams["target_covariate"] in df.columns:
+            target_data = df[self.hparams["target_covariate"]].to_numpy()
 
         return self._make_dataset_from_arrays(
-            input_data=df[self.hparams["input_columns"]].to_numpy(),
-            known_past_data=df[self.hparams["known_past_columns"]].to_numpy()
-            if self.hparams["known_past_columns"] is not None
+            input_data=df[self.hparams["known_covariates"]].to_numpy(),
+            known_past_data=df[self.hparams["known_past_covariates"]].to_numpy()
+            if self.hparams["known_past_covariates"] is not None
             else None,
             target_data=target_data,
             predict=predict,
@@ -604,18 +736,18 @@ class DataModuleBase(L.LightningDataModule):
 
         # input transforms
         input_transforms: dict[str, list[BaseTransform]]
-        input_transforms = {col: [] for col in self.hparams["input_columns"]}
-        input_transforms |= {col: [] for col in self.hparams["known_past_columns"]}
+        input_transforms = {col: [] for col in self.hparams["known_covariates"]}
+        input_transforms |= {col: [] for col in self.hparams["known_past_covariates"]}
 
         for col, transforms in self._extra_transforms_source.items():
-            if col == self.hparams["target_column"]:
+            if col == self.hparams["target_covariate"]:
                 continue
             if col not in input_transforms:
                 msg = f"Unknown column {col} in extra_transforms."
                 raise ValueError(msg)
             input_transforms[col].extend(transforms)
 
-        for input_col in self.hparams["input_columns"]:
+        for input_col in self.hparams["known_covariates"]:
             if normalize:
                 input_transforms[input_col].append(StandardScaler(num_features_=1))
 
@@ -625,9 +757,9 @@ class DataModuleBase(L.LightningDataModule):
         })
 
         target_transform = []
-        if self.hparams["target_column"] in self._extra_transforms_source:
+        if self.hparams["target_covariate"] in self._extra_transforms_source:
             target_transform.extend(
-                self._extra_transforms_source[self.hparams["target_column"]]
+                self._extra_transforms_source[self.hparams["target_covariate"]]
             )
         if normalize:
             target_transform.append(StandardScaler(num_features_=1))
@@ -648,19 +780,19 @@ class DataModuleBase(L.LightningDataModule):
         return fitted
 
     def _fit_transforms(self, df: pd.DataFrame) -> None:
-        for col in self.hparams["input_columns"]:
+        for col in self.hparams["known_covariates"]:
             log.info(f"Fitting input scaler for {col}.")
             self._input_transforms[col].fit(torch.from_numpy(df[col].to_numpy()))
 
         if self.hparams["target_depends_on"] is not None:
             self._target_transform.fit(
                 torch.from_numpy(df[self.hparams["target_depends_on"]].to_numpy()),
-                torch.from_numpy(df[self.hparams["target_column"]].to_numpy()),
+                torch.from_numpy(df[self.hparams["target_covariate"]].to_numpy()),
             )
         else:
             self._target_transform.fit(
                 torch.tensor([]),
-                torch.from_numpy(df[self.hparams["target_column"]].to_numpy()),
+                torch.from_numpy(df[self.hparams["target_covariate"]].to_numpy()),
             )
 
 

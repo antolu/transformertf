@@ -22,9 +22,9 @@ def datamodule_transformer(
     dm = EncoderDecoderDataModule(
         train_df_paths=df_path,
         val_df_paths=df_path,
-        input_columns=[current_key],
-        target_column=field_key,
-        known_past_columns=["time_ms"],
+        known_covariates=[current_key],
+        target_covariate=field_key,
+        known_past_covariates=["time_ms"],
     )
     dm.prepare_data()
     dm.setup()
