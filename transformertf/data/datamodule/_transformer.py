@@ -56,6 +56,13 @@ class TransformerDataModule(DataModuleBase):
 
         self.save_hyperparameters(ignore=["extra_transforms"])
 
+        self.hparams["known_covariates"] = self._to_list(
+            self.hparams["known_covariates"]
+        )
+        self.hparams["known_past_covariates"] = self._to_list(
+            self.hparams["known_past_covariates"]
+        )
+
     @property
     def ctxt_seq_len(self) -> int:
         return self.hparams["ctxt_seq_len"]
