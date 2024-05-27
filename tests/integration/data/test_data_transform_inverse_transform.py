@@ -7,7 +7,6 @@ import pandas as pd
 import pytest
 
 from transformertf.data import TimeSeriesDataModule
-from transformertf.models.phylstm import PhyLSTMDataModule
 from transformertf.utils import ops
 
 from ...conftest import CURRENT, DF_PATH, FIELD
@@ -73,12 +72,11 @@ def phylstm_dm(
     df_path: str,
     current_key: str,
     field_key: str,
-) -> PhyLSTMDataModule:
-    dm = PhyLSTMDataModule(
+) -> TimeSeriesDataModule:
+    dm = TimeSeriesDataModule(
         train_df_paths=df_path,
         val_df_paths=df_path,
         downsample=100,
-        lowpass_filter=False,
         dtype="float32",
         target_depends_on=current_key,
         known_covariates=current_key,
@@ -91,7 +89,7 @@ def phylstm_dm(
 
 
 def test_phylstm_data_transform_inverse_transform(
-    phylstm_dm: PhyLSTMDataModule,
+    phylstm_dm: TimeSeriesDataModule,
     df_path: str,
     current_key: str,
     field_key: str,

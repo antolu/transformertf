@@ -4,7 +4,8 @@ import typing
 
 import pytest
 
-from transformertf.models.phylstm import PhyLSTM, PhyLSTMDataModule
+from transformertf.data import TimeSeriesDataModule
+from transformertf.models.phylstm import PhyLSTM
 
 
 @pytest.fixture(scope="module")
@@ -40,5 +41,5 @@ def phylstm_module(phylstm_module_config: dict[str, typing.Any]) -> PhyLSTM:
 @pytest.fixture()
 def phylstm_datamodule(
     phylstm_datamodule_config: dict[str, typing.Any],
-) -> PhyLSTMDataModule:
-    return PhyLSTMDataModule(**phylstm_datamodule_config)
+) -> TimeSeriesDataModule:
+    return TimeSeriesDataModule(**phylstm_datamodule_config)

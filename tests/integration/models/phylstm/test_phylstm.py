@@ -7,9 +7,9 @@ from __future__ import annotations
 import pandas as pd
 import torch
 
+from transformertf.data import TimeSeriesDataModule
 from transformertf.models.phylstm import (
     PhyLSTM,
-    PhyLSTMDataModule,
 )
 
 from ....conftest import FIELD
@@ -17,7 +17,7 @@ from ....conftest import FIELD
 
 def test_phylstm_forward_pass(
     phylstm_module: PhyLSTM,
-    phylstm_datamodule: PhyLSTMDataModule,
+    phylstm_datamodule: TimeSeriesDataModule,
     df: pd.DataFrame,
 ) -> None:
     phylstm_datamodule.prepare_data()
