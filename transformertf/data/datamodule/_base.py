@@ -14,7 +14,7 @@ import pandas as pd
 import torch
 import torch.utils.data
 
-from transformertf.data.dataset import TimeSeriesDataset
+from transformertf.data.dataset import AbstractTimeSeriesDataset
 
 from .._downsample import downsample
 from ..transform import (
@@ -125,51 +125,10 @@ class DataModuleBase(L.LightningDataModule):
         target_data: np.ndarray | None = None,
         *,
         predict: bool = False,
-    ) -> torch.utils.data.Dataset:
+    ) -> AbstractTimeSeriesDataset:
         raise NotImplementedError
 
     """ End override """
-
-    def _create_transforms(self) -> None:
-        """
-        Instantiates the transforms to be used by the datamodule.
-        """
-        normalize = self.hparams["normalize"]
-
-        # input transforms
-        input_transforms: dict[str, list[BaseTransform]]
-        input_transforms = {col: [] for col in self.hparams["input_columns"]}
-        input_transforms |= {col: [] for col in self.hparams["known_past_columns"]}
-
-        for col, transforms in self._extra_transforms_source.items():
-            if col == self.hparams["target_column"]:
-                continue
-            if col not in input_transforms:
-                msg = f"Unknown column {col} in extra_transforms."
-                raise ValueError(msg)
-            input_transforms[col].extend(transforms)
-
-        for input_col in self.hparams["input_columns"]:
-            if normalize:
-                input_transforms[input_col].append(StandardScaler(num_features_=1))
-
-        self._input_transforms = torch.nn.ModuleDict({
-            col: TransformCollection(transforms)
-            for col, transforms in input_transforms.items()
-        })
-
-        target_transform = []
-        if self.hparams["target_column"] in self._extra_transforms_source:
-            target_transform.extend(
-                self._extra_transforms_source[self.hparams["target_column"]]
-            )
-        if normalize:
-            target_transform.append(StandardScaler(num_features_=1))
-
-        self._target_transform = TransformCollection(
-            target_transform,
-            transform_type=TransformType.XY,
-        )
 
     @override  # type: ignore[misc]
     def prepare_data(self, *, save: bool = True) -> None:
@@ -257,181 +216,6 @@ class DataModuleBase(L.LightningDataModule):
         else:
             msg = f"Unknown stage {stage}."
             raise ValueError(msg)
-
-    def preprocess_dataframe(
-        self,
-        df: pd.DataFrame,
-    ) -> pd.DataFrame:
-        """
-        Preprocess the dataframe into the format expected by the model.
-        This function should be chaininvoked with the ``read_input`` function,
-        and must be called before ``apply_transforms``.
-
-        Parameters
-        ----------
-        df : pd.DataFrame
-            The dataframe to preprocess.
-
-        Returns
-        -------
-        pd.DataFrame
-            The preprocessed dataframe.
-        """
-        return downsample(  # type: ignore[return-value]
-            df,
-            downsample=self.hparams["downsample"],
-            method=self.hparams["downsample_method"],
-        )
-
-    def apply_transforms(
-        self,
-        df: pd.DataFrame,
-        *,
-        skip_target: bool = False,
-    ) -> pd.DataFrame:
-        """
-        Normalize the dataframe into the format expected by the model.
-        This function should be chaininvoked with the ``read_input`` function.
-
-        Parameters
-        ----------
-        df : pd.DataFrame
-            The dataframe to normalize.
-        skip_target : bool
-            Whether to skip normalizing the target columns.
-
-        Returns
-        -------
-        pd.DataFrame
-            The normalized dataframe.
-
-        Raises
-        ------
-        sklearn.exceptions.NotFittedError
-            If the scaler has not been fitted.
-        """
-        if not self._scalers_fitted():
-            msg = "Scalers have not been fitted yet. "
-            raise RuntimeError(msg)
-
-        out = pd.DataFrame(df)
-        for col in self.hparams["input_columns"]:
-            out[col] = self._input_transforms[col].transform(
-                torch.from_numpy(df[col].to_numpy())
-            )
-
-        if skip_target:
-            return out
-
-        if self.hparams["target_depends_on"] is not None:
-            out[self.hparams["target_column"]] = self._target_transform.transform(
-                torch.from_numpy(df[self.hparams["target_depends_on"]].to_numpy()),
-                torch.from_numpy(df[self.hparams["target_column"]].to_numpy()),
-            )
-        else:
-            out[self.hparams["target_column"]] = self._target_transform.transform(
-                torch.tensor([]),
-                torch.from_numpy(df[self.hparams["target_column"]].to_numpy()),
-            )
-
-        return out
-
-    def transform_input(
-        self,
-        input_: pd.DataFrame,
-        timestamp: np.ndarray | pd.Series | str | None = None,
-    ) -> pd.DataFrame:
-        """
-        Chains the ``read_input`` and ``preprocess_dataframe``, and
-        ``normalize_dataframe`` functions together.
-
-        Parameters
-        ----------
-        input_ : pd.DataFrame
-            The input data.
-        timestamp : np.ndarray | pd.Series | None
-            The timestamps of the data.
-
-        Returns
-        -------
-        pd.DataFrame
-            The transformed dataframe.
-
-        Raises
-        ------
-        TypeError
-            If the input is not a ``np.ndarray``, ``pd.Series``, or ``pd.DataFrame``.
-        sklearn.exceptions.NotFittedError
-            If the normalizers are not yet fitted.
-            This is caused by calling ``transform_input`` before ``prepare_data``,
-            or using a datamodule that has previously not been trained on.
-        """
-        skip_target = self.hparams["target_column"] not in input_.columns
-        df = self.parse_dataframe(
-            input_,
-            timestamp=timestamp,
-            input_columns=self.hparams["input_columns"],
-            target_column=(self.hparams["target_column"] if not skip_target else None),
-        )
-        df = self.preprocess_dataframe(df)
-
-        return self.apply_transforms(df, skip_target=skip_target)
-
-    def _make_dataset_from_df(
-        self, df: pd.DataFrame, *, predict: bool = False
-    ) -> torch.utils.data.Dataset:
-        target_data: np.ndarray | None = None
-        if self.hparams["target_column"] in df.columns:
-            target_data = df[self.hparams["target_column"]].to_numpy()
-
-        return self._make_dataset_from_arrays(
-            input_data=df[self.hparams["input_columns"]].to_numpy(),
-            known_past_data=df[self.hparams["known_past_columns"]].to_numpy()
-            if self.hparams["known_past_columns"] is not None
-            else None,
-            target_data=target_data,
-            predict=predict,
-        )
-
-    def make_dataset(
-        self,
-        df: pd.DataFrame,
-        timestamp: np.ndarray | pd.Series | str | None = None,
-        *,
-        predict: bool = False,
-    ) -> TimeSeriesDataset:
-        df = self.transform_input(
-            input_=df,
-            timestamp=timestamp,
-        )
-
-        return self._make_dataset_from_df(df, predict=predict)
-
-    def make_dataloader(
-        self,
-        input_: pd.DataFrame,
-        timestamp: np.ndarray | pd.Series | str | None = None,
-        *,
-        predict: bool = False,
-        **kwargs: typing.Any,
-    ) -> torch.utils.data.DataLoader:
-        dataset = self.make_dataset(
-            input_,
-            timestamp=timestamp,
-            predict=predict,
-        )
-
-        default_kwargs = {
-            "batch_size": self.hparams["batch_size"] if not predict else 1,
-            "num_workers": self.hparams["num_workers"],
-            "shuffle": not predict,
-        }
-        default_kwargs.update(kwargs)
-
-        return torch.utils.data.DataLoader(
-            dataset,
-            **default_kwargs,
-        )
 
     @property
     def train_dataset(self) -> torch.utils.data.Dataset:
@@ -526,32 +310,6 @@ class DataModuleBase(L.LightningDataModule):
             return make_dataloader(self.val_dataset)  # type: ignore[arg-type]
         return [make_dataloader(ds) for ds in self.val_dataset]  # type: ignore[arg-type]
 
-    def _scalers_fitted(self) -> bool:
-        fitted = all(
-            transform.__sklearn_is_fitted__()
-            for transform in self._input_transforms.values()
-        )
-
-        fitted &= self._target_transform.__sklearn_is_fitted__()
-
-        return fitted
-
-    def _fit_transforms(self, df: pd.DataFrame) -> None:
-        for col in self.hparams["input_columns"]:
-            log.info(f"Fitting input scaler for {col}.")
-            self._input_transforms[col].fit(torch.from_numpy(df[col].to_numpy()))
-
-        if self.hparams["target_depends_on"] is not None:
-            self._target_transform.fit(
-                torch.from_numpy(df[self.hparams["target_depends_on"]].to_numpy()),
-                torch.from_numpy(df[self.hparams["target_column"]].to_numpy()),
-            )
-        else:
-            self._target_transform.fit(
-                torch.tensor([]),
-                torch.from_numpy(df[self.hparams["target_column"]].to_numpy()),
-            )
-
     def get_transforms(
         self,
     ) -> tuple[dict[str, TransformCollection], TransformCollection]:
@@ -570,6 +328,52 @@ class DataModuleBase(L.LightningDataModule):
     def target_transform(self) -> TransformCollection:
         return self._target_transform
 
+    def transform_input(
+        self,
+        df: pd.DataFrame,
+        timestamp: np.ndarray | pd.Series | str | None = None,
+    ) -> pd.DataFrame:
+        """
+        Chains the :meth:`_parse_dataframe` and :meth:`preprocess_dataframe``, and
+        :meth:`apply_transforms` functions together.
+
+        This in principle applies downsampling, preprocessing and normalization
+        to the input data. The result of this function is a dataframe that is ready to be used
+        with the :meth:`make_dataset` or :meth:`make_dataloader` functions
+        to create a dataset or dataloader.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            The input data. This dataframe should contain the columns specified
+            in the datamodule.
+        timestamp : np.ndarray | pd.Series | None
+            The timestamps of the data.
+
+        Returns
+        -------
+        pd.DataFrame
+            The transformed dataframe, ready to be used with the dataset or dataloader.
+        Raises
+        ------
+        TypeError
+            If the input is not a ``np.ndarray``, ``pd.Series``, or ``pd.DataFrame``.
+        sklearn.exceptions.NotFittedError
+            If the normalizers are not yet fitted.
+            This is caused by calling ``transform_input`` before ``prepare_data``,
+            or using a datamodule that has previously not been trained on.
+        """
+        skip_target = self.hparams["target_column"] not in df.columns
+        df = self.parse_dataframe(
+            df,
+            timestamp=timestamp,
+            input_columns=self.hparams["input_columns"],
+            target_column=(self.hparams["target_column"] if not skip_target else None),
+        )
+        df = self.preprocess_dataframe(df)
+
+        return self.apply_transforms(df, skip_target=skip_target)
+
     @staticmethod
     def parse_dataframe(
         df: pd.DataFrame,
@@ -587,10 +391,21 @@ class DataModuleBase(L.LightningDataModule):
 
         Parameters
         ----------
-        input_ : pd.DataFrame
+        df : pd.DataFrame
             The input data.
         timestamp : np.ndarray | pd.Series | pd.DataFrame | str | None
             The timestamps of the data.
+        input_columns : str | typing.Sequence[str]
+            The columns to use as input.
+        target_column : str | None
+            The column to use as target.
+        timestamp : np.ndarray | pd.Series | str | None
+            The timestamps of the data.
+
+        Returns
+        -------
+        pd.DataFrame
+            The transformed dataframe.
         """
         input_columns = _to_list(input_columns)
 
@@ -617,6 +432,238 @@ class DataModuleBase(L.LightningDataModule):
             df[TIME] = np.arange(len(df))
 
         return df
+
+    def preprocess_dataframe(
+        self,
+        df: pd.DataFrame,
+    ) -> pd.DataFrame:
+        """
+        Preprocess the dataframe into the format expected by the model.
+        This function should be chaininvoked with the ``read_input`` function,
+        and must be called before ``apply_transforms``.
+
+        This function can be overridden in subclasses to add additional
+        preprocessing steps.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            The dataframe to preprocess.
+
+        Returns
+        -------
+        pd.DataFrame
+            The preprocessed dataframe.
+        """
+        return downsample(  # type: ignore[return-value]
+            df,
+            downsample=self.hparams["downsample"],
+            method=self.hparams["downsample_method"],
+        )
+
+    def apply_transforms(
+        self,
+        df: pd.DataFrame,
+        *,
+        skip_target: bool = False,
+    ) -> pd.DataFrame:
+        """
+        Normalize the dataframe into the format expected by the model.
+        This function should be chaininvoked with the :meth:`parse_dataframe` function.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            The dataframe to normalize.
+        skip_target : bool
+            Whether to skip transforming the target column. This is useful
+            if the target column is not present in the input data.
+
+        Returns
+        -------
+        pd.DataFrame
+            The normalized dataframe.
+
+        Raises
+        ------
+        sklearn.exceptions.NotFittedError
+            If the scaler has not been fitted.
+        """
+        if not self._scalers_fitted():
+            msg = "Scalers have not been fitted yet. "
+            raise RuntimeError(msg)
+
+        out = pd.DataFrame(df)
+        for col in self.hparams["input_columns"]:
+            out[col] = self._input_transforms[col].transform(
+                torch.from_numpy(df[col].to_numpy())
+            )
+
+        if skip_target:
+            return out
+
+        if self.hparams["target_depends_on"] is not None:
+            out[self.hparams["target_column"]] = self._target_transform.transform(
+                torch.from_numpy(df[self.hparams["target_depends_on"]].to_numpy()),
+                torch.from_numpy(df[self.hparams["target_column"]].to_numpy()),
+            )
+        else:
+            out[self.hparams["target_column"]] = self._target_transform.transform(
+                torch.tensor([]),
+                torch.from_numpy(df[self.hparams["target_column"]].to_numpy()),
+            )
+
+        return out
+
+    def make_dataloader(
+        self,
+        df: pd.DataFrame,
+        timestamp: np.ndarray | pd.Series | str | None = None,
+        *,
+        predict: bool = False,
+        **kwargs: typing.Any,
+    ) -> torch.utils.data.DataLoader:
+        """
+        Creates a dataloader from an input dataframe. The resulting dataloader
+        is the same that would be returned by the :meth:`train_dataloader` or
+        :meth:`val_dataloader` methods. This method is useful for creating
+        dataloaders for data that is not part of the training or validation sets,
+        for instance during prediction.
+
+        The method uses the :meth:`make_dataset` method to create the dataset, which
+        applies the transformations same as the training and validation sets.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Input data. Must contain the columns specified in the original datamodule.
+        timestamp : np.ndarray | pd.Series | str | None
+            The timestamps of each row in the input data. If None, the row index is used.
+        predict : bool
+            Whether the dataloader is used for prediction. If True, the batch size is set to 1
+            and the data is not shuffled.
+        kwargs : typing.Any
+            Additional keyword arguments to pass to the dataloader.
+
+        Returns
+        -------
+        torch.utils.data.DataLoader
+            A standard PyTorch dataloader wrapping the created dataset.
+        """
+        dataset = self.make_dataset(
+            df,
+            timestamp=timestamp,
+            predict=predict,
+        )
+
+        default_kwargs = {
+            "batch_size": self.hparams["batch_size"] if not predict else 1,
+            "num_workers": self.hparams["num_workers"],
+            "shuffle": not predict,
+        }
+        default_kwargs.update(kwargs)
+
+        return torch.utils.data.DataLoader(
+            dataset,
+            **default_kwargs,
+        )
+
+    def make_dataset(
+        self,
+        df: pd.DataFrame,
+        timestamp: np.ndarray | pd.Series | str | None = None,
+        *,
+        predict: bool = False,
+    ) -> AbstractTimeSeriesDataset:
+        df = self.transform_input(
+            df=df,
+            timestamp=timestamp,
+        )
+
+        return self._make_dataset_from_df(df, predict=predict)
+
+    def _make_dataset_from_df(
+        self, df: pd.DataFrame, *, predict: bool = False
+    ) -> AbstractTimeSeriesDataset:
+        target_data: np.ndarray | None = None
+        if self.hparams["target_column"] in df.columns:
+            target_data = df[self.hparams["target_column"]].to_numpy()
+
+        return self._make_dataset_from_arrays(
+            input_data=df[self.hparams["input_columns"]].to_numpy(),
+            known_past_data=df[self.hparams["known_past_columns"]].to_numpy()
+            if self.hparams["known_past_columns"] is not None
+            else None,
+            target_data=target_data,
+            predict=predict,
+        )
+
+    def _create_transforms(self) -> None:
+        """
+        Instantiates the transforms to be used by the datamodule.
+        """
+        normalize = self.hparams["normalize"]
+
+        # input transforms
+        input_transforms: dict[str, list[BaseTransform]]
+        input_transforms = {col: [] for col in self.hparams["input_columns"]}
+        input_transforms |= {col: [] for col in self.hparams["known_past_columns"]}
+
+        for col, transforms in self._extra_transforms_source.items():
+            if col == self.hparams["target_column"]:
+                continue
+            if col not in input_transforms:
+                msg = f"Unknown column {col} in extra_transforms."
+                raise ValueError(msg)
+            input_transforms[col].extend(transforms)
+
+        for input_col in self.hparams["input_columns"]:
+            if normalize:
+                input_transforms[input_col].append(StandardScaler(num_features_=1))
+
+        self._input_transforms = torch.nn.ModuleDict({
+            col: TransformCollection(transforms)
+            for col, transforms in input_transforms.items()
+        })
+
+        target_transform = []
+        if self.hparams["target_column"] in self._extra_transforms_source:
+            target_transform.extend(
+                self._extra_transforms_source[self.hparams["target_column"]]
+            )
+        if normalize:
+            target_transform.append(StandardScaler(num_features_=1))
+
+        self._target_transform = TransformCollection(
+            target_transform,
+            transform_type=TransformType.XY,
+        )
+
+    def _scalers_fitted(self) -> bool:
+        fitted = all(
+            transform.__sklearn_is_fitted__()
+            for transform in self._input_transforms.values()
+        )
+
+        fitted &= self._target_transform.__sklearn_is_fitted__()
+
+        return fitted
+
+    def _fit_transforms(self, df: pd.DataFrame) -> None:
+        for col in self.hparams["input_columns"]:
+            log.info(f"Fitting input scaler for {col}.")
+            self._input_transforms[col].fit(torch.from_numpy(df[col].to_numpy()))
+
+        if self.hparams["target_depends_on"] is not None:
+            self._target_transform.fit(
+                torch.from_numpy(df[self.hparams["target_depends_on"]].to_numpy()),
+                torch.from_numpy(df[self.hparams["target_column"]].to_numpy()),
+            )
+        else:
+            self._target_transform.fit(
+                torch.tensor([]),
+                torch.from_numpy(df[self.hparams["target_column"]].to_numpy()),
+            )
 
 
 def save_data(
@@ -647,9 +694,19 @@ def tmp_data_paths(
     If the data is not saved yet, the paths are generated,
     otherwise the paths are searched for in the model directory.
 
-    :param name: Name of the data set.
-    :param dir_: Directory to look for the data files in.
-    :return: List of paths to the data files.
+    Parameters
+    ----------
+    dfs : list[pd.DataFrame] | None
+        The dataframes to save. If None, the paths are generated.
+    name : typing.Literal["train", "val", "test", "predict"]
+        The name of the data set.
+    dir_ : str
+        The directory to save the data files in.
+
+    Returns
+    -------
+    list[Path]
+        Paths to where the data is saved or should be loaded from.
     """
     if dfs is not None and len(dfs) > 0:  # for saving
         if len(dfs) == 1 or isinstance(dfs, pd.DataFrame):
