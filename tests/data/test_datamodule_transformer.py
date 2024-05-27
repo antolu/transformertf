@@ -1,69 +1,63 @@
 from __future__ import annotations
 
-from pathlib import Path
+import typing
 
 import pandas as pd
 import pytest
 import torch.utils.data
 
-from transformertf.config import TransformerBaseConfig
 from transformertf.data import EncoderDecoderDataModule
-
-DF_PATH = str(Path(__file__).parent.parent / "sample_data.parquet")
-CURRENT = "I_meas_A"
-FIELD = "B_meas_T"
-
-config = TransformerBaseConfig()
 
 
 @pytest.fixture(scope="module")
-def datamodule_transformer() -> EncoderDecoderDataModule:
-    dm = EncoderDecoderDataModule.from_parquet(
-        config=config,
-        train_dataset=DF_PATH,
-        val_dataset=DF_PATH,
-        input_columns=[CURRENT],
-        target_column=FIELD,
-        known_past_columns=[CURRENT],
-    )
+def transformer_datamodule_config(
+    df_path: str, current_key: str, field_key: str
+) -> dict[str, typing.Any]:
+    return {
+        "known_covariates": [current_key],
+        "target_covariate": field_key,
+        "train_df_paths": df_path,
+        "val_df_paths": df_path,
+        "normalize": True,
+        "ctxt_seq_len": 200,
+        "tgt_seq_len": 100,
+        "randomize_seq_len": False,
+        "stride": 1,
+        "downsample": 1,
+        "downsample_method": "interval",
+        "target_depends_on": None,
+        "extra_transforms": None,
+        "batch_size": 16,
+        "num_workers": 0,
+        "dtype": "float32",
+        "distributed_sampler": False,
+    }
+
+
+@pytest.fixture(scope="module")
+def datamodule_transformer(
+    transformer_datamodule_config: dict[str, typing.Any],
+) -> EncoderDecoderDataModule:
+    dm = EncoderDecoderDataModule(**transformer_datamodule_config)
     dm.prepare_data()
     dm.setup()
 
     return dm
 
 
-def test_datamodule_transformer_create_from_parquet() -> None:
-    dm = EncoderDecoderDataModule.from_parquet(
-        config=config,
-        train_dataset=DF_PATH,
-        val_dataset=DF_PATH,
-        input_columns=["a"],
-        target_column="b",
-    )
-    assert dm is not None
-
-
-def test_datamodule_transformer_prepare_data() -> None:
-    dm = EncoderDecoderDataModule.from_parquet(
-        config=config,
-        train_dataset=DF_PATH,
-        val_dataset=DF_PATH,
-        input_columns=[CURRENT],
-        target_column=FIELD,
-    )
+def test_datamodule_transformer_prepare_data(
+    transformer_datamodule_config: dict[str, typing.Any],
+) -> None:
+    dm = EncoderDecoderDataModule(**transformer_datamodule_config)
     dm.prepare_data()
 
     assert dm is not None
 
 
-def test_datamodule_transformer_setup_before_prepare_data() -> None:
-    dm = EncoderDecoderDataModule.from_parquet(
-        config=config,
-        train_dataset=DF_PATH,
-        val_dataset=DF_PATH,
-        input_columns=[CURRENT],
-        target_column=FIELD,
-    )
+def test_datamodule_transformer_setup_before_prepare_data(
+    transformer_datamodule_config: dict[str, typing.Any],
+) -> None:
+    dm = EncoderDecoderDataModule(**transformer_datamodule_config)
     dm.setup()
 
     assert dm is not None
@@ -99,76 +93,76 @@ def test_datamodule_transformer_val_dataloader(
     assert isinstance(dataloader, torch.utils.data.DataLoader)
 
 
-def test_datamodule_transformer_prepare_twice() -> None:
-    dm = EncoderDecoderDataModule.from_parquet(
-        config=config,
-        train_dataset=DF_PATH,
-        val_dataset=DF_PATH,
-        input_columns=[CURRENT],
-        target_column=FIELD,
-    )
-    dm.prepare_data()
-
-    dm.prepare_data()
-
-
-@pytest.fixture(scope="module")
-def df() -> pd.DataFrame:
-    return pd.read_parquet(DF_PATH)
+def test_datamodule_transformer_prepare_twice(
+    datamodule_transformer: EncoderDecoderDataModule,
+) -> None:
+    datamodule_transformer.prepare_data()
 
 
 def test_datamodule_transformer_read_input(
-    datamodule_transformer: EncoderDecoderDataModule, df: pd.DataFrame
+    datamodule_transformer: EncoderDecoderDataModule,
+    df: pd.DataFrame,
+    current_key: str,
+    field_key: str,
 ) -> None:
-    processed_df = datamodule_transformer.read_input(
-        df, input_columns=[CURRENT], target_column=FIELD
+    processed_df = datamodule_transformer.parse_dataframe(
+        df, input_columns=[current_key], target_column=field_key
     )
 
     assert processed_df is not None
     assert isinstance(processed_df, pd.DataFrame)
 
-    assert CURRENT in processed_df.columns
-    assert FIELD in processed_df.columns
+    assert current_key in processed_df.columns
+    assert field_key in processed_df.columns
 
     assert len(processed_df.columns) == 3
 
 
 def test_datamodule_transformer_preprocess_dataframe(
-    datamodule_transformer: EncoderDecoderDataModule, df: pd.DataFrame
+    datamodule_transformer: EncoderDecoderDataModule,
+    df: pd.DataFrame,
+    current_key: str,
+    field_key: str,
 ) -> None:
     processed_df = datamodule_transformer.preprocess_dataframe(df)
 
     assert processed_df is not None
     assert isinstance(processed_df, pd.DataFrame)
 
-    assert CURRENT in processed_df.columns
-    assert FIELD in processed_df.columns
+    assert current_key in processed_df.columns
+    assert field_key in processed_df.columns
 
     assert len(processed_df.columns) == len(df.columns)
 
 
 def test_datamodule_transformer_normalize_dataframe(
-    datamodule_transformer: EncoderDecoderDataModule, df: pd.DataFrame
+    datamodule_transformer: EncoderDecoderDataModule,
+    df: pd.DataFrame,
+    current_key: str,
+    field_key: str,
 ) -> None:
     processed_df = datamodule_transformer.apply_transforms(df)
 
     assert processed_df is not None
     assert isinstance(processed_df, pd.DataFrame)
 
-    assert CURRENT in processed_df.columns
-    assert FIELD in processed_df.columns
+    assert current_key in processed_df.columns
+    assert field_key in processed_df.columns
 
 
 def test_datamodule_transformer_transform_input(
-    datamodule_transformer: EncoderDecoderDataModule, df: pd.DataFrame
+    datamodule_transformer: EncoderDecoderDataModule,
+    df: pd.DataFrame,
+    current_key: str,
+    field_key: str,
 ) -> None:
     processed_df = datamodule_transformer.transform_input(df)
 
     assert processed_df is not None
     assert isinstance(processed_df, pd.DataFrame)
 
-    assert CURRENT in processed_df.columns
-    assert FIELD in processed_df.columns
+    assert current_key in processed_df.columns
+    assert field_key in processed_df.columns
 
     assert len(processed_df.columns) == 3
 

@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from transformertf.models.temporal_fusion_transformer import (
-    TemporalFusionTransformer,
+    TemporalFusionTransformerModel,
 )
 
 
 def test_create_temporal_fusion_transformer() -> None:
-    model = TemporalFusionTransformer(
+    model = TemporalFusionTransformerModel(
         ctxt_seq_len=10,
         tgt_seq_len=5,
         n_dim_model=8,

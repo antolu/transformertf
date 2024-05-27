@@ -6,114 +6,53 @@ import torch
 
 from ...data import EncoderDecoderTargetSample
 from ...nn import QuantileLoss
-from .._base_module import LightningModuleBase
-from ..typing import LR_CALL_TYPE, OPT_CALL_TYPE
-from ._config import TSMixerConfig
-from ._model import TSMixer
-
-if typing.TYPE_CHECKING:
-    SameType = typing.TypeVar("SameType", bound="TSMixerModule")
+from .._base_module import LightningModuleBase, LogMetricsMixin
+from ._model import TSMixerModel
 
 
-class TSMixerModule(LightningModuleBase):
+class TSMixer(LightningModuleBase, LogMetricsMixin):
     def __init__(
         self,
         num_features: int,
         num_static_features: int = 0,
-        seq_len: int = 500,
-        out_seq_len: int = 300,
+        ctxt_seq_len: int = 500,
+        tgt_seq_len: int = 300,
         fc_dim: int = 1024,
-        hidden_dim: int | None = None,
+        n_dim_model: int | None = None,
         num_blocks: int = 4,
         dropout: float = 0.1,
         activation: typing.Literal["relu", "gelu"] = "relu",
         norm: typing.Literal["batch", "layer"] = "batch",
-        lr: float = 1e-3,
-        weight_decay: float = 1e-4,
-        momentum: float = 0.9,
-        optimizer: str | OPT_CALL_TYPE = "adam",
-        optimizer_kwargs: dict[str, typing.Any] | None = None,
-        reduce_on_plateau_patience: int = 200,
-        max_epochs: int = 1000,
         criterion: (QuantileLoss | torch.nn.MSELoss | torch.nn.HuberLoss | None) = None,
-        lr_scheduler: str | LR_CALL_TYPE | None = None,
-        lr_scheduler_interval: typing.Literal["epoch", "step"] = "epoch",
         *,
         log_grad_norm: bool = False,
+        compile_model: bool = False,
     ):
-        criterion = criterion or torch.nn.MSELoss()
-        super().__init__(
-            lr=lr,
-            weight_decay=weight_decay,
-            momentum=momentum,
-            optimizer=optimizer,
-            optimizer_kwargs=optimizer_kwargs or {},
-            reduce_on_plateau_patience=reduce_on_plateau_patience,
-            max_epochs=max_epochs,
-            criterion=criterion,
-            log_grad_norm=log_grad_norm,
-            lr_scheduler=lr_scheduler,
-            lr_scheduler_interval=lr_scheduler_interval,
-        )
+        super().__init__()
         self.save_hyperparameters(ignore=["lr_scheduler", "criterion"])
 
-        out_dim = 1
-        if isinstance(self.criterion, QuantileLoss):
-            out_dim = len(self.criterion.quantiles)
+        self.criterion = criterion or torch.nn.MSELoss()
 
-        self.model = TSMixer(
+        output_dim = 1
+        if isinstance(self.criterion, QuantileLoss):
+            output_dim = len(self.criterion.quantiles)
+
+        self.hparams["output_dim"] = output_dim
+
+        self.model = TSMixerModel(
             num_feat=num_features,
             num_future_feat=num_features - 1,
             num_static_real_feat=num_static_features,
-            seq_len=seq_len,
-            out_seq_len=out_seq_len,
+            ctxt_seq_len=ctxt_seq_len,
+            tgt_seq_len=tgt_seq_len,
             fc_dim=fc_dim,
-            hidden_dim=hidden_dim,
+            hidden_dim=n_dim_model,
             num_blocks=num_blocks,
             dropout=dropout,
             norm=norm,
             activation=activation,
-            out_dim=out_dim,
+            output_dim=output_dim,
         )
-
-    @classmethod
-    def parse_config_kwargs(  # type: ignore[override]
-        cls,
-        config: TSMixerConfig,
-        **kwargs: typing.Any,
-    ) -> dict[str, typing.Any]:
-        default_kwargs = super().parse_config_kwargs(config, **kwargs)
-        num_features = (
-            len(config.input_columns) if config.input_columns is not None else 0
-        )
-        num_features += (
-            len(config.known_past_columns) if config.known_past_columns else 0
-        )
-        num_features += 1  # add target
-
-        default_kwargs.update({
-            "num_features": num_features,
-            "num_static_features": config.num_static_features,
-            "seq_len": config.ctxt_seq_len,
-            "out_seq_len": config.tgt_seq_len,
-            "dropout": config.dropout,
-            "activation": config.activation,
-            "fc_dim": config.fc_dim,
-            "hidden_dim": config.hidden_dim,
-            "num_blocks": config.num_blocks,
-            "norm": config.norm,
-        })
-
-        default_kwargs.update(kwargs)
-
-        # if num_features == 1:
-        #     raise ValueError(
-        #         "num_features must be greater than 1. "
-        #         "Please specify input_columns in config, or "
-        #         "pass in a different value for num_features."
-        #     )
-
-        return default_kwargs
 
     def forward(self, x: EncoderDecoderTargetSample) -> torch.Tensor:
         return self.model(

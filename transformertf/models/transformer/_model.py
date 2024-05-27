@@ -5,10 +5,10 @@ import torch
 from ...nn import MLP
 from ._pos_enc import SimplePositionalEncoding
 
-__all__ = ["VanillaTransformer"]
+__all__ = ["VanillaTransformerModel"]
 
 
-class VanillaTransformer(torch.nn.Module):
+class VanillaTransformerModel(torch.nn.Module):
     def __init__(
         self,
         num_features: int,

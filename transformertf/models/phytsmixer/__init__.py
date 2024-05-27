@@ -1,12 +1,10 @@
 from ..._mod_replace import replace_modname
-from ._config import PhyTSMixerConfig
-from ._lightning import PhyTSMixerModule
-from ._model import PhyTSMixer
+from ._lightning import PhyTSMixer
+from ._model import PhyTSMixerModel
 
 for _mod in (
+    PhyTSMixerModel,
     PhyTSMixer,
-    PhyTSMixerConfig,
-    PhyTSMixerModule,
 ):
     replace_modname(_mod, __name__)
 
@@ -15,6 +13,5 @@ del _mod
 
 __all__ = [
     "PhyTSMixer",
-    "PhyTSMixerConfig",
-    "PhyTSMixerModule",
+    "PhyTSMixerModel",
 ]

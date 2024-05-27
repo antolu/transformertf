@@ -1,21 +1,37 @@
 from __future__ import annotations
 
+import typing
+
 import pytest
 import torch
 
-from transformertf.models.tsmixer import TSMixerConfig, TSMixerModule
+from transformertf.models.tsmixer import TSMixer
 
 
 @pytest.fixture(scope="module")
-def tsmixer_module() -> TSMixerModule:
-    return TSMixerModule.from_config(TSMixerConfig(), num_features=2, hidden_dim=4)
+def tsmixer_module_config() -> dict[str, typing.Any]:
+    return {
+        "num_features": 2,
+        "num_blocks": 2,
+        "n_dim_model": 4,  # "hidden_dim": 4,
+        "fc_dim": 16,
+        "ctxt_seq_len": 10,
+        "tgt_seq_len": 5,
+    }
 
 
-def test_tsmixer_forward_pass(tsmixer_module: TSMixerModule) -> None:
-    past_covariates = torch.rand(1, TSMixerConfig.ctxt_seq_len, 2)
-    future_covariates = torch.rand(1, TSMixerConfig.tgt_seq_len, 1)
+@pytest.fixture(scope="module")
+def tsmixer_module(tsmixer_module_config: dict[str, typing.Any]) -> TSMixer:
+    return TSMixer(**tsmixer_module_config)
+
+
+def test_tsmixer_forward_pass(
+    tsmixer_module: TSMixer, tsmixer_module_config: dict[str, typing.Any]
+) -> None:
+    past_covariates = torch.rand(1, tsmixer_module_config["ctxt_seq_len"], 2)
+    future_covariates = torch.rand(1, tsmixer_module_config["tgt_seq_len"], 1)
 
     with torch.no_grad():
         y = tsmixer_module.model(past_covariates, future_covariates)
 
-    assert y.shape == (1, TSMixerConfig.tgt_seq_len, 1)
+    assert y.shape == (1, tsmixer_module_config["tgt_seq_len"], 1)

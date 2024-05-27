@@ -5,41 +5,19 @@ This module contains complete tests for the PhyLSTM model.
 from __future__ import annotations
 
 import pandas as pd
-import pytest
 import torch
 
+from transformertf.data import TimeSeriesDataModule
 from transformertf.models.phylstm import (
-    PhyLSTMConfig,
-    PhyLSTMDataModule,
-    PhyLSTMModule,
+    PhyLSTM,
 )
 
-from ....conftest import CURRENT, DF_PATH, FIELD
-
-
-@pytest.fixture(scope="module")
-def config() -> PhyLSTMConfig:
-    return PhyLSTMConfig(
-        train_dataset=DF_PATH,
-        val_dataset=DF_PATH,
-        num_workers=0,
-        target_depends_on=CURRENT,
-    )
-
-
-@pytest.fixture()
-def phylstm_module(config: PhyLSTMConfig) -> PhyLSTMModule:
-    return PhyLSTMModule.from_config(config)
-
-
-@pytest.fixture()
-def phylstm_datamodule(config: PhyLSTMConfig) -> PhyLSTMDataModule:
-    return PhyLSTMDataModule.from_parquet(config)
+from ....conftest import FIELD
 
 
 def test_phylstm_forward_pass(
-    phylstm_module: PhyLSTMModule,
-    phylstm_datamodule: PhyLSTMDataModule,
+    phylstm_module: PhyLSTM,
+    phylstm_datamodule: TimeSeriesDataModule,
     df: pd.DataFrame,
 ) -> None:
     phylstm_datamodule.prepare_data()

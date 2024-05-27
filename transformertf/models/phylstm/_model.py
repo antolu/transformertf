@@ -23,7 +23,7 @@ from ._output import (
     PhyLSTM3States,
 )
 
-__all__ = ["PhyLSTM1", "PhyLSTM2", "PhyLSTM3"]
+__all__ = ["PhyLSTM1Model", "PhyLSTM2Model", "PhyLSTM3Model"]
 
 
 STATE1 = typing.TypeVar("STATE1", bound=PhyLSTM1States)
@@ -34,7 +34,7 @@ STATE3 = typing.TypeVar("STATE3", bound=PhyLSTM3States)
 log = logging.getLogger(__name__)
 
 
-class PhyLSTM1(nn.Module):
+class PhyLSTM1Model(nn.Module):
     def __init__(
         self,
         num_layers: int | tuple[int, ...] = 3,
@@ -144,7 +144,7 @@ class PhyLSTM1(nn.Module):
     def forward(
         self,
         x: torch.Tensor,
-        hidden_state: STATE1 | None = None,
+        hx: STATE1 | None = None,
         *,
         return_states: typing.Literal[False] = False,
     ) -> PhyLSTM1Output: ...
@@ -153,7 +153,7 @@ class PhyLSTM1(nn.Module):
     def forward(
         self,
         x: torch.Tensor,
-        hidden_state: STATE1 | None = None,
+        hx: STATE1 | None = None,
         *,
         return_states: typing.Literal[True],
     ) -> tuple[PhyLSTM1Output, PhyLSTM1States]: ...
@@ -161,7 +161,7 @@ class PhyLSTM1(nn.Module):
     def forward(
         self,
         x: torch.Tensor,
-        hidden_state: STATE1 | None = None,
+        hx: STATE1 | None = None,
         *,
         return_states: bool = False,
     ) -> PhyLSTM1Output | tuple[PhyLSTM1Output, PhyLSTM1States]:
@@ -169,11 +169,11 @@ class PhyLSTM1(nn.Module):
         Forward pass of the model.
         :param x: Input torch.Tensor of shape (batch_size, sequence_length, 1).
         :param return_states: If True, return the hidden states of the LSTM.
-        :param hidden_state: Optional initial hidden state of the LSTM.
+        :param hx: Optional initial hidden state of the LSTM.
 
         :return: Output torch.Tensor of shape (batch_size, sequence_length, 1).
         """
-        h_lstm1 = hidden_state["lstm1"] if hidden_state is not None else None
+        h_lstm1 = hx["lstm1"] if hx is not None else None
 
         o_lstm1, h_lstm1 = self.lstm1(x, hx=h_lstm1)
 
@@ -188,7 +188,7 @@ class PhyLSTM1(nn.Module):
         return output
 
 
-class PhyLSTM2(PhyLSTM1):
+class PhyLSTM2Model(PhyLSTM1Model):
     def __init__(
         self,
         num_layers: int | tuple[int, ...] = 3,
@@ -241,7 +241,7 @@ class PhyLSTM2(PhyLSTM1):
     def forward(
         self,
         x: torch.Tensor,
-        hidden_state: STATE2 | None = None,
+        hx: STATE2 | None = None,
         *,
         return_states: typing.Literal[False] = False,
     ) -> PhyLSTM2Output: ...
@@ -250,7 +250,7 @@ class PhyLSTM2(PhyLSTM1):
     def forward(
         self,
         x: torch.Tensor,
-        hidden_state: STATE2 | None = None,
+        hx: STATE2 | None = None,
         *,
         return_states: typing.Literal[True],
     ) -> tuple[PhyLSTM2Output, PhyLSTM2States]:  # type: ignore[override]
@@ -259,7 +259,7 @@ class PhyLSTM2(PhyLSTM1):
     def forward(
         self,
         x: torch.Tensor,
-        hidden_state: STATE2 | None = None,
+        hx: STATE2 | None = None,
         *,
         return_states: bool = False,
     ) -> PhyLSTM2Output | tuple[PhyLSTM2Output, PhyLSTM2States]:
@@ -267,24 +267,20 @@ class PhyLSTM2(PhyLSTM1):
         Forward pass of the model.
         :param x: Input torch.Tensor of shape (batch_size, sequence_length, 1).
         :param return_states: If True, return the hidden states of the LSTM.
-        :param hidden_state: Optional initial hidden state of the LSTM.
+        :param hx: Optional initial hidden state of the LSTM.
 
         :return: Output torch.Tensor of shape (batch_size, sequence_length, 1).
         """
         phylstm1_output: PhyLSTM1Output
         hidden1: PhyLSTM1States | None = None
         if return_states:
-            phylstm1_output, hidden1 = super().forward(
-                x, hidden_state=hidden_state, return_states=True
-            )
+            phylstm1_output, hidden1 = super().forward(x, hx=hx, return_states=True)
         else:
-            phylstm1_output = super().forward(
-                x, hidden_state=hidden_state, return_states=False
-            )
+            phylstm1_output = super().forward(x, hx=hx, return_states=False)
 
         z = phylstm1_output["z"]
 
-        h_lstm2 = None if hidden_state is None else hidden_state.get("lstm2", None)
+        h_lstm2 = None if hx is None else hx.get("lstm2", None)
 
         dz_dt = torch.gradient(z, dim=1)[0]
 
@@ -309,7 +305,7 @@ class PhyLSTM2(PhyLSTM1):
         return output
 
 
-class PhyLSTM3(PhyLSTM2):
+class PhyLSTM3Model(PhyLSTM2Model):
     def __init__(
         self,
         num_layers: int | tuple[int, ...] = 3,
@@ -356,7 +352,7 @@ class PhyLSTM3(PhyLSTM2):
     def forward(
         self,
         x: torch.Tensor,
-        hidden_state: STATE3 | None = None,
+        hx: STATE3 | None = None,
         *,
         return_states: typing.Literal[False] = False,
     ) -> PhyLSTM3Output: ...
@@ -365,7 +361,7 @@ class PhyLSTM3(PhyLSTM2):
     def forward(
         self,
         x: torch.Tensor,
-        hidden_state: STATE3 | None = None,
+        hx: STATE3 | None = None,
         *,
         return_states: typing.Literal[True],
     ) -> tuple[PhyLSTM3Output, PhyLSTM3States]: ...
@@ -373,7 +369,7 @@ class PhyLSTM3(PhyLSTM2):
     def forward(
         self,
         x: torch.Tensor,
-        hidden_state: STATE3 | None = None,
+        hx: STATE3 | None = None,
         *,
         return_states: bool = False,
     ) -> PhyLSTM3Output | tuple[PhyLSTM3Output, PhyLSTM3States]:
@@ -385,7 +381,7 @@ class PhyLSTM3(PhyLSTM2):
 
 
         :param x: Input sequence of shape (batch_size, sequence_length, 1)
-        :param hidden_state: The previous hidden and cell states of the LSTM layers. Leave as None for training
+        :param hx: The previous hidden and cell states of the LSTM layers. Leave as None for training
                              and first batch of inference.
         :param return_states: Returns the hidden and cell states of the LSTM layers as well as the output.
 
@@ -394,18 +390,14 @@ class PhyLSTM3(PhyLSTM2):
         phylstm2_output: PhyLSTM2Output
         hidden2: PhyLSTM2States | None = None
         if return_states:
-            phylstm2_output, hidden2 = super().forward(
-                x, hidden_state=hidden_state, return_states=True
-            )
+            phylstm2_output, hidden2 = super().forward(x, hx=hx, return_states=True)
         else:
-            phylstm2_output = super().forward(
-                x, hidden_state=hidden_state, return_states=False
-            )
+            phylstm2_output = super().forward(x, hx=hx, return_states=False)
 
         z = phylstm2_output["z"]
         dz_dt = phylstm2_output["dz_dt"]
 
-        h_lstm3 = None if hidden_state is None else hidden_state.get("lstm3", None)
+        h_lstm3 = None if hx is None else hx.get("lstm3", None)
 
         dz_dt_0 = einops.repeat(
             dz_dt[:, 0, 1, None],

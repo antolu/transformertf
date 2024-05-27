@@ -16,7 +16,7 @@ project = "transformertf"
 author = "Anton Lu"
 version = transformertf.__version__
 
-copyright = "{0}, CERN".format(datetime.datetime.now().year)
+copyright = "{}, CERN".format(datetime.datetime.now().year)  # noqa: A001
 
 
 # -- General configuration ----------------------------------------------------
@@ -86,7 +86,7 @@ def hijack_module_name_replacement() -> None:
     # Working in sphinx environment, not replacing due to
     # https://github.com/sphinx-doc/sphinx/issues/11031
     logger.info("Disabling __module__ rewrite")
-    import transformertf._mod_replace
+    import transformertf._mod_replace  # noqa: PLC0415
 
     for mod_name in list(sys.modules):
         if mod_name == "transformertf._mod_replace":
@@ -94,7 +94,7 @@ def hijack_module_name_replacement() -> None:
         if mod_name == "transformertf" or mod_name.startswith("transformertf."):
             del sys.modules[mod_name]
 
-    transformertf._mod_replace.replace_modname = lambda *_: None
+    transformertf._mod_replace.replace_modname = lambda *_: None  # noqa: SLFS001
 
 
 hijack_module_name_replacement()
@@ -105,7 +105,7 @@ def remove__init__from_docs(
     what: str,
     name: str,
     obj: object,
-    skip: bool,
+    skip: bool,  # noqa: FBT001
     options: dict,
 ) -> typing.Optional[bool]:
     # Skip the __init__ methods of all classes.

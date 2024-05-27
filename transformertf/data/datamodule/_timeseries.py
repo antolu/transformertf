@@ -8,43 +8,45 @@ from ._base import DataModuleBase
 
 if typing.TYPE_CHECKING:
     import numpy as np
-    import pandas as pd
 
-    from ...config import TimeSeriesBaseConfig
+    from .._downsample import DOWNSAMPLE_METHODS
     from ..transform import BaseTransform
 
 
 class TimeSeriesDataModule(DataModuleBase):
+    """
+    Specfic datamodule for time series data, where
+    the models map a sequence of input covariates to a target covariate,
+    i.e. I: [bs, seq_len, n_covariates] -> T: [bs, seq_len, 1].
+    """
+
     def __init__(
         self,
-        input_columns: str | typing.Sequence[str],
-        target_column: str,
-        known_past_columns: str | typing.Sequence[str] | None = None,
-        train_df: pd.DataFrame | list[pd.DataFrame] | None = None,
-        val_df: pd.DataFrame | list[pd.DataFrame] | None = None,
-        normalize: bool = True,  # noqa: FBT001, FBT002
-        seq_len: int | None = None,
+        *,
+        known_covariates: str | typing.Sequence[str],
+        target_covariate: str,
+        train_df_paths: str | list[str] | None = None,
+        val_df_paths: str | list[str] | None = None,
+        normalize: bool = True,
+        seq_len: int = 200,
         min_seq_len: int | None = None,
-        randomize_seq_len: bool = False,  # noqa: FBT001, FBT002
+        randomize_seq_len: bool = False,
         stride: int = 1,
         downsample: int = 1,
-        downsample_method: typing.Literal[
-            "interval", "average", "convolve"
-        ] = "interval",
+        downsample_method: DOWNSAMPLE_METHODS = "interval",
         target_depends_on: str | None = None,
         extra_transforms: dict[str, list[BaseTransform]] | None = None,
         batch_size: int = 128,
         num_workers: int = 0,
         dtype: str = "float32",
-        *,
         distributed_sampler: bool = False,
     ):
         super().__init__(
-            train_df=train_df,
-            val_df=val_df,
-            input_columns=input_columns,
-            target_column=target_column,
-            known_past_columns=known_past_columns,
+            train_df_paths=train_df_paths,
+            val_df_paths=val_df_paths,
+            known_covariates=known_covariates,
+            target_covariate=target_covariate,
+            known_past_covariates=None,
             normalize=normalize,
             downsample=downsample,
             downsample_method=downsample_method,
@@ -56,24 +58,11 @@ class TimeSeriesDataModule(DataModuleBase):
             distributed_sampler=distributed_sampler,
         )
 
-        self.save_hyperparameters(ignore=["train_df", "val_df"])
+        self.save_hyperparameters(ignore=["extra_transforms"])
 
-    @classmethod
-    def parse_config_kwargs(  # type: ignore[override]
-        cls,
-        config: TimeSeriesBaseConfig,
-        **kwargs: typing.Any,
-    ) -> dict[str, typing.Any]:
-        kwargs = super().parse_config_kwargs(config, **kwargs)
-        default_kwargs = {
-            "seq_len": config.seq_len,
-            "min_seq_len": config.min_seq_len,
-            "randomize_seq_len": config.randomize_seq_len,
-            "stride": config.stride,
-        }
-        default_kwargs.update(kwargs)
-
-        return default_kwargs
+        self.hparams["known_covariates"] = self._to_list(
+            self.hparams["known_covariates"]
+        )
 
     def _make_dataset_from_arrays(
         self,
@@ -83,7 +72,7 @@ class TimeSeriesDataModule(DataModuleBase):
         *,
         predict: bool = False,
     ) -> TimeSeriesDataset:
-        if known_past_data is not None:
+        if known_past_data is not None and known_past_data.size > 0:
             msg = "known_past_data is not used in this class."
             raise NotImplementedError(msg)
 
@@ -101,3 +90,16 @@ class TimeSeriesDataModule(DataModuleBase):
             target_transform=self.target_transform,
             dtype=self.hparams["dtype"],
         )
+
+    @property
+    def seq_len(self) -> int:
+        """
+        Returns the sample sequence length. This is used by LightningCLI
+        to link arguments to the model.
+
+        Returns
+        -------
+        int
+            Sample sequence length
+        """
+        return self.hparams["seq_len"]

@@ -8,7 +8,7 @@ from ...nn import MLP, GatedLinearUnit, GatedResidualNetwork
 from ..transformer._model import generate_mask
 from ..transformer._pos_enc import SimplePositionalEncoding
 
-__all__ = ["TransformerV2"]
+__all__ = ["TransformerV2Model"]
 
 
 class LSTMEmbedding(torch.nn.Module):
@@ -35,7 +35,7 @@ class LSTMEmbedding(torch.nn.Module):
         return self.norm(x)
 
 
-class TransformerV2(torch.nn.Module):
+class TransformerV2Model(torch.nn.Module):
     def __init__(
         self,
         num_features: int,

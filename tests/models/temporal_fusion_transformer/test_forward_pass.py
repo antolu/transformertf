@@ -4,7 +4,7 @@ import pytest
 import torch
 
 from transformertf.models.temporal_fusion_transformer import (
-    TemporalFusionTransformer,
+    TemporalFusionTransformerModel,
 )
 
 BATCH_SIZE = 4
@@ -26,7 +26,7 @@ def future_covariates() -> torch.Tensor:
 def test_temporal_fusion_transformer_model(
     past_covariates: torch.Tensor, future_covariates: torch.Tensor
 ) -> None:
-    model = TemporalFusionTransformer(
+    model = TemporalFusionTransformerModel(
         num_past_features=NUM_FEATURES,
         num_future_features=1,
         ctxt_seq_len=PAST_SEQ_LEN,

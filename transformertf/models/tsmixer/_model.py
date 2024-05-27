@@ -20,7 +20,7 @@ from ._modules import (
 )
 
 
-class BasicTSMixer(torch.nn.Module):
+class BasicTSMixerModel(torch.nn.Module):
     """
     This TSMixer model is a basic implementation of the TSMixer model, that takes
     no auxiliary information in time series forecasting.
@@ -73,7 +73,7 @@ class BasicTSMixer(torch.nn.Module):
         return x
 
 
-class TSMixer(torch.nn.Module):
+class TSMixerModel(torch.nn.Module):
     fc: torch.nn.Module | None
     """
     This TSMixer model is a full implementation of the TSMixer model, that takes
@@ -82,8 +82,8 @@ class TSMixer(torch.nn.Module):
 
     def __init__(
         self,
-        seq_len: int,
-        out_seq_len: int,
+        ctxt_seq_len: int,
+        tgt_seq_len: int,
         num_feat: int,
         num_future_feat: int = 0,
         num_static_real_feat: int = 0,
@@ -93,12 +93,12 @@ class TSMixer(torch.nn.Module):
         norm: typing.Literal["batch", "layer"] = "batch",
         activation: typing.Literal["relu", "gelu"] = "relu",
         num_blocks: int = 4,
-        out_dim: int | None = None,
+        output_dim: int | None = None,
     ):
         super().__init__()
 
-        self.seq_len = seq_len
-        self.out_seq_len = out_seq_len
+        self.ctxt_seq_len = ctxt_seq_len
+        self.tgt_seq_len = tgt_seq_len
 
         self.num_features = num_feat
         self.num_future_features = num_future_feat
@@ -106,9 +106,9 @@ class TSMixer(torch.nn.Module):
         self.hidden_dim = hidden_dim or num_feat
         hidden_dim = self.hidden_dim
 
-        self.past_proj = TemporalProjection(seq_len, out_seq_len)
+        self.past_proj = TemporalProjection(ctxt_seq_len, tgt_seq_len)
         self.past_mixer = ConditionalFeatureMixer(
-            input_len=out_seq_len,
+            input_len=tgt_seq_len,
             num_features=num_feat,
             num_static_features=num_static_real_feat,
             dropout=dropout,
@@ -118,7 +118,7 @@ class TSMixer(torch.nn.Module):
             out_num_features=hidden_dim,
         )
         self.future_mixer = ConditionalFeatureMixer(
-            input_len=out_seq_len,
+            input_len=tgt_seq_len,
             num_features=num_future_feat,
             num_static_features=num_static_real_feat,
             hidden_dim=hidden_dim,
@@ -131,7 +131,7 @@ class TSMixer(torch.nn.Module):
 
         residual_blocks = [
             ConditionalMixerBlock(
-                input_len=out_seq_len,
+                input_len=tgt_seq_len,
                 num_features=2 * hidden_dim if i == 0 else hidden_dim,
                 num_static_features=num_static_real_feat,
                 hidden_dim=hidden_dim,
@@ -145,13 +145,13 @@ class TSMixer(torch.nn.Module):
         ]
         self.residual_blocks = torch.nn.ModuleList(residual_blocks)
 
-        if out_dim is not None:
+        if output_dim is not None:
             # use MLP for final prediction
             self.fc = torch.nn.Sequential(
                 collections.OrderedDict({
                     "fc1": torch.nn.Linear(hidden_dim, fc_dim),
                     "relu": torch.nn.ReLU(),
-                    "fc2": torch.nn.Linear(fc_dim, out_dim),
+                    "fc2": torch.nn.Linear(fc_dim, output_dim),
                 })
             )
         else:

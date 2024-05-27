@@ -7,15 +7,10 @@ import torch
 from ...data import EncoderDecoderTargetSample
 from ...nn import QuantileLoss
 from .._base_transformer import TransformerModuleBase
-from ..typing import LR_CALL_TYPE, OPT_CALL_TYPE
-from ._config import TemporalFusionTransformerConfig
-from ._model import TemporalFusionTransformer
-
-if typing.TYPE_CHECKING:
-    SameType = typing.TypeVar("SameType", bound="TemporalFusionTransformerModule")
+from ._model import TemporalFusionTransformerModel
 
 
-class TemporalFusionTransformerModule(TransformerModuleBase):
+class TemporalFusionTransformer(TransformerModuleBase):
     def __init__(
         self,
         num_past_features: int,
@@ -28,41 +23,22 @@ class TemporalFusionTransformerModule(TransformerModuleBase):
         num_lstm_layers: int = 2,
         dropout: float = 0.1,
         output_dim: int = 7,
-        lr: float = 1e-3,
-        weight_decay: float = 1e-4,
-        momentum: float = 0.9,
-        optimizer: str | OPT_CALL_TYPE = "adam",
-        optimizer_kwargs: dict[str, typing.Any] | None = None,
-        reduce_on_plateau_patience: int = 200,
-        max_epochs: int = 1000,
         criterion: QuantileLoss | torch.nn.Module | None = None,
-        prediction_type: typing.Literal["delta", "point"] = "point",
-        lr_scheduler: str | LR_CALL_TYPE | None = None,
-        lr_scheduler_interval: typing.Literal["epoch", "step"] = "epoch",
         *,
+        prediction_type: typing.Literal["delta", "point"] = "point",
         log_grad_norm: bool = False,
+        compile_model: bool = False,
     ):
+        super().__init__()
+        self.save_hyperparameters(ignore=["lr_scheduler", "criterion"])
+
         if criterion is None:
             criterion = QuantileLoss()
             self.hparams["output_dim"] = len(criterion.quantiles)
             output_dim = self.hparams["output_dim"]
+        self.criterion = criterion
 
-        self.save_hyperparameters(ignore=["lr_scheduler", "criterion"])
-        super().__init__(
-            lr=lr,
-            weight_decay=weight_decay,
-            momentum=momentum,
-            optimizer=optimizer,
-            optimizer_kwargs=optimizer_kwargs or {},
-            reduce_on_plateau_patience=reduce_on_plateau_patience,
-            max_epochs=max_epochs,
-            log_grad_norm=log_grad_norm,
-            lr_scheduler=lr_scheduler,
-            lr_scheduler_interval=lr_scheduler_interval,
-            criterion=criterion,
-        )
-
-        self.model = TemporalFusionTransformer(
+        self.model = TemporalFusionTransformerModel(
             num_past_features=num_past_features,
             num_future_features=num_future_features,
             ctxt_seq_len=ctxt_seq_len,
@@ -75,40 +51,6 @@ class TemporalFusionTransformerModule(TransformerModuleBase):
             dropout=dropout,
             output_dim=output_dim,
         )
-
-    @classmethod
-    def parse_config_kwargs(  # type: ignore[override]
-        cls,
-        config: TemporalFusionTransformerConfig,
-        **kwargs: typing.Any,
-    ) -> dict[str, typing.Any]:
-        default_kwargs = super().parse_config_kwargs(config, **kwargs)
-        num_past_features = (
-            len(config.input_columns) if config.input_columns is not None else 0
-        )
-        num_future_features = num_past_features
-        num_past_features += (
-            len(config.known_past_columns) if config.known_past_columns else 0
-        )
-
-        num_past_features += 1  # target
-
-        default_kwargs |= {
-            "num_past_features": num_past_features,
-            "num_future_features": num_future_features,
-            "ctxt_seq_len": config.ctxt_seq_len,
-            "tgt_seq_len": config.tgt_seq_len,
-            "n_dim_model": config.n_dim_model,
-            "hidden_continuous_dim": config.hidden_continuous_dim,
-            "num_heads": config.num_heads,
-            "num_lstm_layers": config.num_lstm_layers,
-            "dropout": config.dropout,
-            "output_dim": config.output_dim,
-        }
-
-        default_kwargs |= kwargs
-
-        return default_kwargs
 
     def forward(self, x: EncoderDecoderTargetSample) -> torch.Tensor:
         return self.model(

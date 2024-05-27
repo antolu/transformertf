@@ -6,12 +6,13 @@ import numpy as np
 import pandas as pd
 import torch
 
+from .._dtype import convert_data
 from .._sample_generator import (
     EncoderDecoderSample,
     TransformerPredictionSampleGenerator,
 )
 from ..transform import BaseTransform, TransformType
-from ._base import AbstractTimeSeriesDataset, DataSetType, convert_data
+from ._base import AbstractTimeSeriesDataset, DataSetType
 
 
 class EncoderDecoderPredictDataset(

@@ -9,42 +9,13 @@ from __future__ import annotations
 
 import enum
 import logging
-import typing
 
 import numpy as np
-import pandas as pd
 import torch
 
 from ..transform import BaseTransform
 
-if typing.TYPE_CHECKING:
-    SameType = typing.TypeVar("SameType", bound="AbstractTimeSeriesDataset")
-
-
 log = logging.getLogger(__name__)
-
-DATA_SOURCE: typing.TypeAlias = pd.Series | np.ndarray | torch.Tensor
-
-DTYPE_MAP = {
-    "float32": torch.float32,
-    "float64": torch.float64,
-    "float": torch.float64,
-    "double": torch.float64,
-    "float16": torch.float16,
-    "int32": torch.int32,
-    "int64": torch.int64,
-    "int": torch.int64,
-    "long": torch.int64,
-    "int16": torch.int16,
-    "int8": torch.int8,
-    "uint8": torch.uint8,
-}
-
-
-def get_dtype(dtype: str | torch.dtype) -> torch.dtype:
-    if isinstance(dtype, str):
-        return DTYPE_MAP[dtype]
-    return dtype
 
 
 class DataSetType(enum.Enum):
@@ -79,28 +50,6 @@ class AbstractTimeSeriesDataset(torch.utils.data.Dataset):
     @property
     def target_transform(self) -> BaseTransform | None:
         return self._target_transform
-
-
-def convert_data(
-    data: DATA_SOURCE | list[DATA_SOURCE],
-    dtype: torch.dtype | str = torch.float32,
-) -> list[torch.Tensor]:
-    source = data if isinstance(data, list) else [data]
-
-    def to_torch(
-        o: pd.Series | np.ndarray | torch.Tensor,
-    ) -> torch.Tensor:
-        if isinstance(o, pd.Series):
-            return torch.from_numpy(o.to_numpy())
-        if isinstance(o, np.ndarray):
-            return torch.from_numpy(o)
-        if isinstance(o, torch.Tensor):
-            return o
-        msg = f"Unsupported type {type(o)} for data"
-        raise TypeError(msg)
-
-    dtype = DTYPE_MAP[dtype] if isinstance(dtype, str) else dtype
-    return [to_torch(o).to(dtype) for o in source]
 
 
 def _check_index(idx: int, length: int) -> int:

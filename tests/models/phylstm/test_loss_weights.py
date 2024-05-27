@@ -1,8 +1,8 @@
-from transformertf.models.phylstm import LossWeights
+from transformertf.models.phylstm import PhyLSTMLoss
 
 
 def test_default_instance() -> None:
-    lw = LossWeights()
+    lw = PhyLSTMLoss.LossWeights()
     assert lw.alpha == 1.0
     assert lw.beta == 1.0
     assert lw.gamma == 1.0
@@ -12,7 +12,7 @@ def test_default_instance() -> None:
 
 #  Tests that a custom instance of LossWeights is created with the correct values
 def test_custom_instance() -> None:
-    lw = LossWeights(alpha=2.0, beta=3.0, gamma=4.0, eta=5.0, kappa=6.0)
+    lw = PhyLSTMLoss.LossWeights(alpha=2.0, beta=3.0, gamma=4.0, eta=5.0, kappa=6.0)
     assert lw.alpha == 2.0
     assert lw.beta == 3.0
     assert lw.gamma == 4.0
@@ -22,7 +22,7 @@ def test_custom_instance() -> None:
 
 #  Tests that a LossWeights instance with alpha=0.0 is created correctly
 def test_alpha_zero() -> None:
-    lw = LossWeights(alpha=0.0)
+    lw = PhyLSTMLoss.LossWeights(alpha=0.0)
     assert lw.alpha == 0.0
     assert lw.beta == 1.0
     assert lw.gamma == 1.0
@@ -32,7 +32,7 @@ def test_alpha_zero() -> None:
 
 #  Tests that a LossWeights instance with beta=0.0 is created correctly
 def test_beta_zero() -> None:
-    lw = LossWeights(beta=0.0)
+    lw = PhyLSTMLoss.LossWeights(beta=0.0)
     assert lw.alpha == 1.0
     assert lw.beta == 0.0
     assert lw.gamma == 1.0
@@ -42,7 +42,7 @@ def test_beta_zero() -> None:
 
 #  Tests that a LossWeights instance with gamma=0.0 is created correctly
 def test_gamma_zero() -> None:
-    lw = LossWeights(gamma=0.0)
+    lw = PhyLSTMLoss.LossWeights(gamma=0.0)
     assert lw.alpha == 1.0
     assert lw.beta == 1.0
     assert lw.gamma == 0.0
@@ -52,7 +52,7 @@ def test_gamma_zero() -> None:
 
 #  Tests that a LossWeights instance with eta=0.0 is created correctly
 def test_eta_zero() -> None:
-    lw = LossWeights(eta=0.0)
+    lw = PhyLSTMLoss.LossWeights(eta=0.0)
     assert lw.alpha == 1.0
     assert lw.beta == 1.0
     assert lw.gamma == 1.0
@@ -62,29 +62,29 @@ def test_eta_zero() -> None:
 
 #  Tests that creating an instance of LossWeights with kappa=0.0 sets the kappa attribute to 0.0
 def test_kappa_zero() -> None:
-    lw = LossWeights(kappa=0.0)
+    lw = PhyLSTMLoss.LossWeights(kappa=0.0)
     assert lw.kappa == 0.0
 
 
 #  Tests that an instance of LossWeights is created with beta=2.0
 def test_create_instance_with_beta_2() -> None:
-    lw = LossWeights(beta=2.0)
+    lw = PhyLSTMLoss.LossWeights(beta=2.0)
     assert lw.beta == 2.0
 
 
 #  Tests that the eta value is set correctly
 def test_eta_value() -> None:
-    lw = LossWeights(eta=2.0)
+    lw = PhyLSTMLoss.LossWeights(eta=2.0)
     assert lw.eta == 2.0
 
 
 #  Tests that the gamma value is set correctly
 def test_gamma_value() -> None:
-    lw = LossWeights(gamma=2.0)
+    lw = PhyLSTMLoss.LossWeights(gamma=2.0)
     assert lw.gamma == 2.0
 
 
 #  Tests that an instance of LossWeights can be created with kappa=2.0
 def test_create_instance_with_kappa_2() -> None:
-    lw = LossWeights(kappa=2.0)
+    lw = PhyLSTMLoss.LossWeights(kappa=2.0)
     assert lw.kappa == 2.0

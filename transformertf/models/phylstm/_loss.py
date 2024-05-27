@@ -10,29 +10,6 @@ from torch.nn import functional as F
 
 from ._output import PhyLSTM1Output, PhyLSTM2Output, PhyLSTM3Output
 
-if typing.TYPE_CHECKING:
-    from ._config import PhyLSTMConfig
-
-
-@dataclasses.dataclass
-class LossWeights:
-    """
-    This class contains the weights for the loss function.
-
-    Attributes:
-        alpha: Weight for the first loss term (PhyLSTM1).
-        beta: Weight for the second loss term (PhyLSTM1).
-        gamma: Weight for the third loss term (PhyLSTM2).
-        eta: Weight for the fourth loss term (PhyLSTM2).
-        kappa: weight for the fifth loss term (PhyLSTM3).
-    """
-
-    alpha: float = 1.0
-    beta: float = 1.0
-    gamma: float = 1.0
-    eta: float = 1.0
-    kappa: float = 1.0
-
 
 class PhyLSTMLoss(nn.Module):
     """
@@ -67,11 +44,30 @@ class PhyLSTMLoss(nn.Module):
 
     """
 
-    def __init__(self, loss_weights: LossWeights | None = None):
+    @dataclasses.dataclass
+    class LossWeights:
+        """
+        This class contains the weights for the loss function.
+
+        Attributes:
+            alpha: Weight for the first loss term (PhyLSTM1).
+            beta: Weight for the second loss term (PhyLSTM1).
+            gamma: Weight for the third loss term (PhyLSTM2).
+            eta: Weight for the fourth loss term (PhyLSTM2).
+            kappa: weight for the fifth loss term (PhyLSTM3).
+        """
+
+        alpha: float = 1.0
+        beta: float = 1.0
+        gamma: float = 1.0
+        eta: float = 1.0
+        kappa: float = 1.0
+
+    def __init__(self, loss_weights: PhyLSTMLoss.LossWeights | None = None):
         super().__init__()
 
-        loss_weights = loss_weights or LossWeights()
-        assert isinstance(loss_weights, LossWeights)
+        loss_weights = loss_weights or PhyLSTMLoss.LossWeights()
+        assert isinstance(loss_weights, PhyLSTMLoss.LossWeights)
 
         self.alpha = loss_weights.alpha
         self.beta = loss_weights.beta
@@ -79,13 +75,9 @@ class PhyLSTMLoss(nn.Module):
         self.eta = loss_weights.eta
         self.kappa = loss_weights.kappa
 
-    @staticmethod
-    def from_config(config: PhyLSTMConfig) -> PhyLSTMLoss:
-        return PhyLSTMLoss(loss_weights=config.loss_weights)
-
     @property
-    def weights(self) -> LossWeights:
-        return LossWeights(
+    def weights(self) -> PhyLSTMLoss.LossWeights:
+        return PhyLSTMLoss.LossWeights(
             alpha=self.alpha,
             beta=self.beta,
             gamma=self.gamma,
@@ -98,7 +90,7 @@ class PhyLSTMLoss(nn.Module):
         self,
         y_hat: PhyLSTM1Output | PhyLSTM2Output | PhyLSTM3Output,
         targets: torch.torch.Tensor,
-        weights: LossWeights | None = None,
+        weights: PhyLSTMLoss.LossWeights | None = None,
         *,
         return_all: typing.Literal[False],
     ) -> torch.Tensor: ...
@@ -108,7 +100,7 @@ class PhyLSTMLoss(nn.Module):
         self,
         y_hat: PhyLSTM1Output | PhyLSTM2Output | PhyLSTM3Output,
         targets: torch.torch.Tensor,
-        weights: LossWeights | None = None,
+        weights: PhyLSTMLoss.LossWeights | None = None,
         *,
         return_all: typing.Literal[True],
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]: ...
@@ -118,7 +110,7 @@ class PhyLSTMLoss(nn.Module):
         self,
         y_hat: PhyLSTM1Output | PhyLSTM2Output | PhyLSTM3Output,
         targets: torch.torch.Tensor,
-        weights: LossWeights | None = None,
+        weights: PhyLSTMLoss.LossWeights | None = None,
         *,
         return_all: typing.Literal[False] = False,
     ) -> torch.Tensor: ...
@@ -127,7 +119,7 @@ class PhyLSTMLoss(nn.Module):
         self,
         y_hat: PhyLSTM1Output | PhyLSTM2Output | PhyLSTM3Output,
         targets: torch.torch.Tensor,
-        weights: LossWeights | None = None,
+        weights: PhyLSTMLoss.LossWeights | None = None,
         *,
         return_all: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]:
@@ -159,7 +151,7 @@ class PhyLSTMLoss(nn.Module):
         dz_dt: torch.Tensor | None,
         gx: torch.Tensor | None,
         dr_dt: torch.Tensor | None,
-        weights: LossWeights | None = None,
+        weights: PhyLSTMLoss.LossWeights | None = None,
         *,
         return_all: typing.Literal[False],
     ) -> torch.Tensor: ...
@@ -172,7 +164,7 @@ class PhyLSTMLoss(nn.Module):
         dz_dt: torch.Tensor | None,
         gx: torch.Tensor | None,
         dr_dt: torch.Tensor | None,
-        weights: LossWeights | None = None,
+        weights: PhyLSTMLoss.LossWeights | None = None,
         *,
         return_all: typing.Literal[True],
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]: ...
@@ -185,7 +177,7 @@ class PhyLSTMLoss(nn.Module):
         dz_dt: torch.Tensor | None,
         gx: torch.Tensor | None,
         dr_dt: torch.Tensor | None,
-        weights: LossWeights | None = None,
+        weights: PhyLSTMLoss.LossWeights | None = None,
         *,
         return_all: typing.Literal[False] = False,
     ) -> torch.Tensor: ...
@@ -198,7 +190,7 @@ class PhyLSTMLoss(nn.Module):
         dz_dt: torch.Tensor | None,
         gx: torch.Tensor | None,
         dr_dt: torch.Tensor | None,
-        weights: LossWeights | None = None,
+        weights: PhyLSTMLoss.LossWeights | None = None,
         *,
         return_all: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]: ...
@@ -210,7 +202,7 @@ class PhyLSTMLoss(nn.Module):
         dz_dt: torch.Tensor | None,
         gx: torch.Tensor | None,
         dr_dt: torch.Tensor | None,
-        weights: LossWeights | None = None,
+        weights: PhyLSTMLoss.LossWeights | None = None,
         *,
         return_all: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]:

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+import pathlib
+
 import numpy as np
 import torch
 
@@ -20,8 +23,23 @@ class DiscreteFunctionTransform(BaseTransform):
 
     _transform_type = TransformType.XY
 
-    def __init__(self, x: np.ndarray | torch.Tensor, y: np.ndarray | torch.Tensor):
+    def __init__(
+        self,
+        x: np.ndarray | torch.Tensor | os.PathLike | str,
+        y: np.ndarray | torch.Tensor | None = None,
+    ):
         super().__init__()
+
+        if isinstance(x, os.PathLike | str):
+            pth = pathlib.Path(x).expanduser()
+            pth_s = os.fspath(pth)
+            arr = np.loadtxt(pth_s, skiprows=2, delimiter=",")
+            x = arr[:, 0]
+            y = arr[:, 1]
+        elif y is None:
+            msg = "DiscreteFunction requires y if x is not a path."
+            raise ValueError(msg)
+
         self.xs = _as_numpy(x)
         self.ys = _as_numpy(y)
 
@@ -92,7 +110,10 @@ class DiscreteFunctionTransform(BaseTransform):
             return y_tensor + self.forward(x)
 
     @classmethod
-    def from_csv(cls, csv_path: str) -> DiscreteFunctionTransform:
+    def from_csv(cls, csv_path: os.PathLike | str) -> DiscreteFunctionTransform:
+        if isinstance(csv_path, os.PathLike):
+            csv_path = pathlib.Path(csv_path).expanduser()
+            csv_path = os.fspath(csv_path)
         data = np.loadtxt(csv_path, skiprows=2, delimiter=",")
         return cls(data[:, 0], data[:, 1])
 

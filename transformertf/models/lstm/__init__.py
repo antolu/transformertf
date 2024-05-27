@@ -1,8 +1,7 @@
 from ..._mod_replace import replace_modname
-from ._config import LSTMConfig
-from ._lightning import LSTMModule
+from ._lightning import LSTM
 
-for mod in [LSTMConfig, LSTMModule]:
+for mod in [LSTM]:
     replace_modname(mod, __name__)
 
-__all__ = ["LSTMConfig", "LSTMModule"]
+__all__ = ["LSTM"]

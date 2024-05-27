@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import functools
 import typing
 
 import torch
@@ -16,7 +15,5 @@ OPT_CALL_TYPE: typing.TypeAlias = typing.Callable[
     [tuple[typing.Any, ...]], torch.optim.Optimizer
 ]
 LR_CALL_TYPE: typing.TypeAlias = (
-    type[torch.optim.lr_scheduler.LRScheduler]
-    | functools.partial
-    | typing.Callable[[torch.optim.Optimizer], torch.optim.lr_scheduler.LRScheduler]
+    torch.optim.lr_scheduler.LRScheduler | torch.optim.lr_scheduler.ReduceLROnPlateau
 )

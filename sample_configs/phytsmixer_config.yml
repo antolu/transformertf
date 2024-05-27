@@ -1,0 +1,72 @@
+# lightning.pytorch==2.2.1
+seed_everything: true
+trainer:
+  accelerator: auto
+  strategy: auto
+  devices: auto
+  num_nodes: 1
+  precision: null
+  max_epochs: 100
+  check_val_every_n_epoch: 1
+  gradient_clip_val: 1.0
+  use_distributed_sampler: false
+ckpt_path: null
+lr_scheduler:
+  class_path: torch.optim.lr_scheduler.StepLR
+  init_args:
+    step_size: 10
+    gamma: 0.1
+optimizer:
+  class_path: pytorch_optimizer.Ranger
+  init_args:
+    lr: 0.001
+    betas:
+    - 0.95
+    - 0.999
+    alpha: 0.5
+    n_sma_threshold: 5
+    weight_decay: 1e-4
+model:
+  class_path: transformertf.models.phytsmixer.PhyTSMixer
+  init_args:
+    n_dim_model: 32
+    activation: "relu"
+    fc_dim: 512
+    dropout: 0.2
+    num_blocks: 4
+    criterion:
+        class_path: transformertf.models.phylstm.PhyLSTMLoss
+    log_grad_norm: true
+data:
+  class_path: transformertf.data.EncoderDecoderDataModule
+  init_args:
+    known_covariates:
+      - "I_meas_A_medfilt"
+    target_covariate: "B_meas_T_medfilt"
+    known_past_covariates: null
+    train_df_paths:
+      - "~/cernbox/hysteresis/dipole/datasets/train/SPS-BTRAIN-20231102-101712---20231102-102616_phys+lhcfill_zero_precycle_preprocessed.parquet"
+      - "~/cernbox/hysteresis/dipole/datasets/train/SPS-BTRAIN-20231102-103421---20231102-104342_phys+lhcfill_md1_precycle_preprocessed.parquet"
+      - "~/cernbox/hysteresis/dipole/datasets/train/SPS-BTRAIN-20231102-105113---20231102-114543_funky_preprocessed.parquet"
+      - "~/cernbox/hysteresis/dipole/datasets/train/SPS-BTRAIN-20240314-130008---20240314-130555_bc_sftpro_lhcpilot_md_md1_preprocessed.parquet"
+      - "~/cernbox/hysteresis/dipole/datasets/train/SPS-BTRAIN-20240318-080009---20240318-080549_bc_lhc_md_md1_preprocessed.parquet"
+    val_df_paths:
+      - "~/cernbox/hysteresis/dipole/datasets/val/SPS-BTRAIN-20231102-114546---20231102-115239_post_funky_preprocessed.parquet"
+      - "~/cernbox/hysteresis/dipole/datasets/val/SPS-BTRAIN-20240328-160004---20240328-160821_DYNECO_preprocessed.parquet"
+    normalize: true
+    ctxt_seq_len: 200
+    tgt_seq_len: 100
+    randomize_seq_len: false
+    stride: 1
+    downsample: 50
+    downsample_method: interval
+    target_depends_on: "I_meas_A_medfilt"
+    extra_transforms:
+      B_meas_T_medfilt:
+        - class_path: transformertf.data.transform.DiscreteFunctionTransform
+          init_args:
+            x: "~/cernbox/hysteresis/calibration_fn/SPS_MB_I2B_CALIBRATION_FN_v4.csv"
+    batch_size: 16
+    num_workers: 0
+    dtype: float32
+    distributed_sampler: false

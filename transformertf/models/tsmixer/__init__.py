@@ -1,7 +1,6 @@
 from ..._mod_replace import replace_modname
-from ._config import TSMixerConfig
-from ._lightning import TSMixerModule
-from ._model import BasicTSMixer, TSMixer
+from ._lightning import TSMixer
+from ._model import BasicTSMixerModel, TSMixerModel
 from ._modules import (
     BatchNorm2D,
     ConditionalFeatureMixer,
@@ -17,11 +16,10 @@ for _mod in (
     TimeMixer,
     FeatureMixer,
     ConditionalFeatureMixer,
-    TSMixerModule,
-    TSMixerConfig,
-    BatchNorm2D,
-    BasicTSMixer,
     TSMixer,
+    BatchNorm2D,
+    BasicTSMixerModel,
+    TSMixerModel,
 ):
     replace_modname(_mod, __name__)
 
@@ -29,14 +27,13 @@ del _mod
 
 
 __all__ = [
-    "BasicTSMixer",
+    "BasicTSMixerModel",
     "BatchNorm2D",
     "ConditionalFeatureMixer",
     "ConditionalMixerBlock",
     "FeatureMixer",
     "MixerBlock",
     "TSMixer",
-    "TSMixerConfig",
-    "TSMixerModule",
+    "TSMixerModel",
     "TimeMixer",
 ]

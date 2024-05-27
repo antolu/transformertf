@@ -9,10 +9,11 @@ import torch
 
 from .transform._utils import _as_numpy  # type: ignore[import]
 
-__all__ = ["downsample"]
+__all__ = ["DOWNSAMPLE_METHODS", "downsample"]
 
 
 MIN_DOWNSAMPLE_FACTOR = 1
+DOWNSAMPLE_METHODS: typing.TypeAlias = typing.Literal["interval", "median", "convolve"]
 
 
 if typing.TYPE_CHECKING:
@@ -23,7 +24,7 @@ if typing.TYPE_CHECKING:
 def downsample(  # type: ignore[overload-overlap]
     value: T,
     downsample: int,
-    method: typing.Literal["interval", "average", "convolve"] = "interval",
+    method: DOWNSAMPLE_METHODS = "interval",
 ) -> np.ndarray: ...
 
 
@@ -31,14 +32,14 @@ def downsample(  # type: ignore[overload-overlap]
 def downsample(
     value: pd.DataFrame,
     downsample: int,
-    method: typing.Literal["interval", "average", "convolve"] = "interval",
+    method: DOWNSAMPLE_METHODS = "interval",
 ) -> pd.DataFrame: ...
 
 
 def downsample(
     value: T | pd.DataFrame,
     downsample: int,
-    method: typing.Literal["interval", "average", "convolve"] = "interval",
+    method: DOWNSAMPLE_METHODS = "interval",
 ) -> np.ndarray | pd.DataFrame:
     """
     Downsamples a container of time series data.
@@ -77,7 +78,7 @@ def downsample(
 def downsample_array(
     v: np.ndarray | torch.Tensor | pd.Series,
     factor: int,
-    method: typing.Literal["interval", "average", "convolve"] = "interval",
+    method: DOWNSAMPLE_METHODS = "interval",
 ) -> np.ndarray:
     """
     Downsamples a 1D array by taking the mean of each block.
@@ -96,8 +97,8 @@ def downsample_array(
 
     if method == "interval":
         return v[::factor]
-    if method == "average":
-        return downsample_mean(v, factor)
+    if method == "median":
+        return downsample_median(v, factor)
     if method == "convolve":
         return downsample_convolve(v, factor)
 
@@ -128,7 +129,7 @@ def downsample_convolve(
     return np.convolve(v, box, mode="valid")[::factor]
 
 
-def downsample_mean(
+def downsample_median(
     v: np.ndarray | torch.Tensor | pd.Series, factor: int
 ) -> np.ndarray:
     """

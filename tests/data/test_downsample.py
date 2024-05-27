@@ -43,15 +43,15 @@ def test_downsample_interval_series(arr_series: pd.Series) -> None:
 
 
 def test_downsample_average(arr: np.ndarray) -> None:
-    assert _downsample.downsample_array(arr, 2, "average") is not None
+    assert _downsample.downsample_array(arr, 2, "median") is not None
 
 
 def test_downsample_average_torch(arr_torch: torch.Tensor) -> None:
-    assert _downsample.downsample_array(arr_torch, 2, "average") is not None
+    assert _downsample.downsample_array(arr_torch, 2, "median") is not None
 
 
 def test_downsample_average_series(arr_series: pd.Series) -> None:
-    assert _downsample.downsample_array(arr_series, 2, "average") is not None
+    assert _downsample.downsample_array(arr_series, 2, "median") is not None
 
 
 def test_downsample_convolve(arr: np.ndarray) -> None:

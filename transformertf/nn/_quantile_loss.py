@@ -102,3 +102,10 @@ class QuantileLoss(torch.nn.Module):
             torch.Tensor: prediction quantiles
         """
         return y_pred
+
+    @property
+    def num_quantiles(self) -> int:
+        """
+        Number of quantiles
+        """
+        return len(self.quantiles)

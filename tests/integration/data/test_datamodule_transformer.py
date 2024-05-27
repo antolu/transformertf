@@ -8,25 +8,23 @@ from pathlib import Path
 
 import pytest
 
-from transformertf.config import TransformerBaseConfig
 from transformertf.data import EncoderDecoderDataModule
 
 DF_PATH = str(Path(__file__).parent.parent.parent / "sample_data.parquet")
 CURRENT = "I_meas_A"
 FIELD = "B_meas_T"
 
-config = TransformerBaseConfig()
-
 
 @pytest.fixture(scope="module")
-def datamodule_transformer() -> EncoderDecoderDataModule:
-    dm = EncoderDecoderDataModule.from_parquet(
-        config=config,
-        train_dataset=DF_PATH,
-        val_dataset=DF_PATH,
-        input_columns=[CURRENT],
-        target_column=FIELD,
-        known_past_columns=["time_ms"],
+def datamodule_transformer(
+    df_path: str, current_key: str, field_key: str
+) -> EncoderDecoderDataModule:
+    dm = EncoderDecoderDataModule(
+        train_df_paths=df_path,
+        val_df_paths=df_path,
+        known_covariates=[current_key],
+        target_covariate=field_key,
+        known_past_covariates=["time_ms"],
     )
     dm.prepare_data()
     dm.setup()
