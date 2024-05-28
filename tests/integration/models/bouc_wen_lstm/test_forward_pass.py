@@ -4,7 +4,7 @@ import typing
 
 import torch
 
-from transformertf.models.bouc_wen_lstm import BoucWenLSTM
+from transformertf.models.bwlstm import BoucWenLSTM
 
 
 def test_bouc_wen_lstm_forward_pass(

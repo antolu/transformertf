@@ -100,7 +100,7 @@ class BoucWenLSTM(LightningModuleBase):
         elif phylstm == 3 or phylstm is None:
             model_cls = BoucWenLSTMModel3
         else:
-            msg = "bouc_wen_lstm must be 1, 2 or 3"
+            msg = "bwlstm must be 1, 2 or 3"
             raise ValueError(msg)
 
         self.model = model_cls(

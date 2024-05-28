@@ -6,7 +6,7 @@ import torch
 
 from ...data import EncoderDecoderTargetSample
 from .._base_module import LightningModuleBase
-from ..bouc_wen_lstm import BoucWenLoss, BoucWenOutput3
+from ..bwlstm import BoucWenLoss, BoucWenOutput3
 from ._model import PhyTSMixerModel
 
 

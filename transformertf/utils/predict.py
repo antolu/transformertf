@@ -9,7 +9,7 @@ import torch
 from ..data import DataModuleBase, EncoderDecoderDataModule, TimeSeriesDataModule
 from ..data.dataset import EncoderDecoderPredictDataset
 from ..models import LightningModuleBase
-from ..models.bouc_wen_lstm import BoucWenLSTM
+from ..models.bwlstm import BoucWenLSTM
 from ..nn import QuantileLoss
 from ..utils import ops
 

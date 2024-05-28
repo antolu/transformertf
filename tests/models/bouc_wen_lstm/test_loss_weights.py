@@ -1,4 +1,4 @@
-from transformertf.models.bouc_wen_lstm import BoucWenLoss
+from transformertf.models.bwlstm import BoucWenLoss
 
 
 def test_default_instance() -> None:

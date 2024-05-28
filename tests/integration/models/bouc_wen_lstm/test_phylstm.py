@@ -8,7 +8,7 @@ import pandas as pd
 import torch
 
 from transformertf.data import TimeSeriesDataModule
-from transformertf.models.bouc_wen_lstm import (
+from transformertf.models.bwlstm import (
     BoucWenLSTM,
 )
 

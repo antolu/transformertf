@@ -11,7 +11,7 @@ import typing
 import einops
 import torch
 
-from ..bouc_wen_lstm import BoucWenOutput3
+from ..bwlstm import BoucWenOutput3
 from ..tsmixer import BasicTSMixerModel, TSMixerModel
 
 

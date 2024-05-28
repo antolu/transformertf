@@ -5,7 +5,7 @@ import typing
 import pytest
 
 from transformertf.data import TimeSeriesDataModule
-from transformertf.models.bouc_wen_lstm import BoucWenLSTM
+from transformertf.models.bwlstm import BoucWenLSTM
 
 
 @pytest.fixture(scope="module")

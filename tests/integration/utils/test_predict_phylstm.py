@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from transformertf.data import TimeSeriesDataModule
-from transformertf.models.bouc_wen_lstm import (
+from transformertf.models.bwlstm import (
     BoucWenLSTM,
 )
 from transformertf.utils.predict import predict_phylstm
