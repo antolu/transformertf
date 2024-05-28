@@ -9,7 +9,6 @@ import lightning.pytorch.cli
 import pytorch_optimizer  # noqa: F401
 import rich
 import rich.logging
-import torch
 from lightning.pytorch.cli import LightningArgumentParser
 
 from transformertf.data import (
@@ -52,13 +51,15 @@ def setup_logger(logging_level: int = 0) -> None:
 
 
 class LightningCLI(lightning.pytorch.cli.LightningCLI):
-    model: torch.nn.Module
+    model: LightningModuleBase
+    datamodule: DataModuleBase
 
     def __init__(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         super().__init__(*args, parser_kwargs={"parser_mode": "omegaconf"}, **kwargs)
 
     def before_instantiate_classes(self) -> None:
-        setup_logger(self.config.fit.verbose)
+        if hasattr(self.config, "fit"):
+            setup_logger(self.config.fit.verbose)
 
     def add_arguments_to_parser(self, parser: LightningArgumentParser) -> None:
         parser.add_argument(
