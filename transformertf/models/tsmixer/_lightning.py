@@ -6,11 +6,11 @@ import torch
 
 from ...data import EncoderDecoderTargetSample
 from ...nn import QuantileLoss
-from .._base_module import LightningModuleBase, LogMetricsMixin
+from .._base_module import LightningModuleBase
 from ._model import TSMixerModel
 
 
-class TSMixer(LightningModuleBase, LogMetricsMixin):
+class TSMixer(LightningModuleBase):
     def __init__(
         self,
         num_features: int,

@@ -57,6 +57,24 @@ class LightningModuleBase(L.LightningModule):
 
         super().on_validation_epoch_start()
 
+    def on_train_batch_end(
+        self,
+        outputs: torch.Tensor | typing.Mapping[str, typing.Any] | None,
+        batch: typing.Any,
+        batch_idx: int,
+    ) -> None:
+        if "prediction_type" not in self.hparams or (
+            "prediction_type" in self.hparams
+            and self.hparams["prediction_type"] == "point"
+        ):
+            assert outputs is not None
+            assert "target" in batch
+            assert isinstance(outputs, dict)
+            other_metrics = self.calc_other_metrics(outputs, batch["target"])
+            self.common_log_step(other_metrics, "train")  # type: ignore[attr-defined]
+
+        return super().on_train_batch_end(outputs, batch, batch_idx)  # type: ignore[misc]
+
     def on_validation_batch_end(
         self,
         outputs: STEP_OUTPUT,  # type: ignore[override]
@@ -67,6 +85,14 @@ class LightningModuleBase(L.LightningModule):
         if dataloader_idx not in self._val_outputs:
             self._val_outputs[dataloader_idx] = []
         self._val_outputs[dataloader_idx].append(ops.to_cpu(ops.detach(outputs)))  # type: ignore[arg-type,type-var]
+
+        if "prediction_type" not in self.hparams or (
+            "prediction_type" in self.hparams
+            and self.hparams["prediction_type"] == "point"
+        ):
+            assert "target" in batch
+            other_metrics = self.calc_other_metrics(outputs, batch["target"])
+            self.common_log_step(other_metrics, "validation")  # type: ignore[attr-defined]
 
     def on_test_epoch_start(self) -> None:
         self._test_outputs = {}
@@ -116,6 +142,51 @@ class LightningModuleBase(L.LightningModule):
             )
 
         return log_dict
+
+    def calc_other_metrics(
+        self,
+        outputs: STEP_OUTPUT,
+        target: torch.Tensor,  # type: ignore[override]
+    ) -> dict[str, torch.Tensor]:
+        """
+        Calculate other metrics from the outputs of the model.
+
+        Parameters
+        ----------
+        outputs : STEP_OUTPUT
+            The outputs of the model. Should contain keys "output" and "loss", and optionally "point_prediction".
+            If the "point_prediction" key is present, it should be a tensor of shape (batch_size, prediction_horizon, 1),
+            otherwise it will be calculated from the "output" tensor.
+        target : torch.Tensor
+            The target tensor. Should be a tensor of shape (batch_size, prediction_horizon, 1).
+
+        Returns
+        -------
+        dict[str, torch.Tensor]
+            A dictionary containing the calculated metrics.
+        """
+        loss_dict: dict[str, torch.Tensor] = {}
+
+        if target.ndim == 3:
+            target = target.squeeze(-1)
+
+        assert isinstance(outputs, dict)
+        if "point_prediction" in outputs:
+            prediction = outputs["point_prediction"]
+        else:
+            prediction = outputs["output"]
+
+        assert isinstance(prediction, torch.Tensor)
+        if prediction.ndim == 3:
+            prediction = prediction.squeeze(-1)
+
+        loss_dict["MSE"] = torch.nn.functional.mse_loss(prediction, target)
+        loss_dict["MAE"] = torch.nn.functional.l1_loss(prediction, target)
+        loss_dict["MAPE"] = F.mape_loss(prediction, target)
+        loss_dict["SMAPE"] = F.smape_loss(prediction, target)
+        loss_dict["RMSE"] = torch.sqrt(loss_dict["MSE"])
+
+        return loss_dict
 
     def on_before_optimizer_step(self, optimizer: torch.optim.Optimizer) -> None:
         if self.hparams.get("log_grad_norm") and self.global_rank == 0:
@@ -210,85 +281,3 @@ class LightningModuleBase(L.LightningModule):
         super().load_state_dict(
             state_dict, *args, strict=strict, prefix=prefix, **kwargs
         )
-
-
-class LogMetricsMixin:
-    hparams: L.pytorch.utilities.parsing.AttributeDict
-
-    def on_train_batch_end(
-        self,
-        outputs: torch.Tensor | typing.Mapping[str, typing.Any] | None,
-        batch: typing.Any,
-        batch_idx: int,
-    ) -> None:
-        if "prediction_type" not in self.hparams or (
-            "prediction_type" in self.hparams
-            and self.hparams["prediction_type"] == "point"
-        ):
-            assert outputs is not None
-            assert "target" in batch
-            assert isinstance(outputs, dict)
-            other_metrics = self.calc_other_metrics(outputs, batch["target"])
-            self.common_log_step(other_metrics, "train")  # type: ignore[attr-defined]
-
-        return super().on_train_batch_end(outputs, batch, batch_idx)  # type: ignore[misc]
-
-    def on_validation_batch_end(
-        self,
-        outputs: STEP_OUTPUT,  # type: ignore[override]
-        batch: TimeSeriesSample,
-        batch_idx: int,
-        dataloader_idx: int = 0,
-    ) -> None:
-        if "prediction_type" not in self.hparams or (
-            "prediction_type" in self.hparams
-            and self.hparams["prediction_type"] == "point"
-        ):
-            assert "target" in batch
-            other_metrics = self.calc_other_metrics(outputs, batch["target"])
-            self.common_log_step(other_metrics, "validation")  # type: ignore[attr-defined]
-
-    def calc_other_metrics(
-        self,
-        outputs: STEP_OUTPUT,
-        target: torch.Tensor,  # type: ignore[override]
-    ) -> dict[str, torch.Tensor]:
-        """
-        Calculate other metrics from the outputs of the model.
-
-        Parameters
-        ----------
-        outputs : STEP_OUTPUT
-            The outputs of the model. Should contain keys "output" and "loss", and optionally "point_prediction".
-            If the "point_prediction" key is present, it should be a tensor of shape (batch_size, prediction_horizon, 1),
-            otherwise it will be calculated from the "output" tensor.
-        target : torch.Tensor
-            The target tensor. Should be a tensor of shape (batch_size, prediction_horizon, 1).
-
-        Returns
-        -------
-        dict[str, torch.Tensor]
-            A dictionary containing the calculated metrics.
-        """
-        loss_dict: dict[str, torch.Tensor] = {}
-
-        if target.ndim == 3:
-            target = target.squeeze(-1)
-
-        assert isinstance(outputs, dict)
-        if "point_prediction" in outputs:
-            prediction = outputs["point_prediction"]
-        else:
-            prediction = outputs["output"]
-
-        assert isinstance(prediction, torch.Tensor)
-        if prediction.ndim == 3:
-            prediction = prediction.squeeze(-1)
-
-        loss_dict["MSE"] = torch.nn.functional.mse_loss(prediction, target)
-        loss_dict["MAE"] = torch.nn.functional.l1_loss(prediction, target)
-        loss_dict["MAPE"] = F.mape_loss(prediction, target)
-        loss_dict["SMAPE"] = F.smape_loss(prediction, target)
-        loss_dict["RMSE"] = torch.sqrt(loss_dict["MSE"])
-
-        return loss_dict

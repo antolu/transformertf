@@ -7,7 +7,7 @@ import torch
 from ...data import TimeSeriesSample
 from ...nn import QuantileLoss
 from ...utils import ops
-from .._base_module import LightningModuleBase, LogMetricsMixin
+from .._base_module import LightningModuleBase
 
 HIDDEN_STATE = tuple[torch.Tensor, torch.Tensor]
 
@@ -16,9 +16,10 @@ class StepOutput(typing.TypedDict):
     loss: torch.Tensor
     output: torch.Tensor
     state: HIDDEN_STATE
+    point_prediction: typing.NotRequired[torch.Tensor | None]
 
 
-class LSTM(LightningModuleBase, LogMetricsMixin):
+class LSTM(LightningModuleBase):
     def __init__(
         self,
         num_features: int = 1,
@@ -48,8 +49,7 @@ class LSTM(LightningModuleBase, LogMetricsMixin):
                    for use with the Lightning Learning Rate Finder.
         :param criterion: The loss function to be used.
         """
-        LightningModuleBase.__init__(self)
-        LogMetricsMixin.__init__(self)
+        super().__init__()
 
         self.criterion = criterion or torch.nn.MSELoss()
         self.save_hyperparameters(ignore=["criterion"])
@@ -143,24 +143,24 @@ class LSTM(LightningModuleBase, LogMetricsMixin):
 
         return loss_dict, output, hidden
 
-    def training_step(self, batch: TimeSeriesSample, batch_idx: int) -> torch.Tensor:
+    def training_step(self, batch: TimeSeriesSample, batch_idx: int) -> StepOutput:
         target = batch.get("target")
-        batch.get("target_scale")
         assert target is not None
 
-        model_output = self.forward(batch["input"])
+        model_output, hx = self.forward(batch["input"], return_states=True)
         loss = self.criterion(model_output, target)
 
         self.common_log_step({"loss": loss}, "train")
 
         out = {
             "loss": loss,
+            "hidden": ops.to_cpu(ops.detach(hx)),
             "output": ops.to_cpu(ops.detach(model_output)),
         }
         if isinstance(self.criterion, QuantileLoss):
             out["point_prediction"] = self.criterion.point_prediction(model_output)
 
-        return out
+        return typing.cast(StepOutput, out)
 
     def validation_step(
         self,

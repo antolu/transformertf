@@ -5,10 +5,10 @@ import typing
 import torch
 
 from ..data import EncoderDecoderTargetSample
-from ._base_module import LightningModuleBase, LogMetricsMixin
+from ._base_module import LightningModuleBase
 
 
-class TransformerModuleBase(LightningModuleBase, LogMetricsMixin):
+class TransformerModuleBase(LightningModuleBase):
     criterion: torch.nn.Module
 
     def calc_loss(
