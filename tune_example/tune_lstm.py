@@ -133,11 +133,6 @@ def main() -> None:
     reporter = ray.tune.CLIReporter(
         parameter_columns=list(GRID.keys()),
         metric_columns=[
-            "lr",
-            "batch_size",
-            "seq_len",
-            "num_layers",
-            "hidden_dim",
             "loss/train",
             "loss/validation/dataloader_idx_0",
             "loss/validation/dataloader_idx_1",
