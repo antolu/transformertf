@@ -37,3 +37,4 @@ repos:
         additional_dependencies:
           - 'numpy>=1.26'
           - 'pandas-stubs>=2.1'
+          - 'types-pyYAML'
