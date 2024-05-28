@@ -2,7 +2,7 @@ from ..._mod_replace import replace_modname
 from ._lightning import BWLSTM, StepOutput
 from ._loss import BoucWenLoss
 from ._model import BWLSTM1, BWLSTM2, BWLSTM3
-from ._output import (
+from ._types import (
     BoucWenOutput1,
     BoucWenOutput2,
     BoucWenOutput3,
