@@ -9,7 +9,7 @@ from transformertf.models.bouc_wen_lstm import BoucWenLSTM
 
 
 @pytest.fixture(scope="module")
-def phylstm_datamodule_config(
+def bouc_wen_datamodule_config(
     df_path: str, current_key: str, field_key: str
 ) -> dict[str, typing.Any]:
     return {
@@ -24,7 +24,7 @@ def phylstm_datamodule_config(
 
 
 @pytest.fixture(scope="module")
-def phylstm_module_config() -> dict[str, typing.Any]:
+def bouc_wen_module_config() -> dict[str, typing.Any]:
     return {
         "seq_len": 100,
         "num_layers": 1,
@@ -34,12 +34,12 @@ def phylstm_module_config() -> dict[str, typing.Any]:
 
 
 @pytest.fixture()
-def phylstm_module(phylstm_module_config: dict[str, typing.Any]) -> BoucWenLSTM:
-    return BoucWenLSTM(**phylstm_module_config)
+def bouc_wen_module(bouc_wen_module_config: dict[str, typing.Any]) -> BoucWenLSTM:
+    return BoucWenLSTM(**bouc_wen_module_config)
 
 
 @pytest.fixture()
-def phylstm_datamodule(
-    phylstm_datamodule_config: dict[str, typing.Any],
+def bouc_wen_datamodule(
+    bouc_wen_datamodule_config: dict[str, typing.Any],
 ) -> TimeSeriesDataModule:
-    return TimeSeriesDataModule(**phylstm_datamodule_config)
+    return TimeSeriesDataModule(**bouc_wen_datamodule_config)
