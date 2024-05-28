@@ -24,13 +24,13 @@ from ._output import (
     BoucWenStates3,
 )
 
-__all__ = ["BoucWenLSTMModel1", "BoucWenLSTMModel2", "BoucWenLSTMModel3"]
+__all__ = ["BWLSTM1", "BWLSTM2", "BWLSTM3"]
 
 
 log = logging.getLogger(__name__)
 
 
-class BoucWenLSTMModel1(nn.Module):
+class BWLSTM1(nn.Module):
     def __init__(
         self,
         num_layers: int | tuple[int, ...] = 3,
@@ -229,7 +229,7 @@ class BoucWenLSTMModel1(nn.Module):
         return output
 
 
-class BoucWenLSTMModel2(BoucWenLSTMModel1):
+class BWLSTM2(BWLSTM1):
     def __init__(
         self,
         num_layers: int | tuple[int, ...] = 3,
@@ -346,7 +346,7 @@ class BoucWenLSTMModel2(BoucWenLSTMModel1):
         return output
 
 
-class BoucWenLSTMModel3(BoucWenLSTMModel2):
+class BWLSTM3(BWLSTM2):
     def __init__(
         self,
         num_layers: int | tuple[int, ...] = 3,

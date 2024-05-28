@@ -9,7 +9,7 @@ from ...data import TimeSeriesSample
 from ...utils import ops
 from .._base_module import LightningModuleBase
 from ._loss import BoucWenLoss
-from ._model import BoucWenLSTMModel1, BoucWenLSTMModel2, BoucWenLSTMModel3
+from ._model import BWLSTM1, BWLSTM2, BWLSTM3
 from ._output import (
     BoucWenOutput1,
     BoucWenOutput2,
@@ -44,7 +44,7 @@ class PredictOutput(typing.TypedDict):
     state: HiddenState
 
 
-class BoucWenLSTM(LightningModuleBase):
+class BWLSTM(LightningModuleBase):
     def __init__(
         self,
         num_layers: int | tuple[int, ...] = 3,
@@ -92,13 +92,13 @@ class BoucWenLSTM(LightningModuleBase):
         self._test_hidden: HiddenStateNone = []  # type: ignore[assignment]
         self._predict_hidden: HiddenStateNone = []  # type: ignore[assignment]
 
-        model_cls: type[BoucWenLSTMModel1 | BoucWenLSTMModel2 | BoucWenLSTMModel3]
+        model_cls: type[BWLSTM1 | BWLSTM2 | BWLSTM3]
         if phylstm == 1:
-            model_cls = BoucWenLSTMModel1
+            model_cls = BWLSTM1
         elif phylstm == 2:
-            model_cls = BoucWenLSTMModel2
+            model_cls = BWLSTM2
         elif phylstm == 3 or phylstm is None:
-            model_cls = BoucWenLSTMModel3
+            model_cls = BWLSTM3
         else:
             msg = "bwlstm must be 1, 2 or 3"
             raise ValueError(msg)

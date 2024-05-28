@@ -5,7 +5,7 @@ import typing
 import pytest
 
 from transformertf.data import TimeSeriesDataModule
-from transformertf.models.bwlstm import BoucWenLSTM
+from transformertf.models.bwlstm import BWLSTM
 
 
 @pytest.fixture(scope="module")
@@ -34,8 +34,8 @@ def bouc_wen_module_config() -> dict[str, typing.Any]:
 
 
 @pytest.fixture()
-def bouc_wen_module(bouc_wen_module_config: dict[str, typing.Any]) -> BoucWenLSTM:
-    return BoucWenLSTM(**bouc_wen_module_config)
+def bouc_wen_module(bouc_wen_module_config: dict[str, typing.Any]) -> BWLSTM:
+    return BWLSTM(**bouc_wen_module_config)
 
 
 @pytest.fixture()

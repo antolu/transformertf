@@ -19,7 +19,7 @@ from transformertf.data import (
 )
 from transformertf.models import LightningModuleBase
 from transformertf.models.bwlstm import (  # noqa: F401
-    BoucWenLSTM,
+    BWLSTM,
 )
 from transformertf.models.lstm import LSTM  # noqa: F401
 from transformertf.models.tsmixer import TSMixer  # noqa: F401

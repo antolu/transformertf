@@ -4,11 +4,11 @@ import typing
 
 import torch
 
-from transformertf.models.bwlstm import BoucWenLSTM
+from transformertf.models.bwlstm import BWLSTM
 
 
 def test_bouc_wen_lstm_forward_pass(
-    bouc_wen_module: BoucWenLSTM, bouc_wen_module_config: dict[str, typing.Any]
+    bouc_wen_module: BWLSTM, bouc_wen_module_config: dict[str, typing.Any]
 ) -> None:
     x = torch.rand(1, bouc_wen_module_config["seq_len"], 1)
 

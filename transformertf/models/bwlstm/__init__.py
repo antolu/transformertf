@@ -1,7 +1,7 @@
 from ..._mod_replace import replace_modname
-from ._lightning import BoucWenLSTM, StepOutput
+from ._lightning import BWLSTM, StepOutput
 from ._loss import BoucWenLoss
-from ._model import BoucWenLSTMModel1, BoucWenLSTMModel2, BoucWenLSTMModel3
+from ._model import BWLSTM1, BWLSTM2, BWLSTM3
 from ._output import (
     BoucWenOutput1,
     BoucWenOutput2,
@@ -13,10 +13,10 @@ from ._output import (
 
 for _mod in (
     BoucWenLoss,
-    BoucWenLSTMModel1,
-    BoucWenLSTMModel2,
-    BoucWenLSTMModel3,
-    BoucWenLSTM,
+    BWLSTM1,
+    BWLSTM2,
+    BWLSTM3,
+    BWLSTM,
 ):
     replace_modname(_mod, __name__)
 
@@ -25,10 +25,10 @@ del replace_modname
 del _mod
 
 __all__ = [
-    "BoucWenLSTM",
-    "BoucWenLSTMModel1",
-    "BoucWenLSTMModel2",
-    "BoucWenLSTMModel3",
+    "BWLSTM",
+    "BWLSTM1",
+    "BWLSTM2",
+    "BWLSTM3",
     "BoucWenLoss",
     "BoucWenOutput1",
     "BoucWenOutput2",
