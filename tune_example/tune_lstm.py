@@ -115,7 +115,8 @@ def train_fn(
         with checkpoint.as_directory() as checkpoint_dir:
             checkpoint_path = os.path.join(checkpoint_dir, "checkpoint")
 
-            model = model.load_from_checkpoint(checkpoint_path)
+            state_dict = torch.load(checkpoint_path)
+            model.load_state_dict(state_dict["state_dict"])
             dm = dm.load_from_checkpoint(checkpoint_path)
     else:
         checkpoint_path = None
