@@ -18,10 +18,10 @@ from transformertf.data import (
     TimeSeriesDataModule,  # noqa: F401
 )
 from transformertf.models import LightningModuleBase
-from transformertf.models.lstm import LSTM  # noqa: F401
-from transformertf.models.phylstm import (  # noqa: F401
-    PhyLSTM,
+from transformertf.models.bouc_wen_lstm import (  # noqa: F401
+    BoucWenLSTM,
 )
+from transformertf.models.lstm import LSTM  # noqa: F401
 from transformertf.models.tsmixer import TSMixer  # noqa: F401
 
 

@@ -33,14 +33,14 @@ optimizer:
     n_sma_threshold: 5
     weight_decay: 1e-4
 model:
-  class_path: transformertf.models.phylstm.PhyLSTM
+  class_path: transformertf.models.bouc_wen_lstm.PhyLSTM
   init_args:
     num_layers: 3
     hidden_dim: 48
     hidden_dim_fc: 512
     phylstm: 3
     dropout: 0.2
-    loss_weights: # transformertf.models.phylstm.LossWeights
+    loss_weights: # transformertf.models.bouc_wen_lstm.LossWeights
       alpha: 1.0
       beta: 1.0
       gamma: 1.0

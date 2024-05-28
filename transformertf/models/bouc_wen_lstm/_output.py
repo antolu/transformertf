@@ -5,37 +5,37 @@ from typing import TypedDict
 import torch
 
 __all__ = [
-    "PhyLSTM1Output",
-    "PhyLSTM1States",
-    "PhyLSTM2Output",
-    "PhyLSTM2States",
-    "PhyLSTM3Output",
-    "PhyLSTM3States",
+    "BoucWenOutput1",
+    "BoucWenOutput2",
+    "BoucWenOutput3",
+    "BoucWenStates1",
+    "BoucWenStates2",
+    "BoucWenStates3",
 ]
 
 
-class PhyLSTM1Output(TypedDict):
+class BoucWenOutput1(TypedDict):
     z: torch.Tensor
     b: torch.Tensor
 
 
-class PhyLSTM2Output(PhyLSTM1Output):
+class BoucWenOutput2(BoucWenOutput1):
     dz_dt: torch.Tensor
     g: torch.Tensor
     g_gamma_x: torch.Tensor
 
 
-class PhyLSTM3Output(PhyLSTM2Output):
+class BoucWenOutput3(BoucWenOutput2):
     dr_dt: torch.Tensor
 
 
-class PhyLSTM1States(TypedDict):
+class BoucWenStates1(TypedDict):
     lstm1: tuple[torch.Tensor, ...]
 
 
-class PhyLSTM2States(PhyLSTM1States):
+class BoucWenStates2(BoucWenStates1):
     lstm2: tuple[torch.Tensor, ...]
 
 
-class PhyLSTM3States(PhyLSTM2States):
+class BoucWenStates3(BoucWenStates2):
     lstm3: tuple[torch.Tensor, ...]

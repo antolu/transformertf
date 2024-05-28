@@ -35,7 +35,7 @@ model:
     dropout: 0.2
     num_blocks: 4
     criterion:
-        class_path: transformertf.models.phylstm.PhyLSTMLoss
+        class_path: transformertf.models.bouc_wen_lstm.PhyLSTMLoss
     log_grad_norm: true
 data:
   class_path: transformertf.data.EncoderDecoderDataModule

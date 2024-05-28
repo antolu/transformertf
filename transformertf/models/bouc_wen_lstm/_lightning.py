@@ -8,24 +8,24 @@ import torch
 from ...data import TimeSeriesSample
 from ...utils import ops
 from .._base_module import LightningModuleBase
-from ._loss import PhyLSTMLoss
-from ._model import PhyLSTM1Model, PhyLSTM2Model, PhyLSTM3Model
+from ._loss import BoucWenLoss
+from ._model import BoucWenLSTMModel1, BoucWenLSTMModel2, BoucWenLSTMModel3
 from ._output import (
-    PhyLSTM1Output,
-    PhyLSTM1States,
-    PhyLSTM2Output,
-    PhyLSTM2States,
-    PhyLSTM3Output,
-    PhyLSTM3States,
+    BoucWenOutput1,
+    BoucWenOutput2,
+    BoucWenOutput3,
+    BoucWenStates1,
+    BoucWenStates2,
+    BoucWenStates3,
 )
 
-HiddenState: typing.TypeAlias = PhyLSTM1States | PhyLSTM2States | PhyLSTM3States
+HiddenState: typing.TypeAlias = BoucWenStates1 | BoucWenStates2 | BoucWenStates3
 HiddenStateNone: typing.TypeAlias = (
-    list[PhyLSTM1States | None]
-    | list[PhyLSTM2States | None]
-    | list[PhyLSTM3States | None]
+    list[BoucWenStates1 | None]
+    | list[BoucWenStates2 | None]
+    | list[BoucWenStates3 | None]
 )
-PhyLSTMOutput: typing.TypeAlias = PhyLSTM1Output | PhyLSTM2Output | PhyLSTM3Output
+BoucWenLSTMOutput: typing.TypeAlias = BoucWenOutput1 | BoucWenOutput2 | BoucWenOutput3
 
 
 class StepOutput(typing.TypedDict):
@@ -35,16 +35,16 @@ class StepOutput(typing.TypedDict):
     loss3: NotRequired[torch.Tensor]
     loss4: NotRequired[torch.Tensor]
     loss5: NotRequired[torch.Tensor]
-    output: PhyLSTMOutput
+    output: BoucWenLSTMOutput
     state: HiddenState
 
 
 class PredictOutput(typing.TypedDict):
-    output: PhyLSTMOutput
+    output: BoucWenLSTMOutput
     state: HiddenState
 
 
-class PhyLSTM(LightningModuleBase):
+class BoucWenLSTM(LightningModuleBase):
     def __init__(
         self,
         num_layers: int | tuple[int, ...] = 3,
@@ -53,7 +53,7 @@ class PhyLSTM(LightningModuleBase):
         hidden_dim_fc: int | tuple[int, ...] | None = None,
         dropout: float | tuple[float, ...] = 0.2,
         phylstm: typing.Literal[1, 2, 3] | None = 3,
-        loss_weights: PhyLSTMLoss.LossWeights | None = None,
+        loss_weights: BoucWenLoss.LossWeights | None = None,
         *,
         log_grad_norm: bool = False,
     ):
@@ -85,22 +85,22 @@ class PhyLSTM(LightningModuleBase):
             if a Trainer is not attached.
         """
         super().__init__()
-        self.criterion = PhyLSTMLoss(loss_weights=loss_weights)
+        self.criterion = BoucWenLoss(loss_weights=loss_weights)
         self.save_hyperparameters(ignore=["criterion", "loss_weights"])
 
         self._val_hidden: HiddenStateNone = []  # type: ignore[assignment]
         self._test_hidden: HiddenStateNone = []  # type: ignore[assignment]
         self._predict_hidden: HiddenStateNone = []  # type: ignore[assignment]
 
-        model_cls: type[PhyLSTM1Model | PhyLSTM2Model | PhyLSTM3Model]
+        model_cls: type[BoucWenLSTMModel1 | BoucWenLSTMModel2 | BoucWenLSTMModel3]
         if phylstm == 1:
-            model_cls = PhyLSTM1Model
+            model_cls = BoucWenLSTMModel1
         elif phylstm == 2:
-            model_cls = PhyLSTM2Model
+            model_cls = BoucWenLSTMModel2
         elif phylstm == 3 or phylstm is None:
-            model_cls = PhyLSTM3Model
+            model_cls = BoucWenLSTMModel3
         else:
-            msg = "phylstm must be 1, 2 or 3"
+            msg = "bouc_wen_lstm must be 1, 2 or 3"
             raise ValueError(msg)
 
         self.model = model_cls(
@@ -117,7 +117,7 @@ class PhyLSTM(LightningModuleBase):
         hx: HiddenState | None = None,
         *,
         return_states: typing.Literal[False] = False,
-    ) -> PhyLSTMOutput: ...
+    ) -> BoucWenLSTMOutput: ...
 
     @typing.overload
     def forward(
@@ -126,7 +126,7 @@ class PhyLSTM(LightningModuleBase):
         hx: HiddenState | None = None,
         *,
         return_states: typing.Literal[True],
-    ) -> tuple[PhyLSTMOutput, HiddenState]: ...
+    ) -> tuple[BoucWenLSTMOutput, HiddenState]: ...
 
     def forward(
         self,
@@ -134,7 +134,7 @@ class PhyLSTM(LightningModuleBase):
         hx: HiddenState | None = None,
         *,
         return_states: bool = False,
-    ) -> PhyLSTMOutput | tuple[PhyLSTMOutput, HiddenState]:
+    ) -> BoucWenLSTMOutput | tuple[BoucWenLSTMOutput, HiddenState]:
         """
         Forward pass through the model.
         Rescales the output to the target scale if provided.
@@ -170,7 +170,7 @@ class PhyLSTM(LightningModuleBase):
         batch: TimeSeriesSample,
         batch_idx: int,
         hidden_state: HiddenState | None = None,
-    ) -> tuple[dict[str, torch.Tensor], PhyLSTMOutput, HiddenState]:
+    ) -> tuple[dict[str, torch.Tensor], BoucWenLSTMOutput, HiddenState]:
         target = batch.get("target")
         assert target is not None
 

@@ -16,21 +16,21 @@ except ImportError:
 from ...nn import GateAddNorm, GatedResidualNetwork, VariableSelection
 from ...utils import ops
 from ._output import (
-    PhyLSTM1Output,
-    PhyLSTM1States,
-    PhyLSTM2Output,
-    PhyLSTM2States,
-    PhyLSTM3Output,
-    PhyLSTM3States,
+    BoucWenOutput1,
+    BoucWenOutput2,
+    BoucWenOutput3,
+    BoucWenStates1,
+    BoucWenStates2,
+    BoucWenStates3,
 )
 
-__all__ = ["PhyLSTM1Model", "PhyLSTM2Model", "PhyLSTM3Model"]
+__all__ = ["BoucWenLSTMModel1", "BoucWenLSTMModel2", "BoucWenLSTMModel3"]
 
 
 log = logging.getLogger(__name__)
 
 
-class PhyLSTM1Model(nn.Module):
+class BoucWenLSTMModel1(nn.Module):
     def __init__(
         self,
         num_layers: int | tuple[int, ...] = 3,
@@ -174,27 +174,27 @@ class PhyLSTM1Model(nn.Module):
     def forward(
         self,
         x: torch.Tensor,
-        hx: PhyLSTM1States | None = None,
+        hx: BoucWenStates1 | None = None,
         *,
         return_states: typing.Literal[False] = False,
-    ) -> PhyLSTM1Output: ...
+    ) -> BoucWenOutput1: ...
 
     @typing.overload
     def forward(
         self,
         x: torch.Tensor,
-        hx: PhyLSTM1States | None = None,
+        hx: BoucWenStates1 | None = None,
         *,
         return_states: typing.Literal[True],
-    ) -> tuple[PhyLSTM1Output, PhyLSTM1States]: ...
+    ) -> tuple[BoucWenOutput1, BoucWenStates1]: ...
 
     def forward(
         self,
         x: torch.Tensor,
-        hx: PhyLSTM1States | None = None,
+        hx: BoucWenStates1 | None = None,
         *,
         return_states: bool = False,
-    ) -> PhyLSTM1Output | tuple[PhyLSTM1Output, PhyLSTM1States]:
+    ) -> BoucWenOutput1 | tuple[BoucWenOutput1, BoucWenStates1]:
         """
         Forward pass of the model.
         :param x: Input torch.Tensor of shape (batch_size, sequence_length, 1).
@@ -221,15 +221,15 @@ class PhyLSTM1Model(nn.Module):
         b = self.fc_b(b)
 
         assert isinstance(h_lstm1, tuple)
-        output: PhyLSTM1Output = {"z": z, "b": b}
-        states: PhyLSTM1States = {"lstm1": tuple(o.detach() for o in h_lstm1)}
+        output: BoucWenOutput1 = {"z": z, "b": b}
+        states: BoucWenStates1 = {"lstm1": tuple(o.detach() for o in h_lstm1)}
 
         if return_states:
             return output, states
         return output
 
 
-class PhyLSTM2Model(PhyLSTM1Model):
+class BoucWenLSTMModel2(BoucWenLSTMModel1):
     def __init__(
         self,
         num_layers: int | tuple[int, ...] = 3,
@@ -282,28 +282,28 @@ class PhyLSTM2Model(PhyLSTM1Model):
     def forward(
         self,
         x: torch.Tensor,
-        hx: PhyLSTM2States | None = None,
+        hx: BoucWenStates2 | None = None,
         *,
         return_states: typing.Literal[False] = False,
-    ) -> PhyLSTM2Output: ...
+    ) -> BoucWenOutput2: ...
 
     @typing.overload  # type: ignore[override]
     def forward(
         self,
         x: torch.Tensor,
-        hx: PhyLSTM2States | None = None,
+        hx: BoucWenStates2 | None = None,
         *,
         return_states: typing.Literal[True],
-    ) -> tuple[PhyLSTM2Output, PhyLSTM2States]:  # type: ignore[override]
+    ) -> tuple[BoucWenOutput2, BoucWenStates2]:  # type: ignore[override]
         ...
 
     def forward(  # type: ignore[override]
         self,
         x: torch.Tensor,
-        hx: PhyLSTM2States | None = None,
+        hx: BoucWenStates2 | None = None,
         *,
         return_states: bool = False,
-    ) -> PhyLSTM2Output | tuple[PhyLSTM2Output, PhyLSTM2States]:
+    ) -> BoucWenOutput2 | tuple[BoucWenOutput2, BoucWenStates2]:
         """
         Forward pass of the model.
         :param x: Input torch.Tensor of shape (batch_size, sequence_length, 1).
@@ -312,8 +312,8 @@ class PhyLSTM2Model(PhyLSTM1Model):
 
         :return: Output torch.Tensor of shape (batch_size, sequence_length, 1).
         """
-        phylstm1_output: PhyLSTM1Output
-        hidden1: PhyLSTM1States | None = None
+        phylstm1_output: BoucWenOutput1
+        hidden1: BoucWenStates1 | None = None
         if return_states:
             phylstm1_output, hidden1 = super().forward(x, hx=hx, return_states=True)
         else:
@@ -331,7 +331,7 @@ class PhyLSTM2Model(PhyLSTM1Model):
         g_gamma_x = self.g_plus_x(torch.cat([g, x], dim=2))
 
         output = typing.cast(
-            PhyLSTM2Output,
+            BoucWenOutput2,
             phylstm1_output
             | {
                 "dz_dt": dz_dt,
@@ -342,11 +342,11 @@ class PhyLSTM2Model(PhyLSTM1Model):
         if return_states:
             assert hidden1 is not None
             states = hidden1 | {"lstm2": ops.detach(h_lstm2)}  # type: ignore[type-var]
-            return output, typing.cast(PhyLSTM2States, states)
+            return output, typing.cast(BoucWenStates2, states)
         return output
 
 
-class PhyLSTM3Model(PhyLSTM2Model):
+class BoucWenLSTMModel3(BoucWenLSTMModel2):
     def __init__(
         self,
         num_layers: int | tuple[int, ...] = 3,
@@ -393,27 +393,27 @@ class PhyLSTM3Model(PhyLSTM2Model):
     def forward(
         self,
         x: torch.Tensor,
-        hx: PhyLSTM3States | None = None,
+        hx: BoucWenStates3 | None = None,
         *,
         return_states: typing.Literal[False] = False,
-    ) -> PhyLSTM3Output: ...
+    ) -> BoucWenOutput3: ...
 
     @typing.overload  # type: ignore[override]
     def forward(
         self,
         x: torch.Tensor,
-        hx: PhyLSTM3States | None = None,
+        hx: BoucWenStates3 | None = None,
         *,
         return_states: typing.Literal[True],
-    ) -> tuple[PhyLSTM3Output, PhyLSTM3States]: ...
+    ) -> tuple[BoucWenOutput3, BoucWenStates3]: ...
 
     def forward(  # type: ignore[override]
         self,
         x: torch.Tensor,
-        hx: PhyLSTM3States | None = None,
+        hx: BoucWenStates3 | None = None,
         *,
         return_states: bool = False,
-    ) -> PhyLSTM3Output | tuple[PhyLSTM3Output, PhyLSTM3States]:
+    ) -> BoucWenOutput3 | tuple[BoucWenOutput3, BoucWenStates3]:
         """
         This forward pass can be used for both training and inference.
 
@@ -428,8 +428,8 @@ class PhyLSTM3Model(PhyLSTM2Model):
 
         :return: The output of the model, and optionally the hidden and cell states of the LSTM layers.
         """
-        phylstm2_output: PhyLSTM2Output
-        hidden2: PhyLSTM2States | None = None
+        phylstm2_output: BoucWenOutput2
+        hidden2: BoucWenStates2 | None = None
         if return_states:
             phylstm2_output, hidden2 = super().forward(x, hx=hx, return_states=True)
         else:
@@ -453,7 +453,7 @@ class PhyLSTM3Model(PhyLSTM2Model):
         dr_dt = self.fc3(o_lstm3)
 
         output = typing.cast(
-            PhyLSTM3Output,
+            BoucWenOutput3,
             phylstm2_output
             | {
                 "dr_dt": dr_dt,
@@ -463,7 +463,7 @@ class PhyLSTM3Model(PhyLSTM2Model):
         if return_states:
             assert hidden2 is not None
             states = hidden2 | {"lstm3": ops.detach(h_lstm3)}  # type: ignore[type-var]
-            return output, typing.cast(PhyLSTM3States, states)
+            return output, typing.cast(BoucWenStates3, states)
         return output
 
 

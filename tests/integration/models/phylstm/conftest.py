@@ -5,7 +5,7 @@ import typing
 import pytest
 
 from transformertf.data import TimeSeriesDataModule
-from transformertf.models.phylstm import PhyLSTM
+from transformertf.models.bouc_wen_lstm import BoucWenLSTM
 
 
 @pytest.fixture(scope="module")
@@ -34,8 +34,8 @@ def phylstm_module_config() -> dict[str, typing.Any]:
 
 
 @pytest.fixture()
-def phylstm_module(phylstm_module_config: dict[str, typing.Any]) -> PhyLSTM:
-    return PhyLSTM(**phylstm_module_config)
+def phylstm_module(phylstm_module_config: dict[str, typing.Any]) -> BoucWenLSTM:
+    return BoucWenLSTM(**phylstm_module_config)
 
 
 @pytest.fixture()

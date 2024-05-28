@@ -8,15 +8,15 @@ import pandas as pd
 import torch
 
 from transformertf.data import TimeSeriesDataModule
-from transformertf.models.phylstm import (
-    PhyLSTM,
+from transformertf.models.bouc_wen_lstm import (
+    BoucWenLSTM,
 )
 
 from ....conftest import FIELD
 
 
 def test_phylstm_forward_pass(
-    phylstm_module: PhyLSTM,
+    phylstm_module: BoucWenLSTM,
     phylstm_datamodule: TimeSeriesDataModule,
     df: pd.DataFrame,
 ) -> None:
