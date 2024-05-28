@@ -27,11 +27,6 @@ from ._output import (
 __all__ = ["PhyLSTM1Model", "PhyLSTM2Model", "PhyLSTM3Model"]
 
 
-STATE1 = typing.TypeVar("STATE1", bound=PhyLSTM1States)
-STATE2 = typing.TypeVar("STATE2", bound=PhyLSTM2States)
-STATE3 = typing.TypeVar("STATE3", bound=PhyLSTM3States)
-
-
 log = logging.getLogger(__name__)
 
 
@@ -179,7 +174,7 @@ class PhyLSTM1Model(nn.Module):
     def forward(
         self,
         x: torch.Tensor,
-        hx: STATE1 | None = None,
+        hx: PhyLSTM1States | None = None,
         *,
         return_states: typing.Literal[False] = False,
     ) -> PhyLSTM1Output: ...
@@ -188,7 +183,7 @@ class PhyLSTM1Model(nn.Module):
     def forward(
         self,
         x: torch.Tensor,
-        hx: STATE1 | None = None,
+        hx: PhyLSTM1States | None = None,
         *,
         return_states: typing.Literal[True],
     ) -> tuple[PhyLSTM1Output, PhyLSTM1States]: ...
@@ -196,7 +191,7 @@ class PhyLSTM1Model(nn.Module):
     def forward(
         self,
         x: torch.Tensor,
-        hx: STATE1 | None = None,
+        hx: PhyLSTM1States | None = None,
         *,
         return_states: bool = False,
     ) -> PhyLSTM1Output | tuple[PhyLSTM1Output, PhyLSTM1States]:
@@ -287,7 +282,7 @@ class PhyLSTM2Model(PhyLSTM1Model):
     def forward(
         self,
         x: torch.Tensor,
-        hx: STATE2 | None = None,
+        hx: PhyLSTM2States | None = None,
         *,
         return_states: typing.Literal[False] = False,
     ) -> PhyLSTM2Output: ...
@@ -296,7 +291,7 @@ class PhyLSTM2Model(PhyLSTM1Model):
     def forward(
         self,
         x: torch.Tensor,
-        hx: STATE2 | None = None,
+        hx: PhyLSTM2States | None = None,
         *,
         return_states: typing.Literal[True],
     ) -> tuple[PhyLSTM2Output, PhyLSTM2States]:  # type: ignore[override]
@@ -305,7 +300,7 @@ class PhyLSTM2Model(PhyLSTM1Model):
     def forward(  # type: ignore[override]
         self,
         x: torch.Tensor,
-        hx: STATE2 | None = None,
+        hx: PhyLSTM2States | None = None,
         *,
         return_states: bool = False,
     ) -> PhyLSTM2Output | tuple[PhyLSTM2Output, PhyLSTM2States]:
@@ -398,7 +393,7 @@ class PhyLSTM3Model(PhyLSTM2Model):
     def forward(
         self,
         x: torch.Tensor,
-        hx: STATE3 | None = None,
+        hx: PhyLSTM3States | None = None,
         *,
         return_states: typing.Literal[False] = False,
     ) -> PhyLSTM3Output: ...
@@ -407,7 +402,7 @@ class PhyLSTM3Model(PhyLSTM2Model):
     def forward(
         self,
         x: torch.Tensor,
-        hx: STATE3 | None = None,
+        hx: PhyLSTM3States | None = None,
         *,
         return_states: typing.Literal[True],
     ) -> tuple[PhyLSTM3Output, PhyLSTM3States]: ...
@@ -415,7 +410,7 @@ class PhyLSTM3Model(PhyLSTM2Model):
     def forward(  # type: ignore[override]
         self,
         x: torch.Tensor,
-        hx: STATE3 | None = None,
+        hx: PhyLSTM3States | None = None,
         *,
         return_states: bool = False,
     ) -> PhyLSTM3Output | tuple[PhyLSTM3Output, PhyLSTM3States]:
