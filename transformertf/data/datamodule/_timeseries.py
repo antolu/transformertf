@@ -103,3 +103,16 @@ class TimeSeriesDataModule(DataModuleBase):
             Sample sequence length
         """
         return self.hparams["seq_len"]
+
+    @property
+    def num_past_known_covariates(self) -> int:
+        """
+        Returns the number of past known covariates. This is used by LightningCLI
+        to link arguments to the model.
+
+        Returns
+        -------
+        int
+            Number of past known covariates
+        """
+        return len(self.hparams["known_covariates"])
