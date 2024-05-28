@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TypedDict
+import typing
 
 import torch
 
@@ -14,9 +14,9 @@ __all__ = [
 ]
 
 
-class BoucWenOutput1(TypedDict):
+class BoucWenOutput1(typing.TypedDict):
     z: torch.Tensor
-    b: torch.Tensor
+    b: typing.NotRequired[torch.Tensor]
 
 
 class BoucWenOutput2(BoucWenOutput1):
@@ -29,7 +29,7 @@ class BoucWenOutput3(BoucWenOutput2):
     dr_dt: torch.Tensor
 
 
-class BoucWenStates1(TypedDict):
+class BoucWenStates1(typing.TypedDict):
     lstm1: tuple[torch.Tensor, ...]
 
 
