@@ -58,14 +58,14 @@ class BWLSTM1(nn.Module):
 
         Which can be rewritten as: :math:`\\ddot{B} + g = \\Gamma i(t)`
 
-        This model is designed to be used with the :class:`PhyLSTMModule` class,
+        This model is designed to be used with the :class:`BWLSTM` class,
         but is separated out for modularity.
 
         The model is compile-able with torchdynamo in Pytorch 2.0.
 
         This class only implements the first LSTM, and does not compute the
-        physics constraints that the below models :class:`PhyLSTM2` and
-        :class:`PhyLSTM3` do.
+        physics constraints that the below models :class:`BWLSTMModel2` and
+        :class:`BWLSTMModel3` do.
 
         :param num_layers: Number of LSTM layers.
         :param sequence_length: Length of the input sequence.
