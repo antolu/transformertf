@@ -1,10 +1,8 @@
 from ..._mod_replace import replace_modname
-from ._config import TransformerEncoderConfig
 from ._lightning import TransformerEncoderModule
 from ._model import TransformerEncoder
 
 for _mod in (
-    TransformerEncoderConfig,
     TransformerEncoderModule,
     TransformerEncoder,
 ):
@@ -15,6 +13,5 @@ del _mod
 
 __all__ = [
     "TransformerEncoder",
-    "TransformerEncoderConfig",
     "TransformerEncoderModule",
 ]
