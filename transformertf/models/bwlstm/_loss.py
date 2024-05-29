@@ -1,14 +1,35 @@
 from __future__ import annotations
 
 import dataclasses
-import functools
 import typing
 
 import torch
 from torch import nn
 from torch.nn import functional as F
 
-from ._output import BoucWenOutput1, BoucWenOutput2, BoucWenOutput3
+from ._types import BoucWenOutput1, BoucWenOutput2, BoucWenOutput3
+
+
+class BoucWenOutput12(BoucWenOutput1, BoucWenOutput2):  # type: ignore[misc]
+    pass
+
+
+class BoucWenOutput123(BoucWenOutput12, BoucWenOutput3):  # type: ignore[misc]
+    pass
+
+
+class BWLoss1(typing.TypedDict):
+    loss1: torch.Tensor
+    loss2: torch.Tensor
+
+
+class BWLoss2(BWLoss1):  # type: ignore[misc]
+    loss3: torch.Tensor
+    loss4: torch.Tensor
+
+
+class BWLoss3(BWLoss2):  # type: ignore[misc]
+    loss5: torch.Tensor
 
 
 class BoucWenLoss(nn.Module):
@@ -65,30 +86,58 @@ class BoucWenLoss(nn.Module):
 
     def __init__(self, loss_weights: BoucWenLoss.LossWeights | None = None):
         super().__init__()
-
         loss_weights = loss_weights or BoucWenLoss.LossWeights()
-        assert isinstance(loss_weights, BoucWenLoss.LossWeights)
 
-        self.alpha = loss_weights.alpha
-        self.beta = loss_weights.beta
-        self.gamma = loss_weights.gamma
-        self.eta = loss_weights.eta
-        self.kappa = loss_weights.kappa
+        def to_nn_parameter(x: float) -> nn.Parameter:
+            return nn.Parameter(torch.tensor(x), requires_grad=False)
+
+        self.alpha = to_nn_parameter(loss_weights.alpha)
+        self.beta = to_nn_parameter(loss_weights.beta)
+        self.gamma = to_nn_parameter(loss_weights.gamma)
+        self.eta = to_nn_parameter(loss_weights.eta)
+        self.kappa = to_nn_parameter(loss_weights.kappa)
 
     @property
     def weights(self) -> BoucWenLoss.LossWeights:
         return BoucWenLoss.LossWeights(
-            alpha=self.alpha,
-            beta=self.beta,
-            gamma=self.gamma,
-            eta=self.eta,
-            kappa=self.kappa,
+            alpha=self.alpha.item(),
+            beta=self.beta.item(),
+            gamma=self.gamma.item(),
+            eta=self.eta.item(),
+            kappa=self.kappa.item(),
         )
+
+    @staticmethod
+    def point_prediction(
+        y_hat: BoucWenOutput1 | BoucWenOutput2 | BoucWenOutput3,
+    ) -> torch.Tensor:
+        """
+        Returns the magnetic field prediction, with eddy currents if they are present.
+
+        Parameters
+        ----------
+        y_hat : BoucWenOutput1 | BoucWenOutput2 | BoucWenOutput3
+            The output of the PhyLSTM model. Must contain the "z" key, and
+            optionally the "b" key.
+            z should have shape (batch_size, seq_len, 3)
+            b should have shape (batch_size, seq_len, 2)
+
+        Returns
+        -------
+        torch.Tensor
+            The predicted magnetic field. If eddy currents are present, the
+            prediction will be the sum of the hysteresis and eddy current
+            predictions. The shape is (batch_size, seq_len, 1).
+        """
+        if "b" in y_hat:
+            return y_hat["z"][..., 0, None] + y_hat["b"][..., 0, None]
+
+        return y_hat["z"][..., 0, None]
 
     @typing.overload
     def forward(
         self,
-        y_hat: BoucWenOutput1 | BoucWenOutput2 | BoucWenOutput3,
+        y_hat: BoucWenOutput1 | BoucWenOutput12 | BoucWenOutput123,
         targets: torch.torch.Tensor,
         weights: BoucWenLoss.LossWeights | None = None,
         *,
@@ -98,17 +147,17 @@ class BoucWenLoss(nn.Module):
     @typing.overload
     def forward(
         self,
-        y_hat: BoucWenOutput1 | BoucWenOutput2 | BoucWenOutput3,
+        y_hat: BoucWenOutput1 | BoucWenOutput12 | BoucWenOutput123,
         targets: torch.torch.Tensor,
         weights: BoucWenLoss.LossWeights | None = None,
         *,
         return_all: typing.Literal[True],
-    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]: ...
+    ) -> tuple[torch.Tensor, BWLoss1 | BWLoss2 | BWLoss3]: ...
 
     @typing.overload
     def forward(
         self,
-        y_hat: BoucWenOutput1 | BoucWenOutput2 | BoucWenOutput3,
+        y_hat: BoucWenOutput1 | BoucWenOutput12 | BoucWenOutput123,
         targets: torch.torch.Tensor,
         weights: BoucWenLoss.LossWeights | None = None,
         *,
@@ -117,116 +166,32 @@ class BoucWenLoss(nn.Module):
 
     def forward(
         self,
-        y_hat: BoucWenOutput1 | BoucWenOutput2 | BoucWenOutput3,
+        y_hat: BoucWenOutput1 | BoucWenOutput12 | BoucWenOutput123,
         targets: torch.torch.Tensor,
         weights: BoucWenLoss.LossWeights | None = None,
         *,
         return_all: bool = False,
-    ) -> torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]:
+    ) -> torch.Tensor | tuple[torch.Tensor, BWLoss1 | BWLoss2 | BWLoss3]:
         """
         Computes the loss function.
 
-        :param y_hat: The output of the PhyLSTM model.
-        :param targets: The target values, i.e. the B field.
-        :param weights: The weights for the loss terms.
-        :param return_all: Whether to return all the loss terms.
+        Parameters
+        ----------
+        y_hat : BoucWenOutput1 | BoucWenOutput12 | BoucWenOutput123
+            The output of the PhyLSTM model.
+        targets : torch.Tensor
+            The target values, i.e. the B field.
+        weights : BoucWenLoss.LossWeights | None, optional
+            The weights for the loss terms, by default None.
+        return_all : bool, optional
+            Whether to return all the loss terms, by default False.
 
-        :return: The loss value. For mathematical formulation see the module documentation.
+        Returns
+        -------
+        torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]
+            The loss value. For mathematical formulation see the module documentation.
         """
-        return self.forward_explicit(
-            z=y_hat["z"],
-            b=y_hat.get("b"),
-            y=targets,
-            dz_dt=y_hat.get("dz_dt"),
-            dr_dt=y_hat.get("dr_dt"),
-            gx=y_hat.get("g_gamma_x"),
-            weights=weights,
-            return_all=return_all,
-        )
-
-    @typing.overload
-    def forward_explicit(
-        self,
-        z: torch.Tensor,
-        y: torch.Tensor,
-        b: torch.Tensor | None,
-        dz_dt: torch.Tensor | None,
-        gx: torch.Tensor | None,
-        dr_dt: torch.Tensor | None,
-        weights: BoucWenLoss.LossWeights | None = None,
-        *,
-        return_all: typing.Literal[False],
-    ) -> torch.Tensor: ...
-
-    @typing.overload
-    def forward_explicit(
-        self,
-        z: torch.Tensor,
-        y: torch.Tensor,
-        b: torch.Tensor | None,
-        dz_dt: torch.Tensor | None,
-        gx: torch.Tensor | None,
-        dr_dt: torch.Tensor | None,
-        weights: BoucWenLoss.LossWeights | None = None,
-        *,
-        return_all: typing.Literal[True],
-    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]: ...
-
-    @typing.overload
-    def forward_explicit(
-        self,
-        z: torch.Tensor,
-        y: torch.Tensor,
-        b: torch.Tensor | None,
-        dz_dt: torch.Tensor | None,
-        gx: torch.Tensor | None,
-        dr_dt: torch.Tensor | None,
-        weights: BoucWenLoss.LossWeights | None = None,
-        *,
-        return_all: typing.Literal[False] = False,
-    ) -> torch.Tensor: ...
-
-    @typing.overload
-    def forward_explicit(
-        self,
-        z: torch.Tensor,
-        y: torch.Tensor,
-        b: torch.Tensor | None,
-        dz_dt: torch.Tensor | None,
-        gx: torch.Tensor | None,
-        dr_dt: torch.Tensor | None,
-        weights: BoucWenLoss.LossWeights | None = None,
-        *,
-        return_all: bool = False,
-    ) -> torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]: ...
-
-    def forward_explicit(
-        self,
-        z: torch.Tensor,
-        y: torch.Tensor,
-        b: torch.Tensor | None,
-        dz_dt: torch.Tensor | None,
-        gx: torch.Tensor | None,
-        dr_dt: torch.Tensor | None,
-        weights: BoucWenLoss.LossWeights | None = None,
-        *,
-        return_all: bool = False,
-    ) -> torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]:
-        """
-        Computes the loss function.
-
-        :param z: The output of the PhyLSTM1 model.
-        :param b: Eddy current estimation, Be
-        :param y: The target values, i.e. the B field and its derivative.
-        :param dz_dt: The time derivative of the output of the PhyLSTM2 model.
-        :param gx: The output of the MLP, computed from PhyLSTM2.
-        :param dr_dt: The time derivative of the hysteretic parameter r, from PhyLSTM3.
-        :param weights: The weights for the loss terms.
-        :param return_all: Whether to return all the loss terms.
-
-        :return: The loss value. For mathematical formulation see the module documentation.
-        """
-        if y.ndim != 3:
+        if targets.ndim != 3:
             msg = (
                 "target y must have 3 dimensions. "
                 "Maybe you forgot the batch dimension?"
@@ -246,63 +211,22 @@ class BoucWenLoss(nn.Module):
             eta = weights.eta
             kappa = weights.kappa
 
-        mse = functools.partial(F.mse_loss, reduction="sum")
         loss_dict: dict[str, torch.Tensor] = {}
 
-        B = y[..., 0]
-        with torch.no_grad():
-            B_dot = torch.gradient(y[..., 0], dim=1)[0]
+        loss1 = BoucWenLoss.loss1(y_hat, targets)
+        loss2 = BoucWenLoss.loss2(y_hat, targets)
 
-        Bh_hat = z[..., 0]
-        Bh_dot_hat = z[..., 1]
-        z[..., 2]
+        loss_dict["loss1"] = alpha * loss1
+        loss_dict["loss2"] = beta * loss2
 
-        if dz_dt is not None:
-            Bh_hat_dot = dz_dt[..., 0]
-            Bh_dot_hat_dot = dz_dt[..., 1]
-            r_dot = dz_dt[..., 2]
+        if "dz_dt" in y_hat and "g" in y_hat:
+            y_hat = typing.cast(BoucWenOutput12, y_hat)
+            loss_dict["loss3"] = gamma * BoucWenLoss.loss3(y_hat)
+            loss_dict["loss4"] = eta * BoucWenLoss.loss4(y_hat)
 
-        if b is not None:
-            Be_hat = b[..., 0]
-            Be_dot_hat = b[..., 1]
-
-            Be_hat_dot = torch.gradient(b[..., 0], dim=1)[0]
-            torch.gradient(b[..., 1], dim=1)[0]
-
-            B_hat = Bh_hat + Be_hat
-            B_dot_hat = Bh_dot_hat + Be_dot_hat
-
-            if dz_dt is not None:
-                B_hat_dot = Bh_hat_dot + Be_hat_dot
-                B_dot_hat_dot = Bh_dot_hat_dot  # no eddy current in the derivative of the derivative
-        else:
-            B_hat = Bh_hat
-            B_dot_hat = Bh_dot_hat
-            B_hat_dot = Bh_hat_dot
-
-            if dz_dt is not None:
-                B_dot_hat_dot = Bh_dot_hat_dot
-
-        # PhyLSTM1 loss
-        loss_dict["loss1"] = alpha * mse(B, B_hat)  # ||z1 - y1||^2
-        loss_dict["loss2"] = beta * mse(B_dot, B_dot_hat)  # ||z2 - y2||^2
-
-        if dz_dt is not None and gx is not None:
-            # PhyLSTM2 loss
-            loss_dict["loss3"] = gamma * mse(
-                B_hat_dot,
-                B_dot_hat,
-            )  # ||dz1/dt - z2||^2
-
-            loss_dict["loss4"] = eta * mse(
-                B_dot_hat_dot[..., None], -gx
-            )  # ||dz2/dt + MLP(g, i)||^2
-
-        if dr_dt is not None and dz_dt is not None:
-            # PhyLSTM3 loss
-            loss_dict["loss5"] = kappa * mse(
-                dr_dt, r_dot[..., None]
-            )  # ||dr/dt - dz3/dt||^2
+            if "dr_dt" in y_hat:
+                y_hat = typing.cast(BoucWenOutput123, y_hat)
+                loss_dict["loss5"] = kappa * BoucWenLoss.loss5(y_hat)
 
         total_loss: torch.Tensor = torch.stack(list(loss_dict.values())).sum()
 
@@ -310,3 +234,94 @@ class BoucWenLoss(nn.Module):
             loss_dict["loss"] = total_loss
             return total_loss, loss_dict
         return total_loss
+
+    @staticmethod
+    def loss1(
+        y_hat: BoucWenOutput1,
+        targets: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Computes the loss function for the first output of the model.
+
+        :param y_hat: The output of the PhyLSTM model.
+        :param targets: The target values, i.e. the B field. Shape (batch_size, seq_len, 1).
+
+        :return: The loss value. For mathematical formulation see the module documentation.
+        """
+        B = BoucWenLoss.point_prediction(y_hat)
+
+        return F.mse_loss(targets[..., 0], B, reduction="sum")
+
+    @staticmethod
+    def loss2(
+        y_hat: BoucWenOutput1,
+        targets: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Computes the loss function for the second output of the model.
+
+        :param y_hat: The output of the PhyLSTM model.
+        :param targets: The target values, i.e. the B field. Shape (batch_size, seq_len, 1).
+        :param weights: The weights for the loss terms.
+
+        :return: The loss value. For mathematical formulation see the module documentation.
+        """
+        B_dot = torch.gradient(targets[..., 0], dim=1)[0]
+        B_dot_hat = y_hat["z"][..., 1]
+
+        if "b" in y_hat:
+            B_dot_hat += y_hat["b"][..., 1]
+
+        return F.mse_loss(B_dot, B_dot_hat, reduction="sum")
+
+    @staticmethod
+    def loss3(
+        y_hat: BoucWenOutput12,
+    ) -> torch.Tensor:
+        """
+        Computes the loss function for the third output of the model.
+
+        :param y_hat: The output of the PhyLSTM model.
+
+        :return: The loss value. For mathematical formulation see the module documentation.
+        """
+        B_hat_dot = y_hat["dz_dt"][..., 0]
+        B_dot_hat = y_hat["z"][..., 1]
+
+        if "b" in y_hat:
+            B_hat_dot += torch.gradient(y_hat["b"][..., 0], dim=1)[0]
+            B_dot_hat += y_hat["b"][..., 1]
+
+        return F.mse_loss(B_hat_dot, B_dot_hat, reduction="sum")
+
+    @staticmethod
+    def loss4(
+        y_hat: BoucWenOutput12,
+    ) -> torch.Tensor:
+        """
+        Computes the loss function for the fourth output of the model.
+
+        :param y_hat: The output of the PhyLSTM model.
+
+        :return: The loss value. For mathematical formulation see the module documentation.
+        """
+        B_dot_hat_dot = y_hat["dz_dt"][..., 1]
+        g = y_hat["g"]
+
+        return F.mse_loss(B_dot_hat_dot[..., None], -g, reduction="sum")
+
+    @staticmethod
+    def loss5(
+        y_hat: BoucWenOutput123,
+    ) -> torch.Tensor:
+        """
+        Computes the loss function for the fifth output of the model.
+
+        :param y_hat: The output of the PhyLSTM model.
+
+        :return: The loss value. For mathematical formulation see the module documentation.
+        """
+
+        r_dot = y_hat["dz_dt"][..., 2]
+
+        return F.mse_loss(y_hat["dr_dt"], r_dot[..., None], reduction="sum")
