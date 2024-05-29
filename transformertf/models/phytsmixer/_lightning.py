@@ -6,7 +6,8 @@ import torch
 
 from ...data import EncoderDecoderTargetSample
 from .._base_module import LightningModuleBase
-from ..bwlstm import BoucWenLoss, BoucWenOutput3
+from ..bwlstm import BoucWenLoss
+from ..bwlstm.typing import BWOutput3
 from ._model import PhyTSMixerModel
 
 
@@ -46,7 +47,7 @@ class PhyTSMixer(LightningModuleBase):
             activation=activation,
         )
 
-    def forward(self, x: EncoderDecoderTargetSample) -> BoucWenOutput3:
+    def forward(self, x: EncoderDecoderTargetSample) -> BWOutput3:
         return self.model(
             past_covariates=x["encoder_input"],
             future_covariates=x["decoder_input"][..., :-1],

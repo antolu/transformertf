@@ -15,9 +15,9 @@ except ImportError:
 
 from ...utils import ops
 from ._types import (
-    BoucWenOutput1,
-    BoucWenOutput2,
-    BoucWenOutput3,
+    BWOutput1,
+    BWOutput2,
+    BWOutput3,
     LSTMState,
 )
 
@@ -139,7 +139,7 @@ class BWLSTM1Model(nn.Module):
         hx: LSTMState | None = None,
         *,
         return_states: typing.Literal[False] = False,
-    ) -> BoucWenOutput1: ...
+    ) -> BWOutput1: ...
 
     @typing.overload
     def forward(
@@ -148,7 +148,7 @@ class BWLSTM1Model(nn.Module):
         hx: LSTMState | None = None,
         *,
         return_states: typing.Literal[True],
-    ) -> tuple[BoucWenOutput1, LSTMState]: ...
+    ) -> tuple[BWOutput1, LSTMState]: ...
 
     def forward(
         self,
@@ -156,7 +156,7 @@ class BWLSTM1Model(nn.Module):
         hx: LSTMState | None = None,
         *,
         return_states: bool = False,
-    ) -> BoucWenOutput1 | tuple[BoucWenOutput1, LSTMState]:
+    ) -> BWOutput1 | tuple[BWOutput1, LSTMState]:
         """
         Forward pass of the model.
         :param x: Input torch.Tensor of shape (batch_size, seq_len, 1).
@@ -170,7 +170,7 @@ class BWLSTM1Model(nn.Module):
         z = self.fc1(o_lstm1)
 
         assert isinstance(h_lstm1, tuple)
-        output: BoucWenOutput1 = {"z": z}
+        output: BWOutput1 = {"z": z}
 
         if return_states:
             return output, ops.detach(h_lstm1)
@@ -220,7 +220,7 @@ class BWLSTM2Model(nn.Module):
         hx: LSTMState | None = None,
         *,
         return_states: typing.Literal[False] = False,
-    ) -> BoucWenOutput2: ...
+    ) -> BWOutput2: ...
 
     @typing.overload  # type: ignore[override]
     def forward(
@@ -230,7 +230,7 @@ class BWLSTM2Model(nn.Module):
         hx: LSTMState | None = None,
         *,
         return_states: typing.Literal[True],
-    ) -> tuple[BoucWenOutput2, LSTMState]:  # type: ignore[override]
+    ) -> tuple[BWOutput2, LSTMState]:  # type: ignore[override]
         ...
 
     def forward(  # type: ignore[override]
@@ -240,7 +240,7 @@ class BWLSTM2Model(nn.Module):
         hx: LSTMState | None = None,
         *,
         return_states: bool = False,
-    ) -> BoucWenOutput2 | tuple[BoucWenOutput2, LSTMState]:
+    ) -> BWOutput2 | tuple[BWOutput2, LSTMState]:
         """
         Forward pass of the model.
         :param x: Input torch.Tensor of shape (batch_size, seq_len, 1), from :class:`BWLSTM1`.
@@ -258,7 +258,7 @@ class BWLSTM2Model(nn.Module):
         g_gamma_x = self.g_plus_x(torch.cat([g, x], dim=2))
 
         output = typing.cast(
-            BoucWenOutput2,
+            BWOutput2,
             {
                 "dz_dt": dz_dt,
                 "g": g,
@@ -307,7 +307,7 @@ class BWLSTM3Model(nn.Module):
         hx: LSTMState | None = None,
         *,
         return_states: typing.Literal[False] = False,
-    ) -> BoucWenOutput3: ...
+    ) -> BWOutput3: ...
 
     @typing.overload  # type: ignore[override]
     def forward(
@@ -317,7 +317,7 @@ class BWLSTM3Model(nn.Module):
         hx: LSTMState | None = None,
         *,
         return_states: typing.Literal[True],
-    ) -> tuple[BoucWenOutput3, LSTMState]: ...
+    ) -> tuple[BWOutput3, LSTMState]: ...
 
     def forward(  # type: ignore[override]
         self,
@@ -326,7 +326,7 @@ class BWLSTM3Model(nn.Module):
         hx: LSTMState | None = None,
         *,
         return_states: bool = False,
-    ) -> BoucWenOutput3 | tuple[BoucWenOutput3, LSTMState]:
+    ) -> BWOutput3 | tuple[BWOutput3, LSTMState]:
         """
         This forward pass can be used for both training and inference.
 
@@ -353,7 +353,7 @@ class BWLSTM3Model(nn.Module):
         dr_dt = self.fc3(o_lstm3)
 
         output = typing.cast(
-            BoucWenOutput3,
+            BWOutput3,
             {
                 "dr_dt": dr_dt,
             },

@@ -9,31 +9,16 @@ import torch
 from ...data import TimeSeriesSample
 from ...utils import ops
 from .._base_module import LightningModuleBase
-from . import _types as t
+from . import typing as t
 from ._loss import BoucWenLoss
-from ._model import BWLSTM1Model, BWLSTM2Model, BWLSTM3Model, LSTMState
-
-HiddenState1: typing.TypeAlias = LSTMState
-HiddenState2: typing.TypeAlias = tuple[LSTMState, LSTMState]
-HiddenState3: typing.TypeAlias = tuple[LSTMState, LSTMState, LSTMState]
-
-HiddenStateNone: typing.TypeAlias = (
-    list[t.BoucWenStates1 | None]
-    | list[t.BoucWenStates2 | None]
-    | list[t.BoucWenStates3 | None]
-)
-BoucWenLSTMOutput: typing.TypeAlias = (
-    t.BoucWenOutput1 | t.BoucWenOutput12 | t.BoucWenOutput123
-)
-BWLSTMStates: typing.TypeAlias = t.BoucWenStates1 | t.BoucWenStates2 | t.BoucWenStates3
-
+from ._model import BWLSTM1Model, BWLSTM2Model, BWLSTM3Model
 
 log = logging.getLogger(__name__)
 
 
 class PredictOutput(typing.TypedDict):
-    output: BoucWenLSTMOutput
-    state: BWLSTMStates
+    output: t.BWLSTMOutput
+    state: t.BWLSTMStates
     point_prediction: torch.Tensor
 
 
@@ -51,9 +36,9 @@ class BWLSTMBase(LightningModuleBase):
         super().__init__()
 
         # default assume we have one dataloader only
-        self._val_hidden: HiddenStateNone = [None]  # type: ignore[assignment]
-        self._test_hidden: HiddenStateNone = [None]  # type: ignore[assignment]
-        self._predict_hidden: HiddenStateNone = [None]  # type: ignore[assignment]
+        self._val_hidden: t.HiddenStateNone = [None]  # type: ignore[assignment]
+        self._test_hidden: t.HiddenStateNone = [None]  # type: ignore[assignment]
+        self._predict_hidden: t.HiddenStateNone = [None]  # type: ignore[assignment]
 
     def on_validation_epoch_start(self) -> None:
         """Reset the hidden states"""
@@ -77,8 +62,8 @@ class BWLSTMBase(LightningModuleBase):
         self,
         batch: TimeSeriesSample,
         batch_idx: int,
-        hidden_state: BWLSTMStates | None = None,
-    ) -> tuple[dict[str, torch.Tensor], BoucWenLSTMOutput, BWLSTMStates]:
+        hidden_state: t.BWLSTMStates | None = None,
+    ) -> tuple[dict[str, torch.Tensor], t.BWLSTMOutput, t.BWLSTMStates]:
         output, hidden = self.forward(
             batch["input"],
             **hidden_state,
@@ -273,27 +258,27 @@ class BWLSTM1(BWLSTMBase):
     def forward(
         self,
         x: torch.Tensor,
-        hx: LSTMState | None = None,
+        hx: t.LSTMState | None = None,
         *,
         return_states: typing.Literal[False] = False,
-    ) -> t.BoucWenOutput1: ...
+    ) -> t.BWOutput1: ...
 
     @typing.overload
     def forward(
         self,
         x: torch.Tensor,
-        hx: LSTMState | None = None,
+        hx: t.LSTMState | None = None,
         *,
         return_states: typing.Literal[True],
-    ) -> tuple[t.BoucWenOutput1, t.BoucWenStates1]: ...
+    ) -> tuple[t.BWOutput1, t.BWState1]: ...
 
     def forward(
         self,
         x: torch.Tensor,
-        hx: LSTMState | None = None,
+        hx: t.LSTMState | None = None,
         *,
         return_states: bool = False,
-    ) -> t.BoucWenOutput1 | tuple[t.BoucWenOutput1, t.BoucWenStates1]:
+    ) -> t.BWOutput1 | tuple[t.BWOutput1, t.BWState1]:
         """
         Forward pass through the model.
 
@@ -370,30 +355,30 @@ class BWLSTM2(BWLSTMBase):
     def forward(
         self,
         x: torch.Tensor,
-        hx: LSTMState | None = None,
-        hx2: LSTMState | None = None,
+        hx: t.LSTMState | None = None,
+        hx2: t.LSTMState | None = None,
         *,
         return_states: typing.Literal[False] = False,
-    ) -> t.BoucWenOutput12: ...
+    ) -> t.BWOutput12: ...
 
     @typing.overload
     def forward(
         self,
         x: torch.Tensor,
-        hx: LSTMState | None = None,
-        hx2: LSTMState | None = None,
+        hx: t.LSTMState | None = None,
+        hx2: t.LSTMState | None = None,
         *,
         return_states: typing.Literal[True],
-    ) -> tuple[t.BoucWenOutput12, t.BoucWenStates2]: ...
+    ) -> tuple[t.BWOutput12, t.BWState2]: ...
 
     def forward(
         self,
         x: torch.Tensor,
-        hx: LSTMState | None = None,
-        hx2: LSTMState | None = None,
+        hx: t.LSTMState | None = None,
+        hx2: t.LSTMState | None = None,
         *,
         return_states: bool = False,
-    ) -> t.BoucWenOutput12 | tuple[t.BoucWenOutput2, t.BoucWenStates2]:
+    ) -> t.BWOutput12 | tuple[t.BWOutput2, t.BWState2]:
         """
         Forward pass through the model.
 
@@ -422,10 +407,8 @@ class BWLSTM2(BWLSTMBase):
         hidden = {"hx": hx, "hx2": hx2}
 
         if return_states:
-            return typing.cast(t.BoucWenOutput12, out), typing.cast(
-                t.BoucWenStates2, hidden
-            )
-        return typing.cast(t.BoucWenOutput12, out)
+            return typing.cast(t.BWOutput12, out), typing.cast(t.BWState2, hidden)
+        return typing.cast(t.BWOutput12, out)
 
 
 class BWLSTM3(BWLSTMBase):
@@ -490,33 +473,33 @@ class BWLSTM3(BWLSTMBase):
     def forward(
         self,
         x: torch.Tensor,
-        hx: LSTMState | None = None,
-        hx2: LSTMState | None = None,
-        hx3: LSTMState | None = None,
+        hx: t.LSTMState | None = None,
+        hx2: t.LSTMState | None = None,
+        hx3: t.LSTMState | None = None,
         *,
         return_states: typing.Literal[False] = False,
-    ) -> t.BoucWenOutput3: ...
+    ) -> t.BWOutput3: ...
 
     @typing.overload
     def forward(
         self,
         x: torch.Tensor,
-        hx: LSTMState | None = None,
-        hx2: LSTMState | None = None,
-        hx3: LSTMState | None = None,
+        hx: t.LSTMState | None = None,
+        hx2: t.LSTMState | None = None,
+        hx3: t.LSTMState | None = None,
         *,
         return_states: typing.Literal[True],
-    ) -> tuple[t.BoucWenOutput3, t.BoucWenStates3]: ...
+    ) -> tuple[t.BWOutput3, t.BWState3]: ...
 
     def forward(
         self,
         x: torch.Tensor,
-        hx: LSTMState | None = None,
-        hx2: LSTMState | None = None,
-        hx3: LSTMState | None = None,
+        hx: t.LSTMState | None = None,
+        hx2: t.LSTMState | None = None,
+        hx3: t.LSTMState | None = None,
         *,
         return_states: bool = False,
-    ) -> t.BoucWenOutput3 | tuple[t.BoucWenOutput3, t.BoucWenStates3]:
+    ) -> t.BWOutput3 | tuple[t.BWOutput3, t.BWState3]:
         """
         Forward pass through the model.
 
@@ -549,10 +532,8 @@ class BWLSTM3(BWLSTMBase):
         hidden = {"hx": hx, "hx2": hx2, "hx3": hx3}
 
         if return_states:
-            return typing.cast(t.BoucWenOutput123, out), typing.cast(
-                t.BoucWenStates3, hidden
-            )
-        return typing.cast(t.BoucWenOutput3, out)
+            return typing.cast(t.BWOutput123, out), typing.cast(t.BWState3, hidden)
+        return typing.cast(t.BWOutput3, out)
 
 
 U = typing.TypeVar("U", int, float)

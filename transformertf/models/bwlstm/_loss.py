@@ -87,7 +87,7 @@ class BoucWenLoss(nn.Module):
 
     @staticmethod
     def point_prediction(
-        y_hat: t.BoucWenOutput1 | t.BoucWenOutput12 | t.BoucWenOutput123,
+        y_hat: t.BWOutput1 | t.BWOutput12 | t.BWOutput123,
     ) -> torch.Tensor:
         """
         Returns the magnetic field prediction, with eddy currents if they are present.
@@ -115,7 +115,7 @@ class BoucWenLoss(nn.Module):
     @typing.overload
     def forward(
         self,
-        y_hat: t.BoucWenOutput1 | t.BoucWenOutput12 | t.BoucWenOutput123,
+        y_hat: t.BWOutput1 | t.BWOutput12 | t.BWOutput123,
         targets: torch.torch.Tensor,
         weights: BoucWenLoss.LossWeights | None = None,
         *,
@@ -125,7 +125,7 @@ class BoucWenLoss(nn.Module):
     @typing.overload
     def forward(
         self,
-        y_hat: t.BoucWenOutput1 | t.BoucWenOutput12 | t.BoucWenOutput123,
+        y_hat: t.BWOutput1 | t.BWOutput12 | t.BWOutput123,
         targets: torch.torch.Tensor,
         weights: BoucWenLoss.LossWeights | None = None,
         *,
@@ -135,7 +135,7 @@ class BoucWenLoss(nn.Module):
     @typing.overload
     def forward(
         self,
-        y_hat: t.BoucWenOutput1 | t.BoucWenOutput12 | t.BoucWenOutput123,
+        y_hat: t.BWOutput1 | t.BWOutput12 | t.BWOutput123,
         targets: torch.torch.Tensor,
         weights: BoucWenLoss.LossWeights | None = None,
         *,
@@ -144,7 +144,7 @@ class BoucWenLoss(nn.Module):
 
     def forward(
         self,
-        y_hat: t.BoucWenOutput1 | t.BoucWenOutput12 | t.BoucWenOutput123,
+        y_hat: t.BWOutput1 | t.BWOutput12 | t.BWOutput123,
         targets: torch.torch.Tensor,
         weights: BoucWenLoss.LossWeights | None = None,
         *,
@@ -198,12 +198,12 @@ class BoucWenLoss(nn.Module):
         loss_dict["loss2"] = beta * loss2
 
         if "dz_dt" in y_hat and "g" in y_hat:
-            y_hat = typing.cast(t.BoucWenOutput12, y_hat)
+            y_hat = typing.cast(t.BWOutput12, y_hat)
             loss_dict["loss3"] = gamma * BoucWenLoss.loss3(y_hat)
             loss_dict["loss4"] = eta * BoucWenLoss.loss4(y_hat)
 
             if "dr_dt" in y_hat:
-                y_hat = typing.cast(t.BoucWenOutput123, y_hat)
+                y_hat = typing.cast(t.BWOutput123, y_hat)
                 loss_dict["loss5"] = kappa * BoucWenLoss.loss5(y_hat)
 
         total_loss: torch.Tensor = torch.stack(list(loss_dict.values())).sum()
@@ -215,7 +215,7 @@ class BoucWenLoss(nn.Module):
 
     @staticmethod
     def loss1(
-        y_hat: t.BoucWenOutput1,
+        y_hat: t.BWOutput1,
         targets: torch.Tensor,
     ) -> torch.Tensor:
         """
@@ -232,7 +232,7 @@ class BoucWenLoss(nn.Module):
 
     @staticmethod
     def loss2(
-        y_hat: t.BoucWenOutput1,
+        y_hat: t.BWOutput1,
         targets: torch.Tensor,
     ) -> torch.Tensor:
         """
@@ -254,7 +254,7 @@ class BoucWenLoss(nn.Module):
 
     @staticmethod
     def loss3(
-        y_hat: t.BoucWenOutput12,
+        y_hat: t.BWOutput12,
     ) -> torch.Tensor:
         """
         Computes the loss function for the third output of the model.
@@ -274,7 +274,7 @@ class BoucWenLoss(nn.Module):
 
     @staticmethod
     def loss4(
-        y_hat: t.BoucWenOutput12,
+        y_hat: t.BWOutput12,
     ) -> torch.Tensor:
         """
         Computes the loss function for the fourth output of the model.
@@ -290,7 +290,7 @@ class BoucWenLoss(nn.Module):
 
     @staticmethod
     def loss5(
-        y_hat: t.BoucWenOutput123,
+        y_hat: t.BWOutput123,
     ) -> torch.Tensor:
         """
         Computes the loss function for the fifth output of the model.
