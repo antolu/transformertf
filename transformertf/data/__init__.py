@@ -8,6 +8,7 @@ from transformertf.data.dataset import (
 from .._mod_replace import replace_modname
 from ._downsample import downsample
 from ._sample_generator import (
+    EncoderDecoderSample,
     EncoderDecoderTargetSample,
     EncoderTargetSample,
     TimeSeriesSample,
@@ -35,6 +36,9 @@ from .transform import (
 for _mod in (
     WindowGenerator,
     TimeSeriesSample,
+    EncoderTargetSample,
+    EncoderDecoderSample,
+    EncoderDecoderTargetSample,
     FixedPolynomialTransform,
     RunningNormalizer,
     TimeSeriesSampleGenerator,
@@ -56,6 +60,7 @@ __all__ = [
     "EncoderDataset",
     "EncoderDecoderDataModule",
     "EncoderDecoderDataset",
+    "EncoderDecoderSample",
     "EncoderDecoderTargetSample",
     "EncoderTargetSample",
     "FixedPolynomialTransform",

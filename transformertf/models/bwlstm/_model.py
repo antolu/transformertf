@@ -18,25 +18,22 @@ from ._types import (
     BoucWenOutput1,
     BoucWenOutput2,
     BoucWenOutput3,
-    BoucWenStates1,
-    BoucWenStates2,
-    BoucWenStates3,
+    LSTMState,
 )
 
-__all__ = ["BWLSTM1", "BWLSTM2", "BWLSTM3"]
+__all__ = ["BWLSTM1Model", "BWLSTM2Model", "BWLSTM3Model"]
 
 
 log = logging.getLogger(__name__)
 
 
-class BWLSTM1(nn.Module):
+class BWLSTM1Model(nn.Module):
     def __init__(
         self,
-        num_layers: int | tuple[int, ...] = 3,
-        sequence_length: int = 500,
-        hidden_dim: int | tuple[int, ...] = 350,
-        hidden_dim_fc: int | tuple[int, ...] | None = None,
-        dropout: float | tuple[float, ...] = 0.2,
+        num_layers: int = 3,
+        n_dim_model: int = 350,
+        n_dim_fc: int | None = None,
+        dropout: float = 0.2,
     ):
         """
         This is a PyTorch implementation of the Physics inspired neural network
@@ -52,6 +49,7 @@ class BWLSTM1(nn.Module):
         model, with the :math:`u` variable replaced by the magnetic flux
         :math:`B`, and the :math:`f(t)` input function replaced by the current
         :math:`i(t)`.
+
         .. math::
             a\\dot{B}(t) + b(B, \\dot{B}) + r(B, \\dot{B}, B(\\tau)) = \\Gamma i(t)
 
@@ -67,38 +65,38 @@ class BWLSTM1(nn.Module):
         :class:`BWLSTMModel3` do.
 
         :param num_layers: Number of LSTM layers.
-        :param sequence_length: Length of the input sequence.
-        :param hidden_dim: Number of hidden units in each LSTM layer.
+        :param n_dim_model: Number of hidden units in each LSTM layer.
         :param dropout: Dropout probability.
+
+        Parameters
+        ----------
+        num_layers : int
+            Number of LSTM layers.
+        n_dim_model : int
+            Number of hidden units in each LSTM layer.
+        n_dim_fc : int, optional
+            Number of hidden units in the fully connected layer. If None, defaults to n_dim_model // 2.
+        dropout : float
+            Dropout probability.
         """
         super().__init__()
-
-        num_layers_ = _parse_vararg(num_layers, 1)
-        hidden_dim_ = _parse_vararg(hidden_dim, 1)
-        dropout_ = _parse_vararg(dropout, 1)
-
-        self.sequence_length = sequence_length
-        self.hidden_dim = hidden_dim_
 
         # state space variable modeling
         self.lstm1 = nn.LSTM(
             input_size=1,
-            hidden_size=hidden_dim_,
-            num_layers=num_layers_,
+            hidden_size=n_dim_model,
+            num_layers=num_layers,
             batch_first=True,
-            dropout=dropout_,
+            dropout=dropout,
         )
 
-        if hidden_dim_fc is None:
-            hidden_dim_fc_ = hidden_dim_ // 2
-        else:
-            hidden_dim_fc_ = _parse_vararg(hidden_dim_fc, 1)
+        n_dim_fc_ = n_dim_fc or n_dim_model // 2
         self.fc1 = nn.Sequential(
             collections.OrderedDict([
-                ("fc11", nn.Linear(hidden_dim_, hidden_dim_fc_)),
+                ("fc11", nn.Linear(n_dim_model, n_dim_fc_)),
                 ("lrelu1", nn.LeakyReLU()),
-                ("ln1", nn.LayerNorm(hidden_dim_fc_)),
-                ("fc12", nn.Linear(hidden_dim_fc_, 3)),
+                ("ln1", nn.LayerNorm(n_dim_fc_)),
+                ("fc12", nn.Linear(n_dim_fc_, 3)),
             ])
         )
         self.apply(self.weights_init)
@@ -138,7 +136,7 @@ class BWLSTM1(nn.Module):
     def forward(
         self,
         x: torch.Tensor,
-        hx: BoucWenStates1 | None = None,
+        hx: LSTMState | None = None,
         *,
         return_states: typing.Literal[False] = False,
     ) -> BoucWenOutput1: ...
@@ -147,95 +145,79 @@ class BWLSTM1(nn.Module):
     def forward(
         self,
         x: torch.Tensor,
-        hx: BoucWenStates1 | None = None,
+        hx: LSTMState | None = None,
         *,
         return_states: typing.Literal[True],
-    ) -> tuple[BoucWenOutput1, BoucWenStates1]: ...
+    ) -> tuple[BoucWenOutput1, LSTMState]: ...
 
     def forward(
         self,
         x: torch.Tensor,
-        hx: BoucWenStates1 | None = None,
+        hx: LSTMState | None = None,
         *,
         return_states: bool = False,
-    ) -> BoucWenOutput1 | tuple[BoucWenOutput1, BoucWenStates1]:
+    ) -> BoucWenOutput1 | tuple[BoucWenOutput1, LSTMState]:
         """
         Forward pass of the model.
-        :param x: Input torch.Tensor of shape (batch_size, sequence_length, 1).
+        :param x: Input torch.Tensor of shape (batch_size, seq_len, 1).
         :param return_states: If True, return the hidden states of the LSTM.
         :param hx: Optional initial hidden state of the LSTM.
 
-        :return: Output torch.Tensor of shape (batch_size, sequence_length, 1).
+        :return: Output torch.Tensor of shape (batch_size, seq_len, 1).
         """
-        h_lstm1 = hx["lstm1"] if hx is not None else None
-
-        o_lstm1, h_lstm1 = self.lstm1(x, hx=h_lstm1)
+        o_lstm1, h_lstm1 = self.lstm1(x, hx=hx)
 
         z = self.fc1(o_lstm1)
 
         assert isinstance(h_lstm1, tuple)
         output: BoucWenOutput1 = {"z": z}
-        states: BoucWenStates1 = {"lstm1": tuple(o.detach() for o in h_lstm1)}
 
         if return_states:
-            return output, states
+            return output, ops.detach(h_lstm1)
         return output
 
 
-class BWLSTM2(BWLSTM1):
+class BWLSTM2Model(nn.Module):
     def __init__(
         self,
-        num_layers: int | tuple[int, ...] = 3,
-        sequence_length: int = 500,
-        hidden_dim: int | tuple[int, ...] = 350,
-        hidden_dim_fc: int | tuple[int, ...] | None = None,
-        dropout: float | tuple[float, ...] = 0.2,
+        num_layers: int = 3,
+        n_dim_model: int = 350,
+        n_dim_fc: int | None = None,
+        dropout: float = 0.2,
     ) -> None:
-        super().__init__(
+        super().__init__()
+        self.lstm2 = nn.LSTM(
+            input_size=3,
+            hidden_size=n_dim_model,
             num_layers=num_layers,
-            sequence_length=sequence_length,
-            hidden_dim=hidden_dim,
-            hidden_dim_fc=hidden_dim_fc,
+            batch_first=True,
             dropout=dropout,
         )
 
-        hidden_dim_ = _parse_vararg(hidden_dim, 2)
-        num_layers_ = _parse_vararg(num_layers, 2)
-        dropout_ = _parse_vararg(dropout, 2)
+        n_dim_fc_ = n_dim_fc or n_dim_model // 2
 
-        self.lstm2 = nn.LSTM(
-            input_size=3,
-            hidden_size=hidden_dim_,
-            num_layers=num_layers_,
-            batch_first=True,
-            dropout=dropout_,
-        )
-
-        if hidden_dim_fc is None:
-            hidden_dim_fc_ = hidden_dim_ // 2
-        else:
-            hidden_dim_fc_ = _parse_vararg(hidden_dim_fc, 2)
         self.fc2 = nn.Sequential(
             collections.OrderedDict([
-                ("fc21", nn.Linear(hidden_dim_, hidden_dim_fc_)),
+                ("fc21", nn.Linear(n_dim_model, n_dim_fc_)),
                 ("lrelu2", nn.LeakyReLU()),
-                ("ln1", nn.LayerNorm(hidden_dim_fc_)),
-                ("fc22", nn.Linear(hidden_dim_fc_, 1)),
+                ("ln1", nn.LayerNorm(n_dim_fc_)),
+                ("fc22", nn.Linear(n_dim_fc_, 1)),
             ])
         )
 
         self.g_plus_x = nn.Sequential(
-            nn.Linear(2, hidden_dim_fc_),
-            nn.LayerNorm(hidden_dim_fc_),
+            nn.Linear(2, n_dim_fc_),
+            nn.LayerNorm(n_dim_fc_),
             nn.ReLU(),
-            nn.Linear(hidden_dim_fc_, 1),
+            nn.Linear(n_dim_fc_, 1),
         )
 
     @typing.overload  # type: ignore[override]
     def forward(
         self,
         x: torch.Tensor,
-        hx: BoucWenStates2 | None = None,
+        z: torch.Tensor,
+        hx: LSTMState | None = None,
         *,
         return_states: typing.Literal[False] = False,
     ) -> BoucWenOutput2: ...
@@ -244,109 +226,85 @@ class BWLSTM2(BWLSTM1):
     def forward(
         self,
         x: torch.Tensor,
-        hx: BoucWenStates2 | None = None,
+        z: torch.Tensor,
+        hx: LSTMState | None = None,
         *,
         return_states: typing.Literal[True],
-    ) -> tuple[BoucWenOutput2, BoucWenStates2]:  # type: ignore[override]
+    ) -> tuple[BoucWenOutput2, LSTMState]:  # type: ignore[override]
         ...
 
     def forward(  # type: ignore[override]
         self,
         x: torch.Tensor,
-        hx: BoucWenStates2 | None = None,
+        z: torch.Tensor,
+        hx: LSTMState | None = None,
         *,
         return_states: bool = False,
-    ) -> BoucWenOutput2 | tuple[BoucWenOutput2, BoucWenStates2]:
+    ) -> BoucWenOutput2 | tuple[BoucWenOutput2, LSTMState]:
         """
         Forward pass of the model.
-        :param x: Input torch.Tensor of shape (batch_size, sequence_length, 1).
+        :param x: Input torch.Tensor of shape (batch_size, seq_len, 1), from :class:`BWLSTM1`.
+        :param z: Input torch.Tensor of shape (batch_size, seq_len, 3), from :class:`BWLSTM1`.
         :param return_states: If True, return the hidden states of the LSTM.
         :param hx: Optional initial hidden state of the LSTM.
 
-        :return: Output torch.Tensor of shape (batch_size, sequence_length, 1).
+        :return: Output torch.Tensor of shape (batch_size, seq_len, 1).
         """
-        phylstm1_output: BoucWenOutput1
-        hidden1: BoucWenStates1 | None = None
-        if return_states:
-            phylstm1_output, hidden1 = super().forward(x, hx=hx, return_states=True)
-        else:
-            phylstm1_output = super().forward(x, hx=hx, return_states=False)
-
-        z = phylstm1_output["z"]
-
-        h_lstm2 = None if hx is None else hx.get("lstm2", None)
-
         dz_dt = torch.gradient(z, dim=1)[0]
 
-        o_lstm2, h_lstm2 = self.lstm2(z, hx=h_lstm2)
+        o_lstm2, h_lstm2 = self.lstm2(z, hx=hx)
 
         g = self.fc2(o_lstm2)
         g_gamma_x = self.g_plus_x(torch.cat([g, x], dim=2))
 
         output = typing.cast(
             BoucWenOutput2,
-            phylstm1_output
-            | {
+            {
                 "dz_dt": dz_dt,
                 "g": g,
                 "g_gamma_x": g_gamma_x,
             },
         )
         if return_states:
-            assert hidden1 is not None
-            states = hidden1 | {"lstm2": ops.detach(h_lstm2)}  # type: ignore[type-var]
-            return output, typing.cast(BoucWenStates2, states)
+            return output, h_lstm2
         return output
 
 
-class BWLSTM3(BWLSTM2):
+class BWLSTM3Model(nn.Module):
     def __init__(
         self,
-        num_layers: int | tuple[int, ...] = 3,
-        sequence_length: int = 500,
-        hidden_dim: int | tuple[int, ...] = 350,
-        hidden_dim_fc: int | tuple[int, ...] | None = None,
+        num_layers: int = 3,
+        n_dim_model: int = 350,
+        n_dim_fc: int | None = None,
         dropout: float | tuple[float] = 0.2,
     ):
-        super().__init__(
-            num_layers=num_layers,
-            sequence_length=sequence_length,
-            hidden_dim=hidden_dim,
-            hidden_dim_fc=hidden_dim_fc,
-            dropout=dropout,
-        )
-
-        hidden_dim_ = _parse_vararg(hidden_dim, 3)
-        num_layers_ = _parse_vararg(num_layers, 3)
-        dropout_ = _parse_vararg(dropout, 3)
-
+        super().__init__()
         # hysteric parameter modeling
         self.lstm3 = nn.LSTM(
             input_size=2,
-            hidden_size=hidden_dim_,
-            num_layers=num_layers_,
+            hidden_size=n_dim_model,
+            num_layers=num_layers,
             batch_first=True,
-            dropout=dropout_,
+            dropout=dropout,
         )
 
-        if hidden_dim_fc is None:
-            hidden_dim_fc_ = hidden_dim_ // 2
-        else:
-            hidden_dim_fc_ = _parse_vararg(hidden_dim_fc, 3)
+        n_dim_fc = n_dim_fc or n_dim_model // 2
+
         self.fc3 = nn.Sequential(
             collections.OrderedDict([
-                ("fc31", nn.Linear(hidden_dim_, hidden_dim_fc_)),
+                ("fc31", nn.Linear(n_dim_model, n_dim_fc)),
                 ("lrelu3", nn.LeakyReLU()),
-                ("ln3", nn.LayerNorm(hidden_dim_fc_)),
-                ("fc32", nn.Linear(hidden_dim_fc_, 1)),
+                ("ln3", nn.LayerNorm(n_dim_fc)),
+                ("fc32", nn.Linear(n_dim_fc, 1)),
             ])
         )
 
     @typing.overload  # type: ignore[override]
     def forward(
         self,
-        x: torch.Tensor,
-        hx: BoucWenStates3 | None = None,
+        z: torch.Tensor,
+        dz_dt: torch.Tensor,
+        hx: LSTMState | None = None,
         *,
         return_states: typing.Literal[False] = False,
     ) -> BoucWenOutput3: ...
@@ -354,19 +312,21 @@ class BWLSTM3(BWLSTM2):
     @typing.overload  # type: ignore[override]
     def forward(
         self,
-        x: torch.Tensor,
-        hx: BoucWenStates3 | None = None,
+        z: torch.Tensor,
+        dz_dt: torch.Tensor,
+        hx: LSTMState | None = None,
         *,
         return_states: typing.Literal[True],
-    ) -> tuple[BoucWenOutput3, BoucWenStates3]: ...
+    ) -> tuple[BoucWenOutput3, LSTMState]: ...
 
     def forward(  # type: ignore[override]
         self,
-        x: torch.Tensor,
-        hx: BoucWenStates3 | None = None,
+        z: torch.Tensor,
+        dz_dt: torch.Tensor,
+        hx: LSTMState | None = None,
         *,
         return_states: bool = False,
-    ) -> BoucWenOutput3 | tuple[BoucWenOutput3, BoucWenStates3]:
+    ) -> BoucWenOutput3 | tuple[BoucWenOutput3, LSTMState]:
         """
         This forward pass can be used for both training and inference.
 
@@ -374,72 +334,31 @@ class BWLSTM3(BWLSTM2):
         so the model "remembers" the previously input sequence and can continue from there.
 
 
-        :param x: Input sequence of shape (batch_size, sequence_length, 1)
         :param hx: The previous hidden and cell states of the LSTM layers. Leave as None for training
                              and first batch of inference.
         :param return_states: Returns the hidden and cell states of the LSTM layers as well as the output.
 
         :return: The output of the model, and optionally the hidden and cell states of the LSTM layers.
         """
-        phylstm2_output: BoucWenOutput2
-        hidden2: BoucWenStates2 | None = None
-        if return_states:
-            phylstm2_output, hidden2 = super().forward(x, hx=hx, return_states=True)
-        else:
-            phylstm2_output = super().forward(x, hx=hx, return_states=False)
-
-        z = phylstm2_output["z"]
-        dz_dt = phylstm2_output["dz_dt"]
-
-        h_lstm3 = None if hx is None else hx.get("lstm3", None)
-
         dz_dt_0 = einops.repeat(
             dz_dt[:, 0, 1, None],
             "b f -> b t f",
-            t=self.sequence_length,
+            t=z.shape[1],
         )
         delta_z_dot = dz_dt[..., 1, None] - dz_dt_0
         phi = torch.cat([delta_z_dot, z[..., 2, None]], dim=2)
 
-        o_lstm3, h_lstm3 = self.lstm3(phi, hx=h_lstm3)
+        o_lstm3, h_lstm3 = self.lstm3(phi, hx=hx)
 
         dr_dt = self.fc3(o_lstm3)
 
         output = typing.cast(
             BoucWenOutput3,
-            phylstm2_output
-            | {
+            {
                 "dr_dt": dr_dt,
             },
         )
 
         if return_states:
-            assert hidden2 is not None
-            states = hidden2 | {"lstm3": ops.detach(h_lstm3)}  # type: ignore[type-var]
-            return output, typing.cast(BoucWenStates3, states)
+            return output, ops.detach(h_lstm3)
         return output
-
-
-T = typing.TypeVar("T")
-
-
-def _parse_vararg(vararg: T | tuple[T, ...], num_args: int) -> T:
-    """
-    Extract the `num_args`-th argument from `vararg`.
-
-    Parameters
-    ----------
-    vararg
-    num_args
-
-    Returns
-    -------
-
-    """
-    if not isinstance(vararg, tuple):
-        return vararg
-
-    if len(vararg) < num_args:
-        msg = f"Expected at least {num_args} arguments, got {len(vararg)}"
-        raise ValueError(msg)
-    return vararg[num_args - 1]

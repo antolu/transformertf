@@ -5,7 +5,7 @@ import pytest
 
 from transformertf.data import TimeSeriesDataModule
 from transformertf.models.bwlstm import (
-    BWLSTM,
+    BWLSTM3,
 )
 from transformertf.utils.predict import predict_phylstm
 
@@ -21,8 +21,8 @@ def future_covariates(df: pd.DataFrame) -> pd.DataFrame:
 
 
 @pytest.fixture(scope="module")
-def phylstm_module() -> BWLSTM:
-    return BWLSTM(seq_len=100)
+def phylstm_module() -> BWLSTM3:
+    return BWLSTM3()
 
 
 @pytest.fixture(scope="module")
@@ -43,7 +43,7 @@ def phylstm_datamodule(
 
 
 def test_predict_phylstm(
-    phylstm_module: BWLSTM,
+    phylstm_module: BWLSTM3,
     phylstm_datamodule: TimeSeriesDataModule,
     past_covariates: pd.DataFrame,
     future_covariates: pd.DataFrame,

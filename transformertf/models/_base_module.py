@@ -7,7 +7,7 @@ import lightning as L
 import lightning.pytorch.utilities
 import torch
 
-from ..data import TimeSeriesSample
+from ..data import EncoderDecoderTargetSample, TimeSeriesSample
 from ..nn import functional as F
 from ..utils import ops
 
@@ -59,7 +59,7 @@ class LightningModuleBase(L.LightningModule):
     def on_train_batch_end(
         self,
         outputs: torch.Tensor | typing.Mapping[str, typing.Any] | None,
-        batch: typing.Any,
+        batch: TimeSeriesSample | EncoderDecoderTargetSample,
         batch_idx: int,
     ) -> None:
         if "prediction_type" not in self.hparams or (

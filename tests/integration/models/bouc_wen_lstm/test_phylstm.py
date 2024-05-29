@@ -9,14 +9,14 @@ import torch
 
 from transformertf.data import TimeSeriesDataModule
 from transformertf.models.bwlstm import (
-    BWLSTM,
+    BWLSTM3,
 )
 
 from ....conftest import FIELD
 
 
 def test_phylstm_forward_pass(
-    bouc_wen_module: BWLSTM,
+    bouc_wen_module: BWLSTM3,
     bouc_wen_datamodule: TimeSeriesDataModule,
     df: pd.DataFrame,
 ) -> None:
