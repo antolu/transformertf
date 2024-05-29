@@ -26,8 +26,9 @@ torch.set_float32_matmul_precision("high")
 HERE = pathlib.Path(__file__).resolve().parent
 
 
-CONFIG_PATH = HERE / "lstm_config.yml"
+# ============= Configuration =============
 
+CONFIG_PATH = HERE / "lstm_config.yml"
 
 GRID = {
     "dropout": ray.tune.uniform(0.1, 0.5),
@@ -50,6 +51,13 @@ metrics = [
     "SMAPE/validation/dataloader_idx_0",
     "SMAPE/validation/dataloader_idx_1",
 ]
+
+MONITOR = "MSE/validation/dataloader_idx_1"
+LOG_DIR = HERE / "pbt_results"
+RUN_NAME = "PBT-LSTM"
+
+
+# ========= End of Configuration =========
 
 
 def apply_config(
@@ -148,7 +156,7 @@ def main() -> None:
     )
     scheduler = ray.tune.schedulers.PopulationBasedTraining(
         time_attr="training_iteration",
-        metric="MSE/validation/dataloader_idx_1",
+        metric=MONITOR,
         mode="min",
         perturbation_interval=10,
         hyperparam_mutations=GRID,
@@ -159,10 +167,10 @@ def main() -> None:
         max_concurrent_trials=4,
     )
     run_config = ray.train.RunConfig(
-        name="PBT-LSTM",
+        name=RUN_NAME,
         progress_reporter=reporter,
-        storage_path=os.fspath(HERE / "pbt_results"),
-        local_dir=os.fspath(HERE / "pbt_results"),
+        storage_path=os.fspath(LOG_DIR),
+        local_dir=os.fspath(LOG_DIR),
         stop=lambda trial_id, result: math.isnan(result["loss/train"]),
         # checkpoint_config=ray.train.CheckpointConfig(
         #     checkpoint_score_attribute="SMAPE/validation/dataloader_idx_1",
@@ -181,7 +189,7 @@ def main() -> None:
     )
 
     results_grid = tuner.fit()
-    results_grid.get_dataframe().to_parquet(HERE / "pbt_results/results.parquet")
+    results_grid.get_dataframe().to_parquet(LOG_DIR / "results.parquet")
 
 
 if __name__ == "__main__":
