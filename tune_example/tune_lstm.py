@@ -31,15 +31,13 @@ CONFIG_PATH = HERE / "lstm_config.yml"
 
 GRID = {
     "num_layers": ray.tune.choice([1, 2, 3]),
-    "hidden_dim": ray.tune.choice([100, 200, 300, 400, 500]),
-    "hidden_dim_fc": ray.tune.choice([512, 1024, 2048]),
+    "n_dim_model": ray.tune.choice([100, 200, 300, 400, 500]),
     "seq_len": ray.tune.choice([300, 600, 900, 1200]),
 }
 
 PARAM2KEY = {
     "num_layers": "model.init_args.num_layers",
     "hidden_dim": "model.init_args.hidden_dim",
-    "hidden_dim_fc": "model.init_args.hidden_dim_fc",
     "seq_len": "data.init_args.seq_len",
 }
 
@@ -172,6 +170,10 @@ def main() -> None:
     with open(CONFIG_PATH, encoding="locale") as f:
         cli_config = yaml.safe_load(f)
     cli_config.pop("ckpt_path")
+    # disable checkpointing
+    cli_config["trainer"]["checkpoint_best"]["save_top_k"] = 0
+    cli_config["trainer"]["checkpoint_every"]["save_top_k"] = 0
+
     reporter = ray.tune.CLIReporter(
         parameter_columns=list(GRID.keys()),
         metric_columns=metrics,
