@@ -15,6 +15,7 @@ class BoucWenLoss(nn.Module):
     This module implements the PINN loss function for the PhyLSTM model.
 
     The loss function is computed the following way:
+
     .. math::
         \\mathcal{L}_1 = ||z_1 - y_1||^2 \\newline
         \\mathcal{L}_2 = ||z_2 - y_2||^2  \\newline
@@ -32,7 +33,7 @@ class BoucWenLoss(nn.Module):
     following table shows which components are computed for which model output.
 
     +------------------------+-------------------------+-------------------------+-------------------------+
-    |                        | :class:`PhyLSTM1Output` | :class:`PhyLSTM2Output` | :class:`PhyLSTM3Output` |
+    |                        | :class:`t.BWOutput1`    | :class:`t.BWOutput12`   | :class:`t.BWOutput123` |
     +========================+=========================+=========================+=========================+
     | :math:`\\mathcal{L}_1` |   :white_check_mark:    |   :white_check_mark:    |   :white_check_mark:    |
     | :math:`\\mathcal{L}_2` |   :white_check_mark:    |   :white_check_mark:    |   :white_check_mark:    |
@@ -40,6 +41,11 @@ class BoucWenLoss(nn.Module):
     | :math:`\\mathcal{L}_4` |                         |   :white_check_mark:    |   :white_check_mark:    |
     | :math:`\\mathcal{L}_5` |                         |                         |   :white_check_mark:    |
     +========================+=========================+=========================+=========================+
+
+    The loss functions are broken down in the methods :meth:`loss1`, :meth:`loss2`,
+    :meth:`loss3`, :meth:`loss4`, and :meth:`loss5`. The total loss is computed in
+    the :meth:`forward` method which computes a weighted sum of the individual loss*
+    depending on the inputs provided.
 
     """
 
@@ -49,11 +55,11 @@ class BoucWenLoss(nn.Module):
         This class contains the weights for the loss function.
 
         Attributes:
-            alpha: Weight for the first loss term (PhyLSTM1).
-            beta: Weight for the second loss term (PhyLSTM1).
-            gamma: Weight for the third loss term (PhyLSTM2).
-            eta: Weight for the fourth loss term (PhyLSTM2).
-            kappa: weight for the fifth loss term (PhyLSTM3).
+            alpha: Weight for the first loss term (BWLSTM1).
+            beta: Weight for the second loss term (BWLSTM1).
+            gamma: Weight for the third loss term (BWLSTM2).
+            eta: Weight for the fourth loss term (BWLSTM2).
+            kappa: weight for the fifth loss term (BWLSTM3).
         """
 
         alpha: float = 1.0
@@ -63,6 +69,15 @@ class BoucWenLoss(nn.Module):
         kappa: float = 1.0
 
     def __init__(self, loss_weights: BoucWenLoss.LossWeights | None = None):
+        """
+        Initializes the loss function.
+
+        Parameters
+        ----------
+        loss_weights : BoucWenLoss.LossWeights | None, optional
+            The weights for the loss terms, by default None. If None, the default
+            weights are used from the BoucWenLoss.LossWeights class.
+        """
         super().__init__()
         loss_weights = loss_weights or BoucWenLoss.LossWeights()
 
@@ -77,6 +92,14 @@ class BoucWenLoss(nn.Module):
 
     @property
     def weights(self) -> BoucWenLoss.LossWeights:
+        """
+        Returns the weights for the current loss function.
+
+        Returns
+        -------
+        BoucWenLoss.LossWeights
+            The weights for the loss function.
+        """
         return BoucWenLoss.LossWeights(
             alpha=self.alpha.item(),
             beta=self.beta.item(),
@@ -160,14 +183,16 @@ class BoucWenLoss(nn.Module):
         targets : torch.Tensor
             The target values, i.e. the B field.
         weights : BoucWenLoss.LossWeights | None, optional
-            The weights for the loss terms, by default None.
+            The weights for the loss terms, by default None. If None, the weights
+            from the class initialization are used.
         return_all : bool, optional
             Whether to return all the loss terms, by default False.
 
         Returns
         -------
         torch.Tensor | tuple[torch.Tensor, dict[str, torch.Tensor]]
-            The loss value. For mathematical formulation see the module documentation.
+            The loss value. If return_all is True, a tuple is returned with the
+            loss value and a dictionary containing all the loss terms.
         """
         if targets.ndim != 3:
             msg = (
