@@ -220,7 +220,7 @@ class BWLSTMBase(LightningModuleBase):
 class BWLSTM1(BWLSTMBase):
     def __init__(
         self,
-        num_layers: int,
+        num_layers: int = 3,
         n_dim_model: int = 350,
         n_dim_fc: int | None = None,
         dropout: float = 0.2,
