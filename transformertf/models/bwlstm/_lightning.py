@@ -17,13 +17,28 @@ log = logging.getLogger(__name__)
 
 
 class PredictOutput(typing.TypedDict):
+    """
+    The output of a prediction step by the :class:`BWLSTM1`, :class:`BWLSTM2`
+    or :class:`BWLSTM3` lightning modules.
+    """
+
     output: t.BWLSTMOutput
     state: t.BWLSTMStates
     point_prediction: torch.Tensor
 
 
 class StepOutput(PredictOutput):
+    """
+    The output of a training, validation or test step by the
+    :class:`BWLSTM1`, :class:`BWLSTM2` or :class:`BWLSTM3` lightning modules.
+
+    The :attr:`loss3`, :attr:`loss4` and :attr:`loss5` keys are only
+    present when using the :class:`BWLSTM2` or :class:`BWLSTM3` modules.
+    """
+
     loss: torch.Tensor
+    """ The sum of all losses. """
+
     loss1: torch.Tensor
     loss2: torch.Tensor
     loss3: NotRequired[torch.Tensor]
@@ -32,6 +47,12 @@ class StepOutput(PredictOutput):
 
 
 class BWLSTMBase(LightningModuleBase):
+    """
+    Base class for the :class:`BWLSTM1`, :class:`BWLSTM2` and :class:`BWLSTM3`
+    lightning modules, defining common methods for training, validation, testing
+    and prediction steps, as well as handling hidden states and logging.
+    """
+
     def __init__(self) -> None:
         super().__init__()
 
@@ -64,6 +85,28 @@ class BWLSTMBase(LightningModuleBase):
         batch_idx: int,
         hidden_state: t.BWLSTMStates | None = None,
     ) -> tuple[dict[str, torch.Tensor], t.BWLSTMOutput, t.BWLSTMStates]:
+        """
+        Common test step for validation and test steps. This method is used
+        by the :meth:`validation_step` and :meth:`test_step` methods. It
+        computes the model output and loss, and logs the loss.
+
+        If the model output has a batch dimension of 1, it is removed.
+
+        Parameters
+        ----------
+        batch : TimeSeriesSample
+            The batch of data.
+        batch_idx : int
+            The batch index.
+        hidden_state : HiddenState | None
+            The hidden states. If `None`, the hidden states are initialized
+            by the model.
+
+        Returns
+        -------
+        dict[str, torch.Tensor], BoucWenOutput, BoucWenStates
+            The losses, model output and hidden states.
+        """
         output, hidden = self.forward(
             batch["input"],
             **(hidden_state or {}),
@@ -85,6 +128,26 @@ class BWLSTMBase(LightningModuleBase):
     def training_step(
         self, batch: TimeSeriesSample, batch_idx: int
     ) -> dict[str, torch.Tensor]:
+        """
+        The training step for the :class:`BWLSTM1`, :class:`BWLSTM2` and
+        :class:`BWLSTM3` lightning modules. This method computes the model
+        output and loss, and logs the loss.
+
+        No hidden states are passed to the model, as they are initialized
+        by the model.
+
+        Parameters
+        ----------
+        batch : TimeSeriesSample
+            The batch of data.
+        batch_idx : int
+            The batch index.
+
+        Returns
+        -------
+        dict[str, torch.Tensor]
+            The losses, with the key "loss".
+        """
         try:
             target = batch["target"]
         except KeyError as e:
@@ -105,18 +168,21 @@ class BWLSTMBase(LightningModuleBase):
     def on_validation_batch_start(
         self, batch: TimeSeriesSample, batch_idx: int, dataloader_idx: int = 0
     ) -> None:
+        """Initialize hidden states for the validation step."""
         if dataloader_idx >= len(self._val_hidden):
             self._val_hidden.append(None)
 
     def on_test_batch_start(
         self, batch: TimeSeriesSample, batch_idx: int, dataloader_idx: int = 0
     ) -> None:
+        """Initialize hidden states for the test step."""
         if dataloader_idx >= len(self._test_hidden):
             self._test_hidden.append(None)
 
     def on_predict_batch_start(
         self, batch: TimeSeriesSample, batch_idx: int, dataloader_idx: int = 0
     ) -> None:
+        """Initialize hidden states for the prediction step."""
         if dataloader_idx >= len(self._predict_hidden):
             self._predict_hidden.append(None)
 
@@ -126,6 +192,26 @@ class BWLSTMBase(LightningModuleBase):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> StepOutput:
+        """
+        The validation step for the :class:`BWLSTM1`, :class:`BWLSTM2` and
+        :class:`BWLSTM3` lightning modules. This method computes the model
+        output and loss, and logs the loss.
+
+        The hidden states are passed to the model, and updated after the step.
+
+        Parameters
+        ----------
+        batch : TimeSeriesSample
+            The batch of data.
+        batch_idx : int
+        dataloader_idx : int
+            The dataloader index.
+
+        Returns
+        -------
+        StepOutput
+            The losses, model output and hidden states.
+        """
         prev_hidden = self._val_hidden[dataloader_idx]
 
         loss, model_output, hidden = self.common_test_step(
@@ -149,6 +235,27 @@ class BWLSTMBase(LightningModuleBase):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> StepOutput:
+        """
+        The test step for the :class:`BWLSTM1`, :class:`BWLSTM2` and
+        :class:`BWLSTM3` lightning modules. This method computes the model
+        output and loss, and logs the loss.
+
+        The hidden states are passed to the model, and updated after the step.
+
+        Parameters
+        ----------
+        batch : TimeSeriesSample
+            The batch of data
+        batch_idx : int
+            The batch index.
+        dataloader_idx : int
+            The dataloader index.
+
+        Returns
+        -------
+        StepOutput
+            The losses, model output and hidden states.
+        """
         prev_hidden = self._test_hidden[dataloader_idx]
 
         loss, output, hidden = self.common_test_step(  # type: ignore[type-var]
@@ -188,6 +295,17 @@ class BWLSTMBase(LightningModuleBase):
         )
 
     def add_point_prediction(self, outputs: StepOutput) -> None:
+        """
+        Add the point prediction to the outputs dictionary. The point
+        prediction is ordinarily the goal of the model, which is fitted
+        using the PINN loss function.
+
+        Parameters
+        ----------
+        outputs : StepOutput
+            The outputs dictionary, created by the :meth:`training_step`,
+            :meth:`validation_step` or :meth:`test_step` methods.
+        """
         outputs["point_prediction"] = self.criterion.point_prediction(outputs["output"])
 
     def on_train_batch_end(
@@ -196,6 +314,7 @@ class BWLSTMBase(LightningModuleBase):
         batch: TimeSeriesSample,  # type: ignore[override]
         batch_idx: int,
     ) -> None:
+        """Add the point prediction to the outputs."""
         self.add_point_prediction(outputs)
 
     def on_validation_batch_end(
@@ -205,6 +324,8 @@ class BWLSTMBase(LightningModuleBase):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
+        """Save the hidden states."""
+        self.add_point_prediction(outputs)
         self._val_hidden[dataloader_idx] = ops.detach(outputs["state"])
 
     def on_test_batch_end(
@@ -214,6 +335,8 @@ class BWLSTMBase(LightningModuleBase):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
+        """Save the hidden states."""
+        self.add_point_prediction(outputs)
         self._test_hidden[dataloader_idx] = ops.detach(outputs["state"])
 
 
@@ -230,18 +353,25 @@ class BWLSTM1(BWLSTMBase):
     ):
         """
         This module implements a PyTorch Lightning module for hysteresis
-        modeling. The module wraps an instance of :class:`PhyLSTM` and defines
-        the training, validation, testing and prediction steps.
+        modeling. The module wraps an instance of :class:`BWLSTM1Model`, and returns
+        the model output and losses corresponding to the :class:`BWLSTM1Model` model.
 
-        The model parameters are saved to the model directory by Lightning.
-
-        :param num_layers: The number of LSTM layers.
-        :param n_dim_model: The number of hidden units in each LSTM layer.
-        :param n_dim_fc: The number of hidden units in the fully connected layer.
-        :param dropout: The dropout probability.
-        :param lr: The optimizer learning rate. This may be set to "auto"
-                   for use with the Lightning Learning Rate Finder.
-        :param loss_weights: The loss function to be used.
+        Parameters
+        ----------
+        num_layers : int
+            The number of LSTM layers.
+        n_dim_model : int
+            The number of hidden units in each LSTM layer.
+        n_dim_fc : int, optional
+            The number of hidden units in the fully connected layer. If `None`,
+            this is set to `n_dim_model // 2`.
+        dropout : float
+            The dropout probability.
+        loss_weights : BoucWenLoss.LossWeights, optional
+            The loss weights to be used with the :class:`BoucWenLoss` loss function.
+            If `None`, the default loss weights are used from the loss function.
+        log_grad_norm : bool
+            Whether to log the gradient norm at each step.
         """
         super().__init__()
         self.criterion = BoucWenLoss(loss_weights=loss_weights)
@@ -293,7 +423,7 @@ class BWLSTM1(BWLSTMBase):
 
         Returns
         -------
-        BoucWenOutput1 | tuple[BoucWenOutput1, BoucWenStates1]
+        BWOuput1 | tuple[BWOutput1, BWState1]
             The model output.
         """
         return self.bwlstm1(x, hx=hx, return_states=return_states)
@@ -312,18 +442,30 @@ class BWLSTM2(BWLSTMBase):
     ):
         """
         This module implements a PyTorch Lightning module for hysteresis
-        modeling. The module wraps an instance of :class:`PhyLSTM` and defines
-        the training, validation, testing and prediction steps.
+        modeling. The module wraps an instance of :class:`BWLSTM1Model` and
+        :class:`BWLSTM2Model`, and returns the model output and losses
+        corresponding to the :class:`BWLSTM1Model` and :class:`BWLSTM2Model` models.
 
-        The model parameters are saved to the model directory by Lightning.
+        For each class parameter, if a single value is provided, it is used for
+        all models. If a tuple of values is provided, the values are used for
+        the corresponding models.
 
-        :param num_layers: The number of LSTM layers.
-        :param n_dim_model: The number of hidden units in each LSTM layer.
-        :param n_dim_fc: The number of hidden units in the fully connected layer.
-        :param dropout: The dropout probability.
-        :param lr: The optimizer learning rate. This may be set to "auto"
-                   for use with the Lightning Learning Rate Finder.
-        :param loss_weights: The loss function to be used.
+        Parameters
+        ----------
+        num_layers : int | tuple[int, int]
+            The number of LSTM layers.
+        n_dim_model : int | tuple[int, int]
+            The number of hidden units in each LSTM layer.
+        n_dim_fc : int | tuple[int, int], optional
+            The number of hidden units in the fully connected layer. If `None`,
+            this is set to `n_dim_model // 2`.
+        dropout : float | tuple[float, float]
+            The dropout probability.
+        loss_weights : BoucWenLoss.LossWeights, optional
+            The loss weights to be used with the :class:`BoucWenLoss` loss function.
+            If `None`, the default loss weights are used from the loss function.
+        log_grad_norm : bool
+            Whether to log the gradient norm at each step.
         """
         super().__init__()
         self.criterion = BoucWenLoss(loss_weights=loss_weights)
@@ -395,7 +537,7 @@ class BWLSTM2(BWLSTMBase):
 
         Returns
         -------
-        BoucWenOutput2 | tuple[BoucWenOutput2, BoucWenStates2]
+        BWOuput12 | tuple[BWOutput12, BWState12]
             Model output. If `return_states` is `True`,
             the hidden states are also returned.
         """
