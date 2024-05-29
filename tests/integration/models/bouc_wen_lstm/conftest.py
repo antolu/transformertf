@@ -26,10 +26,9 @@ def bouc_wen_datamodule_config(
 @pytest.fixture(scope="module")
 def bouc_wen_module_config() -> dict[str, typing.Any]:
     return {
-        "seq_len": 100,
         "num_layers": 1,
-        "hidden_dim": 10,
-        "hidden_dim_fc": 16,
+        "n_dim_model": 10,
+        "n_dim_fc": 16,
     }
 
 

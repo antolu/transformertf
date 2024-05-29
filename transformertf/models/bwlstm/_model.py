@@ -14,7 +14,7 @@ except ImportError:
     from torch.optim.lr_scheduler import _LRScheduler as LRScheduler  # noqa
 
 from ...utils import ops
-from ._types import (
+from .typing import (
     BWOutput1,
     BWOutput2,
     BWOutput3,

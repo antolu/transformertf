@@ -7,7 +7,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from . import _types as t
+from . import typing as t
 
 
 class BoucWenLoss(nn.Module):
@@ -228,7 +228,7 @@ class BoucWenLoss(nn.Module):
         """
         B = BoucWenLoss.point_prediction(y_hat)
 
-        return F.mse_loss(targets[..., 0], B, reduction="sum")
+        return F.mse_loss(targets, B, reduction="sum")
 
     @staticmethod
     def loss2(

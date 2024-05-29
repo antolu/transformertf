@@ -66,7 +66,7 @@ class BWLSTMBase(LightningModuleBase):
     ) -> tuple[dict[str, torch.Tensor], t.BWLSTMOutput, t.BWLSTMStates]:
         output, hidden = self.forward(
             batch["input"],
-            **hidden_state,
+            **(hidden_state or {}),
             return_states=True,
         )
 
@@ -172,10 +172,10 @@ class BWLSTMBase(LightningModuleBase):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> PredictOutput:
-        prev_hidden = self._predict_hidden[dataloader_idx]
+        prev_hidden: t.BWLSTMStates | dict = self._predict_hidden[dataloader_idx] or {}
 
         output, hidden = self.forward(
-            batch["input"], hx=prev_hidden, return_states=True
+            batch["input"], hx=prev_hidden.get("hx"), return_states=True
         )
         self._predict_hidden[dataloader_idx] = hidden
 
@@ -526,7 +526,7 @@ class BWLSTM3(BWLSTMBase):
 
         out2, hx2 = self.bwlstm2(x, out["z"], hx=hx2, return_states=True)
 
-        out3, hx3 = self.bwlstm3(out2["z"], out2["dz_dt"], hx=hx3, return_states=True)
+        out3, hx3 = self.bwlstm3(out["z"], out2["dz_dt"], hx=hx3, return_states=True)
 
         out = out | out2 | out3
         hidden = {"hx": hx, "hx2": hx2, "hx3": hx3}
