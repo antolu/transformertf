@@ -128,7 +128,7 @@ class LightningModuleBase(L.LightningModule):
     def common_log_step(
         self,
         loss: dict[str, torch.Tensor],
-        stage: typing.Literal["train", "validation", "test", "inference"],
+        stage: typing.Literal["train", "validation", "test", "predict"],
     ) -> dict[str, torch.Tensor]:
         log_dict = {k + f"/{stage}": v for k, v in loss.items()}
 
