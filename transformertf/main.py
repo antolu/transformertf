@@ -76,7 +76,8 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
             ),
         })
 
-        add_callback_defaults(parser)
+        if self.subcommand is not None and self.subcommand == "fit":
+            add_callback_defaults(parser)
 
         add_seq_len_link(parser)
 
