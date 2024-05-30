@@ -18,8 +18,8 @@ from transformertf.data import (
     EncoderDecoderDataModule,  # noqa: F401
     TimeSeriesDataModule,  # noqa: F401
 )
+from transformertf.models.bwlstm import BWLSTM1, BWLSTM2, BWLSTM3  # noqa: F401
 from transformertf.models.lstm import LSTM  # noqa: F401
-from transformertf.models.phylstm import PhyLSTM  # noqa: F401
 from transformertf.models.temporal_fusion_transformer import (  # noqa: F401
     TemporalFusionTransformer,
 )
