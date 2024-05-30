@@ -11,7 +11,9 @@ from __future__ import annotations
 
 import copy
 import dataclasses
+import logging
 import os
+import pprint
 import typing
 
 import lightning as L
@@ -30,6 +32,9 @@ import yaml
 from ..data import DataModuleBase
 from ..main import LightningCLI
 from ..models import LightningModuleBase
+
+log = logging.getLogger(__name__)
+
 
 __all__ = [
     "ASHATuneConfig",
@@ -104,30 +109,26 @@ class Tuneable(ray.tune.Trainable):
     model: LightningModuleBase
     datamodule: DataModuleBase
     trainer: L.Trainer
+    checkpoint_path: str | None = None
 
     CHECKPOINT_FILE = "checkpoint"
 
-    def __init__(
+    def setup(
         self,
+        config: dict[str, typing.Any],
         tune_config: TuneConfig,
         cli_config: dict[str, typing.Any],
     ) -> None:
-        super().__init__()
-        self.tune_config = tune_config
-        self.cli_config = cli_config
-
-        # These will be used if the Trainable is resumed from a checkpoint
-        self.checkpoint_path: str | None = None
-
-    def setup(self, config: dict[str, typing.Any]) -> None:
         torch.set_float32_matmul_precision("high")
 
-        new_config = apply_config(config, self.cli_config, self.tune_config.param2key)
+        new_config = apply_config(config, cli_config, tune_config.param2key)
 
         if "callbacks" not in new_config["trainer"]:
             new_config["trainer"]["callbacks"] = []
-        tune_callback = make_tune_callback(self.tune_config.metrics)
+        tune_callback = make_tune_callback(tune_config.metrics)
         new_config["trainer"]["callbacks"].append(tune_callback)
+
+        log.info(f"New trial config: {pprint.pformat(new_config)}")
 
         cli = LightningCLI(args=new_config, run=False)
 
@@ -263,9 +264,10 @@ def load_cli_config(tune_config: TuneConfig) -> dict[str, typing.Any]:
         msg = f"File not found: {tune_config.cli_config_path}"
         raise FileNotFoundError(msg)
 
-    if not tune_config.cli_config_path.endswith(
-        ".yaml"
-    ) or not tune_config.cli_config_path.endswith(".yml"):
+    if not (
+        tune_config.cli_config_path.endswith(".yaml")
+        or tune_config.cli_config_path.endswith(".yml")
+    ):
         msg = f"File must be a YAML file: {tune_config.cli_config_path}"
         raise ValueError(msg)
 
@@ -275,16 +277,16 @@ def load_cli_config(tune_config: TuneConfig) -> dict[str, typing.Any]:
     cli_config.pop("ckpt_path")
 
     apply_key(cli_config, "trainer.max_epochs", tune_config.num_epochs_per_trial)
-    apply_key(
-        cli_config,
-        "trainer.callbacks",
-        [
-            {
-                "class_path": "ray.train.lightning.RayTrainReportCallback",
-            }
-        ],
-    )
     apply_key(cli_config, "trainer.enable_progress_bar", value=False)
+    # apply_key(
+    #     cli_config,
+    #     "trainer.callbacks",
+    #     [
+    #         {
+    #             "class_path": "ray.train.lightning.RayTrainReportCallback",
+    #         }
+    #     ],
+    # )
     apply_key(
         cli_config,
         "trainer.plugins",
@@ -339,15 +341,16 @@ def configure_tuner(
     tune_config: TuneConfig, cli_config: dict[str, typing.Any]
 ) -> ray.tune.Tuner:
     reporter = configure_reporter(tune_config.grid, tune_config.metrics)
-    configure_search_alg(tune_config.monitor)
 
     if isinstance(tune_config, ASHATuneConfig):
+        search_alg = configure_search_alg(tune_config.monitor)
         scheduler = configure_asha_scheduler(
             tune_config.num_epochs_per_trial,
             tune_config.patience,
             tune_config.reduction_factor,
         )
     elif isinstance(tune_config, PBTTuneConfig):
+        search_alg = None
         scheduler = configure_pbt_scheduler(
             tune_config.perturbation_interval,
             tune_config.time_attr,
@@ -357,11 +360,16 @@ def configure_tuner(
         raise TypeError(msg)
 
     ray_tune_config = ray.tune.TuneConfig(
+        metric=tune_config.monitor
+        if not isinstance(tune_config, PBTTuneConfig)
+        else None,
+        mode="min",
         scheduler=scheduler,
         num_samples=tune_config.num_samples,
         max_concurrent_trials=torch.cuda.device_count() * 2
         if torch.cuda.is_available()
         else 4,
+        search_alg=search_alg,
     )
 
     run_config = ray.train.RunConfig(
@@ -374,7 +382,9 @@ def configure_tuner(
             checkpoint_score_attribute=tune_config.monitor,
             checkpoint_score_order="min",
             num_to_keep=3,
-        ),
+        )
+        if not isinstance(tune_config, PBTTuneConfig)
+        else None,
     )
 
     return ray.tune.Tuner(
@@ -386,6 +396,9 @@ def configure_tuner(
         ),
         tune_config=ray_tune_config,
         run_config=run_config,
+        param_space=tune_config.grid
+        if isinstance(tune_config, ASHATuneConfig)
+        else None,
     )
 
 

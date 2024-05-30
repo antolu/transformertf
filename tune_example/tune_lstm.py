@@ -18,6 +18,7 @@ import ray.tune.search
 import ray.tune.search.hyperopt
 import torch
 
+from transformertf.main import setup_logger
 from transformertf.utils.tune import ASHATuneConfig, tune
 
 torch.set_float32_matmul_precision("high")
@@ -70,6 +71,8 @@ PARAM2KEY = {
 }
 
 metrics = [
+    "RMSE/validation/dataloader_idx_0",
+    "RMSE/validation/dataloader_idx_1",
     "loss/train",
     "loss/validation/dataloader_idx_0",
     "loss/validation/dataloader_idx_1",
@@ -98,6 +101,7 @@ def stop_fn(trial_id: str, result: dict[str, float]) -> bool:
 
 
 def main() -> None:
+    setup_logger(logging_level=1)
     tune_config = ASHATuneConfig(
         grid=GRID,
         param2key=PARAM2KEY,
