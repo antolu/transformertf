@@ -29,13 +29,11 @@ model:
   init_args:
     num_features: 1
     num_layers: 3
-    hidden_dim: 350
-    hidden_dim_fc: 1024
+    n_dim_model: 350
     dropout: 0.2
-    lr: 0.001
     criterion:
         class_path: transformertf.nn.QuantileLoss
-    log_grad_norm: true
+    log_grad_norm: false
 data:
   class_path: transformertf.data.TimeSeriesDataModule
   init_args:
@@ -68,7 +66,3 @@ data:
     num_workers: 4
     dtype: float32
     distributed_sampler: false
-checkpoint_best:
-  save_top_k: 0
-checkpoint_every:
-  save_top_k: 0
