@@ -29,9 +29,7 @@ import ray.tune.search.sample
 import torch
 import yaml
 
-from ..data import DataModuleBase
 from ..main import LightningCLI
-from ..models import LightningModuleBase
 
 log = logging.getLogger(__name__)
 
@@ -41,8 +39,8 @@ __all__ = [
     "PBTTuneConfig",
     "TuneConfig",
     "TuneReportCallback",
-    "Tuneable",
     "tune",
+    "tune_fn",
 ]
 
 
@@ -105,55 +103,45 @@ class TuneReportCallback(
 ): ...
 
 
-class Tuneable(ray.tune.Trainable):
-    model: LightningModuleBase
-    datamodule: DataModuleBase
-    trainer: L.Trainer
-    checkpoint_path: str | None = None
+def tune_fn(
+    config: dict[str, typing.Any],
+    tune_config: TuneConfig,
+    cli_config: dict[str, typing.Any],
+) -> dict[str, float]:
+    torch.set_float32_matmul_precision("high")
 
-    CHECKPOINT_FILE = "checkpoint"
+    new_config = apply_config(config, cli_config, tune_config.param2key)
 
-    def setup(
-        self,
-        config: dict[str, typing.Any],
-        tune_config: TuneConfig,
-        cli_config: dict[str, typing.Any],
-    ) -> None:
-        torch.set_float32_matmul_precision("high")
+    if "callbacks" not in new_config["trainer"]:
+        new_config["trainer"]["callbacks"] = []
+    tune_callback = make_tune_callback(tune_config.metrics)
+    new_config["trainer"]["callbacks"].append(tune_callback)
 
-        new_config = apply_config(config, cli_config, tune_config.param2key)
+    log.info(f"New trial config: {pprint.pformat(new_config)}")
 
-        if "callbacks" not in new_config["trainer"]:
-            new_config["trainer"]["callbacks"] = []
-        tune_callback = make_tune_callback(tune_config.metrics)
-        new_config["trainer"]["callbacks"].append(tune_callback)
+    cli = LightningCLI(args=new_config, run=False)
 
-        log.info(f"New trial config: {pprint.pformat(new_config)}")
+    trainer = cli.trainer
+    model = cli.model
+    datamodule = cli.datamodule
 
-        cli = LightningCLI(args=new_config, run=False)
+    # If `train.get_checkpoint()` is populated, then we are resuming from a checkpoint.
+    if (
+        isinstance(tune_config, PBTTuneConfig)
+        and (checkpoint := ray.train.get_checkpoint()) is not None
+    ):
+        with checkpoint.as_directory() as checkpoint_dir:
+            checkpoint_path = os.path.join(checkpoint_dir, "checkpoint")
 
-        self.trainer = cli.trainer
-        self.model = cli.model
-        self.datamodule = cli.datamodule
+            state_dict = torch.load(checkpoint_path)
+            model.load_state_dict(state_dict["state_dict"])
+            datamodule = type(datamodule).load_from_checkpoint(checkpoint_path)
+    else:
+        checkpoint_path = None
 
-    def step(self) -> dict[str, float]:
-        # trainer = ray.train.lightning.prepare_trainer(trainer)
-        self.trainer.fit(self.model, self.datamodule, ckpt_path=self.checkpoint_path)
-        return {}
+    trainer.fit(model, datamodule, ckpt_path=checkpoint_path)
 
-    def save_checkpoint(self, checkpoint_dir: str) -> str:
-        checkpoint_path = os.path.join(checkpoint_dir, self.CHECKPOINT_FILE)
-        self.trainer.save_checkpoint(checkpoint_path)
-
-        return checkpoint_path
-
-    def load_checkpoint(self, checkpoint_path: str) -> None:
-        state_dict = torch.load(checkpoint_path)
-
-        self.model.load_state_dict(state_dict["state_dict"])
-        self.datamodule = type(self.datamodule).load_from_checkpoint(checkpoint_path)
-
-        self.checkpoint_path = checkpoint_path
+    return {}
 
 
 def read_from_dot_key(config: dict[str, typing.Any], key: str) -> typing.Any:
@@ -390,7 +378,7 @@ def configure_tuner(
     return ray.tune.Tuner(
         ray.tune.with_resources(
             ray.tune.with_parameters(
-                Tuneable, tune_config=tune_config, cli_config=cli_config
+                tune_fn, tune_config=tune_config, cli_config=cli_config
             ),
             resources={"cpu": 4, "gpu": 1},
         ),
