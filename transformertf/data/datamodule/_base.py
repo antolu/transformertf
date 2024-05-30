@@ -17,13 +17,13 @@ import torch
 import torch.utils.data
 
 from .._downsample import DOWNSAMPLE_METHODS, downsample
+from ..dataset import AbstractTimeSeriesDataset
 from ..transform import (
     BaseTransform,
     StandardScaler,
     TransformCollection,
     TransformType,
 )
-from .dataset import AbstractTimeSeriesDataset
 
 if sys.version_info < (3, 12):
     from typing_extensions import override
