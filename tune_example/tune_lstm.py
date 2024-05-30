@@ -9,7 +9,9 @@ import os
 import pathlib
 import typing
 
+import ray
 import ray.train
+import ray.train.lightning
 import ray.tune
 import ray.tune.integration.pytorch_lightning
 import ray.tune.schedulers
@@ -33,12 +35,40 @@ GRID = {
     "num_layers": ray.tune.choice([1, 2, 3]),
     "n_dim_model": ray.tune.choice([100, 200, 300, 400, 500]),
     "seq_len": ray.tune.choice([300, 600, 900, 1200]),
+    "quantiles": ray.tune.choice([
+        [0.1, 0.5, 0.9],
+        [0.25, 0.5, 0.75],
+        [0.02, 0.1, 0.25, 0.5, 0.75, 0.9, 0.98],
+        [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+        [
+            0.067,
+            0.133,
+            0.2,
+            0.267,
+            0.333,
+            0.4,
+            0.467,
+            0.5,
+            0.533,
+            0.6,
+            0.667,
+            0.733,
+            0.8,
+            0.867,
+            0.933,
+        ],
+        # 15 quantiles
+        [0.05 * i for i in range(1, 21)],
+    ]),
+    "downsample": ray.tune.choice([10, 20, 40, 50, 60, 80, 100]),
 }
 
 PARAM2KEY = {
     "num_layers": "model.init_args.num_layers",
-    "hidden_dim": "model.init_args.hidden_dim",
+    "n_dim_model": "model.init_args.n_dim_model",
     "seq_len": "data.init_args.seq_len",
+    "quantiles": "model.init_args.criterion.init_args.quantiles",
+    "downsample": "data.init_args.downsample",
 }
 
 metrics = [
@@ -51,11 +81,11 @@ metrics = [
     "SMAPE/validation/dataloader_idx_1",
 ]
 
-MONITOR = "MSE/validation/dataloader_idx_1"
+MONITOR = "RMSE/validation/dataloader_idx_1"
 LOG_DIR = HERE / "lstm_results"
 RUN_NAME = "ASHA-LSTM"
 NUM_EPOCHS = 500
-PATIENCE = 50
+PATIENCE = 10
 NUM_SAMPLES = 100
 
 
@@ -86,6 +116,21 @@ def read_from_dot_key(config: dict[str, typing.Any], key: str) -> typing.Any:
     return value
 
 
+def apply_key(
+    config: dict[str, typing.Any], key: list[str] | str, value: typing.Any
+) -> None:
+    """Recursively apply the key to the config."""
+    if isinstance(key, str):
+        key = key.split(".")
+
+    if len(key) == 1:
+        config[key[0]] = value
+    else:
+        if key[0] not in config:
+            config[key[0]] = {}
+        apply_key(config[key[0]], key[1:], value)
+
+
 def apply_config(
     config: dict[str, typing.Any], cli_config: dict[str, typing.Any]
 ) -> dict[str, typing.Any]:
@@ -106,15 +151,6 @@ def apply_config(
         The new config with the hyperparameters applied.
     """
     new_config = cli_config.copy()
-
-    def apply_key(
-        config: dict[str, typing.Any], key: list[str], value: typing.Any
-    ) -> None:
-        """Recursively apply the key to the config."""
-        if len(key) == 1:
-            config[key[0]] = value
-        else:
-            apply_key(config[key[0]], key[1:], value)
 
     for key, value in config.items():
         new_key = PARAM2KEY[key]
@@ -154,6 +190,7 @@ def train_fn(
     model = cli.model
     dm = cli.datamodule
 
+    # trainer = ray.train.lightning.prepare_trainer(trainer)
     trainer.fit(model, dm)
 
     return {}
@@ -163,16 +200,30 @@ def stop_fn(trial_id: str, result: dict[str, float]) -> bool:
     if math.isnan(result["loss/train"]):
         return True
 
-    return result["SMAP/validation/dataloader_idx_1"] < 0.01
+    return result["SMAPE/validation/dataloader_idx_1"] < 0.01
 
 
 def main() -> None:
     with open(CONFIG_PATH, encoding="locale") as f:
         cli_config = yaml.safe_load(f)
     cli_config.pop("ckpt_path")
-    # disable checkpointing
-    cli_config["trainer"]["checkpoint_best"]["save_top_k"] = 0
-    cli_config["trainer"]["checkpoint_every"]["save_top_k"] = 0
+
+    apply_key(cli_config, "trainer.max_epochs", NUM_EPOCHS)
+    apply_key(
+        cli_config,
+        "trainer.callbacks",
+        [
+            {
+                "class_path": "ray.train.lightning.RayTrainReportCallback",
+            }
+        ],
+    )
+    apply_key(cli_config, "trainer.enable_progress_bar", value=False)
+    apply_key(
+        cli_config,
+        "trainer.plugins",
+        [{"class_path": "ray.train.lightning.RayLightningEnvironment"}],
+    )
 
     reporter = ray.tune.CLIReporter(
         parameter_columns=list(GRID.keys()),
@@ -181,14 +232,13 @@ def main() -> None:
     search_alg = ray.tune.search.hyperopt.HyperOptSearch(
         metric=MONITOR,
         mode="min",
-        points_to_evaluate=[
-            {key: read_from_dot_key(cli_config, PARAM2KEY[key]) for key in GRID}
-        ],
     )
     scheduler = ray.tune.schedulers.ASHAScheduler(
         max_t=NUM_EPOCHS, grace_period=PATIENCE, reduction_factor=2
     )
     tune_config = ray.tune.TuneConfig(
+        metric=MONITOR,
+        mode="min",
         scheduler=scheduler,
         num_samples=NUM_SAMPLES,
         max_concurrent_trials=4,
@@ -200,11 +250,11 @@ def main() -> None:
         storage_path=os.fspath(LOG_DIR),
         local_dir=os.fspath(LOG_DIR),
         stop=stop_fn,
-        # checkpoint_config=ray.train.CheckpointConfig(
-        #     checkpoint_score_attribute="SMAPE/validation/dataloader_idx_1",
-        #     checkpoint_score_order="min",
-        #     num_to_keep=3,
-        # ),
+        checkpoint_config=ray.train.CheckpointConfig(
+            checkpoint_score_attribute=MONITOR,
+            checkpoint_score_order="min",
+            num_to_keep=3,
+        ),
     )
 
     tuner = ray.tune.Tuner(
@@ -219,6 +269,12 @@ def main() -> None:
 
     results_grid = tuner.fit()
     results_grid.get_dataframe().to_parquet(LOG_DIR / "results.parquet")
+
+    best_trial = results_grid.get_best_result(MONITOR, "min", "last")
+
+    print(f"Best trial: {best_trial}")
+    print(f"Best trial config: {best_trial.config}")
+    print(f"Best trial checkpoint: {best_trial.checkpoint}")
 
 
 if __name__ == "__main__":
