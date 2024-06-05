@@ -6,7 +6,8 @@ import torch
 
 from ...data import EncoderDecoderTargetSample
 from .._base_module import LightningModuleBase
-from ..phylstm import PhyLSTM3Output, PhyLSTMLoss
+from ..bwlstm import BoucWenLoss
+from ..bwlstm.typing import BWOutput3
 from ._model import PhyTSMixerModel
 
 
@@ -23,7 +24,7 @@ class PhyTSMixer(LightningModuleBase):
         dropout: float = 0.1,
         activation: typing.Literal["relu", "gelu"] = "relu",
         norm: typing.Literal["batch", "layer"] = "batch",
-        criterion: PhyLSTMLoss | None = None,
+        criterion: BoucWenLoss | None = None,
         *,
         log_grad_norm: bool = False,
         compile_model: bool = False,
@@ -31,7 +32,7 @@ class PhyTSMixer(LightningModuleBase):
         super().__init__()
         self.save_hyperparameters(ignore=["criterion"])
 
-        self.criterion = criterion or PhyLSTMLoss()
+        self.criterion = criterion or BoucWenLoss()
 
         self.model = PhyTSMixerModel(
             num_features=num_features,
@@ -46,7 +47,7 @@ class PhyTSMixer(LightningModuleBase):
             activation=activation,
         )
 
-    def forward(self, x: EncoderDecoderTargetSample) -> PhyLSTM3Output:
+    def forward(self, x: EncoderDecoderTargetSample) -> BWOutput3:
         return self.model(
             past_covariates=x["encoder_input"],
             future_covariates=x["decoder_input"][..., :-1],

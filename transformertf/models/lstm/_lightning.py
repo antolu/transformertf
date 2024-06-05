@@ -24,12 +24,9 @@ class LSTM(LightningModuleBase):
         self,
         num_features: int = 1,
         num_layers: int = 3,
-        seq_len: int = 500,
-        hidden_dim: int = 350,
-        hidden_dim_fc: int = 1024,
+        n_dim_model: int = 350,
         output_dim: int = 1,
         dropout: float = 0.2,
-        lr: float = 1e-3,
         criterion: torch.nn.Module | None = None,
         *,
         log_grad_norm: bool = False,
@@ -41,13 +38,23 @@ class LSTM(LightningModuleBase):
 
         The model parameters are saved to the model directory by Lightning.
 
-        :param num_layers: The number of LSTM layers.
-        :param sequence_length: The length of the input sequence.
-        :param hidden_dim: The number of hidden units in each LSTM layer.
-        :param dropout: The dropout probability.
-        :param lr: The optimizer learning rate. This may be set to "auto"
-                   for use with the Lightning Learning Rate Finder.
-        :param criterion: The loss function to be used.
+        Parameters
+        ----------
+        num_features: int
+            The number of input features.
+        num_layers: int
+            The number of LSTM layers.
+        n_dim_model: int
+            The number of hidden units in each LSTM layer.
+        n_dim_fc: int
+            The number of hidden units in the fully connected layer.
+        output_dim: int
+            The number of output features. If the loss function is a quantile
+            loss, this should be the number of quantiles.
+        dropout: float
+            The dropout probability.
+        log_grad_norm: bool
+            Whether to log the gradient norm.
         """
         super().__init__()
 
@@ -62,12 +69,12 @@ class LSTM(LightningModuleBase):
 
         self.model = torch.nn.LSTM(
             input_size=num_features,
-            hidden_size=hidden_dim,
+            hidden_size=n_dim_model,
             num_layers=num_layers,
             dropout=dropout,
             batch_first=True,
         )
-        self.fc = torch.nn.Linear(hidden_dim, output_dim)
+        self.fc = torch.nn.Linear(n_dim_model, output_dim)
 
     @typing.overload
     def forward(

@@ -18,10 +18,8 @@ from transformertf.data import (
     TimeSeriesDataModule,  # noqa: F401
 )
 from transformertf.models import LightningModuleBase
+from transformertf.models.bwlstm import BWLSTM1, BWLSTM2, BWLSTM3  # noqa: F401
 from transformertf.models.lstm import LSTM  # noqa: F401
-from transformertf.models.phylstm import (  # noqa: F401
-    PhyLSTM,
-)
 from transformertf.models.tsmixer import TSMixer  # noqa: F401
 
 
@@ -78,7 +76,12 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
             ),
         })
 
-        add_callback_defaults(parser)
+        if (
+            hasattr(self, "subcommand")
+            and self.subcommand is not None
+            and self.subcommand == "fit"
+        ):
+            add_callback_defaults(parser)
 
         add_seq_len_link(parser)
 

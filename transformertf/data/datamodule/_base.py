@@ -3,6 +3,7 @@ from __future__ import annotations
 import dataclasses
 import logging
 import pathlib
+import shutil
 import sys
 import tempfile
 import typing
@@ -15,9 +16,8 @@ import pandas as pd
 import torch
 import torch.utils.data
 
-from transformertf.data.dataset import AbstractTimeSeriesDataset
-
 from .._downsample import DOWNSAMPLE_METHODS, downsample
+from ..dataset import AbstractTimeSeriesDataset
 from ..transform import (
     BaseTransform,
     StandardScaler,
@@ -50,9 +50,14 @@ class TmpDir:
 
     name: str
 
+    def cleanup(self) -> None:
+        shutil.rmtree(self.name)
+
 
 class TmpDirType(typing.Protocol):
     name: str
+
+    def cleanup(self) -> None: ...
 
 
 class DataModuleBase(L.LightningDataModule):
@@ -177,9 +182,7 @@ class DataModuleBase(L.LightningDataModule):
         self._tmp_dir: TmpDirType
         if distributed_sampler:
             self._tmp_dir = TmpDir("/tmp/tmp_datamodule/")
-            pth = Path(self._tmp_dir.name)
-
-            pth.mkdir(parents=True, exist_ok=True)
+            Path(self._tmp_dir.name).mkdir(parents=True, exist_ok=True)
         else:
             self._tmp_dir = tempfile.TemporaryDirectory()
 
@@ -327,6 +330,17 @@ class DataModuleBase(L.LightningDataModule):
         else:
             msg = f"Unknown stage {stage}."
             raise ValueError(msg)
+
+    def teardown(self, stage: str) -> None:
+        """
+        Cleans up the temporary directory.
+
+        Parameters
+        ----------
+        stage : str
+            The stage to teardown.
+        """
+        self._tmp_dir.cleanup()
 
     @property
     def train_dataset(self) -> AbstractTimeSeriesDataset:

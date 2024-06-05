@@ -11,7 +11,7 @@ import typing
 import einops
 import torch
 
-from ..phylstm import PhyLSTM3Output
+from ..bwlstm.typing import BWOutput3
 from ..tsmixer import BasicTSMixerModel, TSMixerModel
 
 
@@ -121,7 +121,7 @@ class PhyTSMixerModel(torch.nn.Module):
         past_covariates: torch.Tensor,
         future_covariates: torch.Tensor,
         static_covariates: torch.Tensor | None = None,
-    ) -> PhyLSTM3Output:
+    ) -> BWOutput3:
         z = self.ts1(past_covariates, future_covariates, static_covariates)
         z = self.fc1(z)
 
@@ -138,7 +138,7 @@ class PhyTSMixerModel(torch.nn.Module):
         dr_dt = self.fc3(self.ts3(phi))
 
         return typing.cast(
-            PhyLSTM3Output,
+            BWOutput3,
             {
                 "z": z,
                 "dz_dt": dz_dt,

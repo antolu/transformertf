@@ -7,7 +7,7 @@ import lightning as L
 import lightning.pytorch.utilities
 import torch
 
-from ..data import TimeSeriesSample
+from ..data import EncoderDecoderTargetSample, TimeSeriesSample
 from ..nn import functional as F
 from ..utils import ops
 
@@ -59,7 +59,7 @@ class LightningModuleBase(L.LightningModule):
     def on_train_batch_end(
         self,
         outputs: torch.Tensor | typing.Mapping[str, typing.Any] | None,
-        batch: typing.Any,
+        batch: TimeSeriesSample | EncoderDecoderTargetSample,
         batch_idx: int,
     ) -> None:
         if "prediction_type" not in self.hparams or (
@@ -128,7 +128,7 @@ class LightningModuleBase(L.LightningModule):
     def common_log_step(
         self,
         loss: dict[str, torch.Tensor],
-        stage: typing.Literal["train", "validation", "test", "inference"],
+        stage: typing.Literal["train", "validation", "test", "predict"],
     ) -> dict[str, torch.Tensor]:
         log_dict = {k + f"/{stage}": v for k, v in loss.items()}
 
