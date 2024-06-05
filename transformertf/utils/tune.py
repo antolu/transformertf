@@ -29,6 +29,7 @@ import ray.tune.search.sample
 import torch
 import yaml
 
+from ..callbacks import SetOptimizerParamsCallback
 from ..main import LightningCLI
 
 log = logging.getLogger(__name__)
@@ -117,6 +118,10 @@ def tune_fn(
     tune_callback = make_tune_callback(tune_config.metrics)
     new_config["trainer"]["callbacks"].append(tune_callback)
 
+    if isinstance(tune_config, PBTTuneConfig):
+        set_optimizer_params_callback = make_set_optimizer_params_callback(cli_config)
+        new_config["trainer"]["callbacks"].append(set_optimizer_params_callback)
+
     log.info(f"New trial config: {pprint.pformat(new_config)}")
 
     cli = LightningCLI(args=new_config, run=False)
@@ -136,6 +141,13 @@ def tune_fn(
             state_dict = torch.load(checkpoint_path)
             model.load_state_dict(state_dict["state_dict"])
             datamodule = type(datamodule).load_from_checkpoint(checkpoint_path)
+
+        optimizer_callback = find_optimizer_callback(trainer.callbacks)
+        if optimizer_callback is None:
+            msg = "Optimizer parameter callback not found."
+            raise ValueError(msg)
+
+        update_optimizer_params(optimizer_callback, cli_config)
     else:
         checkpoint_path = None
 
@@ -245,6 +257,77 @@ def make_tune_callback(metrics: list[str] | None = None) -> dict[str, typing.Any
             "save_checkpoints": False,
         },
     }
+
+
+def find_optimizer_params(
+    cli_config: dict[str, typing.Any],
+) -> dict[str, typing.Any]:
+    """Find the optimizer parameters in the LightningCLI config."""
+    optimizer_params = {}
+    if "optimizer" in cli_config and "init_args" in cli_config["optimizer"]:
+        optimizer_params = cli_config["optimizer"]["init_args"]
+
+    return optimizer_params
+
+
+def find_lr_scheduler_params(
+    cli_config: dict[str, typing.Any],
+) -> dict[str, typing.Any]:
+    """Find the LR scheduler parameters in the LightningCLI config."""
+    lr_params = {}
+    if "lr_scheduler" in cli_config and "init_args" in cli_config["lr_scheduler"]:
+        lr_params = cli_config["lr_scheduler"]["init_args"]
+
+    return lr_params
+
+
+def make_set_optimizer_params_callback(
+    cli_config: dict[str, typing.Any],
+) -> dict[str, typing.Any]:
+    """Defines the SetOptimizerParamsCallback in LightningCLI dict style."""
+    return {
+        "class_path": "transformertf.callbacks.SetOptimizerParamsCallback",
+        "init_args": find_optimizer_params(cli_config)
+        | find_lr_scheduler_params(cli_config),
+    }
+
+
+def update_optimizer_params(
+    callback: SetOptimizerParamsCallback,
+    cli_config: dict[str, typing.Any],
+) -> None:
+    """Update the optimizer parameters in the SetOptimizerParamsCallback."""
+    optimizer_params = find_optimizer_params(cli_config)
+    lr_params = find_lr_scheduler_params(cli_config)
+
+    for key, value in optimizer_params.items():
+        setattr(callback, key, value)
+
+    for key, value in lr_params.items():
+        setattr(callback, key, value)
+
+
+def find_optimizer_callback(
+    callbacks: list[L.pytorch.callbacks.Callback],
+) -> SetOptimizerParamsCallback | None:
+    """
+    Find the SetOptimizerParamsCallback in the list of callbacks.
+
+    Parameters
+    ----------
+    callbacks : list[L.pytorch.callbacks.Callback]
+        List of callbacks to search through.
+
+    Returns
+    -------
+    SetOptimizerParamsCallback | None
+        The SetOptimizerParamsCallback if found, otherwise None.
+    """
+    for callback in callbacks:
+        if isinstance(callback, SetOptimizerParamsCallback):
+            return callback
+
+    return None
 
 
 def load_cli_config(tune_config: TuneConfig) -> dict[str, typing.Any]:
