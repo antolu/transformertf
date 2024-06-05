@@ -42,18 +42,12 @@ class SetOptimizerParamsCallback(L.pytorch.callbacks.Callback):
         self, trainer: L.Trainer, pl_module: LightningModuleBase
     ) -> None:
         optimizers = trainer.optimizers
-        lr_schedulers = trainer.lr_scheduler_configs
 
         if len(optimizers) > 1:
             msg = f"The {self.__class__.__name__} callback only supports a single optimizer."
             raise ValueError(msg)
 
-        if len(lr_schedulers) > 1:
-            msg = f"The {self.__class__.__name__} callback only supports a single LR scheduler."
-            raise ValueError(msg)
-
         optimizer = optimizers[0]
-        lr_scheduler = lr_schedulers[0].scheduler
 
         for param_group in optimizer.param_groups:
             if self.lr is not None and "lr" in param_group:
@@ -74,6 +68,20 @@ class SetOptimizerParamsCallback(L.pytorch.callbacks.Callback):
 
                 log.debug(f"Setting optimizer parameter {param_name} to {param_value}.")
                 param_group[param_name] = param_value
+
+        lr_schedulers = trainer.lr_scheduler_configs
+
+        if len(lr_schedulers) == 0:
+            log.debug(
+                "No LR scheduler found, skipping setting LR scheduler parameters."
+            )
+            return
+
+        if len(lr_schedulers) > 1:
+            msg = f"The {self.__class__.__name__} callback only supports a single LR scheduler."
+            raise ValueError(msg)
+
+        lr_scheduler = lr_schedulers[0].scheduler
 
         for param_name, param_value in self.params.items():
             if not hasattr(lr_scheduler, param_name):
