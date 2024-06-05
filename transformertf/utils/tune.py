@@ -316,12 +316,17 @@ def configure_asha_scheduler(
 
 
 def configure_pbt_scheduler(
+    monitor: str,
+    grid: dict[str, ray.tune.search.sample.Domain],
     perturbation_interval: int = 10,
     time_attr: str = "training_iteration",
 ) -> ray.tune.schedulers.TrialScheduler:
     return ray.tune.schedulers.PopulationBasedTraining(
         time_attr=time_attr,
         perturbation_interval=perturbation_interval,
+        mode="min",
+        hyperparam_mutations=grid,
+        metric=monitor,
     )
 
 
@@ -340,6 +345,8 @@ def configure_tuner(
     elif isinstance(tune_config, PBTTuneConfig):
         search_alg = None
         scheduler = configure_pbt_scheduler(
+            tune_config.monitor,
+            tune_config.grid,
             tune_config.perturbation_interval,
             tune_config.time_attr,
         )
@@ -351,7 +358,7 @@ def configure_tuner(
         metric=tune_config.monitor
         if not isinstance(tune_config, PBTTuneConfig)
         else None,
-        mode="min",
+        mode="min" if not isinstance(tune_config, PBTTuneConfig) else None,
         scheduler=scheduler,
         num_samples=tune_config.num_samples,
         max_concurrent_trials=torch.cuda.device_count() * 2
