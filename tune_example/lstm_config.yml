@@ -6,33 +6,32 @@ trainer:
   devices: auto
   num_nodes: 1
   precision: null
-  max_epochs: 100
+  max_epochs: 500
   check_val_every_n_epoch: 1
   gradient_clip_val: 1.0
   use_distributed_sampler: false
+  callbacks:
+    - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+      init_args:
+        logging_interval: epoch
 ckpt_path: null
-lr_scheduler:
-  class_path: torch.optim.lr_scheduler.StepLR
-  init_args:
-    step_size: 10
-    gamma: 0.1
 optimizer:
-  class_path: pytorch_optimizer.Ranger
+  class_path: torch.optim.SGD
   init_args:
     lr: 0.001
-    betas:
-    - 0.95
-    - 0.999
+    momentum: 0.9
     weight_decay: 1e-4
 model:
   class_path: transformertf.models.lstm.LSTM
   init_args:
     num_features: 1
     num_layers: 3
-    n_dim_model: 350
+    n_dim_model: 300
     dropout: 0.2
     criterion:
         class_path: transformertf.nn.QuantileLoss
+        init_args:
+          quantiles: [0.25, 0.5, 0.75]
     log_grad_norm: false
 data:
   class_path: transformertf.data.TimeSeriesDataModule
@@ -50,11 +49,11 @@ data:
       - "~/cernbox/hysteresis/dipole/datasets/val/SPS-BTRAIN-20231102-114546---20231102-115239_post_funky_preprocessed.parquet"
       - "~/cernbox/hysteresis/dipole/datasets/val/SPS-BTRAIN-20240328-160004---20240328-160821_DYNECO_preprocessed.parquet"
     normalize: true
-    seq_len: 600
+    seq_len: 300
     min_seq_len: null
     randomize_seq_len: false
     stride: 1
-    downsample: 50
+    downsample: 40
     downsample_method: interval
     target_depends_on: "I_meas_A_medfilt"
     extra_transforms:
@@ -62,7 +61,7 @@ data:
         - class_path: transformertf.data.transform.DiscreteFunctionTransform
           init_args:
             x: "~/cernbox/hysteresis/calibration_fn/SPS_MB_I2B_CALIBRATION_FN_v4.csv"
-    batch_size: 256
+    batch_size: 512
     num_workers: 4
     dtype: float32
     distributed_sampler: false
