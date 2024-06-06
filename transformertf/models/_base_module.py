@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import collections
 import logging
 import typing
 
@@ -62,15 +63,11 @@ class LightningModuleBase(L.LightningModule):
         batch: TimeSeriesSample | EncoderDecoderTargetSample,
         batch_idx: int,
     ) -> None:
-        if "prediction_type" not in self.hparams or (
-            "prediction_type" in self.hparams
-            and self.hparams["prediction_type"] == "point"
-        ):
-            assert outputs is not None
-            assert "target" in batch
-            assert isinstance(outputs, dict)
-            other_metrics = self.calc_other_metrics(outputs, batch["target"])
-            self.common_log_step(other_metrics, "train")  # type: ignore[attr-defined]
+        assert outputs is not None
+        assert "target" in batch
+        assert isinstance(outputs, dict)
+        other_metrics = self.calc_other_metrics(outputs, batch["target"])
+        self.common_log_step(other_metrics, "train")  # type: ignore[attr-defined]
 
         return super().on_train_batch_end(outputs, batch, batch_idx)  # type: ignore[misc]
 
@@ -85,13 +82,9 @@ class LightningModuleBase(L.LightningModule):
             self._val_outputs[dataloader_idx] = []
         self._val_outputs[dataloader_idx].append(ops.to_cpu(ops.detach(outputs)))  # type: ignore[arg-type,type-var]
 
-        if "prediction_type" not in self.hparams or (
-            "prediction_type" in self.hparams
-            and self.hparams["prediction_type"] == "point"
-        ):
-            assert "target" in batch
-            other_metrics = self.calc_other_metrics(outputs, batch["target"])
-            self.common_log_step(other_metrics, "validation")  # type: ignore[attr-defined]
+        assert "target" in batch
+        other_metrics = self.calc_other_metrics(outputs, batch["target"])
+        self.common_log_step(other_metrics, "validation")  # type: ignore[attr-defined]
 
     def on_test_epoch_start(self) -> None:
         self._test_outputs = {}
@@ -245,9 +238,17 @@ class LightningModuleBase(L.LightningModule):
         # hack to save the original model state dict and not the compiled one
         # this assumes that internally the model is stored in the `model` attribute
         # and that the model is not compiled when the LightningModule is instantiated
-        if hasattr(self, "model"):
-            state_dict["model"] = getattr("model", "_orig_mod", self.model).state_dict(
-                *args, destination=destination, prefix=prefix, keep_vars=keep_vars
-            )
+
+        # keys are xxx._orig_mod.xxx, remove _orig_mod
+        if self.hparams.get("compile_model"):
+            odict = collections.OrderedDict()
+            for k in list(state_dict.keys()):
+                if "_orig_mod" in k:
+                    new_key = k.replace("_orig_mod.", "")
+                    state_dict[new_key] = state_dict[k]
+                else:
+                    odict[k] = state_dict[k]
+
+            state_dict = odict
 
         return state_dict

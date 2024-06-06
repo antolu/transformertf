@@ -317,6 +317,8 @@ class BWLSTMBase(LightningModuleBase):
         """Add the point prediction to the outputs."""
         self.add_point_prediction(outputs)
 
+        super().on_train_batch_end(outputs, batch, batch_idx)
+
     def on_validation_batch_end(
         self,
         outputs: StepOutput,  # type: ignore[override]
@@ -328,6 +330,8 @@ class BWLSTMBase(LightningModuleBase):
         self.add_point_prediction(outputs)
         self._val_hidden[dataloader_idx] = ops.detach(outputs["state"])
 
+        super().on_validation_batch_end(outputs, batch, batch_idx, dataloader_idx)
+
     def on_test_batch_end(
         self,
         outputs: StepOutput,  # type: ignore[override]
@@ -338,6 +342,8 @@ class BWLSTMBase(LightningModuleBase):
         """Save the hidden states."""
         self.add_point_prediction(outputs)
         self._test_hidden[dataloader_idx] = ops.detach(outputs["state"])
+
+        super().on_test_batch_end(outputs, batch, batch_idx, dataloader_idx)
 
 
 class BWLSTM1(BWLSTMBase):
@@ -563,6 +569,7 @@ class BWLSTM3(BWLSTMBase):
         loss_weights: BoucWenLoss.LossWeights | None = None,
         *,
         log_grad_norm: bool = False,
+        compile_model: bool = False,
     ):
         """
         This module implements a PyTorch Lightning module for hysteresis
@@ -610,6 +617,18 @@ class BWLSTM3(BWLSTMBase):
             n_dim_fc=n_dim_fc_[2],
             dropout=dropout_[2],
         )
+
+    def maybe_compile_model(self) -> None:
+        if (
+            "compile_model" in self.hparams
+            and self.hparams["compile_model"]
+            and hasattr(self, "bwlstm1")
+            and hasattr(self, "bwlstm2")
+            and hasattr(self, "bwlstm3")
+        ):
+            self.bwlstm1 = torch.compile(self.bwlstm1)
+            self.bwlstm2 = torch.compile(self.bwlstm2)
+            self.bwlstm3 = torch.compile(self.bwlstm3)
 
     @typing.overload
     def forward(
