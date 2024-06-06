@@ -222,7 +222,7 @@ class BoucWenLoss(nn.Module):
         loss_dict["loss1"] = alpha * loss1
         loss_dict["loss2"] = beta * loss2
 
-        if "dz_dt" in y_hat and "g" in y_hat:
+        if "dz_dt" in y_hat and "g_gamma_x" in y_hat:
             y_hat = typing.cast(t.BWOutput12, y_hat)
             loss_dict["loss3"] = gamma * BoucWenLoss.loss3(y_hat)
             loss_dict["loss4"] = eta * BoucWenLoss.loss4(y_hat)
@@ -309,7 +309,7 @@ class BoucWenLoss(nn.Module):
         :return: The loss value. For mathematical formulation see the module documentation.
         """
         B_dot_hat_dot = y_hat["dz_dt"][..., 1]
-        g = y_hat["g"]
+        g = y_hat["g_gamma_x"]
 
         return F.mse_loss(B_dot_hat_dot[..., None], -g, reduction="sum")
 

@@ -163,7 +163,7 @@ class BWLSTMBase(LightningModuleBase):
         _, losses = self.criterion(model_output, target, return_all=True)
         self.common_log_step(losses, "train")
 
-        return losses
+        return losses | {"output": model_output}
 
     def on_validation_batch_start(
         self, batch: TimeSeriesSample, batch_idx: int, dataloader_idx: int = 0
