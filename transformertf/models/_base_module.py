@@ -159,9 +159,6 @@ class LightningModuleBase(L.LightningModule):
         """
         loss_dict: dict[str, torch.Tensor] = {}
 
-        if target.ndim == 3:
-            target = target.squeeze(-1)
-
         assert isinstance(outputs, dict)
         if "point_prediction" in outputs:
             prediction = outputs["point_prediction"]
@@ -169,8 +166,9 @@ class LightningModuleBase(L.LightningModule):
             prediction = outputs["output"]
 
         assert isinstance(prediction, torch.Tensor)
-        if prediction.ndim == 3:
-            prediction = prediction.squeeze(-1)
+
+        target = target.squeeze()
+        prediction = prediction.squeeze()
 
         loss_dict["MSE"] = torch.nn.functional.mse_loss(prediction, target)
         loss_dict["MAE"] = torch.nn.functional.l1_loss(prediction, target)

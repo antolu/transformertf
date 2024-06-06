@@ -32,6 +32,7 @@ def test_phylstm_forward_pass(
 
     with torch.no_grad():
         losses = bouc_wen_module.training_step(batch, 0)
+        bouc_wen_module.on_train_batch_end(losses, batch, 0)  # type: ignore[arg-type]
 
     for key in ("loss", "loss1", "loss2", "loss3", "loss4", "loss5"):
         assert key in losses
@@ -49,6 +50,7 @@ def test_phylstm_forward_pass(
 
     with torch.no_grad():
         outputs = bouc_wen_module.validation_step(batch, 0)
+        bouc_wen_module.on_validation_batch_end(outputs, batch, 0)
 
     bouc_wen_module.on_validation_epoch_end()
     bouc_wen_module.on_validation_end()
