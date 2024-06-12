@@ -243,7 +243,7 @@ class LightningModuleBase(L.LightningModule):
             for k in list(state_dict.keys()):
                 if "_orig_mod" in k:
                     new_key = k.replace("_orig_mod.", "")
-                    state_dict[new_key] = state_dict[k]
+                    odict[new_key] = state_dict[k]
                 else:
                     odict[k] = state_dict[k]
 
