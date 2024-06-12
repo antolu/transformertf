@@ -9,6 +9,7 @@ import lightning.pytorch.cli
 import pytorch_optimizer  # noqa: F401
 import rich
 import rich.logging
+import torch
 from lightning.pytorch.cli import LightningArgumentParser
 
 from transformertf.data import (
@@ -109,30 +110,30 @@ def add_callback_defaults(parser: LightningArgumentParser) -> None:
     parser.set_defaults({"model_summary.max_depth": 2})
 
     parser.add_lightning_class_args(
-        lightning.pytorch.callbacks.ModelCheckpoint, "checkpoint_every"
+        lightning.pytorch.callbacks.ModelCheckpoint, "fit.checkpoint_every"
     )
     parser.set_defaults({
-        "checkpoint_every.save_top_k": -1,
-        "checkpoint_every.monitor": "loss/validation",
-        "checkpoint_every.mode": "min",
-        "checkpoint_every.dirpath": "checkpoints",
-        "checkpoint_every.filename": "epoch={epoch}-valloss={loss/validation:.4f}",
-        "checkpoint_every.every_n_epochs": 50,
+        "fit.checkpoint_every.save_top_k": -1,
+        "fit.checkpoint_every.monitor": "loss/validation",
+        "fit.checkpoint_every.mode": "min",
+        "fit.checkpoint_every.dirpath": "checkpoints",
+        "fit.checkpoint_every.filename": "epoch={epoch}-valloss={loss/validation:.4f}",
+        "fit.checkpoint_every.every_n_epochs": 50,
     })
 
     parser.add_lightning_class_args(
-        lightning.pytorch.callbacks.ModelCheckpoint, "checkpoint_best"
+        lightning.pytorch.callbacks.ModelCheckpoint, "fit.checkpoint_best"
     )
     parser.set_defaults({
-        "checkpoint_best.save_top_k": 1,
-        "checkpoint_best.monitor": "loss/validation",
-        "checkpoint_best.mode": "min",
-        "checkpoint_best.dirpath": "checkpoints",
-        "checkpoint_best.filename": "epoch={epoch}-valloss={loss/validation:.4f}",
-        "checkpoint_best.save_last": "link",
-        "checkpoint_best.save_weights_only": False,
-        "checkpoint_best.auto_insert_metric_name": False,
-        "checkpoint_best.enable_version_counter": False,
+        "fit.checkpoint_best.save_top_k": 1,
+        "fit.checkpoint_best.monitor": "loss/validation",
+        "fit.checkpoint_best.mode": "min",
+        "fit.checkpoint_best.dirpath": "checkpoints",
+        "fit.checkpoint_best.filename": "epoch={epoch}-valloss={loss/validation:.4f}",
+        "fit.checkpoint_best.save_last": "link",
+        "fit.checkpoint_best.save_weights_only": False,
+        "fit.checkpoint_best.auto_insert_metric_name": False,
+        "fit.checkpoint_best.enable_version_counter": False,
     })
 
 
@@ -180,6 +181,7 @@ def add_num_features_link(
 
 
 def main() -> None:
+    torch.set_float32_matmul_precision("high")
     LightningCLI(
         model_class=LightningModuleBase,
         datamodule_class=DataModuleBase,
