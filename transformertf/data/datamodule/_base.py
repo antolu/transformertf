@@ -556,7 +556,8 @@ class DataModuleBase(L.LightningDataModule):
         df = self.parse_dataframe(
             df,
             timestamp=timestamp,
-            input_columns=self.hparams["known_covariates"],
+            input_columns=self.hparams["known_covariates"]
+            + (self.hparams["known_past_covariates"] or []),
             target_column=(
                 self.hparams["target_covariate"] if not skip_target else None
             ),
@@ -685,15 +686,12 @@ class DataModuleBase(L.LightningDataModule):
             raise RuntimeError(msg)
 
         out = pd.DataFrame(df)
-        for col in self.hparams["known_covariates"]:
+        for col in self.hparams["known_covariates"] + (
+            self.hparams["known_past_covariates"] or []
+        ):
             out[col] = self._input_transforms[col].transform(
                 torch.from_numpy(df[col].to_numpy())
             )
-        if "known_past_covariates" in self.hparams:
-            for col in self.hparams["known_past_covariates"]:
-                out[col] = self._input_transforms[col].transform(
-                    torch.from_numpy(df[col].to_numpy())
-                )
 
         if skip_target:
             return out
@@ -802,8 +800,11 @@ class DataModuleBase(L.LightningDataModule):
 
         # input transforms
         input_transforms: dict[str, list[BaseTransform]]
-        input_transforms = {col: [] for col in self.hparams["known_covariates"]}
-        input_transforms |= {col: [] for col in self.hparams["known_past_covariates"]}
+        input_transforms = {
+            col: []
+            for col in self.hparams["known_covariates"]
+            + (self.hparams["known_past_covariates"] or [])
+        }
 
         for col, transforms in self._extra_transforms_source.items():
             if col == self.hparams["target_covariate"]:
@@ -813,7 +814,9 @@ class DataModuleBase(L.LightningDataModule):
                 raise ValueError(msg)
             input_transforms[col].extend(transforms)
 
-        for input_col in self.hparams["known_covariates"]:
+        for input_col in self.hparams["known_covariates"] + (
+            self.hparams["known_past_covariates"] or []
+        ):
             if normalize:
                 input_transforms[input_col].append(StandardScaler(num_features_=1))
 
@@ -846,14 +849,11 @@ class DataModuleBase(L.LightningDataModule):
         return fitted
 
     def _fit_transforms(self, df: pd.DataFrame) -> None:
-        for col in self.hparams["known_covariates"]:
+        for col in self.hparams["known_covariates"] + (
+            self.hparams["known_past_covariates"] or []
+        ):
             log.info(f"Fitting input scaler for {col}.")
             self._input_transforms[col].fit(torch.from_numpy(df[col].to_numpy()))
-
-        if "known_past_covariates" in self.hparams:
-            for col in self.hparams["known_past_covariates"]:
-                log.info(f"Fitting input scaler for {col}.")
-                self._input_transforms[col].fit(torch.from_numpy(df[col].to_numpy()))
 
         if self.hparams["target_depends_on"] is not None:
             self._target_transform.fit(
