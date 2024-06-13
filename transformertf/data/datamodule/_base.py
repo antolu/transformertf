@@ -689,6 +689,11 @@ class DataModuleBase(L.LightningDataModule):
             out[col] = self._input_transforms[col].transform(
                 torch.from_numpy(df[col].to_numpy())
             )
+        if "known_past_covariates" in self.hparams:
+            for col in self.hparams["known_past_covariates"]:
+                out[col] = self._input_transforms[col].transform(
+                    torch.from_numpy(df[col].to_numpy())
+                )
 
         if skip_target:
             return out
