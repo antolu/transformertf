@@ -24,7 +24,6 @@ def datamodule_transformer(
         val_df_paths=df_path,
         known_covariates=[current_key],
         target_covariate=field_key,
-        known_past_covariates=["time_ms"],
     )
     dm.prepare_data()
     dm.setup()
