@@ -850,6 +850,11 @@ class DataModuleBase(L.LightningDataModule):
             log.info(f"Fitting input scaler for {col}.")
             self._input_transforms[col].fit(torch.from_numpy(df[col].to_numpy()))
 
+        if "known_past_covariates" in self.hparams:
+            for col in self.hparams["known_past_covariates"]:
+                log.info(f"Fitting input scaler for {col}.")
+                self._input_transforms[col].fit(torch.from_numpy(df[col].to_numpy()))
+
         if self.hparams["target_depends_on"] is not None:
             self._target_transform.fit(
                 torch.from_numpy(df[self.hparams["target_depends_on"]].to_numpy()),
