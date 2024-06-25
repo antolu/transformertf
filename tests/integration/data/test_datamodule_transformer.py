@@ -38,6 +38,6 @@ def test_correct_dataset_sample(
 
     sample = dataset[0]
 
-    assert sample["encoder_input"].shape[-1] == 3
-    assert sample["decoder_input"].shape[-1] == 3
+    assert sample["encoder_input"].shape[-1] == 2
+    assert sample["decoder_input"].shape[-1] == 2
     print()
