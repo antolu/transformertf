@@ -502,7 +502,9 @@ class DataModuleBase(L.LightningDataModule):
             The input transforms.
         """
         return {
-            col: self._input_transforms[col] for col in self.hparams["known_covariates"]
+            col: self._input_transforms[col]
+            for col in self.hparams["known_covariates"]
+            + (self.hparams.get("known_past_covariates") or [])
         }
 
     @property
