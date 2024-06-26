@@ -129,15 +129,11 @@ class EncoderDecoderPredictDataset(
         self._past_target = apply_transforms(
             past_target, self._target_transform, past_covariates[..., 0]
         )
+        past_known_transforms = {
+            k: v for k, v in self._input_transform.items() if k in known_past_columns
+        }
         self._past_known_covariates = (
-            apply_transforms(
-                past_known_covariates,
-                {
-                    k: v
-                    for k, v in self._input_transform.items()
-                    if k in past_known_covariates
-                },
-            )  # type: ignore[arg-type]
+            apply_transforms(past_known_covariates, past_known_transforms)  # type: ignore[arg-type]
             if past_known_covariates is not None
             else None
         )
