@@ -92,6 +92,27 @@ class EncoderDecoderPredictDataset(
         torch.utils.data.IterableDataset.__init__(self)
         AbstractTimeSeriesDataset.__init__(self)
 
+        if isinstance(past_covariates, pd.DataFrame) and input_columns is None:
+            msg = (
+                "The input_columns parameter must be provided if "
+                "the past_covariates is a DataFrame."
+            )
+            raise ValueError(msg)
+
+        if isinstance(past_target, pd.DataFrame) and target_column is None:
+            msg = (
+                "The target_column parameter must be provided if "
+                "the past_target is a DataFrame."
+            )
+            raise ValueError(msg)
+
+        if isinstance(future_covariates, pd.DataFrame) and input_columns is None:
+            msg = (
+                "The input_columns parameter must be provided if "
+                "the future_covariates is a DataFrame."
+            )
+            raise ValueError(msg)
+
         self._input_transform = input_transforms or {}
         self._target_transform = target_transform
 
@@ -122,10 +143,13 @@ class EncoderDecoderPredictDataset(
             past_covariate_transforms = {
                 k: v for k, v in self._input_transform.items() if k in input_columns
             }
-        else:
+        else:  # numpy array
             # take first n transforms based on number of covariates
+            num_past_covariates = (
+                past_covariates.shape[1] if len(past_covariates.shape) > 1 else 1
+            )
             past_covariate_transforms = dict(
-                list(self._input_transform.items())[: past_covariates.shape[1]]
+                list(self._input_transform.items())[:num_past_covariates]
             )
 
         if known_past_columns is not None:
@@ -135,9 +159,18 @@ class EncoderDecoderPredictDataset(
                 if k in known_past_columns
             }
         elif past_known_covariates is not None:
+            num_past_covariates = (
+                past_covariates.shape[1] if len(past_covariates.shape) > 1 else 1
+            )
+            num_past_known_covariates = (
+                past_known_covariates.shape[1]
+                if len(past_known_covariates.shape) > 1
+                else 1
+            )
             past_known_covariate_transforms = dict(
                 list(self._input_transform.items())[
-                    past_covariates.shape[1] : past_known_covariates.shape[1]
+                    num_past_covariates : num_past_covariates
+                    + num_past_known_covariates
                 ]
             )
         else:
