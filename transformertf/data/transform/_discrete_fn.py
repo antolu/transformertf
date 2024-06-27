@@ -2,12 +2,25 @@ from __future__ import annotations
 
 import os
 import pathlib
+import typing
 
 import numpy as np
 import torch
 
 from ._base import BaseTransform, TransformType
 from ._utils import _as_numpy, _as_torch
+
+
+def parse_csv_to_numpy_array(csv_string: str, skip_rows: int = 0) -> np.ndarray:
+    # Split the string into rows
+    rows = csv_string.strip().split("\n")
+    rows = rows[skip_rows:]
+
+    # Split each row into values and convert to float
+    data = [list(map(float, row.split(","))) for row in rows]
+
+    # Convert to numpy array
+    return np.array(data)
 
 
 class DiscreteFunctionTransform(BaseTransform):
@@ -25,23 +38,27 @@ class DiscreteFunctionTransform(BaseTransform):
 
     def __init__(
         self,
-        x: np.ndarray | torch.Tensor | os.PathLike | str,
-        y: np.ndarray | torch.Tensor | None = None,
+        xs: np.ndarray | torch.Tensor,
+        ys: np.ndarray | torch.Tensor,
     ):
         super().__init__()
 
-        if isinstance(x, os.PathLike | str):
-            pth = pathlib.Path(x).expanduser()
-            pth_s = os.fspath(pth)
-            arr = np.loadtxt(pth_s, skiprows=2, delimiter=",")
-            x = arr[:, 0]
-            y = arr[:, 1]
-        elif y is None:
-            msg = "DiscreteFunction requires y if x is not a path."
+        self.xs = _as_numpy(xs)
+        self.ys = _as_numpy(ys)
+
+    def __new__(
+        cls,
+        xs: np.ndarray | torch.Tensor | os.PathLike | str,
+        ys: np.ndarray | torch.Tensor | None = None,
+    ) -> typing.Self:
+        if isinstance(xs, os.PathLike | str):
+            return cls.from_csv(xs)
+
+        if ys is None:
+            msg = "DiscreteFunction requires ys if xs is not a path."
             raise ValueError(msg)
 
-        self.xs = _as_numpy(x)
-        self.ys = _as_numpy(y)
+        return super().__new__(cls)
 
     def fit(
         self,
@@ -111,7 +128,7 @@ class DiscreteFunctionTransform(BaseTransform):
 
     @classmethod
     def from_csv(cls, csv_path: os.PathLike | str) -> DiscreteFunctionTransform:
-        if isinstance(csv_path, os.PathLike):
+        if isinstance(csv_path, os.PathLike | str):
             csv_path = pathlib.Path(csv_path).expanduser()
             csv_path = os.fspath(csv_path)
         data = np.loadtxt(csv_path, skiprows=2, delimiter=",")
