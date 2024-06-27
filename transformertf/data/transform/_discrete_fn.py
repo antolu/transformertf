@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import pathlib
-import typing
 
 import numpy as np
 import torch
@@ -38,27 +37,19 @@ class DiscreteFunctionTransform(BaseTransform):
 
     def __init__(
         self,
-        xs: np.ndarray | torch.Tensor,
-        ys: np.ndarray | torch.Tensor,
+        xs: np.ndarray | torch.Tensor | os.PathLike | str,
+        ys: np.ndarray | torch.Tensor | None = None,
     ):
         super().__init__()
 
-        self.xs = _as_numpy(xs)
-        self.ys = _as_numpy(ys)
-
-    def __new__(
-        cls,
-        xs: np.ndarray | torch.Tensor | os.PathLike | str,
-        ys: np.ndarray | torch.Tensor | None = None,
-    ) -> typing.Self:
         if isinstance(xs, os.PathLike | str):
-            return cls.from_csv(xs)
-
-        if ys is None:
-            msg = "DiscreteFunction requires ys if xs is not a path."
+            xs, ys = self.parse_csv_to_numpy_array(xs, skip_rows=1)
+        elif ys is None:
+            msg = "DiscreteFunctionTransform requires y."
             raise ValueError(msg)
 
-        return super().__new__(cls)
+        self.xs = _as_numpy(xs)
+        self.ys = _as_numpy(ys)
 
     def fit(
         self,
@@ -126,13 +117,19 @@ class DiscreteFunctionTransform(BaseTransform):
         with torch.no_grad():
             return y_tensor + self.forward(x)
 
-    @classmethod
-    def from_csv(cls, csv_path: os.PathLike | str) -> DiscreteFunctionTransform:
+    @staticmethod
+    def parse_csv_to_numpy_array(
+        csv_path: os.PathLike | str, skip_rows: int = 0
+    ) -> tuple[np.ndarray, np.ndarray]:
         if isinstance(csv_path, os.PathLike | str):
             csv_path = pathlib.Path(csv_path).expanduser()
             csv_path = os.fspath(csv_path)
-        data = np.loadtxt(csv_path, skiprows=2, delimiter=",")
-        return cls(data[:, 0], data[:, 1])
+        data = np.loadtxt(csv_path, skiprows=skip_rows, delimiter=",")
+        return data[:, 0], data[:, 1]
+
+    @classmethod
+    def from_csv(cls, csv_path: os.PathLike | str) -> DiscreteFunctionTransform:
+        return cls(*cls.parse_csv_to_numpy_array(csv_path, skip_rows=1))
 
     def inverse_function(self) -> DiscreteFunctionTransform:
         """
