@@ -240,27 +240,27 @@ class TransformerSampleGenerator(SampleGenerator[EncoderDecoderTargetSample[T]])
         src_slice = slice(sl.start, sl.start + self._src_seq_len)
         tgt_slice = slice(sl.start + self._src_seq_len, sl.stop)
 
-        src_l = [to_2dim(self._input_data[src_slice])]
+        enc_in_l = [to_2dim(self._input_data[src_slice])]
         if self._known_past_data is not None:
-            src_l.append(to_2dim(self._known_past_data[src_slice]))
-        src_l.append(to_2dim(self._label_data[src_slice]))
+            enc_in_l.append(to_2dim(self._known_past_data[src_slice]))
+        enc_in_l.append(to_2dim(self._label_data[src_slice]))
 
-        tgt_l = [to_2dim(self._input_data[tgt_slice])]
+        dec_in_l = [to_2dim(self._input_data[tgt_slice])]
         if self._known_past_data is not None:
-            tgt_l.append(to_2dim(self._known_past_data[tgt_slice]))
-        tgt_l.append(to_2dim(zeros_like(self._label_data[tgt_slice])))
+            dec_in_l.append(to_2dim(zeros_like(self._known_past_data[tgt_slice])))
+        dec_in_l.append(to_2dim(zeros_like(self._label_data[tgt_slice])))
 
-        src = concat(*src_l, dim=-1)
-        tgt = concat(*tgt_l, dim=-1)
+        enc_in = concat(*enc_in_l, dim=-1)
+        dec_in = concat(*dec_in_l, dim=-1)
         label = to_2dim(self._label_data[tgt_slice])
 
         return typing.cast(
             EncoderDecoderTargetSample[T],
             {
-                "encoder_input": src,
-                "encoder_mask": ones_like(src),
-                "decoder_input": tgt,
-                "decoder_mask": ones_like(tgt),
+                "encoder_input": enc_in,
+                "encoder_mask": ones_like(enc_in),
+                "decoder_input": dec_in,
+                "decoder_mask": ones_like(dec_in),
                 "target": label,
             },
         )
