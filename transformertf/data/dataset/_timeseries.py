@@ -42,24 +42,48 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
         dtype: VALID_DTYPES = "float32",
     ):
         """
-        The dataset used to train the hysteresis model.
+        Time series dataset for training, validation, and prediction. The dataset
+        takes one or more dataframes or numpy arrays as input. The input data
+        should have dimension [num_points, num_features]. For instance, with one
+        univariate time series, the input should have dimension [num_points, 1].
+        The target data is optional and can be used for training and validation. If
+        the target data is provided, it should have the same number of points as the
+        input data. The target data can be a numpy array or a pandas DataFrame.
 
         Multiple dataframes can be provided, and the class will calculate
-        samples from each dataframe on-demand in the __getitem__ method.
+        samples from each dataframe on-demand in the __getitem__ method. There must
+        within each pair of input/target dataframes be the same number of points, and
+        there must be a one-to-one correspondence between the dataframes.
+
         This is done to save memory on larger datasets.
         The dataframes are never merged/concatenated into a single dataset
         as the gap between the timestamps in the dataframes represent
-        a discontinuity in the data.
+        a discontinuity in the data with different time series.
 
         The samples are created by creating "sliding windows" from the input
         and the target data.
-        The input data is the input current, and the target is the magnetic flux
-        (with or without its derivative.). The dimensions of the input and targets are
-        (in_seq_len, 1) and (in_seq_len + out_seq_len, 2) respectively.
-        This is concatenated into a single torch.Tensor of shape (batch, seq_len, 1 or 2) during training.
+        The dimensions of the samples created using the
+        :method:`__getitem__` method are (seq_len, num_features). If there is labeled data,
+        the target data is also included in the samples and will have dimensions
+        (seq_len, 1).
+        This is concatenated into a single :class:`torch.Tensor` of shape
+        (batch, seq_len, 1 or 2) during training. The batch dimension is added by the
+        :class:`torch.utils.data.DataLoader` class.
+
+        **N.B.** The input and target transforms are not applied to the dataframes,
+        and are only encapsulated in object for optional postprocessing use by the
+        user.
 
         Parameters
         ----------
+        input_data : np.ndarray | pd.DataFrame | list[np.ndarray | pd.DataFrame]
+            The input data for the dataset. If multiple data sources are used,
+            provide a list of data sources. Data should already be transformed,
+            since the dataset will only cut the data into samples.
+        target_data : np.ndarray | pd.DataFrame | list[np.ndarray | pd.DataFrame], optional
+            The target data for the dataset. If multiple data sources are used,
+            provide a list of data sources. Data should already be transformed,
+            since the dataset will only cut the data into samples.
         seq_len : int, optional
             The length of the windows to create for the samples. If none, the
             entire dataset is used.
@@ -79,7 +103,7 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
             sequences of different lengths.
         target_transform : BaseTransform, optional
             The transform that was used to transform the target data.
-            This is used to inverse transform the target data.
+            This can be used to inverse transform the target data.
             For the transforms for the input data, use the transforms
             encapsulated in the :class:`DataModuleBase` class.
         dtype : torch.dtype
