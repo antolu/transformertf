@@ -32,6 +32,8 @@ class EncoderDecoderPredictDataset(
         input_columns: list[str] | None = None,
         target_column: str | None = None,
         known_past_columns: list[str] | None = None,
+        *,
+        apply_transforms: bool = True,
         dtype: torch.dtype = torch.float32,
     ) -> None:
         """
@@ -120,78 +122,85 @@ class EncoderDecoderPredictDataset(
         self._target_length = prediction_length
         self._dtype = dtype
 
-        past_known_covariates = (
+        self._past_known_covariates = (
             extract_covariates_from_df(past_covariates, known_past_columns)
             if known_past_columns is not None
             and isinstance(past_covariates, pd.DataFrame)
             else None
         )
 
-        past_covariates = extract_covariates_from_df(past_covariates, input_columns)
-        future_covariates = extract_covariates_from_df(future_covariates, input_columns)
-        past_target = extract_covariates_from_df(past_target, target_column)
-
-        past_covariates = keep_only_context(past_covariates, context_length)
-        past_target = keep_only_context(past_target, context_length)
-        past_known_covariates = (
-            keep_only_context(past_known_covariates, context_length)  # type: ignore[arg-type]
-            if past_known_covariates is not None
-            else None
+        self._past_covariates = extract_covariates_from_df(
+            past_covariates, input_columns
         )
-
-        if input_columns is not None:
-            past_covariate_transforms = {
-                k: v for k, v in self._input_transform.items() if k in input_columns
-            }
-        else:  # numpy array
-            # take first n transforms based on number of covariates
-            num_past_covariates = (
-                past_covariates.shape[1] if len(past_covariates.shape) > 1 else 1
-            )
-            past_covariate_transforms = dict(
-                list(self._input_transform.items())[:num_past_covariates]
-            )
-
-        if known_past_columns is not None:
-            past_known_covariate_transforms = {
-                k: v
-                for k, v in self._input_transform.items()
-                if k in known_past_columns
-            }
-        elif past_known_covariates is not None:
-            num_past_covariates = (
-                past_covariates.shape[1] if len(past_covariates.shape) > 1 else 1
-            )
-            num_past_known_covariates = (
-                past_known_covariates.shape[1]
-                if len(past_known_covariates.shape) > 1
-                else 1
-            )
-            past_known_covariate_transforms = dict(
-                list(self._input_transform.items())[
-                    num_past_covariates : num_past_covariates
-                    + num_past_known_covariates
-                ]
-            )
-        else:
-            past_known_covariate_transforms = {}
-
-        self._past_covariates = apply_transforms(
-            past_covariates,
-            past_covariate_transforms,
+        self._future_covariates = extract_covariates_from_df(
+            future_covariates, input_columns
         )
-        self._future_covariates = apply_transforms(
-            future_covariates,
-            past_covariate_transforms,
-        )
-        self._past_target = apply_transforms(
-            past_target, self._target_transform, past_covariates[..., 0]
-        )
+        self._past_target = extract_covariates_from_df(past_target, target_column)
+
+        self._past_covariates = keep_only_context(self._past_covariates, context_length)
+        self._past_target = keep_only_context(self._past_target, context_length)
         self._past_known_covariates = (
-            apply_transforms(past_known_covariates, past_known_covariate_transforms)  # type: ignore[arg-type]
-            if past_known_covariates is not None
+            keep_only_context(self._past_known_covariates, context_length)  # type: ignore[arg-type]
+            if self._past_known_covariates is not None
             else None
         )
+
+        if apply_transforms:
+            if input_columns is not None:
+                past_covariate_transforms = {
+                    k: v for k, v in self._input_transform.items() if k in input_columns
+                }
+            else:  # numpy array
+                # take first n transforms based on number of covariates
+                num_past_covariates = (
+                    past_covariates.shape[1] if len(past_covariates.shape) > 1 else 1
+                )
+                past_covariate_transforms = dict(
+                    list(self._input_transform.items())[:num_past_covariates]
+                )
+
+            if known_past_columns is not None:
+                past_known_covariate_transforms = {
+                    k: v
+                    for k, v in self._input_transform.items()
+                    if k in known_past_columns
+                }
+            elif self._past_known_covariates is not None:
+                num_past_covariates = (
+                    past_covariates.shape[1] if len(past_covariates.shape) > 1 else 1
+                )
+                num_past_known_covariates = (
+                    self._past_known_covariates.shape[1]
+                    if len(self._past_known_covariates.shape) > 1
+                    else 1
+                )
+                past_known_covariate_transforms = dict(
+                    list(self._input_transform.items())[
+                        num_past_covariates : num_past_covariates
+                        + num_past_known_covariates
+                    ]
+                )
+            else:
+                past_known_covariate_transforms = {}
+
+            self._past_covariates = _apply_transforms(
+                self._past_covariates,
+                past_covariate_transforms,
+            )
+            self._future_covariates = _apply_transforms(
+                self._future_covariates,
+                past_covariate_transforms,
+            )
+            self._past_target = _apply_transforms(
+                self._past_target, self._target_transform, past_covariates[..., 0]
+            )
+            self._past_known_covariates = (
+                _apply_transforms(
+                    self._past_known_covariates, past_known_covariate_transforms
+                )  # type: ignore[arg-type]
+                if self._past_known_covariates is not None
+                else None
+            )
 
         # convert to torch tensors
         self._past_covariates = convert_data(self._past_covariates, dtype)[0]
@@ -223,7 +232,7 @@ class EncoderDecoderPredictDataset(
         between iterations to append the past target to the dataset.
         """
         if transform:
-            past_target = apply_transforms(past_target, self._target_transform)
+            past_target = _apply_transforms(past_target, self._target_transform)
         else:
             past_target = torch.as_tensor(past_target)
 
@@ -240,7 +249,7 @@ class EncoderDecoderPredictDataset(
         between iterations to append the past covariates to the dataset.
         """
         if transform:
-            past_covariates = apply_transforms(past_covariates, self._input_transform)
+            past_covariates = _apply_transforms(past_covariates, self._input_transform)
         else:
             past_covariates = torch.as_tensor(past_covariates)
 
@@ -281,7 +290,7 @@ def keep_only_context(
     return data[-context_length:]
 
 
-def apply_transforms(
+def _apply_transforms(
     data: np.ndarray | pd.Series,
     transforms: dict[str, BaseTransform] | BaseTransform | None = None,
     dependency: np.ndarray | pd.Series | None = None,
