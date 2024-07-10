@@ -27,9 +27,11 @@ class EncoderDecoderDataset(EncoderDataset):
         idx = _check_index(idx, len(self))
 
         # find which df to get samples from
-        df_idx = np.argmax(self._cum_num_samples > idx)
+        df_idx = int(np.argmax(self._cum_num_samples > idx))
 
-        shifted_idx = idx - self._cum_num_samples[df_idx - 1] if df_idx > 0 else idx
+        shifted_idx = int(
+            idx - self._cum_num_samples[df_idx - 1] if df_idx > 0 else idx
+        )
 
         sample = self._sample_gen[df_idx][shifted_idx]
 
