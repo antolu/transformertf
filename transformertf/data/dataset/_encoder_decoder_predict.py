@@ -183,6 +183,9 @@ class EncoderDecoderPredictDataset(
             else:
                 past_known_covariate_transforms = {}
 
+            # assume first feature is what the target depends on
+            first_feature = self._past_covariates[..., 0]
+
             self._past_covariates = _apply_transforms(
                 self._past_covariates,
                 past_covariate_transforms,
@@ -192,7 +195,7 @@ class EncoderDecoderPredictDataset(
                 past_covariate_transforms,
             )
             self._past_target = _apply_transforms(
-                self._past_target, self._target_transform, past_covariates[..., 0]
+                self._past_target, self._target_transform, first_feature
             )
             self._past_known_covariates = (
                 _apply_transforms(
