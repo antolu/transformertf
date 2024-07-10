@@ -65,9 +65,9 @@ class SampleGenerator(typing.Sequence[U]):
     @typing.overload
     def __getitem__(self, idx: slice) -> typing.Sequence[U]: ...
 
-    def __getitem__(self, idx: int | slice) -> U | typing.Sequence[U]:
-        if isinstance(idx, int):
-            return self._make_sample(idx)
+    def __getitem__(self, idx: int | np.integer | slice) -> U | typing.Sequence[U]:
+        if isinstance(idx, int | np.integer):
+            return self._make_sample(int(idx))
         return [
             self._make_sample(i)
             for i in range(idx.start or 0, idx.stop or len(self), idx.step or 1)
