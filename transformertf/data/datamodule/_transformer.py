@@ -35,8 +35,12 @@ class TransformerDataModule(DataModuleBase):
         batch_size: int = 128,
         num_workers: int = 0,
         dtype: str = "float32",
+        shuffle: bool = True,
         distributed_sampler: bool = False,
     ):
+        """
+        For documentation of arguments see :class:`DataModuleBase`.
+        """
         super().__init__(
             train_df_paths=train_df_paths,
             val_df_paths=val_df_paths,
@@ -51,6 +55,7 @@ class TransformerDataModule(DataModuleBase):
             batch_size=batch_size,
             num_workers=num_workers,
             dtype=dtype,
+            shuffle=shuffle,
             distributed_sampler=distributed_sampler,
         )
 
