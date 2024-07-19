@@ -88,6 +88,7 @@ class DataModuleBase(L.LightningDataModule):
         num_workers: int = 0,
         dtype: str = "float32",
         *,
+        shuffle: bool = True,
         distributed_sampler: bool = False,
     ):
         """
@@ -144,6 +145,10 @@ class DataModuleBase(L.LightningDataModule):
         dtype : str
             The data type to use for the data. This is passed to the datasets which convert
             the data to this type when samples are created.
+        shuffle : bool
+            Whether to shuffle the data. If True, the data is shuffled before creating the
+            training dataloader. If False, the data is not shuffled.
+            Validation / test dataloaders are never shuffled.
         distributed_sampler : bool
             Whether to use a distributed sampler for the dataloaders. If True, the dataloader
             is wrapped in a :class:`torch.utils.data.distributed.DistributedSampler`, which must
@@ -755,7 +760,7 @@ class DataModuleBase(L.LightningDataModule):
         default_kwargs = {
             "batch_size": self.hparams["batch_size"] if not predict else 1,
             "num_workers": self.hparams["num_workers"],
-            "shuffle": not predict,
+            "shuffle": not predict and self.hparams["shuffle"],
         }
         default_kwargs.update(kwargs)
 
