@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import typing
+
 import torch
 
 from ._get_activation import VALID_ACTIVATIONS, get_activation
@@ -13,7 +15,7 @@ class MLP(torch.nn.Module):
     def __init__(
         self,
         input_dim: int,
-        hidden_dim: int | tuple[int, ...] | None = None,
+        hidden_dim: int | typing.Sequence[int] | None = None,
         output_dim: int = 1,
         dropout: float = 0.1,
         activation: VALID_ACTIVATIONS = "relu",

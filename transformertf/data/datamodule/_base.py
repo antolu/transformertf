@@ -420,7 +420,7 @@ class DataModuleBase(L.LightningDataModule):
         if self.hparams["distributed_sampler"]:
             sampler = torch.utils.data.distributed.DistributedSampler(
                 self.train_dataset,
-                shuffle=True,
+                shuffle=self.hparams["shuffle"],
                 drop_last=True,
             )
         else:
@@ -429,7 +429,7 @@ class DataModuleBase(L.LightningDataModule):
         return torch.utils.data.DataLoader(
             self.train_dataset,
             batch_size=self.hparams["batch_size"],
-            shuffle=sampler is None,
+            shuffle=sampler is None and self.hparams["shuffle"],
             num_workers=self.hparams["num_workers"],
             sampler=sampler,
         )
