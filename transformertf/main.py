@@ -57,7 +57,7 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
         super().__init__(*args, parser_kwargs={"parser_mode": "omegaconf"}, **kwargs)
 
     def before_instantiate_classes(self) -> None:
-        if hasattr(self.config, "fit"):
+        if hasattr(self.config, "fit") and hasattr(self.config.fit, "verbose"):
             setup_logger(self.config.fit.verbose)
 
     def add_arguments_to_parser(self, parser: LightningArgumentParser) -> None:
