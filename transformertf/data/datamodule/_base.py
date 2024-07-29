@@ -55,6 +55,8 @@ class TmpDir:
 
 
 class TmpDirType(typing.Protocol):
+    """Abstraction to represent a temporary directory."""
+
     name: str
 
     def cleanup(self) -> None: ...
@@ -71,6 +73,10 @@ class DataModuleBase(L.LightningDataModule):
 
     _input_transforms: torch.nn.ModuleDict[str, TransformCollection]
     _target_transform: TransformCollection
+    _tmp_dir: TmpDirType
+
+    _raw_train_df: list[pd.DataFrame]
+    _raw_val_df: list[pd.DataFrame]
 
     def __init__(
         self,
@@ -183,13 +189,6 @@ class DataModuleBase(L.LightningDataModule):
         # these will be set by prepare_data
         self._train_df: list[pd.DataFrame] = []
         self._val_df: list[pd.DataFrame] = []
-
-        self._tmp_dir: TmpDirType
-        if distributed_sampler:
-            self._tmp_dir = TmpDir("/tmp/tmp_datamodule/")
-            Path(self._tmp_dir.name).mkdir(parents=True, exist_ok=True)
-        else:
-            self._tmp_dir = tempfile.TemporaryDirectory()
 
     """ Override the following in subclasses """
 
@@ -488,12 +487,15 @@ class DataModuleBase(L.LightningDataModule):
         tuple[dict[str, TransformCollection], TransformCollection]
             The input and target transforms.
         """
-        return (
-            {
-                col: self._input_transforms[col]
-                for col in self.hparams["known_covariates"]
-            },
-            self._target_transform,
+        return typing.cast(
+            tuple[dict[str, TransformCollection], TransformCollection],
+            (
+                {
+                    col: self._input_transforms[col]
+                    for col in self.hparams["known_covariates"]
+                },
+                self._target_transform,
+            ),
         )
 
     @property
@@ -506,11 +508,14 @@ class DataModuleBase(L.LightningDataModule):
         dict[str, TransformCollection]
             The input transforms.
         """
-        return {
-            col: self._input_transforms[col]
-            for col in self.hparams["known_covariates"]
-            + (self.hparams.get("known_past_covariates") or [])
-        }
+        return typing.cast(
+            dict[str, TransformCollection],
+            {
+                col: self._input_transforms[col]
+                for col in self.hparams["known_covariates"]
+                + (self.hparams.get("known_past_covariates") or [])
+            },
+        )
 
     @property
     def target_transform(self) -> TransformCollection:
@@ -872,6 +877,15 @@ class DataModuleBase(L.LightningDataModule):
                 torch.tensor([]),
                 torch.from_numpy(df[self.hparams["target_covariate"]].to_numpy()),
             )
+
+    def _init_tmpdir(self) -> TmpDirType:
+        if self.hparams.get("distributed"):
+            self._tmp_dir = TmpDir("/tmp/tmp_datamodule/")
+            Path(self._tmp_dir.name).mkdir(parents=True, exist_ok=True)
+        else:
+            self._tmp_dir = tempfile.TemporaryDirectory()
+
+        return self._tmp_dir
 
     @staticmethod
     def _to_list(x: T | typing.Sequence[T]) -> list[T]:
