@@ -174,7 +174,6 @@ class DataModuleBase(L.LightningDataModule):
         self.hparams["known_past_covariates"] = known_past_covariates
 
         self._extra_transforms_source = extra_transforms or {}
-
         self._create_transforms()
 
         self._train_df_pths = (
@@ -189,6 +188,8 @@ class DataModuleBase(L.LightningDataModule):
         # these will be set by prepare_data
         self._train_df: list[pd.DataFrame] = []
         self._val_df: list[pd.DataFrame] = []
+
+        self._init_tmpdir()
 
     """ Override the following in subclasses """
 
@@ -344,7 +345,18 @@ class DataModuleBase(L.LightningDataModule):
         stage : str
             The stage to teardown.
         """
-        self._tmp_dir.cleanup()
+        if self._tmp_dir is None:
+            return
+
+        if self.hparams.get("distributed_sampler"):
+            self._tmp_dir.cleanup()
+        else:
+            try:
+                shutil.rmtree(self._tmp_dir.name)
+            except OSError:
+                log.exception(
+                    f"Failed to remove temporary directory {self._tmp_dir.name}."
+                )
 
     @property
     def train_dataset(self) -> AbstractTimeSeriesDataset:
@@ -879,7 +891,7 @@ class DataModuleBase(L.LightningDataModule):
             )
 
     def _init_tmpdir(self) -> TmpDirType:
-        if self.hparams.get("distributed"):
+        if self.hparams.get("distributed_sampler"):
             self._tmp_dir = TmpDir("/tmp/tmp_datamodule/")
             Path(self._tmp_dir.name).mkdir(parents=True, exist_ok=True)
         else:
