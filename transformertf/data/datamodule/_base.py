@@ -671,11 +671,7 @@ class DataModuleBase(L.LightningDataModule):
         pd.DataFrame
             The preprocessed dataframe.
         """
-        return downsample(  # type: ignore[return-value]
-            df,
-            downsample=self.hparams["downsample"],
-            method=self.hparams["downsample_method"],
-        )
+        return df
 
     def apply_transforms(
         self,
@@ -708,6 +704,13 @@ class DataModuleBase(L.LightningDataModule):
         if not self._scalers_fitted():
             msg = "Scalers have not been fitted yet. "
             raise RuntimeError(msg)
+
+        # apply downsampling prior to transforms
+        df = downsample(
+            df,
+            downsample=self.hparams["downsample"],
+            method=self.hparams["downsample_method"],
+        )
 
         out = pd.DataFrame(df)
         for col in self.hparams["known_covariates"] + (
