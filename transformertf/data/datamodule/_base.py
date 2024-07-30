@@ -623,11 +623,9 @@ class DataModuleBase(L.LightningDataModule):
         pd.DataFrame
             The transformed dataframe.
         """
-        input_columns = DataModuleBase._to_list(input_columns)
-
         df = df.dropna(how="all", axis="columns")
 
-        col_filter = input_columns
+        col_filter = _to_list(input_columns)
         if target_column is not None:
             col_filter += DataModuleBase._to_list(target_column)
 
@@ -902,13 +900,13 @@ class DataModuleBase(L.LightningDataModule):
 
         return self._tmp_dir
 
-    @staticmethod
-    def _to_list(x: T | typing.Sequence[T]) -> list[T]:
-        if isinstance(x, typing.Sequence) and not isinstance(
-            x, str | pd.Series | np.ndarray | torch.Tensor | pd.DataFrame
-        ):
-            return list(x)
-        return typing.cast(list[T], [x])
+
+def _to_list(x: T | typing.Sequence[T]) -> list[T]:
+    if isinstance(x, typing.Sequence) and not isinstance(
+        x, str | pd.Series | np.ndarray | torch.Tensor | pd.DataFrame
+    ):
+        return list(x)
+    return typing.cast(list[T], [x])
 
 
 EXT2READER: dict[str, typing.Callable[[typing.Any], pd.DataFrame]] = {

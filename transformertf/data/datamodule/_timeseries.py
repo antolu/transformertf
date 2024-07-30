@@ -4,7 +4,7 @@ import typing
 
 from transformertf.data.dataset import TimeSeriesDataset
 
-from ._base import DataModuleBase
+from ._base import DataModuleBase, _to_list
 
 if typing.TYPE_CHECKING:
     import numpy as np
@@ -65,9 +65,7 @@ class TimeSeriesDataModule(DataModuleBase):
 
         self.save_hyperparameters(ignore=["extra_transforms"])
 
-        self.hparams["known_covariates"] = self._to_list(
-            self.hparams["known_covariates"]
-        )
+        self.hparams["known_covariates"] = _to_list(self.hparams["known_covariates"])
 
     def _make_dataset_from_arrays(
         self,

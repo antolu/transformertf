@@ -4,7 +4,7 @@ import typing
 
 from .._downsample import DOWNSAMPLE_METHODS
 from ..dataset import EncoderDataset, EncoderDecoderDataset
-from ._base import DataModuleBase
+from ._base import DataModuleBase, _to_list
 
 if typing.TYPE_CHECKING:
     import numpy as np
@@ -61,11 +61,9 @@ class TransformerDataModule(DataModuleBase):
 
         self.save_hyperparameters(ignore=["extra_transforms"])
 
-        self.hparams["known_covariates"] = self._to_list(
-            self.hparams["known_covariates"]
-        )
+        self.hparams["known_covariates"] = _to_list(self.hparams["known_covariates"])
         self.hparams["known_past_covariates"] = (
-            self._to_list(self.hparams["known_past_covariates"])
+            _to_list(self.hparams["known_past_covariates"])
             if self.hparams["known_past_covariates"] is not None
             else []
         )
