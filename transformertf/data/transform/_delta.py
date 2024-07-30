@@ -35,6 +35,11 @@ class DeltaTransform(BaseTransform):
         """
         return torch.cat([torch.zeros_like(y[:1]), y[1:] - y[:-1]], dim=0)
 
+    def fit(
+        self, x: np.ndarray | torch.Tensor, y: np.ndarray | torch.Tensor | None = None
+    ) -> DeltaTransform:
+        return self
+
     def transform(
         self, x: np.ndarray | torch.Tensor, y: np.ndarray | torch.Tensor | None = None
     ) -> torch.Tensor:
