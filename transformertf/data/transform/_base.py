@@ -39,7 +39,7 @@ class BaseTransform(
         sklearn.base.TransformerMixin.__init__(self)
         nn.Module.__init__(self)
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls, **kwargs: typing.Any) -> None:
         """Ensure that the transform type is specified by the developer."""
         if cls._transform_type == cls.TransformType.UNSPECIFIED:
             msg = f"Transform type not specified for {cls.__name__}."
