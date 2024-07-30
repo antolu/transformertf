@@ -3,10 +3,20 @@ from __future__ import annotations
 import sys
 import typing
 
+import numpy as np
 import pandas as pd
+import torch
 
 from .._downsample import DOWNSAMPLE_METHODS
+from .._window_generator import WindowGenerator
 from ..dataset import EncoderDataset, EncoderDecoderDataset
+from ..transform import (
+    DeltaTransform,
+    MaxScaler,
+    StandardScaler,
+    TransformCollection,
+)
+from ._base import TIME_PREFIX as TIME
 from ._base import DataModuleBase, _to_list
 
 if sys.version_info >= (3, 12):
@@ -37,6 +47,8 @@ class TransformerDataModule(DataModuleBase):
         downsample: int = 1,
         downsample_method: DOWNSAMPLE_METHODS = "interval",
         target_depends_on: str | None = None,
+        time_column: str | None = None,
+        time_format: typing.Literal["relative", "absolute"] = "absolute",
         extra_transforms: dict[str, list[BaseTransform]] | None = None,
         batch_size: int = 128,
         num_workers: int = 0,
@@ -46,6 +58,22 @@ class TransformerDataModule(DataModuleBase):
     ):
         """
         For documentation of arguments see :class:`DataModuleBase`.
+
+        time_column: str | None
+            The column in the data that contains the timestamps. If None, the data is
+            assumed to be evenly spaced, and no temporal features are added to the
+            samples. If a column name is provided, a temporal feature will be added to
+            the datasets. If the data type is datetime, the time is converted to
+            milliseconds since the epoch. Time is always relative to the first timestamp
+            and its magnitude does not matter, as the data is normalized prior to
+            training.
+        time_format : typing.Literal["relative", "absolute"]
+            The format of the timestamps. If "relative", the timestamps are relative to
+            the first timestamp in the data, i.e. $\\Delta$. If "absolute", the
+            timestamps are in absolute time, i.e. $t$, and then normalized with respect
+            to the maximum timestamp in each batch.
+            Additional transforms to the temporal feature can be added to the
+            ``extra_transforms`` parameter, with the `__time__` key.
         """
         super().__init__(
             train_df_paths=train_df_paths,
@@ -73,6 +101,58 @@ class TransformerDataModule(DataModuleBase):
             if self.hparams["known_past_covariates"] is not None
             else []
         )
+
+    def _create_transforms(self) -> None:
+        super()._create_transforms()
+        if self.hparams["time_column"] is None:
+            return
+
+        if self.hparams["normalize"]:
+            if self.hparams["time_format"] == "relative":
+                transforms = [
+                    DeltaTransform(),
+                    StandardScaler(num_features_=1),
+                ]
+            elif self.hparams["time_format"] == "absolute":
+                transforms = [MaxScaler(num_features_=1)]
+            else:
+                msg = (
+                    f"Unknown time format {self.hparams['time_format']}. "
+                    "Expected 'relative' or 'absolute'."
+                )
+                raise ValueError(msg)
+        else:
+            transforms = []
+
+        if TIME in self._extra_transforms_source:
+            transforms += self._extra_transforms_source[TIME]
+
+        self._input_transforms[TIME] = TransformCollection(*transforms)
+
+    def _fit_transforms(self, df: pd.DataFrame) -> None:
+        if self.hparams["time_column"] is not None:
+            if self.hparams["time_format"] == "relative":
+                self._input_transforms[TIME].fit(torch.from_numpy(df[TIME].to_numpy()))
+            elif self.hparams["time_format"] == "absolute":
+                self._fit_absolute_time(df, self._input_transforms[TIME])
+
+    def _fit_absolute_time(self, df: pd.DataFrame, transform: BaseTransform) -> None:
+        """
+        Fits the absolute time scaler to the data.
+        """
+        time = df[TIME].to_numpy()
+
+        wg = WindowGenerator(
+            num_points=len(time),
+            window_size=self.hparams["ctxt_seq_len"] + self.hparams["tgt_seq_len"],
+            stride=1,
+            zero_pad=False,
+        )
+        dt = np.zeros(len(time))
+        for i, sl in enumerate(wg):
+            dt[i] = np.max(np.abs(time[sl] - time[sl.start]))
+
+        transform.fit(dt)
 
     @property
     def ctxt_seq_len(self) -> int:

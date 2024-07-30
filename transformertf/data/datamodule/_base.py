@@ -277,6 +277,7 @@ class DataModuleBase(L.LightningDataModule):
             input_columns=self.hparams["known_covariates"],
             past_known_columns=self.hparams.get("known_past_covariates"),
             target_column=self.hparams["target_covariate"],
+            timestamp=self.hparams.get("time_column"),
         )
 
         train_df = list(
@@ -580,7 +581,9 @@ class DataModuleBase(L.LightningDataModule):
         skip_target = self.hparams["target_covariate"] not in df.columns
         df = self.parse_dataframe(
             df,
-            timestamp=timestamp,
+            timestamp=timestamp
+            if timestamp is not None
+            else self.hparams.get("time_column"),
             input_columns=[
                 cov.name for cov in self.known_covariates + self.known_past_covariates
             ],
@@ -653,6 +656,13 @@ class DataModuleBase(L.LightningDataModule):
                     "expected str, np.ndarray, or pd.Series."
                 )
                 raise TypeError(msg)
+
+            if (
+                pd.api.types.is_datetime64_any_dtype(time.dtype)
+                or pd.api.types.is_timedelta64_dtype(time.dtype)
+                or pd.api.types.is_string_dtype(time.dtype)
+            ):
+                time = pd.to_numeric(time)
 
             out = pd.DataFrame({TIME_PREFIX: time})
         else:
@@ -864,7 +874,7 @@ class DataModuleBase(L.LightningDataModule):
         }
 
         for col, transforms in self._extra_transforms_source.items():
-            if col == self.hparams["target_covariate"]:
+            if col == self.hparams["target_covariate"] or col == TIME_PREFIX:
                 continue
             if col not in input_transforms:
                 msg = f"Unknown column {col} in extra_transforms."
