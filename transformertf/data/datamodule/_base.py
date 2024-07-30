@@ -164,11 +164,9 @@ class DataModuleBase(L.LightningDataModule):
         super().__init__()
         self.save_hyperparameters(ignore=["extra_transforms"])
 
-        known_covariates = DataModuleBase._to_list(known_covariates)
+        known_covariates = _to_list(known_covariates)
         known_past_covariates = (
-            DataModuleBase._to_list(known_past_covariates)
-            if known_past_covariates
-            else []
+            _to_list(known_past_covariates) if known_past_covariates else []
         )
 
         self.hparams["known_covariates"] = known_covariates
@@ -178,13 +176,9 @@ class DataModuleBase(L.LightningDataModule):
         self._create_transforms()
 
         self._train_df_pths = (
-            DataModuleBase._to_list(train_df_paths)
-            if train_df_paths is not None
-            else []
+            _to_list(train_df_paths) if train_df_paths is not None else []
         )
-        self._val_df_pths = (
-            DataModuleBase._to_list(val_df_paths) if val_df_paths is not None else []
-        )
+        self._val_df_pths = _to_list(val_df_paths) if val_df_paths is not None else []
 
         # these will be set by prepare_data
         self._train_df: list[pd.DataFrame] = []
@@ -638,7 +632,8 @@ class DataModuleBase(L.LightningDataModule):
         past_known_columns : str | typing.Sequence[str] | None
             The columns to use as known past covariates.
         target_column : str | None
-            The column to use as target.
+            The column to use as target. If not provided,
+            the target column is not included in the output.
         timestamp : np.ndarray | pd.Series | str | None
             The timestamps of the data.
 
@@ -651,7 +646,7 @@ class DataModuleBase(L.LightningDataModule):
 
         col_filter = _to_list(input_columns)
         if target_column is not None:
-            col_filter += DataModuleBase._to_list(target_column)
+            col_filter += _to_list(target_column)
 
         df = df[col_filter]
 
