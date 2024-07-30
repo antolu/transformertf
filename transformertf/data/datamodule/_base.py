@@ -41,6 +41,12 @@ T = typing.TypeVar("T")
 TIME = "time_ms"
 
 
+TIME_PREFIX = "__time__"
+KNOWN_COV_CONT_PREFIX = "__known_continuous__"
+PAST_KNOWN_COV_PREFIX = "__past_known_continuous__"
+TARGET_PREFIX = "__target__"
+
+
 @dataclasses.dataclass
 class TmpDir:
     """
@@ -60,6 +66,11 @@ class TmpDirType(typing.Protocol):
     name: str
 
     def cleanup(self) -> None: ...
+
+
+class Covariate(typing.NamedTuple):
+    name: str
+    col: str
 
 
 class DataModuleBase(L.LightningDataModule):
@@ -135,9 +146,9 @@ class DataModuleBase(L.LightningDataModule):
             "median", and "convolve".
         target_depends_on : str | None
             The column that the target depends on if additional transforms are provided in the
-            ``extra_transforms`` parameter, and are of type :class:`TransformType.XY`, where
-            the target depends on another column. If None, the target does not depend on any
-            other column.
+            ``extra_transforms`` parameter, and are of type
+            :class:`BaseTransform.TransformType.XY`, where the target depends on
+            another column. If None, the target does not depend on any other column.
         extra_transforms : dict[str, list[BaseTransform]] | None
             Additional transforms to apply to the data. The dictionary should have the column
             name as the key, and a list of transforms as the value. If None, no additional
@@ -388,18 +399,19 @@ class DataModuleBase(L.LightningDataModule):
             raise ValueError(msg)
 
         input_data = np.concatenate([
-            df[self.hparams["known_covariates"]].to_numpy() for df in self._train_df
+            df[[cov.col for cov in self.known_covariates]].to_numpy()
+            for df in self._train_df
         ])
         known_past_data = (
             np.concatenate([
-                df[self.hparams["known_past_covariates"]].to_numpy()
+                df[[cov.col for cov in self.known_past_covariates]].to_numpy()
                 for df in self._train_df
             ])
-            if self.hparams["known_past_covariates"] is not None
+            if self.hparams.get("known_past_covariates")
             else None
         )
         target_data = np.concatenate([
-            df[self.hparams["target_covariate"]].to_numpy() for df in self._train_df
+            df[self.target_covariate.col].to_numpy() for df in self._train_df
         ])
 
         return self._make_dataset_from_arrays(
@@ -409,7 +421,7 @@ class DataModuleBase(L.LightningDataModule):
     @property
     def val_dataset(
         self,
-    ) -> AbstractTimeSeriesDataset | typing.Sequence[AbstractTimeSeriesDataset]:
+    ) -> AbstractTimeSeriesDataset | list[AbstractTimeSeriesDataset]:
         """
         The validation dataset(s). If more than one dataframe was provided in the
         constructor, this method returns a list of datasets, one for each dataframe.
@@ -417,7 +429,7 @@ class DataModuleBase(L.LightningDataModule):
 
         Returns
         -------
-        AbstractTimeSeriesDataset | typing.Sequence[AbstractTimeSeriesDataset]
+        AbstractTimeSeriesDataset | list[AbstractTimeSeriesDataset]
             The validation dataset(s).
         """
         if self._val_df is None or len(self._val_df) == 0:
@@ -537,9 +549,8 @@ class DataModuleBase(L.LightningDataModule):
         return typing.cast(
             dict[str, TransformCollection],
             {
-                col: self._input_transforms[col]
-                for col in self.hparams["known_covariates"]
-                + (self.hparams.get("known_past_covariates") or [])
+                cov.name: self._input_transforms[cov.name]
+                for cov in self.known_covariates + self.known_past_covariates
             },
         )
 
@@ -643,15 +654,16 @@ class DataModuleBase(L.LightningDataModule):
         """
         df = df.dropna(how="all", axis="columns")
 
-        col_filter = _to_list(input_columns)
+        col_filter = _to_list(input_columns)  # type: ignore[arg-type]
         if target_column is not None:
             col_filter += _to_list(target_column)
 
         df = df[col_filter]
 
         if timestamp is not None:
+            time: np.ndarray | pd.Series
             if isinstance(timestamp, str):
-                df[TIME] = df[timestamp]
+                time = df[timestamp]
             elif isinstance(timestamp, np.ndarray | pd.Series):
                 if len(timestamp) != len(df):
                     msg = (
@@ -659,11 +671,29 @@ class DataModuleBase(L.LightningDataModule):
                         f"Got {len(timestamp)} timestamps and {len(df)} rows."
                     )
                     raise ValueError(msg)
-                df[TIME] = timestamp
-        else:
-            df[TIME] = np.arange(len(df))
+                time = timestamp
+            else:
+                msg = (
+                    f"Unknown type {type(timestamp)} for timestamp, "
+                    "expected str, np.ndarray, or pd.Series."
+                )
+                raise TypeError(msg)
 
-        return df
+            out = pd.DataFrame({TIME_PREFIX: time})
+        else:
+            # out = pd.DataFrame({TIME_PREFIX: np.arange(len(df))})
+            out = pd.DataFrame()
+
+        for col in input_columns:
+            out[known_cov_col(col)] = df[col]
+        if past_known_columns is not None:
+            for col in past_known_columns:
+                out[past_known_cov_col(col)] = df[col]
+        if target_column is not None:
+            for col in _to_list(target_column):
+                out[target_col(col)] = df[col]
+
+        return out
 
     def preprocess_dataframe(
         self,
@@ -733,25 +763,22 @@ class DataModuleBase(L.LightningDataModule):
         )
 
         out = pd.DataFrame(df)
-        for col in self.hparams["known_covariates"] + (
-            self.hparams["known_past_covariates"] or []
-        ):
-            out[col] = self._input_transforms[col].transform(
-                torch.from_numpy(df[col].to_numpy())
+        for cov in self.known_covariates + self.known_past_covariates:
+            out[cov.col] = self._input_transforms[cov.name].transform(
+                torch.from_numpy(df[cov.col].to_numpy())
             )
 
         if skip_target:
             return out
 
-        if self.hparams["target_depends_on"] is not None:
-            out[self.hparams["target_covariate"]] = self._target_transform.transform(
-                torch.from_numpy(df[self.hparams["target_depends_on"]].to_numpy()),
-                torch.from_numpy(df[self.hparams["target_covariate"]].to_numpy()),
+        if self.target_depends_on is not None:
+            out[self.target_covariate.col] = self._target_transform.transform(
+                torch.from_numpy(df[self.target_depends_on.col].to_numpy()),
+                torch.from_numpy(df[self.target_covariate.col].to_numpy()),
             )
         else:
-            out[self.hparams["target_covariate"]] = self._target_transform.transform(
-                torch.tensor([]),
-                torch.from_numpy(df[self.hparams["target_covariate"]].to_numpy()),
+            out[self.target_covariate.col] = self._target_transform.transform(
+                torch.from_numpy(df[self.target_covariate.col].to_numpy()),
             )
 
         return out
@@ -827,13 +854,15 @@ class DataModuleBase(L.LightningDataModule):
         self, df: pd.DataFrame, *, predict: bool = False
     ) -> AbstractTimeSeriesDataset:
         target_data: np.ndarray | None = None
-        if self.hparams["target_covariate"] in df.columns:
-            target_data = df[self.hparams["target_covariate"]].to_numpy()
+        if self.target_covariate.col in df.columns:
+            target_data = df[self.target_covariate.col].to_numpy()
 
         return self._make_dataset_from_arrays(
-            input_data=df[self.hparams["known_covariates"]].to_numpy(),
-            known_past_data=df[self.hparams["known_past_covariates"]].to_numpy()
-            if self.hparams["known_past_covariates"] is not None
+            input_data=df[[cov.col for cov in self.known_covariates]].to_numpy(),
+            known_past_data=df[
+                [cov.col for cov in self.known_past_covariates]
+            ].to_numpy()
+            if self.hparams.get("known_past_covariates")
             else None,
             target_data=target_data,
             predict=predict,
@@ -871,14 +900,10 @@ class DataModuleBase(L.LightningDataModule):
         """
         Instantiates the transforms to be used by the datamodule.
         """
-        normalize = self.hparams["normalize"]
-
         # input transforms
         input_transforms: dict[str, list[BaseTransform]]
         input_transforms = {
-            col: []
-            for col in self.hparams["known_covariates"]
-            + (self.hparams["known_past_covariates"] or [])
+            cov.name: [] for cov in self.known_covariates + self.known_past_covariates
         }
 
         for col, transforms in self._extra_transforms_source.items():
@@ -889,11 +914,9 @@ class DataModuleBase(L.LightningDataModule):
                 raise ValueError(msg)
             input_transforms[col].extend(transforms)
 
-        for input_col in self.hparams["known_covariates"] + (
-            self.hparams["known_past_covariates"] or []
-        ):
-            if normalize:
-                input_transforms[input_col].append(StandardScaler(num_features_=1))
+        if self.hparams["normalize"]:
+            for cov in self.known_covariates + self.known_past_covariates:
+                input_transforms[cov.name].append(StandardScaler(num_features_=1))
 
         self._input_transforms = torch.nn.ModuleDict({
             col: TransformCollection(transforms)
@@ -905,13 +928,9 @@ class DataModuleBase(L.LightningDataModule):
             target_transform.extend(
                 self._extra_transforms_source[self.hparams["target_covariate"]]
             )
-        if normalize:
+        if self.hparams["normalize"]:
             target_transform.append(StandardScaler(num_features_=1))
 
-        self._target_transform = TransformCollection(
-            target_transform,
-            transform_type=TransformType.XY,
-        )
         self._target_transform = TransformCollection(target_transform)
 
         if (
@@ -944,22 +963,43 @@ class DataModuleBase(L.LightningDataModule):
         return fitted
 
     def _fit_transforms(self, df: pd.DataFrame) -> None:
-        for col in self.hparams["known_covariates"] + (
-            self.hparams["known_past_covariates"] or []
-        ):
-            log.info(f"Fitting input scaler for {col}.")
-            self._input_transforms[col].fit(torch.from_numpy(df[col].to_numpy()))
+        for cov in self.known_covariates + self.known_past_covariates:
+            log.info(f"Fitting input scaler for {cov.name}.")
+            self._input_transforms[cov.name].fit(
+                torch.from_numpy(df[cov.col].to_numpy())
+            )
 
-        if self.hparams["target_depends_on"] is not None:
+        if self.target_depends_on is not None:
             self._target_transform.fit(
-                torch.from_numpy(df[self.hparams["target_depends_on"]].to_numpy()),
-                torch.from_numpy(df[self.hparams["target_covariate"]].to_numpy()),
+                torch.from_numpy(df[self.target_depends_on.col].to_numpy()),
+                torch.from_numpy(df[self.target_covariate.col].to_numpy()),
             )
         else:
             self._target_transform.fit(
-                # torch.tensor([]),
-                torch.from_numpy(df[self.hparams["target_covariate"]].to_numpy()),
+                torch.from_numpy(df[self.target_covariate.col].to_numpy()),
             )
+
+    @property
+    def known_covariates(self) -> list[Covariate]:
+        return [
+            Covariate(col, known_cov_col(col))
+            for col in self.hparams["known_covariates"]
+        ]
+
+    @property
+    def known_past_covariates(self) -> list[Covariate]:
+        return [
+            Covariate(col, past_known_cov_col(col))
+            for col in (self.hparams["known_past_covariates"] or [])
+        ]
+
+    @property
+    def target_covariate(self) -> Covariate:
+        return Covariate(
+            self.hparams["target_covariate"],
+            target_col(self.hparams["target_covariate"]),
+        )
+
     @property
     def target_depends_on(self) -> Covariate | None:
         if self.hparams["target_depends_on"] is None:
@@ -995,6 +1035,22 @@ def _to_list(x: T | typing.Sequence[T]) -> list[T]:
     ):
         return list(x)
     return typing.cast(list[T], [x])
+
+
+def known_cov_col(name: str) -> str:
+    return f"{KNOWN_COV_CONT_PREFIX}{name}"
+
+
+def past_known_cov_col(name: str) -> str:
+    return f"{PAST_KNOWN_COV_PREFIX}{name}"
+
+
+def time_col(name: str) -> str:
+    return f"{TIME_PREFIX}{name}"
+
+
+def target_col(name: str) -> str:
+    return f"{TARGET_PREFIX}{name}"
 
 
 EXT2READER: dict[str, typing.Callable[[typing.Any], pd.DataFrame]] = {

@@ -9,7 +9,7 @@ import pytest
 from transformertf.data import TimeSeriesDataModule
 from transformertf.utils import ops
 
-from ...conftest import CURRENT, DF_PATH, FIELD
+from ...conftest import CURRENT, FIELD
 
 
 @pytest.fixture(scope="module")
@@ -28,12 +28,9 @@ def dm(df_path: str, current_key: str, field_key: str) -> TimeSeriesDataModule:
     return dm
 
 
-def test_data_transform_inverse_transform(dm: TimeSeriesDataModule) -> None:
-    df = pd.read_parquet(DF_PATH)
-    df = df.dropna()
-    df = df.reset_index(drop=True)
-    df = df[[CURRENT, FIELD]]
-
+def test_data_transform_inverse_transform(
+    dm: TimeSeriesDataModule, df: pd.DataFrame
+) -> None:
     dataset = dm.val_dataset
 
     x = [dataset[i]["input"] for i in range(len(dataset))]
@@ -55,7 +52,7 @@ def test_data_transform_inverse_transform(dm: TimeSeriesDataModule) -> None:
     target_transform = dm.target_transform
 
     x = input_transform.inverse_transform(x)
-    y = target_transform.inverse_transform(x, y)
+    y = target_transform.inverse_transform(y)
 
     x = x.numpy().flatten()
     y = y.numpy().flatten()
@@ -78,7 +75,6 @@ def phylstm_dm(
         val_df_paths=df_path,
         downsample=100,
         dtype="float32",
-        target_depends_on=current_key,
         known_covariates=current_key,
         target_covariate=field_key,
     )
@@ -120,7 +116,7 @@ def test_phylstm_data_transform_inverse_transform(
     target_transform = phylstm_dm.target_transform
 
     x = input_transform.inverse_transform(x)
-    y = target_transform.inverse_transform(x, y)
+    y = target_transform.inverse_transform(y)
     x = x.numpy().flatten()
     y = y.numpy().flatten()
 

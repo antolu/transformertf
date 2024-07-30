@@ -32,6 +32,10 @@ def timeseries_datamodule_config(df_path: str) -> dict[str, typing.Any]:
     }
 
 
+def in_df(df: pd.DataFrame, key: str) -> bool:
+    return any(key in col for col in df.columns)
+
+
 def test_datamodule_base_create_from_df(
     timeseries_datamodule_config: dict[str, typing.Any],
 ) -> None:
@@ -139,10 +143,10 @@ def test_datamodule_base_read_input(
     assert processed_df is not None
     assert isinstance(processed_df, pd.DataFrame)
 
-    assert current_key in processed_df.columns
-    assert field_key in processed_df.columns
+    assert in_df(processed_df, current_key)
+    assert in_df(processed_df, field_key)
 
-    assert len(processed_df.columns) == 3
+    assert len(processed_df.columns) == 2
 
 
 def test_datamodule_base_preprocess_dataframe(
@@ -156,8 +160,8 @@ def test_datamodule_base_preprocess_dataframe(
     assert processed_df is not None
     assert isinstance(processed_df, pd.DataFrame)
 
-    assert current_key in processed_df.columns
-    assert field_key in processed_df.columns
+    assert in_df(processed_df, current_key)
+    assert in_df(processed_df, field_key)
 
     assert len(processed_df.columns) == len(df.columns)
 
@@ -173,8 +177,8 @@ def test_datamodule_base_normalize_dataframe(
     assert processed_df is not None
     assert isinstance(processed_df, pd.DataFrame)
 
-    assert current_key in processed_df.columns
-    assert field_key in processed_df.columns
+    assert in_df(processed_df, current_key)
+    assert in_df(processed_df, field_key)
 
 
 def test_datamodule_base_transform_input(
@@ -188,10 +192,10 @@ def test_datamodule_base_transform_input(
     assert processed_df is not None
     assert isinstance(processed_df, pd.DataFrame)
 
-    assert current_key in processed_df.columns
-    assert field_key in processed_df.columns
+    assert in_df(processed_df, current_key)
+    assert in_df(processed_df, field_key)
 
-    assert len(processed_df.columns) == 3
+    assert len(processed_df.columns) == 2
 
 
 def test_datamodule_base_make_dataset(

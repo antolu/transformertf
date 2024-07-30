@@ -6,6 +6,11 @@ import pandas as pd
 import pytest
 import torch
 
+from transformertf.data.datamodule._base import (
+    known_cov_col,  # noqa: PLC2701
+    target_col,  # noqa: PLC2701
+)
+
 
 @pytest.fixture(scope="session")
 def random_seed() -> int:
@@ -29,6 +34,9 @@ def df() -> pd.DataFrame:
     df = df.reset_index(drop=True)
     df[FIELD_DOT] = numpy.gradient(df[FIELD].to_numpy())
 
+    df[known_cov_col(CURRENT)] = df[CURRENT]
+    df[target_col(FIELD)] = df[FIELD]
+
     return df
 
 
@@ -45,3 +53,13 @@ def current_key() -> str:
 @pytest.fixture(scope="session")
 def field_key() -> str:
     return FIELD
+
+
+@pytest.fixture(scope="session")
+def current_cov_key() -> str:
+    return known_cov_col(CURRENT)
+
+
+@pytest.fixture(scope="session")
+def field_cov_key() -> str:
+    return target_col(FIELD)

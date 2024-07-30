@@ -16,7 +16,6 @@ def bouc_wen_datamodule_config(
         "train_df_paths": df_path,
         "val_df_paths": df_path,
         "num_workers": 0,
-        "target_depends_on": current_key,
         "known_covariates": current_key,
         "target_covariate": field_key,
         "seq_len": 100,
