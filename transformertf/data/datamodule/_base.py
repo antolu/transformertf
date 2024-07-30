@@ -23,7 +23,6 @@ from ..transform import (
     BaseTransform,
     StandardScaler,
     TransformCollection,
-    TransformType,
 )
 
 if sys.version_info < (3, 12):
@@ -913,6 +912,26 @@ class DataModuleBase(L.LightningDataModule):
             target_transform,
             transform_type=TransformType.XY,
         )
+        self._target_transform = TransformCollection(target_transform)
+
+        if (
+            self.target_depends_on is not None
+            and self._target_transform.transform_type != BaseTransform.TransformType.XY
+        ):
+            msg = (
+                "The target depends on another column, but the target transform "
+                f"does not support this. Got {self._target_transform.transform_type}."
+            )
+            raise ValueError(msg)
+        if (
+            self.target_depends_on is None
+            and self._target_transform.transform_type == BaseTransform.TransformType.XY
+        ):
+            msg = (
+                "The target does not depend on another column, but the target transform "
+                f"does. Got {self._target_transform.transform_type}."
+            )
+            raise ValueError(msg)
 
     def _scalers_fitted(self) -> bool:
         fitted = all(
@@ -941,6 +960,24 @@ class DataModuleBase(L.LightningDataModule):
                 # torch.tensor([]),
                 torch.from_numpy(df[self.hparams["target_covariate"]].to_numpy()),
             )
+    @property
+    def target_depends_on(self) -> Covariate | None:
+        if self.hparams["target_depends_on"] is None:
+            return None
+
+        cov_str = self.hparams["target_depends_on"]
+
+        if cov_str in self.hparams["known_covariates"]:
+            return Covariate(cov_str, known_cov_col(cov_str))
+
+        if cov_str in self.hparams["known_past_covariates"]:
+            return Covariate(cov_str, past_known_cov_col(cov_str))
+
+        msg = (
+            f"Unknown column {cov_str} in target_depends_on that "
+            "is not in known_covariates or known_past_covariates."
+        )
+        raise ValueError(msg)
 
     def _init_tmpdir(self) -> TmpDirType:
         if self.hparams.get("distributed_sampler"):

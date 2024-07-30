@@ -11,7 +11,7 @@ from .._sample_generator import (
     EncoderDecoderSample,
     TransformerPredictionSampleGenerator,
 )
-from ..transform import BaseTransform, TransformType
+from ..transform import BaseTransform
 from ._base import AbstractTimeSeriesDataset, DataSetType
 
 
@@ -336,7 +336,10 @@ def _apply_transforms(
             transforms = next(iter(transforms.values()))
         assert isinstance(transforms, BaseTransform)  # mypy
 
-        if dependency is not None and transforms.transform_type == TransformType.XY:
+        if (
+            dependency is not None
+            and transforms.transform_type == BaseTransform.TransformType.XY
+        ):
             dependency = (
                 dependency.to_numpy()
                 if isinstance(dependency, pd.Series)

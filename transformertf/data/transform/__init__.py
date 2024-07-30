@@ -1,5 +1,5 @@
 from ..._mod_replace import replace_modname
-from ._base import BaseTransform, TransformCollection, TransformType
+from ._base import BaseTransform, TransformCollection
 from ._discrete_fn import DiscreteFunctionTransform
 from ._divide_by_x import DivideByXTransform
 from ._log import Log1pTransform, LogTransform
@@ -11,7 +11,6 @@ StandardScaler = RunningNormalizer
 
 for _mod in [
     BaseTransform,
-    TransformType,
     TransformCollection,
     LogTransform,
     Log1pTransform,
@@ -38,5 +37,4 @@ __all__ = [
     "RunningNormalizer",
     "StandardScaler",
     "TransformCollection",
-    "TransformType",
 ]

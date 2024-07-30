@@ -5,7 +5,7 @@ import typing
 import numpy as np
 import torch
 
-from ._base import BaseTransform, TransformType
+from ._base import BaseTransform
 from ._utils import _as_torch, _view_as_y
 
 
@@ -58,7 +58,7 @@ class RunningNormalizer(BaseTransform):
 
     """
 
-    _transform_type = TransformType.X
+    _transform_type = BaseTransform.TransformType.X
 
     center_: torch.Tensor
     scale_: torch.Tensor

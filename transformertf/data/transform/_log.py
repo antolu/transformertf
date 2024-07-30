@@ -10,7 +10,7 @@ from __future__ import annotations
 import numpy as np
 import torch
 
-from ._base import BaseTransform, TransformType
+from ._base import BaseTransform
 from ._utils import _as_torch
 
 
@@ -20,7 +20,7 @@ class LogTransform(BaseTransform):
     takes the natural logarithm of the data.
     """
 
-    _transform_type = TransformType.X
+    _transform_type = BaseTransform.TransformType.X
 
     def fit(
         self,
@@ -49,7 +49,7 @@ class Log1pTransform(BaseTransform):
     takes the natural logarithm of the data plus one.
     """
 
-    _transform_type = TransformType.X
+    _transform_type = BaseTransform.TransformType.X
 
     def fit(
         self,
