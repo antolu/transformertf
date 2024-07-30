@@ -31,12 +31,12 @@ def bouc_wen_module_config() -> dict[str, typing.Any]:
     }
 
 
-@pytest.fixture()
+@pytest.fixture
 def bouc_wen_module(bouc_wen_module_config: dict[str, typing.Any]) -> BWLSTM3:
     return BWLSTM3(**bouc_wen_module_config)
 
 
-@pytest.fixture()
+@pytest.fixture
 def bouc_wen_datamodule(
     bouc_wen_datamodule_config: dict[str, typing.Any],
 ) -> TimeSeriesDataModule:

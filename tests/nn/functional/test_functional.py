@@ -8,17 +8,17 @@ import torch
 from transformertf.nn.functional import mape_loss, smape_loss
 
 
-@pytest.fixture()
+@pytest.fixture
 def y_pred() -> torch.Tensor:
     return torch.tensor([1.0, 2.0, 3.0])
 
 
-@pytest.fixture()
+@pytest.fixture
 def y_true() -> torch.Tensor:
     return torch.tensor([2.0, 3.0, 4.0])
 
 
-@pytest.fixture()
+@pytest.fixture
 def weights() -> torch.Tensor:
     return torch.tensor([0.5, 0.25, 1.0])
 

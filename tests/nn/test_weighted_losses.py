@@ -8,17 +8,17 @@ import torch
 import transformertf.nn
 
 
-@pytest.fixture()
+@pytest.fixture
 def y_pred() -> torch.Tensor:
     return torch.tensor([1.0, 2.0, 3.0])
 
 
-@pytest.fixture()
+@pytest.fixture
 def target() -> torch.Tensor:
     return torch.tensor([1.0, 3.0, 4.0])
 
 
-@pytest.fixture()
+@pytest.fixture
 def weights() -> torch.Tensor:
     return torch.tensor([0.5, 1.0, 1.5])
 

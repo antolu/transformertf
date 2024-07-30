@@ -9,7 +9,7 @@ import torch
 import transformertf.utils
 
 
-@pytest.fixture()
+@pytest.fixture
 def model() -> torch.nn.Linear:
     return torch.nn.Linear(10, 10)
 

@@ -10,14 +10,14 @@ BATCH_SIZE = 4
 SEQ_LEN = 100
 
 
-@pytest.fixture()
+@pytest.fixture
 def batch() -> tuple[torch.Tensor, torch.Tensor]:
     x = torch.randn(BATCH_SIZE, SEQ_LEN, 1)
     y = torch.randn(BATCH_SIZE, SEQ_LEN, 1)
     return x, y
 
 
-@pytest.fixture()
+@pytest.fixture
 def sample(batch: tuple[torch.Tensor, torch.Tensor]) -> TimeSeriesSample:
     x, y = batch
     return {
@@ -27,7 +27,7 @@ def sample(batch: tuple[torch.Tensor, torch.Tensor]) -> TimeSeriesSample:
     }
 
 
-@pytest.fixture()
+@pytest.fixture
 def lstm_module() -> LSTM:
     module = LSTM(num_features=1, n_dim_model=10, num_layers=1)
     assert module is not None

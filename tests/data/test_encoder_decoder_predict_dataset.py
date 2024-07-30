@@ -17,7 +17,7 @@ TGT_NAME = "target"
 OPT_NAME = "optional"
 
 
-@pytest.fixture()
+@pytest.fixture
 def past_covariates(x_data: np.ndarray, y_data: np.ndarray) -> pd.DataFrame:
     return pd.DataFrame({
         IN_NAME: x_data[:CONTEXT_LENGTH],
@@ -26,7 +26,7 @@ def past_covariates(x_data: np.ndarray, y_data: np.ndarray) -> pd.DataFrame:
     })
 
 
-@pytest.fixture()
+@pytest.fixture
 def future_covariates(x_data: np.ndarray, y_data: np.ndarray) -> pd.DataFrame:
     return pd.DataFrame({
         IN_NAME: x_data[CONTEXT_LENGTH:],
@@ -34,24 +34,24 @@ def future_covariates(x_data: np.ndarray, y_data: np.ndarray) -> pd.DataFrame:
     })
 
 
-@pytest.fixture()
+@pytest.fixture
 def past_target(y_data: np.ndarray) -> pd.DataFrame:
     return pd.DataFrame({
         TGT_NAME: y_data[:CONTEXT_LENGTH],
     })
 
 
-@pytest.fixture()
+@pytest.fixture
 def future_target(y_data: np.ndarray) -> np.ndarray:
     return y_data[CONTEXT_LENGTH:]
 
 
-@pytest.fixture()
+@pytest.fixture
 def input_transform() -> TransformCollection:
     return TransformCollection([])
 
 
-@pytest.fixture()
+@pytest.fixture
 def target_transform() -> TransformCollection:
     return TransformCollection([])
 

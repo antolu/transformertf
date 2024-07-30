@@ -8,7 +8,7 @@ from sklearn.utils.validation import check_is_fitted
 from transformertf.data import FixedPolynomialTransform, PolynomialTransform
 
 
-@pytest.fixture()
+@pytest.fixture
 def x() -> torch.Tensor:
     return torch.ones(2) * 2
 

@@ -194,7 +194,7 @@ def predict_phylstm(
     # truncate the outputs to the length of the future covariates
     predictions = predictions[: dataset.num_points]
     predictions = predictions[
-        len(past_covariates) // datamodule.hparams["downsample"] :  # noqa: E203
+        len(past_covariates) // datamodule.hparams["downsample"] :
     ]
     return typing.cast(torch.Tensor, predictions).squeeze().numpy()
 

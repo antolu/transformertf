@@ -11,12 +11,12 @@ import pytest
 from transformertf.data import TransformerSampleGenerator
 
 
-@pytest.fixture()
+@pytest.fixture
 def x_data_pd(x_data: np.ndarray) -> pd.DataFrame:
     return pd.DataFrame({"x": x_data})
 
 
-@pytest.fixture()
+@pytest.fixture
 def y_data_pd(y_data: np.ndarray) -> pd.DataFrame:
     return pd.DataFrame({"y": y_data})
 

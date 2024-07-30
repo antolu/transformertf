@@ -10,12 +10,12 @@ from transformertf.models.bwlstm import (
 from transformertf.utils.predict import predict_phylstm
 
 
-@pytest.fixture()
+@pytest.fixture
 def past_covariates(df: pd.DataFrame) -> pd.DataFrame:
     return df[["I_meas_A"]].iloc[:1000]
 
 
-@pytest.fixture()
+@pytest.fixture
 def future_covariates(df: pd.DataFrame) -> pd.DataFrame:
     return df[["I_meas_A"]].iloc[1000:10000]
 

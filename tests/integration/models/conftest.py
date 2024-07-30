@@ -22,7 +22,7 @@ def encoder_decoder_datamodule_config(
     }
 
 
-@pytest.fixture()
+@pytest.fixture
 def encoder_decoder_datamodule(
     encoder_decoder_datamodule_config: dict[str, typing.Any],
 ) -> EncoderDecoderDataModule:

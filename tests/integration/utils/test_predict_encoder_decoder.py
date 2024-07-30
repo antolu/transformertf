@@ -16,17 +16,17 @@ from transformertf.models.transformer import (
 from transformertf.utils.predict import predict_encoder_decoder
 
 
-@pytest.fixture()
+@pytest.fixture
 def past_covariates(df: pd.DataFrame) -> pd.DataFrame:
     return df[["I_meas_A"]].iloc[:1000]
 
 
-@pytest.fixture()
+@pytest.fixture
 def future_covariates(df: pd.DataFrame) -> pd.DataFrame:
     return df[["I_meas_A"]].iloc[1000:10000]
 
 
-@pytest.fixture()
+@pytest.fixture
 def past_target(df: pd.DataFrame) -> pd.DataFrame:
     return df[["B_meas_T"]].iloc[:1000]
 

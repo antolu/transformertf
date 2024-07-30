@@ -6,12 +6,12 @@ import pytest
 from transformertf.data import TimeSeriesDataset
 
 
-@pytest.fixture()
+@pytest.fixture
 def x1_1d() -> np.ndarray:
     return np.arange(10)
 
 
-@pytest.fixture()
+@pytest.fixture
 def x1_2d() -> np.ndarray:
     return np.array([
         [1, 2, 3, 4, 5, 6, 7, 8, 9],
@@ -19,12 +19,12 @@ def x1_2d() -> np.ndarray:
     ]).T
 
 
-@pytest.fixture()
+@pytest.fixture
 def x2_1d() -> np.ndarray:
     return np.arange(start=-10, stop=0)
 
 
-@pytest.fixture()
+@pytest.fixture
 def x2_2d() -> np.ndarray:
     return np.array([
         [-1, -2, -3, -4, -5, -6, -7, -8, -9],
@@ -32,12 +32,12 @@ def x2_2d() -> np.ndarray:
     ]).T
 
 
-@pytest.fixture()
+@pytest.fixture
 def y1_1d() -> np.ndarray:
     return np.arange(10) / 10
 
 
-@pytest.fixture()
+@pytest.fixture
 def y1_2d() -> np.ndarray:
     return (
         np.array([[1, 2, 3, 4, 5, 6, 7, 8, 9], [10, 11, 12, 13, 14, 15, 16, 17, 18]])
@@ -45,12 +45,12 @@ def y1_2d() -> np.ndarray:
     ).T
 
 
-@pytest.fixture()
+@pytest.fixture
 def y2_1d() -> np.ndarray:
     return np.arange(start=-10, stop=0) / 10
 
 
-@pytest.fixture()
+@pytest.fixture
 def y2_2d() -> np.ndarray:
     return (
         np.array([

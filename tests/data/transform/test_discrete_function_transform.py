@@ -10,14 +10,14 @@ import torch
 from transformertf.data.transform import DiscreteFunctionTransform
 
 
-@pytest.fixture()
+@pytest.fixture
 def numpy_arrays() -> tuple[np.ndarray, np.ndarray]:
     xs = np.array([1.0, 2.0, 3.0])
     ys = np.array([4.0, 5.0, 6.0])
     return xs, ys
 
 
-@pytest.fixture()
+@pytest.fixture
 def torch_tensors() -> tuple[torch.Tensor, torch.Tensor]:
     xs = torch.tensor([1.0, 2.0, 3.0])
     ys = torch.tensor([4.0, 5.0, 6.0])
