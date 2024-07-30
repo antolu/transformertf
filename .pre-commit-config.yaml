@@ -13,7 +13,7 @@ repos:
       - id: check-merge-conflict
       - id: check-toml
       - id: check-yaml
-        exclude: ".gitlab-ci.yml"
+        args: ["--unsafe"]
       - id: debug-statements
         exclude: ^LICENSE|\.(html|csv|txt|svg|py)$
       - id: pretty-format-json
@@ -23,15 +23,15 @@ repos:
         args: [--markdown-linebreak-ext=md]
         exclude: \.(html|svg)$
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: "v0.4.5"
+    rev: "v0.5.5"
     hooks:
       - id: ruff
-        args: [--fix, --exit-non-zero-on-fix]
+        args: [--fix, --exit-non-zero-on-fix, --unsafe-fixes, --preview]
         exclude: "^docs/source/conf.py$"
       - id: ruff-format
         exclude: "^docs/source/conf.py$"
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: 'v1.10.0'
+    rev: 'v1.11.0'
     hooks:
       - id: mypy
         additional_dependencies:
