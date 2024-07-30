@@ -158,13 +158,13 @@ class EncoderDecoderPredictDataset(
                     past_covariates.shape[1] if len(past_covariates.shape) > 1 else 1
                 )
                 past_covariate_transforms = dict(
-                    list(self._input_transform.items())[:num_past_covariates]
+                    list(self._input_transforms.items())[:num_past_covariates]
                 )
 
             if known_past_columns is not None:
                 past_known_covariate_transforms = {
                     k: v
-                    for k, v in self._input_transform.items()
+                    for k, v in self._input_transforms.items()
                     if k in known_past_columns
                 }
             elif self._past_known_covariates is not None:
@@ -177,7 +177,7 @@ class EncoderDecoderPredictDataset(
                     else 1
                 )
                 past_known_covariate_transforms = dict(
-                    list(self._input_transform.items())[
+                    list(self._input_transforms.items())[
                         num_past_covariates : num_past_covariates
                         + num_past_known_covariates
                     ]
@@ -254,7 +254,7 @@ class EncoderDecoderPredictDataset(
         between iterations to append the past covariates to the dataset.
         """
         if transform:
-            past_covariates = _apply_transforms(past_covariates, self._input_transform)
+            past_covariates = _apply_transforms(past_covariates, self._input_transforms)
         else:
             past_covariates = torch.as_tensor(past_covariates)
 
