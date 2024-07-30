@@ -134,7 +134,9 @@ class TransformerDataModule(DataModuleBase):
 
         if self.hparams["time_column"] is not None:
             if self.hparams["time_format"] == "relative":
-                self._input_transforms[TIME].fit(torch.from_numpy(df[TIME].to_numpy()))
+                self._input_transforms[TIME].fit(
+                    torch.from_numpy(df[TIME].to_numpy(dtype=float))
+                )
             elif self.hparams["time_format"] == "absolute":
                 self._fit_absolute_time(df, self._input_transforms[TIME])
 

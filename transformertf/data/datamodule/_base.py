@@ -527,7 +527,13 @@ class DataModuleBase(L.LightningDataModule):
             dict[str, TransformCollection],
             {
                 cov.name: self._input_transforms[cov.name]
-                for cov in self.known_covariates + self.known_past_covariates
+                for cov in self.known_covariates
+                + self.known_past_covariates
+                + (
+                    [Covariate(TIME_PREFIX, TIME_PREFIX)]
+                    if self.hparams.get("time_column")
+                    else []
+                )
             },
         )
 
@@ -635,8 +641,6 @@ class DataModuleBase(L.LightningDataModule):
         col_filter = _to_list(input_columns)  # type: ignore[arg-type]
         if target_column is not None:
             col_filter += _to_list(target_column)
-
-        df = df[col_filter]
 
         if timestamp is not None:
             time: np.ndarray | pd.Series

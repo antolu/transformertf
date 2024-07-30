@@ -56,6 +56,11 @@ def field_key() -> str:
 
 
 @pytest.fixture(scope="session")
+def time_key() -> str:
+    return "time_ms"
+
+
+@pytest.fixture(scope="session")
 def current_cov_key() -> str:
     return known_cov_col(CURRENT)
 
