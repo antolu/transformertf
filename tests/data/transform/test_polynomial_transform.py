@@ -165,3 +165,12 @@ def test_fixed_polynomial_transform_line() -> None:
     assert y.shape == (2,)
 
     assert torch.eq(y, torch.ones(2) * 5.0).all()
+
+
+def test_polynomial_transform_str_repr() -> None:
+    """assert that the __str__ and __repr__ methods do not raise an exception"""
+    transform = PolynomialTransform(degree=2, num_iterations=10)
+    transform.fit(torch.ones(2), torch.ones(2))
+
+    _ = str(transform)
+    _ = repr(transform)
