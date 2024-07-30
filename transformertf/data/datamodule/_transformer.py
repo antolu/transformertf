@@ -130,6 +130,8 @@ class TransformerDataModule(DataModuleBase):
         self._input_transforms[TIME] = TransformCollection(*transforms)
 
     def _fit_transforms(self, df: pd.DataFrame) -> None:
+        super()._fit_transforms(df)
+
         if self.hparams["time_column"] is not None:
             if self.hparams["time_format"] == "relative":
                 self._input_transforms[TIME].fit(torch.from_numpy(df[TIME].to_numpy()))
