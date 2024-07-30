@@ -6,7 +6,7 @@ from transformertf.data.transform import MaxScaler
 
 
 def test_max_scaler_forward() -> None:
-    scaler = MaxScaler(num_features=2)
+    scaler = MaxScaler(num_features_=2)
     y = torch.tensor([[1.0, 2.0], [3.0, 4.0]])
     scaler.fit(y)
     result = scaler.forward(y)
@@ -15,14 +15,14 @@ def test_max_scaler_forward() -> None:
 
 
 def test_max_scaler_fit() -> None:
-    scaler = MaxScaler(num_features=2)
+    scaler = MaxScaler(num_features_=2)
     y = torch.tensor([[1.0, 2.0], [3.0, 4.0]])
     scaler.fit(y)
     assert scaler.__sklearn_is_fitted__()
 
 
 def test_max_scaler_transform() -> None:
-    scaler = MaxScaler(num_features=2)
+    scaler = MaxScaler(num_features_=2)
     y = torch.tensor([[1.0, 2.0], [3.0, 4.0]])
     scaler.fit(y)
     result = scaler.transform(y)
@@ -31,7 +31,7 @@ def test_max_scaler_transform() -> None:
 
 
 def test_max_scaler_inverse_transform() -> None:
-    scaler = MaxScaler(num_features=2)
+    scaler = MaxScaler(num_features_=2)
     y = torch.tensor([[1.0, 2.0], [3.0, 4.0]])
     scaler.fit(y)
     y_scaled = scaler.transform(y)
