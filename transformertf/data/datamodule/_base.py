@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
+import functools
 import logging
 import pathlib
 import shutil
@@ -272,6 +273,26 @@ class DataModuleBase(L.LightningDataModule):
 
         train_df = list(map(read_dataframe, train_pths))
         val_df = list(map(read_dataframe, val_pths))
+
+        parse_dataframe = functools.partial(
+            self.parse_dataframe,
+            input_columns=self.hparams["known_covariates"],
+            past_known_columns=self.hparams.get("known_past_covariates"),
+            target_column=self.hparams["target_covariate"],
+        )
+
+        train_df = list(
+            map(
+                parse_dataframe,
+                train_df,
+            )
+        )
+        val_df = list(
+            map(
+                parse_dataframe,
+                val_df,
+            )
+        )
 
         self._raw_train_df = train_df
         self._raw_val_df = val_df
@@ -594,6 +615,7 @@ class DataModuleBase(L.LightningDataModule):
     def parse_dataframe(
         df: pd.DataFrame,
         input_columns: str | typing.Sequence[str],
+        past_known_columns: str | typing.Sequence[str] | None = None,
         target_column: str | None = None,
         timestamp: np.ndarray | pd.Series | str | None = None,
     ) -> pd.DataFrame:
@@ -613,6 +635,8 @@ class DataModuleBase(L.LightningDataModule):
             The timestamps of the data.
         input_columns : str | typing.Sequence[str]
             The columns to use as input.
+        past_known_columns : str | typing.Sequence[str] | None
+            The columns to use as known past covariates.
         target_column : str | None
             The column to use as target.
         timestamp : np.ndarray | pd.Series | str | None
@@ -655,6 +679,10 @@ class DataModuleBase(L.LightningDataModule):
         Preprocess the dataframe into the format expected by the model.
         This function should be chaininvoked with the ``read_input`` function,
         and must be called before ``apply_transforms``.
+
+        This function extracts the known past and future covariates from the dataframe,
+        and adds them as separate columns to the dataframe. The columns are named
+        using the prefixes ``__past_known_continuous_`` and ``__future_known_continuous_``.
 
         This function can be overridden in subclasses to add additional
         preprocessing steps.
