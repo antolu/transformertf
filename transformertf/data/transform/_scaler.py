@@ -257,3 +257,46 @@ class RunningNormalizer(BaseTransform):
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}()"
+
+
+class MaxScaler(BaseTransform):
+    _transform_type = BaseTransform.TransformType.X
+
+    def __init__(self, num_features: int = 1):
+        super().__init__()
+        self.num_features = num_features
+
+        self.max_ = torch.zeros(num_features, requires_grad=False)
+
+    def forward(self, y: torch.Tensor) -> torch.Tensor:
+        return y / self.max_
+
+    def fit(
+        self, x: np.ndarray | torch.Tensor, y: np.ndarray | torch.Tensor | None = None
+    ) -> MaxScaler:
+        if y is None:
+            y = x
+
+        y = _as_torch(y)
+        self.max_ = torch.max(y, dim=0)[0].view_as(self.max_)
+        return self
+
+    def transform(
+        self, x: np.ndarray | torch.Tensor, y: np.ndarray | torch.Tensor | None = None
+    ) -> torch.Tensor:
+        if y is None:
+            y = x
+        return self.forward(_as_torch(x))
+
+    def inverse_transform(
+        self, x: np.ndarray | torch.Tensor, y: np.ndarray | torch.Tensor | None = None
+    ) -> torch.Tensor:
+        if y is None:
+            y = x
+        return _as_torch(y) * self.max_
+
+    def __sklearn_is_fitted__(self) -> bool:  # noqa: PLW3201
+        return torch.all(self.max_ != 0.0).item()
+
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}()"

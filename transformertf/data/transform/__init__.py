@@ -4,7 +4,7 @@ from ._discrete_fn import DiscreteFunctionTransform
 from ._divide_by_x import DivideByXTransform
 from ._log import Log1pTransform, LogTransform
 from ._polynomial import FixedPolynomialTransform, PolynomialTransform
-from ._scaler import RunningNormalizer
+from ._scaler import MaxScaler, RunningNormalizer
 
 StandardScaler = RunningNormalizer
 
@@ -14,6 +14,7 @@ for _mod in [
     TransformCollection,
     LogTransform,
     Log1pTransform,
+    MaxScaler,
     PolynomialTransform,
     FixedPolynomialTransform,
     RunningNormalizer,
@@ -33,6 +34,7 @@ __all__ = [
     "FixedPolynomialTransform",
     "Log1pTransform",
     "LogTransform",
+    "MaxScaler",
     "PolynomialTransform",
     "RunningNormalizer",
     "StandardScaler",
