@@ -915,7 +915,7 @@ class DataModuleBase(L.LightningDataModule):
             )
         else:
             self._target_transform.fit(
-                torch.tensor([]),
+                # torch.tensor([]),
                 torch.from_numpy(df[self.hparams["target_covariate"]].to_numpy()),
             )
 
