@@ -262,11 +262,11 @@ class RunningNormalizer(BaseTransform):
 class MaxScaler(BaseTransform):
     _transform_type = BaseTransform.TransformType.X
 
-    def __init__(self, num_features: int = 1):
+    def __init__(self, num_features_: int = 1):
         super().__init__()
-        self.num_features = num_features
+        self.num_features_ = num_features_
 
-        self.max_ = torch.zeros(num_features, requires_grad=False)
+        self.max_ = torch.zeros(num_features_, requires_grad=False)
 
     def forward(self, y: torch.Tensor) -> torch.Tensor:
         return y / self.max_
