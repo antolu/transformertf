@@ -817,6 +817,34 @@ class DataModuleBase(L.LightningDataModule):
             predict=predict,
         )
 
+    def state_dict(self) -> dict[str, typing.Any]:
+        state = super().state_dict()
+        if self._input_transforms is not None:
+            state["input_transforms"] = {
+                col: transform.state_dict()
+                for col, transform in self._input_transforms.items()
+            }
+        if self._target_transform is not None:
+            state["target_transform"] = self._target_transform.state_dict()
+
+        return state
+
+    def load_state_dict(self, state: dict[str, typing.Any]) -> None:
+        if "input_transforms" in state:
+            for col, transform in self._input_transforms.items():
+                if col not in state["input_transforms"]:
+                    log.warning(f"Could not find state for {col}.")
+                transform.load_state_dict(state["input_transforms"][col])
+
+            state.pop("input_transforms")
+
+        if "target_transform" in state:
+            self._target_transform.load_state_dict(state["target_transform"])
+
+            state.pop("target_transform")
+
+        super().load_state_dict(state)
+
     def _create_transforms(self) -> None:
         """
         Instantiates the transforms to be used by the datamodule.
