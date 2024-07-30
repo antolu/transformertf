@@ -185,10 +185,9 @@ class DataModuleBase(L.LightningDataModule):
         self._extra_transforms_source = extra_transforms or {}
         self._create_transforms()
 
-        self._train_df_pths = (
-            _to_list(train_df_paths) if train_df_paths is not None else []
-        )
-        self._val_df_pths = _to_list(val_df_paths) if val_df_paths is not None else []
+        self._train_df_pths = _or_empty(train_df_paths)
+
+        self._val_df_pths = _or_empty(val_df_paths)
 
         # these will be set by prepare_data
         self._train_df: list[pd.DataFrame] = []
@@ -198,13 +197,8 @@ class DataModuleBase(L.LightningDataModule):
 
     """ Override the following in subclasses """
 
-    def _make_dataset_from_arrays(
-        self,
-        input_data: np.ndarray,
-        known_past_data: np.ndarray | None = None,
-        target_data: np.ndarray | None = None,
-        *,
-        predict: bool = False,
+    def _make_dataset_from_df(
+        self, df: pd.DataFrame | list[pd.DataFrame], *, predict: bool = False
     ) -> AbstractTimeSeriesDataset:
         raise NotImplementedError
 
@@ -398,25 +392,7 @@ class DataModuleBase(L.LightningDataModule):
             msg = "No training data available."
             raise ValueError(msg)
 
-        input_data = np.concatenate([
-            df[[cov.col for cov in self.known_covariates]].to_numpy()
-            for df in self._train_df
-        ])
-        known_past_data = (
-            np.concatenate([
-                df[[cov.col for cov in self.known_past_covariates]].to_numpy()
-                for df in self._train_df
-            ])
-            if self.hparams.get("known_past_covariates")
-            else None
-        )
-        target_data = np.concatenate([
-            df[self.target_covariate.col].to_numpy() for df in self._train_df
-        ])
-
-        return self._make_dataset_from_arrays(
-            input_data, known_past_data, target_data, predict=False
-        )
+        return self._make_dataset_from_df(self._train_df, predict=False)
 
     @property
     def val_dataset(
@@ -605,11 +581,10 @@ class DataModuleBase(L.LightningDataModule):
         df = self.parse_dataframe(
             df,
             timestamp=timestamp,
-            input_columns=self.hparams["known_covariates"]
-            + (self.hparams["known_past_covariates"] or []),
-            target_column=(
-                self.hparams["target_covariate"] if not skip_target else None
-            ),
+            input_columns=[
+                cov.name for cov in self.known_covariates + self.known_past_covariates
+            ],
+            target_column=(self.target_covariate.name if not skip_target else None),
         )
         df = self.preprocess_dataframe(df)
 
@@ -850,24 +825,6 @@ class DataModuleBase(L.LightningDataModule):
 
         return self._make_dataset_from_df(df, predict=predict)
 
-    def _make_dataset_from_df(
-        self, df: pd.DataFrame, *, predict: bool = False
-    ) -> AbstractTimeSeriesDataset:
-        target_data: np.ndarray | None = None
-        if self.target_covariate.col in df.columns:
-            target_data = df[self.target_covariate.col].to_numpy()
-
-        return self._make_dataset_from_arrays(
-            input_data=df[[cov.col for cov in self.known_covariates]].to_numpy(),
-            known_past_data=df[
-                [cov.col for cov in self.known_past_covariates]
-            ].to_numpy()
-            if self.hparams.get("known_past_covariates")
-            else None,
-            target_data=target_data,
-            predict=predict,
-        )
-
     def state_dict(self) -> dict[str, typing.Any]:
         state = super().state_dict()
         if self._input_transforms is not None:
@@ -1035,6 +992,12 @@ def _to_list(x: T | typing.Sequence[T]) -> list[T]:
     ):
         return list(x)
     return typing.cast(list[T], [x])
+
+
+def _or_empty(x: T | typing.Sequence[T] | None) -> list[T]:
+    if x is None:
+        return []
+    return _to_list(x)
 
 
 def known_cov_col(name: str) -> str:

@@ -254,7 +254,7 @@ class EncoderDecoderPredictDataset(
         between iterations to append the past covariates to the dataset.
         """
         if transform:
-            past_covariates = _apply_transforms(past_covariates, self._input_transforms)
+            past_covariates = _apply_transforms(past_covariates, self.input_transforms)
         else:
             past_covariates = torch.as_tensor(past_covariates)
 

@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from .._dtype import DATA_SOURCE, VALID_DTYPES, convert_data
+from .._dtype import VALID_DTYPES, convert_data
 from .._sample_generator import TimeSeriesSample, TimeSeriesSampleGenerator
 from ..transform import BaseTransform
 from ._base import (
@@ -15,6 +15,7 @@ from ._base import (
     DataSetType,
     _check_index,
     _check_label_data_length,
+    _to_list,
 )
 
 log = logging.getLogger(__name__)
@@ -24,20 +25,24 @@ RNG = np.random.default_rng()
 
 
 class TimeSeriesDataset(AbstractTimeSeriesDataset):
-    _input_data: list[torch.Tensor]
-    _target_data: list[torch.Tensor] | list[None]
+    _input_data: list[pd.DataFrame]
+    _target_data: list[pd.DataFrame] | list[None]
 
     def __init__(
         self,
-        input_data: DATA_SOURCE | list[DATA_SOURCE],
+        input_data: pd.DataFrame | list[pd.DataFrame],
         seq_len: int | None = None,
-        target_data: DATA_SOURCE | list[DATA_SOURCE] | None = None,
+        target_data: pd.DataFrame
+        | pd.Series
+        | list[pd.Series]
+        | list[pd.DataFrame]
+        | None = None,
         *,
         stride: int = 1,
         predict: bool = False,
         min_seq_len: int | None = None,
         randomize_seq_len: bool = False,
-        input_transform: dict[str, BaseTransform] | None = None,
+        input_transforms: dict[str, BaseTransform] | None = None,
         target_transform: BaseTransform | None = None,
         dtype: VALID_DTYPES = "float32",
     ):
@@ -123,10 +128,19 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
                 msg = "min_seq_len must be less than or equal to seq_len."
                 raise ValueError(msg)
 
-        self._input_data = convert_data(input_data, dtype=dtype)
+        self._input_data = _to_list(input_data)
 
-        if target_data is not None:
-            self._target_data = convert_data(target_data, dtype=dtype)
+        if target_data is not None or (
+            isinstance(target_data, list) and len(target_data) > 0
+        ):
+            self._target_data = typing.cast(
+                list[pd.DataFrame],
+                [
+                    df.to_frame() if isinstance(df, pd.Series) else df
+                    for df in _to_list(target_data)
+                ],
+            )
+
             _check_label_data_length(self._input_data, self._target_data)
 
             # if there is labeled data, it's either for training or validation
@@ -153,11 +167,12 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
         if seq_len is None:
             if len(self._input_data) > 1:
                 msg = (
-                    f"seq_len must be specified when using more than one input data source. "
-                    f"Got {len(self._input_data)} input data sources."
+                    "seq_len must be specified when using more than one input "
+                    f"data source. Got {len(self._input_data)} input data sources."
                 )
                 raise ValueError(msg)
             seq_len = len(self._input_data[0])
+            log.info(f"Using full dataset as sequence length: {seq_len}")
 
         if predict:
             if stride != 1:
@@ -169,11 +184,12 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
         self._randomize_seq_len = randomize_seq_len
         self._stride = stride
         self._predict = predict
+        self._dtype = dtype
 
-        self._input_transform = input_transform or {}
+        self._input_transform = input_transforms or {}
         self._target_transform = target_transform
 
-        self._sample_gen = [
+        self._sample_gen: list[TimeSeriesSampleGenerator[pd.DataFrame]] = [
             TimeSeriesSampleGenerator(
                 input_data=input_,
                 window_size=seq_len,
@@ -187,45 +203,7 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
         # needed to determine which dataframe to get samples from
         self._cum_num_samples = np.cumsum([len(gen) for gen in self._sample_gen])
 
-    @classmethod
-    def from_dataframe(
-        cls,
-        dataframe: pd.DataFrame,
-        input_columns: str | typing.Sequence[str],
-        target_column: str | None = None,
-        seq_len: int | None = None,
-        stride: int = 1,
-        predict: bool = False,  # noqa: FBT001, FBT002
-        min_seq_len: int | None = None,
-        randomize_seq_len: bool = False,  # noqa: FBT001, FBT002
-        input_transform: dict[str, BaseTransform] | None = None,
-        target_transform: BaseTransform | None = None,
-        dtype: torch.dtype = torch.float32,
-    ) -> TimeSeriesDataset:
-        if isinstance(input_columns, str):
-            input_columns = [input_columns]
-
-        input_data = dataframe[list(input_columns)].to_numpy()
-
-        if target_column is None:
-            target_data = None
-        else:
-            target_data = dataframe[list(target_column)].to_numpy()
-
-        return cls(
-            input_data=input_data,
-            seq_len=seq_len,
-            target_data=target_data,
-            stride=stride,
-            predict=predict,
-            min_seq_len=min_seq_len,
-            randomize_seq_len=randomize_seq_len,
-            input_transform=input_transform,
-            target_transform=target_transform,
-            dtype=dtype,
-        )
-
-    def __getitem__(self, idx: int) -> TimeSeriesSample:
+    def __getitem__(self, idx: int) -> TimeSeriesSample[torch.Tensor]:
         """
         Get a single sample from the dataset.
 
@@ -241,13 +219,13 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
 
     def __len__(self) -> int:
         """Number of samples in the dataset."""
-        return self._cum_num_samples[-1]
+        return int(self._cum_num_samples[-1])
 
     def __iter__(self) -> typing.Iterator[TimeSeriesSample]:
         for i in range(len(self)):
             yield self[i]
 
-    def _create_sample(self, idx: int) -> TimeSeriesSample:
+    def _create_sample(self, idx: int) -> TimeSeriesSample[torch.Tensor]:
         """
         Create a single sample from the dataset. Used internally by the __getitem__ method.
 
@@ -262,25 +240,27 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
 
         shifted_idx = idx - self._cum_num_samples[df_idx - 1] if df_idx > 0 else idx
 
-        sample = self._sample_gen[df_idx][shifted_idx]
+        sample: TimeSeriesSample = self._sample_gen[df_idx][shifted_idx]
 
         if self._randomize_seq_len:
             assert self._min_seq_len is not None
             random_len = RNG.integers(self._min_seq_len, self._seq_len)
-            sample["input"][random_len:] = 0.0
+            sample["input"].iloc[random_len:] = 0.0
 
             if "target" in sample:
-                sample["target"][random_len:] = 0.0
+                sample["target"].iloc[random_len:] = 0.0
+
+        sample_torch = convert_sample(sample, self._dtype)
 
         # add dimension for num features
-        if sample["input"].ndim == 1:
-            sample["input"] = sample["input"][..., None]
-        if "target" in sample and sample["target"].ndim == 1:
-            sample["target"] = sample["target"][..., None]
+        if sample_torch["input"].ndim == 1:
+            sample_torch["input"] = sample_torch["input"][..., None]
+        if "target" in sample_torch and sample_torch["target"].ndim == 1:
+            sample_torch["target"] = sample_torch["target"][..., None]
 
-        return sample
+        return sample_torch
 
-    def _get_prediction_input(self, idx: int) -> TimeSeriesSample:
+    def _get_prediction_input(self, idx: int) -> TimeSeriesSample[torch.Tensor]:
         """
         Get a single prediction input from the dataset.
 
@@ -294,6 +274,19 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
         if self._randomize_seq_len:
             assert self._min_seq_len is not None
             random_len = RNG.integers(self._min_seq_len, self._seq_len)
-            x["input"][random_len:] = 0.0
+            x["input"].iloc[random_len:] = 0.0
 
-        return x
+        return convert_sample(x, self._dtype)
+
+
+def convert_sample(
+    sample: TimeSeriesSample, dtype: VALID_DTYPES
+) -> TimeSeriesSample[torch.Tensor]:
+    """
+    Convert the data in a sample to a torch.Tensor with the given dtype.
+    """
+    sample_torch = {}
+    for key, value in sample.items():
+        sample_torch[key] = convert_data(value, dtype)[0]
+
+    return typing.cast(TimeSeriesSample[torch.Tensor], sample_torch)

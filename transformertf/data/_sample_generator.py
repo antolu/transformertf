@@ -46,8 +46,6 @@ class TimeSeriesSample(TypedDict, typing.Generic[T]):
     """ Input data for the time series, size L. """
     target: NotRequired[T]
     """ Target / ground truth data for the time series, size L."""
-    initial_state: T
-    """ Initial state of the time series. """
 
 
 class SampleGenerator(typing.Sequence[U]):
@@ -128,25 +126,21 @@ class TimeSeriesSampleGenerator(SampleGenerator[TimeSeriesSample[T]]):
         sl = self._window_generator[idx]
 
         input_data = self._input_data[sl]
-        initial_x = input_data[0:1] if input_data.ndim == 1 else input_data[0]
 
         if self._label_data is None:
             return typing.cast(
                 TimeSeriesSample[T],
                 {
                     "input": input_data,
-                    "initial_state": concat(initial_x, zeros_like(initial_x)),
                 },
             )
         target_data = self._label_data[sl]
-        initial_y = target_data[0:1] if target_data.ndim == 1 else target_data[0]
 
         return typing.cast(
             TimeSeriesSample[T],
             {
                 "input": input_data,
                 "target": target_data,
-                "initial_state": concat(initial_x, initial_y),
             },
         )
 

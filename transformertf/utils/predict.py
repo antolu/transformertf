@@ -150,7 +150,13 @@ def predict_phylstm(
 
     """
     covariates = pd.concat((past_covariates, future_covariates))
-
+    # covariates = covariates.rename(
+    #     columns={
+    #         cov.name: cov.col
+    #         for cov in [*datamodule.known_covariates, datamodule.target_covariate]
+    #     }
+    # )
+    #
     dataset = datamodule.make_dataset(covariates, predict=True)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, num_workers=0)
 

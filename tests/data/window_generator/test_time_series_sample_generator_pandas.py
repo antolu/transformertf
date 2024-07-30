@@ -38,11 +38,10 @@ def test_num_samples(
     last_sample = wg[-1]
     assert isinstance(last_sample, dict)
 
-    for key in ("input", "initial_state"):
+    for key in ("input",):
         assert key in last_sample
 
     assert last_sample["input"].shape == sample_shape
-    assert last_sample["initial_state"].shape == (2,)
 
 
 # Test 1D data

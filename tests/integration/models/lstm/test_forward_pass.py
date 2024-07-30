@@ -23,7 +23,6 @@ def sample(batch: tuple[torch.Tensor, torch.Tensor]) -> TimeSeriesSample:
     return {
         "input": x,
         "target": y,
-        "initial_state": torch.cat((x[:, 0], y[:, 0]), dim=-1),
     }
 
 

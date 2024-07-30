@@ -1,14 +1,20 @@
 from __future__ import annotations
 
+import sys
 import typing
+
+import pandas as pd
 
 from .._downsample import DOWNSAMPLE_METHODS
 from ..dataset import EncoderDataset, EncoderDecoderDataset
 from ._base import DataModuleBase, _to_list
 
-if typing.TYPE_CHECKING:
-    import numpy as np
+if sys.version_info >= (3, 12):
+    from typing import override
+else:
+    from typing_extensions import override
 
+if typing.TYPE_CHECKING:
     from ..transform import BaseTransform
 
 
@@ -78,22 +84,28 @@ class TransformerDataModule(DataModuleBase):
 
 
 class EncoderDecoderDataModule(TransformerDataModule):
-    def _make_dataset_from_arrays(
+    @override
+    def _make_dataset_from_df(
         self,
-        input_data: np.ndarray,
-        known_past_data: np.ndarray | None = None,
-        target_data: np.ndarray | None = None,
+        df: pd.DataFrame | list[pd.DataFrame],
         *,
         predict: bool = False,
     ) -> EncoderDecoderDataset:
-        if target_data is None:
-            msg = "Target data must be provided for an encoder-decoder model."
-            raise ValueError(msg)
+        input_cols = [cov.col for cov in self.known_covariates]
+        known_past_cols = [cov.col for cov in self.known_past_covariates]
 
         return EncoderDecoderDataset(
-            input_data=input_data,
-            known_past_data=known_past_data,
-            target_data=target_data,
+            input_data=df[input_cols]
+            if isinstance(df, pd.DataFrame)
+            else [df[input_cols] for df in df],
+            known_past_data=df[known_past_cols]
+            if isinstance(df, pd.DataFrame)
+            else [df[known_past_cols] for df in df]
+            if len(known_past_cols) > 0
+            else None,
+            target_data=df[self.target_covariate.col]
+            if isinstance(df, pd.DataFrame)
+            else [df[self.target_covariate.col] for df in df],
             ctx_seq_len=self.hparams["ctxt_seq_len"],
             tgt_seq_len=self.hparams["tgt_seq_len"],
             min_ctxt_seq_len=self.hparams["min_ctxt_seq_len"],
@@ -103,32 +115,29 @@ class EncoderDecoderDataModule(TransformerDataModule):
                 self.hparams["randomize_seq_len"] if not predict else False
             ),
             predict=predict,
-            input_transform=self.input_transforms,
+            input_transforms=self.input_transforms,
             target_transform=self.target_transform,
             dtype=self.hparams["dtype"],
         )
 
 
 class EncoderDataModule(TransformerDataModule):
-    def _make_dataset_from_arrays(
+    @override
+    def _make_dataset_from_df(
         self,
-        input_data: np.ndarray,
-        known_past_data: np.ndarray | None = None,
-        target_data: np.ndarray | None = None,
+        df: pd.DataFrame | list[pd.DataFrame],
         *,
         predict: bool = False,
     ) -> EncoderDataset:
-        if target_data is None:
-            msg = "Target data should not be provided for an encoder model."
-            raise ValueError(msg)
-
-        if known_past_data is not None:
-            msg = "known_past_data is not used in this class."
-            raise NotImplementedError(msg)
+        input_cols = [cov.col for cov in self.known_covariates]
 
         return EncoderDataset(
-            input_data=input_data,
-            target_data=target_data,
+            input_data=df[input_cols]
+            if isinstance(df, pd.DataFrame)
+            else [df[input_cols] for df in df],
+            target_data=df[self.target_covariate.col]
+            if isinstance(df, pd.DataFrame)
+            else [df[self.target_covariate.col] for df in df],
             ctx_seq_len=self.hparams["ctxt_seq_len"],
             min_ctxt_seq_len=self.hparams["min_ctxt_seq_len"],
             tgt_seq_len=self.hparams["tgt_seq_len"],
@@ -138,7 +147,7 @@ class EncoderDataModule(TransformerDataModule):
                 self.hparams["randomize_seq_len"] if not predict else False
             ),
             predict=predict,
-            input_transform=self.input_transforms,
+            input_transforms=self.input_transforms,
             target_transform=self.target_transform,
             dtype=self.hparams["dtype"],
         )
