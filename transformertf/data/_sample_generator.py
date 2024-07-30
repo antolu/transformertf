@@ -13,6 +13,7 @@ import typing
 from typing import NotRequired, TypedDict
 
 import numpy as np
+import pandas as pd
 import torch
 
 from ._window_generator import WindowGenerator
@@ -29,7 +30,7 @@ __all__ = [
     "TransformerSampleGenerator",
 ]
 
-T = typing.TypeVar("T", np.ndarray, torch.Tensor)
+T = typing.TypeVar("T", np.ndarray, torch.Tensor, pd.DataFrame, pd.Series)
 U = typing.TypeVar("U")
 
 log = logging.getLogger(__name__)
@@ -200,7 +201,7 @@ class TransformerSampleGenerator(SampleGenerator[EncoderDecoderTargetSample[T]])
 
         self._input_data = copy(input_data)
         self._label_data = copy(target_data)
-        self._known_past_data = (
+        self._known_past_data: T | None = (
             copy(known_past_data) if known_past_data is not None else None
         )
 
@@ -210,7 +211,7 @@ class TransformerSampleGenerator(SampleGenerator[EncoderDecoderTargetSample[T]])
                 f"({len(self._input_data)}) and ({len(self._label_data)})"
             )
             raise ValueError(msg)
-        if known_past_data is not None and len(self._input_data) != len(
+        if self._known_past_data is not None and len(self._input_data) != len(
             self._known_past_data
         ):
             msg = (
@@ -318,10 +319,10 @@ class TransformerPredictionSampleGenerator(SampleGenerator[EncoderDecoderSample[
         future_covariates = zero_pad_(
             future_covariates, self._window_generator.real_data_len
         )
-        self._covariates = to_2dim(concat(past_covariates, future_covariates, dim=0))
+        self._covariates: T = to_2dim(concat(past_covariates, future_covariates, dim=0))
 
-        self._past_target = to_2dim(copy(past_targets))
-        self._known_past_covariates = (
+        self._past_target: T = to_2dim(copy(past_targets))
+        self._known_past_covariates: T | None = (
             to_2dim(copy(known_past_covariates))
             if known_past_covariates is not None
             else None
@@ -435,12 +436,21 @@ def check_index(idx: int, length: int) -> int:
     return idx
 
 
+EXC_MSG = (
+    "Unexpected type {}, expected np.ndarray, torch.Tensor, pd.DataFrame or pd.Series"
+)
+
+
 def zeros_like(arr: T) -> T:
     if isinstance(arr, np.ndarray):
         return np.zeros_like(arr)
     if isinstance(arr, torch.Tensor):
         return torch.zeros_like(arr)
-    msg = f"Unexpected type {type(arr)}"
+    if isinstance(arr, pd.DataFrame):
+        return pd.DataFrame(index=arr.index, columns=arr.columns, data=0)
+    if isinstance(arr, pd.Series):
+        return pd.Series(index=arr.index, data=0)
+    msg = EXC_MSG.format(type(arr))
     raise TypeError(msg)
 
 
@@ -449,10 +459,16 @@ def ones_like(arr: T) -> T:
         return np.ones_like(arr)
     if isinstance(arr, torch.Tensor):
         return torch.ones_like(arr)
-    raise TypeError
+    if isinstance(arr, pd.DataFrame):
+        return pd.DataFrame(index=arr.index, columns=arr.columns, data=1)
+    if isinstance(arr, pd.Series):
+        return pd.Series(index=arr.index, data=1)
+    msg = EXC_MSG.format(type(arr))
+    raise TypeError(msg)
 
 
 def zero_pad_(arr: T, length: int) -> T:
+    zeros: T
     if isinstance(arr, np.ndarray):
         zeros = np.zeros((length, *arr.shape[1:]), dtype=arr.dtype)
         zeros[: len(arr)] = arr
@@ -461,7 +477,16 @@ def zero_pad_(arr: T, length: int) -> T:
         zeros = torch.zeros(*(length, *arr.shape[1:]), dtype=arr.dtype)
         zeros[: len(arr)] = arr
         return zeros
-    raise TypeError
+    if isinstance(arr, pd.DataFrame):
+        zeros = pd.DataFrame(index=range(length), columns=arr.columns)
+        zeros.iloc[: len(arr)] = arr
+        return zeros
+    if isinstance(arr, pd.Series):
+        zeros = pd.Series(index=range(length), data=0)
+        zeros.iloc[: len(arr)] = arr
+        return zeros
+    msg = EXC_MSG.format(type(arr))
+    raise TypeError(msg)
 
 
 def copy(arr: T) -> T:
@@ -469,14 +494,25 @@ def copy(arr: T) -> T:
         return arr.copy()
     if isinstance(arr, torch.Tensor):
         return arr.clone()
-    raise TypeError
+    if isinstance(arr, pd.DataFrame | pd.Series):
+        return arr.copy()
+    msg = EXC_MSG.format(type(arr))
+    raise TypeError(msg)
 
 
 def stack(*arrs: T, dim: int = -1) -> T:
     if all(isinstance(arr, np.ndarray) for arr in arrs):
-        return np.stack(arrs, axis=dim)  # pyright: ignore [reportGeneralTypeIssues]
+        return np.stack(arrs, axis=dim)  # type: ignore[return-value]
     if all(isinstance(arr, torch.Tensor) for arr in arrs):
         return torch.stack(arrs, dim=dim)  # pyright: ignore [reportGeneralTypeIssues]
+    if all(isinstance(arr, pd.DataFrame) for arr in arrs) or all(
+        isinstance(arr, pd.Series) for arr in arrs
+    ):
+        return pd.concat(arrs, axis=dim)  # type: ignore[return-value,call-overload]
+    (
+        "All arrays must be of the same type, "
+        "either np.ndarray, torch.Tensor, pd.DataFrame or pd.Series. Got {}"
+    ).format(", ".join(type(arr).__name__ for arr in arrs))
     raise TypeError
 
 
@@ -485,12 +521,27 @@ def concat(*arrs: T, dim: int = 0) -> T:
         return np.concatenate(arrs, axis=dim)  # type: ignore[return-value]
     if all(isinstance(arr, torch.Tensor) for arr in arrs):
         return torch.cat(arrs, dim=dim)  # type: ignore[return-value]
-    raise TypeError
+    if all(isinstance(arr, pd.DataFrame | pd.Series) for arr in arrs):
+        if dim == -1:
+            dim = 1
+        return pd.concat(arrs, axis=dim)  # type: ignore[return-value,call-overload]
+    msg = (
+        "All arrays must be of the same type, "
+        "either np.ndarray, torch.Tensor, pd.DataFrame or pd.Series. "
+        "Got {}".format(", ".join(type(arr).__name__ for arr in arrs))
+    )
+
+    raise TypeError(msg)
 
 
 def to_2dim(arr: T) -> T:
+    if isinstance(arr, pd.DataFrame | pd.Series):
+        return arr
     if arr.ndim == 0:
         return arr[None, None]
     if arr.ndim == 1:
         return arr[..., None]
+    if not hasattr(arr, "ndim"):
+        msg = f"Object {arr} of type {type(arr)} does not have an ndim attribute."
+        raise TypeError(msg)
     return arr
