@@ -27,7 +27,7 @@ class DataSetType(enum.Enum):
 class AbstractTimeSeriesDataset(torch.utils.data.Dataset):
     _input_data: list[torch.Tensor]
     _target_data: list[torch.Tensor] | list[None]
-    _input_transform: dict[str, BaseTransform]
+    _input_transforms: dict[str, BaseTransform]
     _target_transform: BaseTransform | None
     _dataset_type: DataSetType
 
@@ -44,8 +44,8 @@ class AbstractTimeSeriesDataset(torch.utils.data.Dataset):
         return int(np.sum([len(arr) for arr in self._input_data]))
 
     @property
-    def input_transform(self) -> dict[str, BaseTransform]:
-        return self._input_transform
+    def input_transforms(self) -> dict[str, BaseTransform]:
+        return self._input_transforms
 
     @property
     def target_transform(self) -> BaseTransform | None:

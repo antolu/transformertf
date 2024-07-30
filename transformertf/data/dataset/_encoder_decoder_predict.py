@@ -115,7 +115,7 @@ class EncoderDecoderPredictDataset(
             )
             raise ValueError(msg)
 
-        self._input_transform = input_transforms or {}
+        self._input_transforms = input_transforms or {}
         self._target_transform = target_transform
 
         self._context_length = context_length
@@ -148,7 +148,9 @@ class EncoderDecoderPredictDataset(
         if apply_transforms:
             if input_columns is not None:
                 past_covariate_transforms = {
-                    k: v for k, v in self._input_transform.items() if k in input_columns
+                    k: v
+                    for k, v in self._input_transforms.items()
+                    if k in input_columns
                 }
             else:  # numpy array
                 # take first n transforms based on number of covariates

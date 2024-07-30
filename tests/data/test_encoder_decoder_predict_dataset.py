@@ -232,7 +232,7 @@ def test_predict_dataset_access_properties(
         target_transform=target_transform,
     )
 
-    assert dataset.input_transform == {IN_NAME: input_transform}
+    assert dataset.input_transforms == {IN_NAME: input_transform}
     assert dataset.target_transform == target_transform
 
 
