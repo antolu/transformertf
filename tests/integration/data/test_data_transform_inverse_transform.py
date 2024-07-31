@@ -48,8 +48,8 @@ def test_data_transform_inverse_transform(
     assert len(x) == len(df)
     assert len(y) == len(df)
 
-    input_transform = dm.input_transforms[CURRENT]
-    target_transform = dm.target_transform
+    input_transform = dm.transforms[CURRENT]
+    target_transform = dm.transforms[FIELD]
 
     x = input_transform.inverse_transform(x)
     y = target_transform.inverse_transform(y)
@@ -112,8 +112,8 @@ def test_phylstm_data_transform_inverse_transform(
     assert len(x) == len(df)
     assert len(y) == len(df)
 
-    input_transform = phylstm_dm.input_transforms[current_key]
-    target_transform = phylstm_dm.target_transform
+    input_transform = phylstm_dm.transforms[current_key]
+    target_transform = phylstm_dm.transforms[field_key]
 
     x = input_transform.inverse_transform(x)
     y = target_transform.inverse_transform(y)

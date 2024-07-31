@@ -42,8 +42,7 @@ class EncoderDataset(AbstractTimeSeriesDataset):
         min_ctxt_seq_len: int | None = None,
         min_tgt_seq_len: int | None = None,
         randomize_seq_len: bool = False,
-        input_transforms: dict[str, BaseTransform] | None = None,
-        target_transform: BaseTransform | None = None,
+        transforms: dict[str, BaseTransform] | None = None,
         dtype: VALID_DTYPES = "float32",
     ):
         """
@@ -116,8 +115,7 @@ class EncoderDataset(AbstractTimeSeriesDataset):
         self._randomize_seq_len = randomize_seq_len
         self._dtype = dtype
 
-        self._input_transforms = input_transforms or {}
-        self._target_transform = target_transform
+        self._transforms = transforms or {}
 
         self._sample_gen = [
             TransformerSampleGenerator(

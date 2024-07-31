@@ -71,8 +71,7 @@ def test_create_predict_dataset_basic(
         prediction_length=PREDICTION_LENGTH,
         input_columns=[IN_NAME],
         target_column=TGT_NAME,
-        input_transforms={IN_NAME: input_transform},
-        target_transform=target_transform,
+        transforms={IN_NAME: input_transform, TGT_NAME: target_transform},
     )
 
 
@@ -92,8 +91,7 @@ def test_createpredict_dataset_with_known_past_covariates(
         input_columns=[IN_NAME],
         target_column=TGT_NAME,
         known_past_columns=[OPT_NAME],
-        input_transforms={IN_NAME: input_transform},
-        target_transform=target_transform,
+        transforms={IN_NAME: input_transform, TGT_NAME: target_transform},
     )
 
 
@@ -127,8 +125,7 @@ def test_create_predict_dataset_no_colnames(
             past_target=past_target,
             context_length=CONTEXT_LENGTH,
             prediction_length=PREDICTION_LENGTH,
-            input_transforms={IN_NAME: input_transform},
-            target_transform=target_transform,
+            transforms={IN_NAME: input_transform, TGT_NAME: target_transform},
         )
 
 
@@ -150,8 +147,7 @@ def test_create_predict_dataset_np(
         prediction_length=PREDICTION_LENGTH,
         input_columns=[IN_NAME],
         target_column=TGT_NAME,
-        input_transforms={IN_NAME: input_transform},
-        target_transform=target_transform,
+        transforms={IN_NAME: input_transform, TGT_NAME: target_transform},
     )
 
 
@@ -190,8 +186,7 @@ def test_create_predict_dataset_np_no_colnames(
         past_target=past_target,
         context_length=CONTEXT_LENGTH,
         prediction_length=PREDICTION_LENGTH,
-        input_transforms={IN_NAME: input_transform},
-        target_transform=target_transform,
+        transforms={IN_NAME: input_transform, TGT_NAME: target_transform},
     )
 
 
@@ -228,12 +223,10 @@ def test_predict_dataset_access_properties(
         prediction_length=PREDICTION_LENGTH,
         input_columns=[IN_NAME],
         target_column=TGT_NAME,
-        input_transforms={IN_NAME: input_transform},
-        target_transform=target_transform,
+        transforms={IN_NAME: input_transform, TGT_NAME: target_transform},
     )
 
-    assert dataset.input_transforms == {IN_NAME: input_transform}
-    assert dataset.target_transform == target_transform
+    assert dataset.transforms == {IN_NAME: input_transform, TGT_NAME: target_transform}
 
 
 def test_predict_dataset_correct_length(
@@ -251,8 +244,7 @@ def test_predict_dataset_correct_length(
         prediction_length=PREDICTION_LENGTH,
         input_columns=[IN_NAME],
         target_column=TGT_NAME,
-        input_transforms={IN_NAME: input_transform},
-        target_transform=target_transform,
+        transforms={IN_NAME: input_transform, TGT_NAME: target_transform},
     )
 
     assert len(dataset) == 4
@@ -273,8 +265,7 @@ def test_predict_dataset_append_target_context(
         prediction_length=PREDICTION_LENGTH,
         input_columns=[IN_NAME],
         target_column=TGT_NAME,
-        input_transforms={IN_NAME: input_transform},
-        target_transform=target_transform,
+        transforms={IN_NAME: input_transform, TGT_NAME: target_transform},
     )
 
     dataset.append_past_target(past_target[TGT_NAME].values)
@@ -297,8 +288,7 @@ def test_predict_dataset_access_elements(
         prediction_length=PREDICTION_LENGTH,
         input_columns=[IN_NAME],
         target_column=TGT_NAME,
-        input_transforms={IN_NAME: input_transform},
-        target_transform=target_transform,
+        transforms={IN_NAME: input_transform, TGT_NAME: target_transform},
     )
 
     _ = dataset[0]
@@ -322,8 +312,7 @@ def test_predict_dataset_iterate_without_extra_context(
         prediction_length=PREDICTION_LENGTH,
         input_columns=[IN_NAME],
         target_column=TGT_NAME,
-        input_transforms={IN_NAME: input_transform},
-        target_transform=target_transform,
+        transforms={IN_NAME: input_transform, TGT_NAME: target_transform},
     )
 
     num_samples = 0
@@ -350,8 +339,7 @@ def test_predict_dataset_iterate_with_extra_context(
         prediction_length=PREDICTION_LENGTH,
         input_columns=[IN_NAME],
         target_column=TGT_NAME,
-        input_transforms={IN_NAME: input_transform},
-        target_transform=target_transform,
+        transforms={IN_NAME: input_transform, TGT_NAME: target_transform},
     )
 
     num_samples = 0
@@ -384,8 +372,7 @@ def test_predict_dataset_iterate_with_extra_context_optional_columns(
         input_columns=[IN_NAME],
         target_column=TGT_NAME,
         known_past_columns=[OPT_NAME],
-        input_transforms={IN_NAME: input_transform},
-        target_transform=target_transform,
+        transforms={IN_NAME: input_transform, TGT_NAME: target_transform},
     )
 
     num_samples = 0
@@ -425,8 +412,7 @@ def test_predict_dataset_iterate_with_too_much_extra_context(
         prediction_length=PREDICTION_LENGTH,
         input_columns=[IN_NAME],
         target_column=TGT_NAME,
-        input_transforms={IN_NAME: input_transform},
-        target_transform=target_transform,
+        transforms={IN_NAME: input_transform, TGT_NAME: target_transform},
     )
 
     for i, _ in enumerate(dataset):
@@ -453,8 +439,7 @@ def test_predict_dataset_with_dataloader(
         prediction_length=PREDICTION_LENGTH,
         input_columns=[IN_NAME],
         target_column=TGT_NAME,
-        input_transforms={IN_NAME: input_transform},
-        target_transform=target_transform,
+        transforms={IN_NAME: input_transform, TGT_NAME: target_transform},
     )
 
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=False)

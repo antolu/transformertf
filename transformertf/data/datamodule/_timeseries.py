@@ -99,8 +99,7 @@ class TimeSeriesDataModule(DataModuleBase):
                 self.hparams["randomize_seq_len"] if not predict else False
             ),
             predict=predict,
-            input_transforms=self.input_transforms,
-            target_transform=self.target_transform,
+            transforms=self.transforms,
             dtype=self.hparams["dtype"],
         )
 

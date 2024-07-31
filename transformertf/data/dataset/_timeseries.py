@@ -42,8 +42,7 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
         predict: bool = False,
         min_seq_len: int | None = None,
         randomize_seq_len: bool = False,
-        input_transforms: dict[str, BaseTransform] | None = None,
-        target_transform: BaseTransform | None = None,
+        transforms: dict[str, BaseTransform] | None = None,
         dtype: VALID_DTYPES = "float32",
     ):
         """
@@ -106,11 +105,9 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
             with uniform probability between :attr:`min_seq_len` and
             :attr:`seq_len`. This is used to train the model to handle
             sequences of different lengths.
-        target_transform : BaseTransform, optional
-            The transform that was used to transform the target data.
-            This can be used to inverse transform the target data.
-            For the transforms for the input data, use the transforms
-            encapsulated in the :class:`DataModuleBase` class.
+        transforms : dict[str, BaseTransform], optional
+            The transforms that were used to transform the data.
+            This can be used to inverse transform the data.
         dtype : torch.dtype
             The data type of the torch.Tensors returned by the dataset in the
             __getitem__ method. Defaults to torch.float32.
@@ -186,8 +183,7 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
         self._predict = predict
         self._dtype = dtype
 
-        self._input_transform = input_transforms or {}
-        self._target_transform = target_transform
+        self._transforms = transforms or {}
 
         self._sample_gen: list[TimeSeriesSampleGenerator[pd.DataFrame]] = [
             TimeSeriesSampleGenerator(

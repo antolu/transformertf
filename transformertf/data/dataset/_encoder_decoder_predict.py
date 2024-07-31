@@ -27,8 +27,7 @@ class EncoderDecoderPredictDataset(
         past_target: pd.DataFrame | np.ndarray | pd.Series,
         context_length: int,
         prediction_length: int,
-        input_transforms: dict[str, BaseTransform] | None = None,
-        target_transform: BaseTransform | None = None,
+        transforms: dict[str, BaseTransform] | None = None,
         input_columns: list[str] | None = None,
         target_column: str | None = None,
         known_past_columns: list[str] | None = None,
@@ -74,15 +73,11 @@ class EncoderDecoderPredictDataset(
             Length of the context window to be used for prediction.
         prediction_length : int
             Length of the target window to be used for prediction.
-        input_transforms : dict[str, BaseTransform], optional
+        transforms : dict[str, BaseTransform], optional
             A dictionary with the input column names as keys and the
             transforms to be applied to each column as values. If None,
             no transforms will be applied. The transforms will be applied
             during iteration, by default None.
-        target_transform : BaseTransform, optional
-            A transform to be applied to the target column. If None, no
-            transform will be applied. The transform will be applied during
-            iteration, by default None.
         input_columns : list[str], optional
             A list with the column names of the past covariates. If
             `past_covariates` is a DataFrame, this parameter must be
@@ -115,12 +110,13 @@ class EncoderDecoderPredictDataset(
             )
             raise ValueError(msg)
 
-        self._input_transforms = input_transforms or {}
-        self._target_transform = target_transform
+        self._transforms = transforms or {}
 
         self._context_length = context_length
         self._target_length = prediction_length
         self._dtype = dtype
+        self._input_columns = input_columns
+        self._target_column = target_column
 
         self._past_known_covariates = (
             extract_covariates_from_df(past_covariates, known_past_columns)
@@ -148,9 +144,7 @@ class EncoderDecoderPredictDataset(
         if apply_transforms:
             if input_columns is not None:
                 past_covariate_transforms = {
-                    k: v
-                    for k, v in self._input_transforms.items()
-                    if k in input_columns
+                    k: v for k, v in self._transforms.items() if k in input_columns
                 }
             else:  # numpy array
                 # take first n transforms based on number of covariates
@@ -158,14 +152,12 @@ class EncoderDecoderPredictDataset(
                     past_covariates.shape[1] if len(past_covariates.shape) > 1 else 1
                 )
                 past_covariate_transforms = dict(
-                    list(self._input_transforms.items())[:num_past_covariates]
+                    list(self._transforms.items())[:num_past_covariates]
                 )
 
             if known_past_columns is not None:
                 past_known_covariate_transforms = {
-                    k: v
-                    for k, v in self._input_transforms.items()
-                    if k in known_past_columns
+                    k: v for k, v in self._transforms.items() if k in known_past_columns
                 }
             elif self._past_known_covariates is not None:
                 num_past_covariates = (
@@ -177,7 +169,7 @@ class EncoderDecoderPredictDataset(
                     else 1
                 )
                 past_known_covariate_transforms = dict(
-                    list(self._input_transforms.items())[
+                    list(self._transforms.items())[
                         num_past_covariates : num_past_covariates
                         + num_past_known_covariates
                     ]
@@ -196,9 +188,10 @@ class EncoderDecoderPredictDataset(
                 self._future_covariates,
                 past_covariate_transforms,
             )
-            self._past_target = _apply_transforms(
-                self._past_target, self._target_transform, first_feature
-            )
+            if target_column in self._transforms:
+                self._past_target = _apply_transforms(
+                    self._past_target, self._transforms[target_column], first_feature
+                )
             self._past_known_covariates = (
                 _apply_transforms(
                     self._past_known_covariates, past_known_covariate_transforms
@@ -236,8 +229,11 @@ class EncoderDecoderPredictDataset(
         Appends the past target to the dataset. This method must be called
         between iterations to append the past target to the dataset.
         """
+        assert self._target_column is not None
         if transform:
-            past_target = _apply_transforms(past_target, self._target_transform)
+            past_target = _apply_transforms(
+                past_target, self._transforms[self._target_column]
+            )
         else:
             past_target = torch.as_tensor(past_target)
 
@@ -254,7 +250,7 @@ class EncoderDecoderPredictDataset(
         between iterations to append the past covariates to the dataset.
         """
         if transform:
-            past_covariates = _apply_transforms(past_covariates, self.input_transforms)
+            past_covariates = _apply_transforms(past_covariates, self.transforms)
         else:
             past_covariates = torch.as_tensor(past_covariates)
 

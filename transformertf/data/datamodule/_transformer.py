@@ -127,18 +127,18 @@ class TransformerDataModule(DataModuleBase):
         if TIME in self._extra_transforms_source:
             transforms += self._extra_transforms_source[TIME]
 
-        self._input_transforms[TIME] = TransformCollection(*transforms)
+        self._transforms[TIME] = TransformCollection(*transforms)
 
     def _fit_transforms(self, df: pd.DataFrame) -> None:
         super()._fit_transforms(df)
 
         if self.hparams["time_column"] is not None:
             if self.hparams["time_format"] == "relative":
-                self._input_transforms[TIME].fit(
+                self._transforms[TIME].fit(
                     torch.from_numpy(df[TIME].to_numpy(dtype=float))
                 )
             elif self.hparams["time_format"] == "absolute":
-                self._fit_absolute_time(df, self._input_transforms[TIME])
+                self._fit_absolute_time(df, self._transforms[TIME])
 
     def _fit_absolute_time(self, df: pd.DataFrame, transform: BaseTransform) -> None:
         """
@@ -199,8 +199,7 @@ class EncoderDecoderDataModule(TransformerDataModule):
                 self.hparams["randomize_seq_len"] if not predict else False
             ),
             predict=predict,
-            input_transforms=self.input_transforms,
-            target_transform=self.target_transform,
+            transforms=self.transforms,
             dtype=self.hparams["dtype"],
         )
 
@@ -231,7 +230,6 @@ class EncoderDataModule(TransformerDataModule):
                 self.hparams["randomize_seq_len"] if not predict else False
             ),
             predict=predict,
-            input_transforms=self.input_transforms,
-            target_transform=self.target_transform,
+            transforms=self.transforms,
             dtype=self.hparams["dtype"],
         )

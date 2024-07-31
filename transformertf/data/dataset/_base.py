@@ -29,8 +29,7 @@ class DataSetType(enum.Enum):
 class AbstractTimeSeriesDataset(torch.utils.data.Dataset):
     _input_data: typing.Sequence[pd.DataFrame]
     _target_data: typing.Sequence[pd.DataFrame] | list[None]
-    _input_transforms: typing.Mapping[str, BaseTransform]
-    _target_transform: BaseTransform | None
+    _transforms: typing.Mapping[str, BaseTransform]
     _dataset_type: DataSetType
 
     @property
@@ -46,12 +45,8 @@ class AbstractTimeSeriesDataset(torch.utils.data.Dataset):
         return int(np.sum([len(arr) for arr in self._input_data]))
 
     @property
-    def input_transforms(self) -> dict[str, BaseTransform]:
-        return dict(self._input_transforms.items())
-
-    @property
-    def target_transform(self) -> BaseTransform | None:
-        return self._target_transform
+    def transforms(self) -> dict[str, BaseTransform]:
+        return dict(self._transforms.items())
 
 
 def _check_index(idx: int, length: int) -> int:

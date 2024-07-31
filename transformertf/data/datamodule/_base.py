@@ -82,8 +82,7 @@ class DataModuleBase(L.LightningDataModule):
     subclass constructor.
     """
 
-    _input_transforms: torch.nn.ModuleDict[str, TransformCollection]
-    _target_transform: TransformCollection
+    _transforms: torch.nn.ModuleDict[str, TransformCollection]
     _tmp_dir: TmpDirType
 
     _raw_train_df: list[pd.DataFrame]
@@ -491,30 +490,8 @@ class DataModuleBase(L.LightningDataModule):
             return make_dataloader(self.val_dataset)  # type: ignore[arg-type]
         return [make_dataloader(ds) for ds in self.val_dataset]  # type: ignore[arg-type]
 
-    def get_transforms(
-        self,
-    ) -> tuple[dict[str, TransformCollection], TransformCollection]:
-        """
-        Returns the input and target transforms used by the datamodule.
-
-        Returns
-        -------
-        tuple[dict[str, TransformCollection], TransformCollection]
-            The input and target transforms.
-        """
-        return typing.cast(
-            tuple[dict[str, TransformCollection], TransformCollection],
-            (
-                {
-                    col: self._input_transforms[col]
-                    for col in self.hparams["known_covariates"]
-                },
-                self._target_transform,
-            ),
-        )
-
     @property
-    def input_transforms(self) -> dict[str, TransformCollection]:
+    def transforms(self) -> dict[str, TransformCollection]:
         """
         The input transforms used by the datamodule.
 
@@ -526,9 +503,10 @@ class DataModuleBase(L.LightningDataModule):
         return typing.cast(
             dict[str, TransformCollection],
             {
-                cov.name: self._input_transforms[cov.name]
+                cov.name: self._transforms[cov.name]
                 for cov in self.known_covariates
                 + self.known_past_covariates
+                + [self.target_covariate]
                 + (
                     [Covariate(TIME_PREFIX, TIME_PREFIX)]
                     if self.hparams.get("time_column")
@@ -547,7 +525,7 @@ class DataModuleBase(L.LightningDataModule):
         TransformCollection
             The target transform.
         """
-        return self._target_transform
+        return self._transforms[self.target_covariate.name]
 
     def transform_input(
         self,
@@ -753,21 +731,25 @@ class DataModuleBase(L.LightningDataModule):
 
         out = pd.DataFrame(df)
         for cov in self.known_covariates + self.known_past_covariates:
-            out[cov.col] = self._input_transforms[cov.name].transform(
+            out[cov.col] = self._transforms[cov.name].transform(
                 torch.from_numpy(df[cov.col].to_numpy())
             )
 
         if skip_target:
             return out
 
+        def pd2torch(x: pd.Series) -> torch.Tensor:
+            return torch.from_numpy(x.to_numpy())
+
+        target_transform = self._transforms[self.target_covariate.name]
         if self.target_depends_on is not None:
-            out[self.target_covariate.col] = self._target_transform.transform(
-                torch.from_numpy(df[self.target_depends_on.col].to_numpy()),
-                torch.from_numpy(df[self.target_covariate.col].to_numpy()),
+            out[self.target_covariate.col] = target_transform.transform(
+                pd2torch(df[self.target_depends_on.col]),
+                pd2torch(df[self.target_covariate.col]),
             )
         else:
-            out[self.target_covariate.col] = self._target_transform.transform(
-                torch.from_numpy(df[self.target_covariate.col].to_numpy()),
+            out[self.target_covariate.col] = target_transform.transform(
+                pd2torch(df[self.target_covariate.col]),
             )
 
         return out
@@ -841,29 +823,38 @@ class DataModuleBase(L.LightningDataModule):
 
     def state_dict(self) -> dict[str, typing.Any]:
         state = super().state_dict()
-        if self._input_transforms is not None:
-            state["input_transforms"] = {
+        if self._transforms is not None:
+            state["transforms"] = {
                 col: transform.state_dict()
-                for col, transform in self._input_transforms.items()
+                for col, transform in self._transforms.items()
             }
-        if self._target_transform is not None:
-            state["target_transform"] = self._target_transform.state_dict()
 
         return state
 
     def load_state_dict(self, state: dict[str, typing.Any]) -> None:
-        if "input_transforms" in state:
-            for col, transform in self._input_transforms.items():
+        if "transforms" in state:
+            for col, transform in self._transforms.items():
                 if col not in state["input_transforms"]:
                     log.warning(f"Could not find state for {col}.")
                 transform.load_state_dict(state["input_transforms"][col])
 
             state.pop("input_transforms")
 
-        if "target_transform" in state:
-            self._target_transform.load_state_dict(state["target_transform"])
+        # handle old state dicts
+        elif "input_transform" in state or "target_transform" in state:
+            state_dict = None
+            if "input_transform" in state:
+                state_dict = state["input_transform"]
+                state.pop("input_transform")
+            if "target_transform" in state:
+                if state_dict is None:
+                    state_dict = state["target_transform"]
+                else:
+                    state_dict[self.target_covariate.name] = state["target_transform"]
+                state.pop("target_transform")
 
-            state.pop("target_transform")
+            if state_dict is not None:
+                self._transforms.load_state_dict(state_dict)
 
         super().load_state_dict(state)
 
@@ -872,27 +863,22 @@ class DataModuleBase(L.LightningDataModule):
         Instantiates the transforms to be used by the datamodule.
         """
         # input transforms
-        input_transforms: dict[str, list[BaseTransform]]
-        input_transforms = {
+        transforms: dict[str, list[BaseTransform]]
+        transforms = {
             cov.name: [] for cov in self.known_covariates + self.known_past_covariates
         }
 
-        for col, transforms in self._extra_transforms_source.items():
+        for col, extra_transforms in self._extra_transforms_source.items():
             if col == self.hparams["target_covariate"] or col == TIME_PREFIX:
                 continue
-            if col not in input_transforms:
+            if col not in transforms:
                 msg = f"Unknown column {col} in extra_transforms."
                 raise ValueError(msg)
-            input_transforms[col].extend(transforms)
+            transforms[col].extend(extra_transforms)
 
         if self.hparams["normalize"]:
             for cov in self.known_covariates + self.known_past_covariates:
-                input_transforms[cov.name].append(StandardScaler(num_features_=1))
-
-        self._input_transforms = torch.nn.ModuleDict({
-            col: TransformCollection(transforms)
-            for col, transforms in input_transforms.items()
-        })
+                transforms[cov.name].append(StandardScaler(num_features_=1))
 
         target_transform = []
         if self.hparams["target_covariate"] in self._extra_transforms_source:
@@ -902,51 +888,50 @@ class DataModuleBase(L.LightningDataModule):
         if self.hparams["normalize"]:
             target_transform.append(StandardScaler(num_features_=1))
 
-        self._target_transform = TransformCollection(target_transform)
+        target_transform_ = TransformCollection(target_transform)
 
         if (
             self.target_depends_on is not None
-            and self._target_transform.transform_type != BaseTransform.TransformType.XY
+            and target_transform_.transform_type != BaseTransform.TransformType.XY
         ):
             msg = (
                 "The target depends on another column, but the target transform "
-                f"does not support this. Got {self._target_transform.transform_type}."
+                f"does not support this. Got {target_transform_.transform_type}."
             )
             raise ValueError(msg)
         if (
             self.target_depends_on is None
-            and self._target_transform.transform_type == BaseTransform.TransformType.XY
+            and target_transform_.transform_type == BaseTransform.TransformType.XY
         ):
             msg = (
                 "The target does not depend on another column, but the target transform "
-                f"does. Got {self._target_transform.transform_type}."
+                f"does. Got {target_transform_.transform_type}."
             )
             raise ValueError(msg)
 
+        transforms[self.target_covariate.name] = target_transform_
+        self._transforms = torch.nn.ModuleDict({
+            col: TransformCollection(transforms)
+            for col, transforms in transforms.items()
+        })
+
     def _scalers_fitted(self) -> bool:
-        fitted = all(
-            transform.__sklearn_is_fitted__()
-            for transform in self._input_transforms.values()
+        return all(
+            transform.__sklearn_is_fitted__() for transform in self._transforms.values()
         )
-
-        fitted &= self._target_transform.__sklearn_is_fitted__()
-
-        return fitted
 
     def _fit_transforms(self, df: pd.DataFrame) -> None:
         for cov in self.known_covariates + self.known_past_covariates:
             log.info(f"Fitting input scaler for {cov.name}.")
-            self._input_transforms[cov.name].fit(
-                torch.from_numpy(df[cov.col].to_numpy())
-            )
+            self._transforms[cov.name].fit(torch.from_numpy(df[cov.col].to_numpy()))
 
         if self.target_depends_on is not None:
-            self._target_transform.fit(
+            self._transforms[self.target_covariate.name].fit(
                 torch.from_numpy(df[self.target_depends_on.col].to_numpy()),
                 torch.from_numpy(df[self.target_covariate.col].to_numpy()),
             )
         else:
-            self._target_transform.fit(
+            self._transforms[self.target_covariate.name].fit(
                 torch.from_numpy(df[self.target_covariate.col].to_numpy()),
             )
 

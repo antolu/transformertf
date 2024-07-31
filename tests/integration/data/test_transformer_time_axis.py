@@ -44,7 +44,7 @@ def test_relative_time_encoder_decoder_datamodule_setup(
 def test_relative_time_encoder_decoder_datamodule_transforms(
     relative_time_encoder_decoder_datamodule: EncoderDecoderDataModule,
 ) -> None:
-    assert TIME_PREFIX in relative_time_encoder_decoder_datamodule.input_transforms
+    assert TIME_PREFIX in relative_time_encoder_decoder_datamodule.transforms
 
 
 @pytest.fixture
@@ -71,4 +71,4 @@ def test_absolute_time_encoder_decoder_datamodule_setup(
 def test_absolute_time_encoder_decoder_datamodule_transforms(
     absolute_time_encoder_decoder_datamodule: EncoderDecoderDataModule,
 ) -> None:
-    assert TIME_PREFIX in absolute_time_encoder_decoder_datamodule.input_transforms
+    assert TIME_PREFIX in absolute_time_encoder_decoder_datamodule.transforms
