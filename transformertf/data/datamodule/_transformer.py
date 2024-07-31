@@ -5,7 +5,6 @@ import typing
 
 import numpy as np
 import pandas as pd
-import torch
 
 from .._downsample import DOWNSAMPLE_METHODS
 from .._window_generator import WindowGenerator
@@ -129,34 +128,45 @@ class TransformerDataModule(DataModuleBase):
 
         self._transforms[TIME] = TransformCollection(*transforms)
 
-    def _fit_transforms(self, df: pd.DataFrame) -> None:
-        super()._fit_transforms(df)
+    def _fit_transforms(self, dfs: list[pd.DataFrame]) -> None:
+        super()._fit_transforms(dfs)
 
         if self.hparams["time_column"] is not None:
             if self.hparams["time_format"] == "relative":
-                self._transforms[TIME].fit(
-                    torch.from_numpy(df[TIME].to_numpy(dtype=float))
-                )
+                self._fit_relative_time(dfs, self._transforms[TIME])
             elif self.hparams["time_format"] == "absolute":
-                self._fit_absolute_time(df, self._transforms[TIME])
+                self._fit_absolute_time(dfs, self._transforms[TIME])
 
-    def _fit_absolute_time(self, df: pd.DataFrame, transform: BaseTransform) -> None:
+    @staticmethod
+    def _fit_relative_time(dfs: list[pd.DataFrame], transform: BaseTransform) -> None:
+        for df in dfs:
+            transform.fit(df[TIME].to_numpy(dtype=float))
+
+    def _fit_absolute_time(
+        self, dfs: list[pd.DataFrame], transform: BaseTransform
+    ) -> None:
         """
         Fits the absolute time scaler to the data.
         """
-        time = df[TIME].to_numpy()
+        wgs = [
+            WindowGenerator(
+                num_points=len(df),
+                window_size=self.hparams["ctxt_seq_len"] + self.hparams["tgt_seq_len"],
+                stride=1,
+                zero_pad=False,
+            )
+            for df in dfs
+        ]
 
-        wg = WindowGenerator(
-            num_points=len(time),
-            window_size=self.hparams["ctxt_seq_len"] + self.hparams["tgt_seq_len"],
-            stride=1,
-            zero_pad=False,
-        )
-        dt = np.zeros(len(time))
-        for i, sl in enumerate(wg):
-            dt[i] = np.max(np.abs(time[sl] - time[sl.start]))
+        dts = []
+        for df, wg in zip(dfs, wgs, strict=False):
+            time = df[TIME].to_numpy(dtype=float)
+            dt = np.zeros(len(wg))
+            for i, sl in enumerate(wg):
+                dt[i] = np.max(np.abs(time[sl] - time[sl.start]))
+            dts.append(dt)
 
-        transform.fit(dt)
+        transform.fit(np.concatenate(dts).flatten())
 
     @property
     def ctxt_seq_len(self) -> int:
@@ -194,6 +204,12 @@ class EncoderDecoderDataModule(TransformerDataModule):
             tgt_seq_len=self.hparams["tgt_seq_len"],
             min_ctxt_seq_len=self.hparams["min_ctxt_seq_len"],
             min_tgt_seq_len=self.hparams["min_tgt_seq_len"],
+            time_data=(
+                df[TIME] if isinstance(df, pd.DataFrame) else [df[TIME] for df in df]
+            )
+            if self.hparams["time_column"] is not None
+            else None,
+            time_format=self.hparams["time_format"],
             stride=self.hparams["stride"],
             randomize_seq_len=(
                 self.hparams["randomize_seq_len"] if not predict else False

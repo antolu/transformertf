@@ -17,6 +17,13 @@ import pandas as pd
 import torch
 import torch.utils.data
 
+from .._covariates import (
+    TIME_PREFIX,
+    Covariate,
+    known_cov_col,
+    past_known_cov_col,
+    target_col,
+)
 from .._downsample import DOWNSAMPLE_METHODS, downsample
 from ..dataset import AbstractTimeSeriesDataset
 from ..transform import (
@@ -41,12 +48,6 @@ T = typing.TypeVar("T")
 TIME = "time_ms"
 
 
-TIME_PREFIX = "__time__"
-KNOWN_COV_CONT_PREFIX = "__known_continuous__"
-PAST_KNOWN_COV_PREFIX = "__past_known_continuous__"
-TARGET_PREFIX = "__target__"
-
-
 @dataclasses.dataclass
 class TmpDir:
     """
@@ -66,11 +67,6 @@ class TmpDirType(typing.Protocol):
     name: str
 
     def cleanup(self) -> None: ...
-
-
-class Covariate(typing.NamedTuple):
-    name: str
-    col: str
 
 
 class DataModuleBase(L.LightningDataModule):
@@ -299,7 +295,7 @@ class DataModuleBase(L.LightningDataModule):
         val_df = list(map(self.preprocess_dataframe, val_df))
 
         if not self._scalers_fitted():
-            self._fit_transforms(pd.concat(train_df))
+            self._fit_transforms(train_df)
 
         self._train_df = list(map(self.apply_transforms, train_df))
         self._val_df = list(map(self.apply_transforms, val_df))
@@ -688,7 +684,12 @@ class DataModuleBase(L.LightningDataModule):
         pd.DataFrame
             The preprocessed dataframe.
         """
-        return df
+        # apply downsampling prior to transforms
+        return downsample(
+            df,
+            downsample=self.hparams["downsample"],
+            method=self.hparams["downsample_method"],
+        )
 
     def apply_transforms(
         self,
@@ -721,13 +722,6 @@ class DataModuleBase(L.LightningDataModule):
         if not self._scalers_fitted():
             msg = "Scalers have not been fitted yet. "
             raise RuntimeError(msg)
-
-        # apply downsampling prior to transforms
-        df = downsample(
-            df,
-            downsample=self.hparams["downsample"],
-            method=self.hparams["downsample_method"],
-        )
 
         out = pd.DataFrame(df)
         for cov in self.known_covariates + self.known_past_covariates:
@@ -920,7 +914,9 @@ class DataModuleBase(L.LightningDataModule):
             transform.__sklearn_is_fitted__() for transform in self._transforms.values()
         )
 
-    def _fit_transforms(self, df: pd.DataFrame) -> None:
+    def _fit_transforms(self, dfs: list[pd.DataFrame]) -> None:
+        df = pd.concat(dfs)
+
         for cov in self.known_covariates + self.known_past_covariates:
             log.info(f"Fitting input scaler for {cov.name}.")
             self._transforms[cov.name].fit(torch.from_numpy(df[cov.col].to_numpy()))
@@ -997,22 +993,6 @@ def _or_empty(x: T | typing.Sequence[T] | None) -> list[T]:
     if x is None:
         return []
     return _to_list(x)
-
-
-def known_cov_col(name: str) -> str:
-    return f"{KNOWN_COV_CONT_PREFIX}{name}"
-
-
-def past_known_cov_col(name: str) -> str:
-    return f"{PAST_KNOWN_COV_PREFIX}{name}"
-
-
-def time_col(name: str) -> str:
-    return f"{TIME_PREFIX}{name}"
-
-
-def target_col(name: str) -> str:
-    return f"{TARGET_PREFIX}{name}"
 
 
 EXT2READER: dict[str, typing.Callable[[typing.Any], pd.DataFrame]] = {

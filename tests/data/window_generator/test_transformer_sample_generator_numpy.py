@@ -108,6 +108,7 @@ def test_transformer_sample_generator_keys_xy_1d(
         "decoder_input",
         "decoder_mask",
         "target",
+        "target_mask",
     }
 
     assert wg[0]["encoder_input"].shape == (3, 2)

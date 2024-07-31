@@ -168,7 +168,7 @@ class EncoderDecoderSample(EncoderSample, typing.Generic[T]):
 
 
 class EncoderDecoderTargetSample(EncoderDecoderSample, TargetSample, typing.Generic[T]):
-    pass
+    target_mask: NotRequired[T]
 
 
 class TransformerSampleGenerator(SampleGenerator[EncoderDecoderTargetSample[T]]):
@@ -249,14 +249,21 @@ class TransformerSampleGenerator(SampleGenerator[EncoderDecoderTargetSample[T]])
         dec_in = concat(*dec_in_l, dim=-1)
         label = to_2dim(self._label_data[tgt_slice])
 
+        decoder_mask = ones_like(dec_in)
+        target_mask = ones_like(label)
+        if idx == len(self) - 1:
+            decoder_mask[..., int(self._num_points % self._tgt_seq_len) :] = 0.0
+            target_mask[..., int(self._num_points % self._tgt_seq_len) :] = 0.0
+
         return typing.cast(
             EncoderDecoderTargetSample[T],
             {
                 "encoder_input": enc_in,
                 "encoder_mask": ones_like(enc_in),
                 "decoder_input": dec_in,
-                "decoder_mask": ones_like(dec_in),
+                "decoder_mask": decoder_mask,
                 "target": label,
+                "target_mask": target_mask,
             },
         )
 

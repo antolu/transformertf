@@ -15,6 +15,11 @@ import numpy as np
 import pandas as pd
 import torch
 
+from .._sample_generator import (
+    EncoderDecoderTargetSample,
+    EncoderTargetSample,
+    TimeSeriesSample,
+)
 from ..transform import BaseTransform
 
 log = logging.getLogger(__name__)
@@ -97,3 +102,46 @@ def _to_list(data: T | typing.Sequence[T]) -> list[T]:
         return list(data)
 
     return [data]
+
+
+U = typing.TypeVar(
+    "U",
+    TimeSeriesSample[pd.DataFrame],
+    EncoderTargetSample[pd.DataFrame],
+    EncoderDecoderTargetSample[pd.DataFrame],
+)
+
+
+def apply_transforms(
+    sample: U,
+    transforms: typing.Mapping[str, BaseTransform] | None = None,
+) -> U:
+    """
+    Apply transforms to a sample.
+
+    Parameters
+    ----------
+    sample : TimeSeriesSample | EncoderTargetSample | EncoderDecoderTargetSample
+    transforms : dict[str, BaseTransform] | None
+
+    Returns
+    -------
+    U
+    """
+    if transforms is None:
+        return sample
+
+    df: pd.DataFrame
+    for key, df in sample.items():  # type: ignore[assignment]
+        if key.endswith(("_mask", "_lengths")):
+            continue
+        for col in df.columns:
+            if col in transforms:
+                transform = transforms[col]
+                if transform.transform_type == transform.TransformType.XY:
+                    msg = "Cannot do two-variable transforms on a Dataset level (yet)."
+                    raise NotImplementedError(msg)
+
+                sample[key][col] = transform.transform(df[col].to_numpy()).numpy()  # type: ignore[literal-required]
+
+    return sample
