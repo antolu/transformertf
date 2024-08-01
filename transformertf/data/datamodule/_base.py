@@ -212,7 +212,8 @@ class DataModuleBase(L.LightningDataModule):
         return (
             len(self.hparams["known_covariates"])
             + len(self.hparams["known_past_covariates"])
-            + 1
+            + 1  # target
+            + (1 if self.hparams.get("time_column") else 0)
         )
 
     @property
@@ -225,7 +226,11 @@ class DataModuleBase(L.LightningDataModule):
         int
             The number of future known covariates.
         """
-        return len(self.hparams["known_covariates"]) + 1
+        return (
+            len(self.hparams["known_covariates"])
+            + 1  # target
+            + (1 if self.hparams.get("time_column") else 0)
+        )
 
     @property
     def num_static_real_features(self) -> int:
