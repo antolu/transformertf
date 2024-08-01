@@ -272,3 +272,13 @@ class TransformCollection(BaseTransform, typing.Sequence[BaseTransform]):
 
     def __sklearn_is_fitted__(self) -> bool:  # noqa: PLW3201
         return all(transform.__sklearn_is_fitted__() for transform in self.transforms)
+
+    def __str__(self) -> str:
+        msg = f"{self.__class__.__name__}("
+        msg += ", ".join(str(transform) for transform in self.transforms)
+        msg += ")"
+
+        return msg
+
+    def __repr__(self) -> str:
+        return str(self)
