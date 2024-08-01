@@ -617,10 +617,6 @@ class DataModuleBase(L.LightningDataModule):
         """
         df = df.dropna(how="all", axis="columns")
 
-        col_filter = _to_list(input_columns)  # type: ignore[arg-type]
-        if target_column is not None:
-            col_filter += _to_list(target_column)
-
         if timestamp is not None:
             time: np.ndarray | pd.Series
             if isinstance(timestamp, str):
@@ -647,19 +643,20 @@ class DataModuleBase(L.LightningDataModule):
             ):
                 time = pd.to_numeric(time)
 
+            time = np.array(time, dtype=float)
             out = pd.DataFrame({TIME_PREFIX: time})
         else:
             # out = pd.DataFrame({TIME_PREFIX: np.arange(len(df))})
             out = pd.DataFrame()
 
         for col in input_columns:
-            out[known_cov_col(col)] = df[col]
+            out[known_cov_col(col)] = df[col].to_numpy()
         if past_known_columns is not None:
             for col in past_known_columns:
-                out[past_known_cov_col(col)] = df[col]
+                out[past_known_cov_col(col)] = df[col].to_numpy()
         if target_column is not None:
             for col in _to_list(target_column):
-                out[target_col(col)] = df[col]
+                out[target_col(col)] = df[col].to_numpy()
 
         return out
 
