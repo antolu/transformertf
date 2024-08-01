@@ -308,6 +308,8 @@ class DataModuleBase(L.LightningDataModule):
         save_data(self._train_df, "train", self._tmp_dir.name)
         save_data(self._val_df, "val", self._tmp_dir.name)
 
+        self._save_tmp_state()
+
     @override  # type: ignore[misc]
     def setup(
         self,
@@ -322,6 +324,7 @@ class DataModuleBase(L.LightningDataModule):
         stage : typing.Literal["fit", "train", "val", "test", "predict"] | None
             The stage to setup for. If None, all stages are setup.
         """
+        self._load_tmp_state()
 
         def load_parquet(
             name: typing.Literal["train", "val", "test", "predict"],
@@ -356,6 +359,18 @@ class DataModuleBase(L.LightningDataModule):
             msg = f"Unknown stage {stage}."
             raise ValueError(msg)
 
+    def _save_tmp_state(self) -> None:
+        state_dict = self.state_dict()
+
+        with open(path.join(self._tmp_dir.name, "state_dict.pt"), "wb") as f:
+            torch.save(state_dict, f)
+
+    def _load_tmp_state(self) -> None:
+        with open(path.join(self._tmp_dir.name, "state_dict.pt"), "rb") as f:
+            state_dict = torch.load(f)
+
+        self.load_state_dict(state_dict)
+
     def teardown(self, stage: str) -> None:
         """
         Cleans up the temporary directory.
@@ -368,7 +383,7 @@ class DataModuleBase(L.LightningDataModule):
         if self._tmp_dir is None:
             return
 
-        if self.hparams.get("distributed_sampler"):
+        if not self.hparams.get("distributed_sampler"):
             self._tmp_dir.cleanup()
         else:
             try:
@@ -830,11 +845,11 @@ class DataModuleBase(L.LightningDataModule):
     def load_state_dict(self, state: dict[str, typing.Any]) -> None:
         if "transforms" in state:
             for col, transform in self._transforms.items():
-                if col not in state["input_transforms"]:
+                if col not in state["transforms"]:
                     log.warning(f"Could not find state for {col}.")
-                transform.load_state_dict(state["input_transforms"][col])
+                transform.load_state_dict(state["transforms"][col])
 
-            state.pop("input_transforms")
+            state.pop("transforms")
 
         # handle old state dicts
         elif "input_transform" in state or "target_transform" in state:
