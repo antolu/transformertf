@@ -252,8 +252,19 @@ class TransformerSampleGenerator(SampleGenerator[EncoderDecoderTargetSample[T]])
         decoder_mask = ones_like(dec_in)
         target_mask = ones_like(label)
         if idx == len(self) - 1:
-            decoder_mask[..., int(self._num_points % self._tgt_seq_len) :] = 0.0
-            target_mask[..., int(self._num_points % self._tgt_seq_len) :] = 0.0
+            if not isinstance(decoder_mask, pd.DataFrame):
+                decoder_mask[..., -int(self._num_points % self._tgt_seq_len) :] = 0.0
+                target_mask[..., -int(self._num_points % self._tgt_seq_len) :] = 0.0
+            else:
+                decoder_mask.iloc[:, -int(self._num_points % self._tgt_seq_len) :] = 0.0
+                target_mask.iloc[:, -int(self._num_points % self._tgt_seq_len) :] = 0.0
+
+        if isinstance(enc_in, pd.DataFrame):
+            enc_in = enc_in.reset_index(drop=True)
+            dec_in = dec_in.reset_index(drop=True)
+            label = label.reset_index(drop=True)
+            decoder_mask = decoder_mask.reset_index(drop=True)
+            target_mask = target_mask.reset_index(drop=True)
 
         return typing.cast(
             EncoderDecoderTargetSample[T],
@@ -448,7 +459,7 @@ def zeros_like(arr: T) -> T:
     if isinstance(arr, torch.Tensor):
         return torch.zeros_like(arr)
     if isinstance(arr, pd.DataFrame):
-        return pd.DataFrame(index=arr.index, columns=arr.columns, data=0)
+        return pd.DataFrame(index=arr.index, columns=arr.columns, data=0.0, dtype=float)
     if isinstance(arr, pd.Series):
         return pd.Series(index=arr.index, data=0)
     msg = EXC_MSG.format(type(arr))
@@ -461,7 +472,7 @@ def ones_like(arr: T) -> T:
     if isinstance(arr, torch.Tensor):
         return torch.ones_like(arr)
     if isinstance(arr, pd.DataFrame):
-        return pd.DataFrame(index=arr.index, columns=arr.columns, data=1)
+        return pd.DataFrame(index=arr.index, columns=arr.columns, data=1.0, dtype=float)
     if isinstance(arr, pd.Series):
         return pd.Series(index=arr.index, data=1)
     msg = EXC_MSG.format(type(arr))
@@ -479,11 +490,18 @@ def zero_pad_(arr: T, length: int) -> T:
         zeros[: len(arr)] = arr
         return zeros
     if isinstance(arr, pd.DataFrame):
-        zeros = pd.DataFrame(index=range(length), columns=arr.columns)
-        zeros.iloc[: len(arr)] = arr
+        zeros = pd.concat(
+            [
+                arr,
+                pd.DataFrame(
+                    index=range(length - len(arr)), columns=arr.columns, data=0.0
+                ),
+            ],
+            axis=0,
+        )
         return zeros
     if isinstance(arr, pd.Series):
-        zeros = pd.Series(index=range(length), data=0)
+        zeros = pd.Series(index=range(length), data=0.0, dtype=arr.dtype)
         zeros.iloc[: len(arr)] = arr
         return zeros
     msg = EXC_MSG.format(type(arr))

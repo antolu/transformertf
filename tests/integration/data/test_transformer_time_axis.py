@@ -59,6 +59,20 @@ def test_relative_time_dataset(
     assert std <= 1.0, f"Standard deviation of time is {std}"
 
 
+def test_relative_time_dataset_zero_padded(
+    relative_time_datamodule: EncoderDecoderDataModule,
+) -> None:
+    """Test that last decoder input is zero-padded"""
+    relative_time_datamodule.prepare_data()
+    relative_time_datamodule.setup()
+
+    dataset = relative_time_datamodule.val_dataset
+    sample = dataset[-1]
+
+    assert (sample["decoder_input"][-1, :] == 0.0).all()  # zero-padded decoder input
+    assert sample["target"][-1] == 0.0  # zero-padded target
+
+
 def test_relative_time_encoder_decoder_datamodule_transforms(
     relative_time_datamodule: EncoderDecoderDataModule,
 ) -> None:
@@ -107,7 +121,19 @@ def test_absolute_time_dataset(
     assert (torch.diff(sample["encoder_input"][:, 0]) > 0.0).all()  # time is increasing
     assert torch.max(sample["encoder_input"][:, 0]) <= 1.0  # time is normalized
 
-    assert sample is not None
+
+def test_absolute_time_dataset_zero_padded(
+    absolute_time_datamodule: EncoderDecoderDataModule,
+) -> None:
+    """Test that last decoder input is zero-padded"""
+    absolute_time_datamodule.prepare_data()
+    absolute_time_datamodule.setup()
+
+    dataset = absolute_time_datamodule.val_dataset
+    sample = dataset[-1]
+
+    assert (sample["decoder_input"][-1, :] == 0.0).all()  # zero-padded decoder input
+    assert sample["target"][-1] == 0.0  # zero-padded target
 
 
 def test_absolute_time_dataset_random(
