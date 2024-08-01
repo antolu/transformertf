@@ -253,11 +253,11 @@ class TransformerSampleGenerator(SampleGenerator[EncoderDecoderTargetSample[T]])
         target_mask = ones_like(label)
         if idx == len(self) - 1:
             if not isinstance(decoder_mask, pd.DataFrame):
-                decoder_mask[..., -int(self._num_points % self._tgt_seq_len) :] = 0.0
-                target_mask[..., -int(self._num_points % self._tgt_seq_len) :] = 0.0
+                decoder_mask[..., int(self._num_points % self._tgt_seq_len) :] = 0.0
+                target_mask[..., int(self._num_points % self._tgt_seq_len) :] = 0.0
             else:
-                decoder_mask.iloc[:, -int(self._num_points % self._tgt_seq_len) :] = 0.0
-                target_mask.iloc[:, -int(self._num_points % self._tgt_seq_len) :] = 0.0
+                decoder_mask.iloc[int(self._num_points % self._tgt_seq_len) :] = 0.0
+                target_mask.iloc[int(self._num_points % self._tgt_seq_len) :] = 0.0
 
         if isinstance(enc_in, pd.DataFrame):
             enc_in = enc_in.reset_index(drop=True)
@@ -494,7 +494,9 @@ def zero_pad_(arr: T, length: int) -> T:
             [
                 arr,
                 pd.DataFrame(
-                    index=range(length - len(arr)), columns=arr.columns, data=0.0
+                    index=range(len(arr), length),
+                    columns=arr.columns,
+                    data=0.0,
                 ),
             ],
             axis=0,

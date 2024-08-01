@@ -9,7 +9,8 @@ import torch
 from .._covariates import TIME_PREFIX as TIME
 from .._dtype import VALID_DTYPES, convert_data
 from .._sample_generator import EncoderDecoderTargetSample
-from ._base import _check_index, apply_transforms
+from ..transform import BaseTransform
+from ._base import _check_index
 from ._transformer import TransformerDataset
 
 RND_G = np.random.default_rng()
@@ -149,3 +150,55 @@ def convert_sample(
         EncoderDecoderTargetSample[torch.Tensor],
         {k: convert_data(v, dtype)[0] for k, v in sample.items()},
     )
+
+
+def apply_transforms(
+    sample: EncoderDecoderTargetSample[pd.DataFrame],
+    transforms: typing.Mapping[str, BaseTransform] | None = None,
+) -> EncoderDecoderTargetSample[pd.DataFrame]:
+    """
+    Apply transforms to a sample.
+
+    Parameters
+    ----------
+    sample : TimeSeriesSample | EncoderTargetSample | EncoderDecoderTargetSample
+    transforms : dict[str, BaseTransform] | None
+
+    Returns
+    -------
+    U
+    """
+    if transforms is None:
+        return sample
+
+    df: pd.DataFrame
+    for key in ["encoder_input", "decoder_input", "target"]:
+        if key.endswith(("_mask", "_lengths")):
+            continue
+
+        df = sample[key]  # type: ignore[literal-required]
+        for col in df.columns:
+            if col in transforms and col != TIME:
+                transform = transforms[col]
+                if transform.transform_type == transform.TransformType.XY:
+                    msg = "Cannot do two-variable transforms on a Dataset level (yet)."
+                    raise NotImplementedError(msg)
+
+                sample[key][col] = transform.transform(df[col].to_numpy()).numpy()  # type: ignore[literal-required]
+
+    encoder_len = len(sample["encoder_input"])
+
+    if (
+        TIME in sample["encoder_input"]
+        and TIME in sample["decoder_input"]
+        and TIME in transforms
+    ):
+        time = np.concatenate([
+            sample["encoder_input"][TIME].to_numpy(),
+            sample["decoder_input"][TIME].to_numpy(),
+        ])
+        time = transforms[TIME].transform(time).numpy()
+        sample["encoder_input"][TIME] = time[:encoder_len]
+        sample["decoder_input"][TIME] = time[encoder_len:]
+
+    return sample
