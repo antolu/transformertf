@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import typing
 
+import numba
 import numpy as np
 import pandas as pd
 
@@ -161,9 +162,8 @@ class TransformerDataModule(DataModuleBase):
         dts = []
         for df, wg in zip(dfs, wgs, strict=False):
             time = df[TIME].to_numpy(dtype=float)
-            dt = np.zeros(len(wg))
-            for i, sl in enumerate(wg):
-                dt[i] = np.max(np.abs(time[sl] - time[sl.start]))
+
+            dt = _calc_fast_absolute_dt(time, list(wg))
             dts.append(dt)
 
         transform.fit(np.concatenate(dts).flatten())
@@ -175,6 +175,18 @@ class TransformerDataModule(DataModuleBase):
     @property
     def tgt_seq_len(self) -> int:
         return self.hparams["tgt_seq_len"]
+
+
+@numba.njit
+def _calc_fast_absolute_dt(time: np.ndarray, slices: list[slice]) -> np.ndarray:
+    """
+    Calculates the absolute time difference between the start of the slice and the
+    rest of the slice. This is a fast implementation using Numba.
+    """
+    dt = np.zeros(len(slices))
+    for i, sl in enumerate(slices):
+        dt[i] = np.max(np.abs(time[sl] - time[sl.start]))
+    return dt
 
 
 class EncoderDecoderDataModule(TransformerDataModule):
