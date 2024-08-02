@@ -69,6 +69,15 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
             help="Verbose flag. Can be used more than once.",
         )
 
+        parser.add_argument(
+            "-n",
+            "--experiment-name",
+            dest="experiment_name",
+            type=str,
+            default=None,
+            help="Name of the experiment.",
+        )
+
         parser.set_defaults({
             "trainer.logger": jsonargparse.lazy_instance(
                 lightning.pytorch.loggers.TensorBoardLogger,
@@ -87,12 +96,21 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
 
     def before_fit(self) -> None:
         # hijack model checkpoint callbacks to save to checkpoint_dir/version_{version}
+        if hasattr(self.config, "fit") and hasattr(self.config.fit, "experiment_name"):
+            logger_name = self.config.fit.experiment_name
+            self.trainer.logger._name = logger_name  # noqa: SLF001
+        else:
+            logger_name = ""
         version = self.trainer.logger.version
         version_str = f"version_{version}"
 
         for callback in self.trainer.callbacks:
             if isinstance(callback, lightning.pytorch.callbacks.ModelCheckpoint):
-                callback.dirpath = os.path.join(callback.dirpath, version_str)
+                if logger_name:
+                    dirpath = os.path.join(callback.dirpath, version_str)
+                else:
+                    dirpath = os.path.join(callback.dirpath, logger_name, version_str)
+                callback.dirpath = dirpath
 
 
 def add_trainer_defaults(parser: LightningArgumentParser) -> None:
