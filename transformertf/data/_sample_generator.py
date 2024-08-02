@@ -235,12 +235,12 @@ class TransformerSampleGenerator(SampleGenerator[EncoderDecoderTargetSample[T]])
         src_slice = slice(sl.start, sl.start + self._src_seq_len)
         tgt_slice = slice(sl.start + self._src_seq_len, sl.stop)
 
-        enc_in_l = [to_2dim(self._input_data[src_slice])]
+        enc_in_l = [to_2dim(self._input_data[src_slice].copy())]
         if self._known_past_data is not None:
-            enc_in_l.append(to_2dim(self._known_past_data[src_slice]))
-        enc_in_l.append(to_2dim(self._label_data[src_slice]))
+            enc_in_l.append(to_2dim(self._known_past_data[src_slice].copy()))
+        enc_in_l.append(to_2dim(self._label_data[src_slice].copy()))
 
-        dec_in_l = [to_2dim(self._input_data[tgt_slice])]
+        dec_in_l = [to_2dim(self._input_data[tgt_slice].copy())]
         if self._known_past_data is not None:
             dec_in_l.append(to_2dim(zeros_like(self._known_past_data[tgt_slice])))
         dec_in_l.append(to_2dim(zeros_like(self._label_data[tgt_slice])))
