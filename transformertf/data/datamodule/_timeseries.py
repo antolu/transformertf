@@ -41,7 +41,7 @@ class TimeSeriesDataModule(DataModuleBase):
         num_workers: int = 0,
         dtype: VALID_DTYPES = "float32",
         shuffle: bool = True,
-        distributed: bool = False,
+        distributed: bool | typing.Literal["auto"] = "auto",
     ):
         """
         For documentation of arguments see :class:`DataModuleBase`.
