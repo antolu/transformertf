@@ -77,6 +77,8 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
             ),
         })
 
+        add_trainer_defaults(parser)
+
         add_callback_defaults(parser)
 
         add_seq_len_link(parser)
@@ -91,6 +93,10 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
         for callback in self.trainer.callbacks:
             if isinstance(callback, lightning.pytorch.callbacks.ModelCheckpoint):
                 callback.dirpath = os.path.join(callback.dirpath, version_str)
+
+
+def add_trainer_defaults(parser: LightningArgumentParser) -> None:
+    parser.set_defaults({"trainer.use_distributed_sampler": False})
 
 
 def add_callback_defaults(parser: LightningArgumentParser) -> None:
