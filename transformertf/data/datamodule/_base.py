@@ -465,6 +465,7 @@ class DataModuleBase(L.LightningDataModule):
             num_workers=self.hparams["num_workers"],
             sampler=sampler,
             pin_memory=True,
+            multiprocessing_context="forkserver",
         )
 
     @override  # type: ignore[misc]
@@ -505,6 +506,7 @@ class DataModuleBase(L.LightningDataModule):
                 shuffle=False,
                 sampler=make_sampler(ds),
                 pin_memory=True,
+                multiprocessing_context="forkserver",
             )
 
         if len(self._val_df) == 1:
