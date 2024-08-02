@@ -25,6 +25,7 @@ from .._covariates import (
     target_col,
 )
 from .._downsample import DOWNSAMPLE_METHODS, downsample
+from .._dtype import VALID_DTYPES
 from ..dataset import AbstractTimeSeriesDataset
 from ..transform import (
     BaseTransform,
@@ -98,7 +99,7 @@ class DataModuleBase(L.LightningDataModule):
         extra_transforms: dict[str, list[BaseTransform]] | None = None,
         batch_size: int = 128,
         num_workers: int = 0,
-        dtype: str = "float32",
+        dtype: VALID_DTYPES = "float32",
         *,
         shuffle: bool = True,
         distributed: bool | typing.Literal["auto"] = "auto",

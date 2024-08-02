@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from .._downsample import DOWNSAMPLE_METHODS
+from .._dtype import VALID_DTYPES
 from .._window_generator import WindowGenerator
 from ..dataset import EncoderDataset, EncoderDecoderDataset
 from ..transform import (
@@ -52,7 +53,7 @@ class TransformerDataModule(DataModuleBase):
         extra_transforms: dict[str, list[BaseTransform]] | None = None,
         batch_size: int = 128,
         num_workers: int = 0,
-        dtype: str = "float32",
+        dtype: VALID_DTYPES = "float32",
         shuffle: bool = True,
         distributed: bool = False,
     ):

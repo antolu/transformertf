@@ -6,6 +6,7 @@ import pandas as pd
 
 from transformertf.data.dataset import TimeSeriesDataset
 
+from .._dtype import VALID_DTYPES
 from ._base import DataModuleBase, _to_list
 
 if typing.TYPE_CHECKING:
@@ -38,7 +39,7 @@ class TimeSeriesDataModule(DataModuleBase):
         extra_transforms: dict[str, list[BaseTransform]] | None = None,
         batch_size: int = 128,
         num_workers: int = 0,
-        dtype: str = "float32",
+        dtype: VALID_DTYPES = "float32",
         shuffle: bool = True,
         distributed: bool = False,
     ):
