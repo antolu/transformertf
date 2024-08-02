@@ -75,6 +75,7 @@ class SetOptimizerLRCallback(L.pytorch.callbacks.Callback):
 
         if trainer.is_global_zero:
             log.info(f"LR set to {lr} on all processes, removing {self.lr_file}")
+            os.remove(self.lr_file)
 
     def state_dict(self) -> dict[str, Any]:
         return {"lr_file": str(self.lr_file)}
