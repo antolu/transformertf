@@ -101,7 +101,7 @@ class DataModuleBase(L.LightningDataModule):
         dtype: str = "float32",
         *,
         shuffle: bool = True,
-        distributed_sampler: bool = False,
+        distributed: bool | typing.Literal["auto"] = "auto",
     ):
         """
         Initializes the datamodule.
@@ -161,7 +161,7 @@ class DataModuleBase(L.LightningDataModule):
             Whether to shuffle the data. If True, the data is shuffled before creating the
             training dataloader. If False, the data is not shuffled.
             Validation / test dataloaders are never shuffled.
-        distributed_sampler : bool
+        distributed : bool
             Whether to use a distributed sampler for the dataloaders. If True, the dataloader
             is wrapped in a :class:`torch.utils.data.distributed.DistributedSampler`, which must
             be used by distributed training strategies.
@@ -308,7 +308,8 @@ class DataModuleBase(L.LightningDataModule):
         save_data(self._train_df, "train", self._tmp_dir.name)
         save_data(self._val_df, "val", self._tmp_dir.name)
 
-        self._save_tmp_state()
+        if self.distributed_sampler:
+            self._save_tmp_state()
 
     @override  # type: ignore[misc]
     def setup(
@@ -324,7 +325,8 @@ class DataModuleBase(L.LightningDataModule):
         stage : typing.Literal["fit", "train", "val", "test", "predict"] | None
             The stage to setup for. If None, all stages are setup.
         """
-        self._load_tmp_state()
+        if self.distributed_sampler:
+            self._load_tmp_state()
 
         def load_parquet(
             name: typing.Literal["train", "val", "test", "predict"],
@@ -446,7 +448,7 @@ class DataModuleBase(L.LightningDataModule):
             The training dataloader.
         """
         sampler: torch.utils.data.Sampler | None = None
-        if self.hparams["distributed_sampler"]:
+        if self.distributed_sampler:
             sampler = torch.utils.data.distributed.DistributedSampler(
                 self.train_dataset,
                 shuffle=self.hparams["shuffle"],
@@ -461,6 +463,7 @@ class DataModuleBase(L.LightningDataModule):
             shuffle=sampler is None and self.hparams["shuffle"],
             num_workers=self.hparams["num_workers"],
             sampler=sampler,
+            pin_memory=True,
         )
 
     @override  # type: ignore[misc]
@@ -483,7 +486,7 @@ class DataModuleBase(L.LightningDataModule):
         def make_sampler(
             ds: torch.utils.data.Dataset,
         ) -> torch.utils.data.Sampler | None:
-            if self.hparams["distributed_sampler"]:
+            if self.distributed_sampler:
                 return torch.utils.data.distributed.DistributedSampler(
                     ds,
                     shuffle=False,
@@ -500,6 +503,7 @@ class DataModuleBase(L.LightningDataModule):
                 num_workers=self.hparams["num_workers"],
                 shuffle=False,
                 sampler=make_sampler(ds),
+                pin_memory=True,
             )
 
         if len(self._val_df) == 1:
@@ -988,8 +992,18 @@ class DataModuleBase(L.LightningDataModule):
         )
         raise ValueError(msg)
 
+    @property
+    def distributed_sampler(self) -> bool:
+        return (
+            self.hparams["distributed"]
+            if self.hparams["distributed"] != "auto"
+            else (torch.cuda.is_available() and torch.cuda.device_count() > 1)
+            if "distributed" in self.hparams
+            else False
+        )
+
     def _init_tmpdir(self) -> TmpDirType:
-        if self.hparams.get("distributed_sampler"):
+        if self.distributed_sampler:
             self._tmp_dir = TmpDir("/tmp/tmp_datamodule/")
             Path(self._tmp_dir.name).mkdir(parents=True, exist_ok=True)
         else:

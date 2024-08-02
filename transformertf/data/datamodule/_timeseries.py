@@ -40,7 +40,7 @@ class TimeSeriesDataModule(DataModuleBase):
         num_workers: int = 0,
         dtype: str = "float32",
         shuffle: bool = True,
-        distributed_sampler: bool = False,
+        distributed: bool = False,
     ):
         """
         For documentation of arguments see :class:`DataModuleBase`.
@@ -60,7 +60,7 @@ class TimeSeriesDataModule(DataModuleBase):
             num_workers=num_workers,
             dtype=dtype,
             shuffle=shuffle,
-            distributed_sampler=distributed_sampler,
+            distributed=distributed,
         )
 
         self.save_hyperparameters(ignore=["extra_transforms"])

@@ -28,7 +28,7 @@ def timeseries_datamodule_config(df_path: str) -> dict[str, typing.Any]:
         "batch_size": 128,
         "num_workers": 0,
         "dtype": "float32",
-        "distributed_sampler": False,
+        "distributed": False,
     }
 
 

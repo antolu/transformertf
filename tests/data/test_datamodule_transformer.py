@@ -30,7 +30,7 @@ def transformer_datamodule_config(
         "batch_size": 16,
         "num_workers": 0,
         "dtype": "float32",
-        "distributed_sampler": False,
+        "distributed": False,
     }
 
 
