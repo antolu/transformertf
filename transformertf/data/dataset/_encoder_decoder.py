@@ -50,8 +50,11 @@ class EncoderDecoderDataset(TransformerDataset):
         sample_torch = self._apply_masks(sample_torch)
 
         # add extra dimension to target
-        if "target" in sample and sample["target"].ndim == 1:
-            sample["target"] = sample["target"][:, None]
+        if "target" in sample_torch and sample_torch["target"].ndim == 1:
+            sample_torch["target"] = sample_torch["target"][:, None]
+
+        if TIME in sample["encoder_input"] and self._time_format == "relative":
+            sample_torch["encoder_input"][0, 0] = 0.0
 
         # normalize lengths
         sample_torch["encoder_lengths"] = (
@@ -97,10 +100,6 @@ class EncoderDecoderDataset(TransformerDataset):
             sample["decoder_input"].loc[
                 sample["decoder_input"].loc[:, TIME] < 0, TIME
             ] = 0.0
-        elif self._time_format == "relative":
-            # first delta t is 0, to be applied wit the mask
-            # sample["encoder_input"].loc[seq_start, TIME] = 0.0
-            sample["encoder_mask"].loc[seq_start, TIME] = 0.0
 
         return sample
 
