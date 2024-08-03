@@ -49,6 +49,10 @@ class EncoderDecoderDataset(TransformerDataset):
         # mask zeroed out data after transforms
         sample_torch = self._apply_masks(sample_torch)
 
+        # add extra dimension to target
+        if "target" in sample and sample["target"].ndim == 1:
+            sample["target"] = sample["target"][:, None]
+
         # normalize lengths
         sample_torch["encoder_lengths"] = (
             2.0 * sample_torch["encoder_lengths"].view((1,)) / self.ctxt_seq_len - 1.0
@@ -131,10 +135,6 @@ class EncoderDecoderDataset(TransformerDataset):
             sample["decoder_lengths"] = pd.DataFrame({
                 "decoder_lengths": [self.tgt_seq_len],
             })
-
-        # add extra dimension to target
-        if "target" in sample and sample["target"].ndim == 1:
-            sample["target"] = sample["target"][:, None]
 
         return sample
 
