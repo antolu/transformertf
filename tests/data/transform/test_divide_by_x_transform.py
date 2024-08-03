@@ -42,3 +42,11 @@ def test_divide_by_x_transform_fitted() -> None:
     import sklearn.utils.validation  # noqa: PLC0415
 
     sklearn.utils.validation.check_is_fitted(transform)
+
+
+def test_divide_by_x_transform_str_repr() -> None:
+    """assert that the __str__ and __repr__ methods do not raise an exception"""
+    transform = DivideByXTransform()
+
+    _ = str(transform)
+    _ = repr(transform)

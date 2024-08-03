@@ -5,14 +5,14 @@ import logging
 import numpy as np
 import torch
 
-from ._base import BaseTransform, TransformType
+from ._base import BaseTransform
 from ._utils import _as_torch
 
 log = logging.getLogger(__name__)
 
 
 class DivideByXTransform(BaseTransform):
-    _transform_type = TransformType.XY
+    _transform_type = BaseTransform.TransformType.XY
 
     def fit(
         self,

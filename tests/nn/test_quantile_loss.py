@@ -7,24 +7,24 @@ import torch
 from transformertf.nn import QuantileLoss
 
 
-@pytest.fixture()
+@pytest.fixture
 def y_pred() -> torch.Tensor:
     return einops.repeat(
         torch.tensor([0.1, 0.2, 0.3, 0.4, 0.5])[None, :, None], "... 1 -> ... n", n=7
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def target() -> torch.Tensor:
     return torch.tensor([0.2, 0.3, 0.4, 0.5, 0.6])[None, :]
 
 
-@pytest.fixture()
+@pytest.fixture
 def weights() -> torch.Tensor:
     return torch.tensor([1.0, 1.0, 0.75, 0.5, 1.0])
 
 
-@pytest.fixture()
+@pytest.fixture
 def weights_or_none(request: pytest.FixtureRequest) -> torch.Tensor | None:
     return (
         request.getfixturevalue(request.param) if request.param == "weights" else None

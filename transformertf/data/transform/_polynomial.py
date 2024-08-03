@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import tqdm
 
-from ._base import BaseTransform, TransformType
+from ._base import BaseTransform
 from ._utils import _as_torch
 
 
@@ -13,7 +13,7 @@ class PolynomialTransform(BaseTransform):
     Removes a polynomial fit from the data.
     """
 
-    _transform_type = TransformType.XY
+    _transform_type = BaseTransform.TransformType.XY
 
     weights: torch.Tensor
     bias: torch.Tensor

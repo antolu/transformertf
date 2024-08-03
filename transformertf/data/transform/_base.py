@@ -20,26 +20,30 @@ log = logging.getLogger(__name__)
 __all__ = [
     "BaseTransform",
     "TransformCollection",
-    "TransformType",
 ]
-
-
-class TransformType(enum.Enum):
-    X = "X"
-    XY = "XY"
-    COLLECTION = "COLLECTION"
-    UNSPECIFIED = "UNSPECIFIED"
 
 
 class BaseTransform(
     sklearn.base.BaseEstimator, sklearn.base.TransformerMixin, nn.Module
 ):
+    class TransformType(enum.Enum):
+        X = "X"
+        XY = "XY"
+        COLLECTION = "COLLECTION"
+        UNSPECIFIED = "UNSPECIFIED"
+
     _transform_type: TransformType = TransformType.UNSPECIFIED
 
     def __init__(self) -> None:
         sklearn.base.BaseEstimator.__init__(self)
         sklearn.base.TransformerMixin.__init__(self)
         nn.Module.__init__(self)
+
+    def __init_subclass__(cls, **kwargs: typing.Any) -> None:
+        """Ensure that the transform type is specified by the developer."""
+        if cls._transform_type == cls.TransformType.UNSPECIFIED:
+            msg = f"Transform type not specified for {cls.__name__}."
+            raise ValueError(msg)
 
     @typing.overload
     def fit(self: SameType, x: torch.Tensor | np.ndarray) -> SameType: ...
@@ -107,10 +111,11 @@ class BaseTransform(
 
 
 class TransformCollection(BaseTransform, typing.Sequence[BaseTransform]):
+    _transform_type = BaseTransform.TransformType.COLLECTION
+
     def __init__(
         self,
-        transforms: list[BaseTransform],
-        transform_type: TransformType = TransformType.X,
+        *transforms: BaseTransform | typing.Sequence[BaseTransform],
     ):
         """
         A collection of transforms that can be applied to the data.
@@ -124,15 +129,24 @@ class TransformCollection(BaseTransform, typing.Sequence[BaseTransform]):
         ----------
         transforms : list[BaseTransform]
             A list of transforms to apply to the data.
-        transform_type : TransformType, optional
-            The transform type of the collection, by default TransformType.X
-            i.e. the transforms are fitted/transformed to x.
-            If TransformType.XY, then the transforms are fitted/transformed to y.
-            If there are transforms of both types, then the X-only transforms are
-            fitted to the Y data.
         """
         super().__init__()
-        self.transforms = torch.nn.ModuleList(transforms)
+        transforms_exp = []
+        for transform in transforms:
+            if isinstance(transform, BaseTransform):
+                transforms_exp.append(transform)
+            elif isinstance(transform, typing.Sequence):
+                transforms_exp.extend(list(transform))
+
+        self.transforms = torch.nn.ModuleList(transforms_exp)
+        transform_type = (
+            self.TransformType.X
+            if all(
+                transform._transform_type == self.TransformType.X  # noqa: SLF001
+                for transform in self.transforms
+            )
+            else self.TransformType.XY
+        )
         self._transform_type = transform_type
 
     def fit(
@@ -144,18 +158,18 @@ class TransformCollection(BaseTransform, typing.Sequence[BaseTransform]):
         y_transformed = _as_torch(y) if y is not None else None
 
         for transform in self.transforms:
-            if self._transform_type == TransformType.X:
-                if transform._transform_type == TransformType.X:  # noqa: SLF001
+            if self._transform_type == self.TransformType.X:
+                if transform._transform_type == self.TransformType.X:  # noqa: SLF001
                     x_transformed = transform.fit_transform(x_transformed)
-                elif transform._transform_type == TransformType.XY:  # noqa: SLF001
+                elif transform._transform_type == self.TransformType.XY:  # noqa: SLF001
                     if y_transformed is None:
                         msg = "Cannot fit Y when Y is None."
                         raise ValueError(msg)
                     y_transformed = transform.fit_transform(y_transformed)
-            elif self._transform_type == TransformType.XY:
-                if transform._transform_type == TransformType.X:  # noqa: SLF001
+            elif self._transform_type == self.TransformType.XY:
+                if transform._transform_type == self.TransformType.X:  # noqa: SLF001
                     y_transformed = transform.fit_transform(y_transformed)
-                elif transform._transform_type == TransformType.XY:  # noqa: SLF001
+                elif transform._transform_type == self.TransformType.XY:  # noqa: SLF001
                     y_transformed = transform.fit_transform(
                         x_transformed, y_transformed
                     )
@@ -173,10 +187,10 @@ class TransformCollection(BaseTransform, typing.Sequence[BaseTransform]):
         y_transformed = _as_torch(y) if y is not None else None
 
         for transform in self.transforms:
-            if self._transform_type == TransformType.X:
-                if transform._transform_type == TransformType.X:  # noqa: SLF001
+            if self._transform_type == self.TransformType.X:
+                if transform._transform_type == self.TransformType.X:  # noqa: SLF001
                     x_transformed = transform.transform(x_transformed)
-                elif transform._transform_type == TransformType.XY:  # noqa: SLF001
+                elif transform._transform_type == self.TransformType.XY:  # noqa: SLF001
                     if y_transformed is None:
                         msg = "Cannot transform Y when Y is None."
                         raise ValueError(msg)
@@ -185,10 +199,10 @@ class TransformCollection(BaseTransform, typing.Sequence[BaseTransform]):
                     msg = f"Invalid transform type: {self._transform_type}"
                     raise ValueError(msg)
 
-            elif self._transform_type == TransformType.XY:
-                if transform._transform_type == TransformType.X:  # noqa: SLF001
+            elif self._transform_type == self.TransformType.XY:
+                if transform._transform_type == self.TransformType.X:  # noqa: SLF001
                     y_transformed = transform.transform(y_transformed)
-                elif transform._transform_type == TransformType.XY:  # noqa: SLF001
+                elif transform._transform_type == self.TransformType.XY:  # noqa: SLF001
                     y_transformed = transform.transform(x_transformed, y_transformed)
 
             else:
@@ -208,24 +222,24 @@ class TransformCollection(BaseTransform, typing.Sequence[BaseTransform]):
         x_transformed = _as_torch(x)
         y_transformed = _as_torch(y) if y is not None else None
 
-        if y is None and self._transform_type == TransformType.XY:
+        if y is None and self._transform_type == self.TransformType.XY:
             msg = "Cannot transform Y when Y is None."
             raise ValueError(msg)
 
         for transform in reversed(self.transforms):
-            if self._transform_type == TransformType.X:
-                if transform._transform_type == TransformType.X:  # noqa: SLF001
+            if self._transform_type == self.TransformType.X:
+                if transform._transform_type == self.TransformType.X:  # noqa: SLF001
                     x_transformed = transform.inverse_transform(x_transformed)
-                elif transform._transform_type == TransformType.XY:  # noqa: SLF001
+                elif transform._transform_type == self.TransformType.XY:  # noqa: SLF001
                     if y_transformed is None:
                         msg = "Cannot transform Y when Y is None."
                         raise ValueError(msg)
                     y_transformed = transform.inverse_transform(y_transformed)
 
-            elif self._transform_type == TransformType.XY:
-                if transform._transform_type == TransformType.X:  # noqa: SLF001
+            elif self._transform_type == self.TransformType.XY:
+                if transform._transform_type == self.TransformType.X:  # noqa: SLF001
                     y_transformed = transform.inverse_transform(y_transformed)
-                elif transform._transform_type == TransformType.XY:  # noqa: SLF001
+                elif transform._transform_type == self.TransformType.XY:  # noqa: SLF001
                     y_transformed = transform.inverse_transform(
                         x_transformed, y_transformed
                     )
@@ -239,12 +253,16 @@ class TransformCollection(BaseTransform, typing.Sequence[BaseTransform]):
 
         return y_transformed
 
+    @typing.overload
+    def __getitem__(self, item: int) -> BaseTransform: ...
+
+    @typing.overload
+    def __getitem__(self, item: slice) -> TransformCollection: ...
+
     def __getitem__(self, item: int | slice) -> BaseTransform | TransformCollection:
         if isinstance(item, int):
             return self.transforms[item]
-        return TransformCollection(
-            self.transforms[item], transform_type=self._transform_type
-        )
+        return TransformCollection(*self.transforms[item])
 
     def __len__(self) -> int:
         return len(self.transforms)
@@ -254,3 +272,13 @@ class TransformCollection(BaseTransform, typing.Sequence[BaseTransform]):
 
     def __sklearn_is_fitted__(self) -> bool:  # noqa: PLW3201
         return all(transform.__sklearn_is_fitted__() for transform in self.transforms)
+
+    def __str__(self) -> str:
+        msg = f"{self.__class__.__name__}("
+        msg += ", ".join(str(transform) for transform in self.transforms)
+        msg += ")"
+
+        return msg
+
+    def __repr__(self) -> str:
+        return str(self)

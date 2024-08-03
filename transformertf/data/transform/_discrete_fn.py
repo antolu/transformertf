@@ -6,7 +6,7 @@ import pathlib
 import numpy as np
 import torch
 
-from ._base import BaseTransform, TransformType
+from ._base import BaseTransform
 from ._utils import _as_numpy, _as_torch
 
 
@@ -33,7 +33,7 @@ class DiscreteFunctionTransform(BaseTransform):
     tensors.
     """
 
-    _transform_type = TransformType.XY
+    _transform_type = BaseTransform.TransformType.XY
 
     def __init__(
         self,

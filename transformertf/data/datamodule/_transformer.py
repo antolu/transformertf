@@ -1,14 +1,31 @@
 from __future__ import annotations
 
+import sys
 import typing
 
+import numba
+import numpy as np
+import pandas as pd
+
 from .._downsample import DOWNSAMPLE_METHODS
+from .._dtype import VALID_DTYPES
+from .._window_generator import WindowGenerator
 from ..dataset import EncoderDataset, EncoderDecoderDataset
-from ._base import DataModuleBase
+from ..transform import (
+    DeltaTransform,
+    MaxScaler,
+    StandardScaler,
+    TransformCollection,
+)
+from ._base import TIME_PREFIX as TIME
+from ._base import DataModuleBase, _to_list
+
+if sys.version_info >= (3, 12):
+    from typing import override
+else:
+    from typing_extensions import override
 
 if typing.TYPE_CHECKING:
-    import numpy as np
-
     from ..transform import BaseTransform
 
 
@@ -31,15 +48,33 @@ class TransformerDataModule(DataModuleBase):
         downsample: int = 1,
         downsample_method: DOWNSAMPLE_METHODS = "interval",
         target_depends_on: str | None = None,
+        time_column: str | None = None,
+        time_format: typing.Literal["relative", "absolute"] = "absolute",
         extra_transforms: dict[str, list[BaseTransform]] | None = None,
         batch_size: int = 128,
         num_workers: int = 0,
-        dtype: str = "float32",
+        dtype: VALID_DTYPES = "float32",
         shuffle: bool = True,
-        distributed_sampler: bool = False,
+        distributed: bool | typing.Literal["auto"] = "auto",
     ):
         """
         For documentation of arguments see :class:`DataModuleBase`.
+
+        time_column: str | None
+            The column in the data that contains the timestamps. If None, the data is
+            assumed to be evenly spaced, and no temporal features are added to the
+            samples. If a column name is provided, a temporal feature will be added to
+            the datasets. If the data type is datetime, the time is converted to
+            milliseconds since the epoch. Time is always relative to the first timestamp
+            and its magnitude does not matter, as the data is normalized prior to
+            training.
+        time_format : typing.Literal["relative", "absolute"]
+            The format of the timestamps. If "relative", the timestamps are relative to
+            the first timestamp in the data, i.e. $\\Delta$. If "absolute", the
+            timestamps are in absolute time, i.e. $t$, and then normalized with respect
+            to the maximum timestamp in each batch.
+            Additional transforms to the temporal feature can be added to the
+            ``extra_transforms`` parameter, with the `__time__` key.
         """
         super().__init__(
             train_df_paths=train_df_paths,
@@ -56,19 +91,83 @@ class TransformerDataModule(DataModuleBase):
             num_workers=num_workers,
             dtype=dtype,
             shuffle=shuffle,
-            distributed_sampler=distributed_sampler,
+            distributed=distributed,
         )
 
         self.save_hyperparameters(ignore=["extra_transforms"])
 
-        self.hparams["known_covariates"] = self._to_list(
-            self.hparams["known_covariates"]
-        )
+        self.hparams["known_covariates"] = _to_list(self.hparams["known_covariates"])
         self.hparams["known_past_covariates"] = (
-            self._to_list(self.hparams["known_past_covariates"])
+            _to_list(self.hparams["known_past_covariates"])
             if self.hparams["known_past_covariates"] is not None
             else []
         )
+
+    def _create_transforms(self) -> None:
+        super()._create_transforms()
+        if self.hparams["time_column"] is None:
+            return
+
+        if self.hparams["normalize"]:
+            if self.hparams["time_format"] == "relative":
+                transforms = [
+                    DeltaTransform(),
+                    StandardScaler(num_features_=1),
+                ]
+            elif self.hparams["time_format"] == "absolute":
+                transforms = [MaxScaler(num_features_=1)]
+            else:
+                msg = (
+                    f"Unknown time format {self.hparams['time_format']}. "
+                    "Expected 'relative' or 'absolute'."
+                )
+                raise ValueError(msg)
+        else:
+            transforms = []
+
+        if TIME in self._extra_transforms_source:
+            transforms += self._extra_transforms_source[TIME]
+
+        self._transforms[TIME] = TransformCollection(*transforms)
+
+    def _fit_transforms(self, dfs: list[pd.DataFrame]) -> None:
+        super()._fit_transforms(dfs)
+
+        if self.hparams["time_column"] is not None:
+            if self.hparams["time_format"] == "relative":
+                self._fit_relative_time(dfs, self._transforms[TIME])
+            elif self.hparams["time_format"] == "absolute":
+                self._fit_absolute_time(dfs, self._transforms[TIME])
+
+    @staticmethod
+    def _fit_relative_time(dfs: list[pd.DataFrame], transform: BaseTransform) -> None:
+        for df in dfs:
+            transform.fit(df[TIME].to_numpy(dtype=float))
+
+    def _fit_absolute_time(
+        self, dfs: list[pd.DataFrame], transform: BaseTransform
+    ) -> None:
+        """
+        Fits the absolute time scaler to the data.
+        """
+        wgs = [
+            WindowGenerator(
+                num_points=len(df),
+                window_size=self.hparams["ctxt_seq_len"] + self.hparams["tgt_seq_len"],
+                stride=1,
+                zero_pad=False,
+            )
+            for df in dfs
+        ]
+
+        dts = []
+        for df, wg in zip(dfs, wgs, strict=False):
+            time = df[TIME].to_numpy(dtype=float)
+
+            dt = _calc_fast_absolute_dt(time, list(wg))
+            dts.append(dt)
+
+        transform.fit(np.concatenate(dts).flatten())
 
     @property
     def ctxt_seq_len(self) -> int:
@@ -79,58 +178,78 @@ class TransformerDataModule(DataModuleBase):
         return self.hparams["tgt_seq_len"]
 
 
+@numba.njit
+def _calc_fast_absolute_dt(time: np.ndarray, slices: list[slice]) -> np.ndarray:
+    """
+    Calculates the absolute time difference between the start of the slice and the
+    rest of the slice. This is a fast implementation using Numba.
+    """
+    dt = np.zeros(len(slices))
+    for i, sl in enumerate(slices):
+        dt[i] = np.max(np.abs(time[sl] - time[sl.start]))
+    return dt
+
+
 class EncoderDecoderDataModule(TransformerDataModule):
-    def _make_dataset_from_arrays(
+    @override
+    def _make_dataset_from_df(
         self,
-        input_data: np.ndarray,
-        known_past_data: np.ndarray | None = None,
-        target_data: np.ndarray | None = None,
+        df: pd.DataFrame | list[pd.DataFrame],
         *,
         predict: bool = False,
     ) -> EncoderDecoderDataset:
-        if target_data is None:
-            msg = "Target data must be provided for an encoder-decoder model."
-            raise ValueError(msg)
+        input_cols = [cov.col for cov in self.known_covariates]
+        known_past_cols = [cov.col for cov in self.known_past_covariates]
 
         return EncoderDecoderDataset(
-            input_data=input_data,
-            known_past_data=known_past_data,
-            target_data=target_data,
+            input_data=df[input_cols]
+            if isinstance(df, pd.DataFrame)
+            else [df[input_cols] for df in df],
+            known_past_data=df[known_past_cols]
+            if isinstance(df, pd.DataFrame)
+            else [df[known_past_cols] for df in df]
+            if len(known_past_cols) > 0
+            else None,
+            target_data=df[self.target_covariate.col]
+            if isinstance(df, pd.DataFrame)
+            else [df[self.target_covariate.col] for df in df],
             ctx_seq_len=self.hparams["ctxt_seq_len"],
             tgt_seq_len=self.hparams["tgt_seq_len"],
             min_ctxt_seq_len=self.hparams["min_ctxt_seq_len"],
             min_tgt_seq_len=self.hparams["min_tgt_seq_len"],
+            time_data=(
+                df[TIME] if isinstance(df, pd.DataFrame) else [df[TIME] for df in df]
+            )
+            if self.hparams["time_column"] is not None
+            else None,
+            time_format=self.hparams["time_format"],
             stride=self.hparams["stride"],
             randomize_seq_len=(
                 self.hparams["randomize_seq_len"] if not predict else False
             ),
             predict=predict,
-            input_transform=self.input_transforms,
-            target_transform=self.target_transform,
+            transforms=self.transforms,
             dtype=self.hparams["dtype"],
         )
 
 
 class EncoderDataModule(TransformerDataModule):
-    def _make_dataset_from_arrays(
+    @override
+    def _make_dataset_from_df(
         self,
-        input_data: np.ndarray,
-        known_past_data: np.ndarray | None = None,
-        target_data: np.ndarray | None = None,
+        df: pd.DataFrame | list[pd.DataFrame],
         *,
         predict: bool = False,
     ) -> EncoderDataset:
-        if target_data is None:
-            msg = "Target data should not be provided for an encoder model."
-            raise ValueError(msg)
-
-        if known_past_data is not None:
-            msg = "known_past_data is not used in this class."
-            raise NotImplementedError(msg)
+        input_cols = [cov.col for cov in self.known_covariates]
 
         return EncoderDataset(
-            input_data=input_data,
-            target_data=target_data,
+            input_data=df[input_cols]
+            if isinstance(df, pd.DataFrame)
+            else [df[input_cols] for df in df],
+            target_data=df[self.target_covariate.col]
+            if isinstance(df, pd.DataFrame)
+            else [df[self.target_covariate.col] for df in df],
             ctx_seq_len=self.hparams["ctxt_seq_len"],
             min_ctxt_seq_len=self.hparams["min_ctxt_seq_len"],
             tgt_seq_len=self.hparams["tgt_seq_len"],
@@ -140,7 +259,6 @@ class EncoderDataModule(TransformerDataModule):
                 self.hparams["randomize_seq_len"] if not predict else False
             ),
             predict=predict,
-            input_transform=self.input_transforms,
-            target_transform=self.target_transform,
+            transforms=self.transforms,
             dtype=self.hparams["dtype"],
         )

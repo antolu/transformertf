@@ -5,7 +5,7 @@ import typing
 import numpy as np
 import torch
 
-from ._base import BaseTransform, TransformType
+from ._base import BaseTransform
 from ._utils import _as_torch, _view_as_y
 
 
@@ -58,7 +58,7 @@ class RunningNormalizer(BaseTransform):
 
     """
 
-    _transform_type = TransformType.X
+    _transform_type = BaseTransform.TransformType.X
 
     center_: torch.Tensor
     scale_: torch.Tensor
@@ -254,6 +254,51 @@ class RunningNormalizer(BaseTransform):
 
     def __sklearn_is_fitted__(self) -> bool:  # noqa: PLW3201
         return self.n_samples_seen_.item() > 0
+
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}()"
+
+
+class MaxScaler(BaseTransform):
+    _transform_type = BaseTransform.TransformType.X
+    max_: torch.Tensor
+
+    def __init__(self, num_features_: int = 1):
+        super().__init__()
+        self.num_features_ = num_features_
+
+        max_ = torch.zeros(num_features_, requires_grad=False)
+        self.register_buffer("max_", max_)
+
+    def forward(self, y: torch.Tensor) -> torch.Tensor:  # type: ignore[has-type]
+        return y / self.max_
+
+    def fit(
+        self, x: np.ndarray | torch.Tensor, y: np.ndarray | torch.Tensor | None = None
+    ) -> MaxScaler:
+        if y is None:
+            y = x
+
+        y = _as_torch(y)  # type: ignore[has-type]
+        self.max_ = torch.max(y, dim=0)[0].view_as(self.max_)
+        return self
+
+    def transform(
+        self, x: np.ndarray | torch.Tensor, y: np.ndarray | torch.Tensor | None = None
+    ) -> torch.Tensor:
+        if y is None:
+            y = x
+        return self.forward(_as_torch(y))
+
+    def inverse_transform(
+        self, x: np.ndarray | torch.Tensor, y: np.ndarray | torch.Tensor | None = None
+    ) -> torch.Tensor:
+        if y is None:
+            y = x
+        return _as_torch(y) * self.max_
+
+    def __sklearn_is_fitted__(self) -> bool:  # noqa: PLW3201
+        return torch.all(self.max_ != 0.0).item()
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}()"

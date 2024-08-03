@@ -49,3 +49,11 @@ def test_running_normalizer_multi_feature() -> None:
 
     x_inverse_transformed = normalizer.inverse_transform(x_transformed)
     assert torch.allclose(x_inverse_transformed, x)
+
+
+def test_running_normlizer_str_repr() -> None:
+    """assert that the __str__ and __repr__ methods do not raise an exception"""
+    normalizer = RunningNormalizer(num_features_=1)
+
+    _ = str(normalizer)
+    _ = repr(normalizer)

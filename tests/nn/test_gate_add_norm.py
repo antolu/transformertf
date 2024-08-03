@@ -6,7 +6,7 @@ import torch
 from transformertf.nn import AddNorm, GateAddNorm, GatedLinearUnit
 
 
-@pytest.fixture()
+@pytest.fixture
 def gate_add_norm() -> GateAddNorm:
     return GateAddNorm(input_dim=10, output_dim=20, dropout=0.1, trainable_add=True)
 

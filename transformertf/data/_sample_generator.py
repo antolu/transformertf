@@ -13,6 +13,7 @@ import typing
 from typing import NotRequired, TypedDict
 
 import numpy as np
+import pandas as pd
 import torch
 
 from ._window_generator import WindowGenerator
@@ -29,7 +30,7 @@ __all__ = [
     "TransformerSampleGenerator",
 ]
 
-T = typing.TypeVar("T", np.ndarray, torch.Tensor)
+T = typing.TypeVar("T", np.ndarray, torch.Tensor, pd.DataFrame, pd.Series)
 U = typing.TypeVar("U")
 
 log = logging.getLogger(__name__)
@@ -45,8 +46,6 @@ class TimeSeriesSample(TypedDict, typing.Generic[T]):
     """ Input data for the time series, size L. """
     target: NotRequired[T]
     """ Target / ground truth data for the time series, size L."""
-    initial_state: T
-    """ Initial state of the time series. """
 
 
 class SampleGenerator(typing.Sequence[U]):
@@ -127,25 +126,21 @@ class TimeSeriesSampleGenerator(SampleGenerator[TimeSeriesSample[T]]):
         sl = self._window_generator[idx]
 
         input_data = self._input_data[sl]
-        initial_x = input_data[0:1] if input_data.ndim == 1 else input_data[0]
 
         if self._label_data is None:
             return typing.cast(
                 TimeSeriesSample[T],
                 {
                     "input": input_data,
-                    "initial_state": concat(initial_x, zeros_like(initial_x)),
                 },
             )
         target_data = self._label_data[sl]
-        initial_y = target_data[0:1] if target_data.ndim == 1 else target_data[0]
 
         return typing.cast(
             TimeSeriesSample[T],
             {
                 "input": input_data,
                 "target": target_data,
-                "initial_state": concat(initial_x, initial_y),
             },
         )
 
@@ -173,7 +168,7 @@ class EncoderDecoderSample(EncoderSample, typing.Generic[T]):
 
 
 class EncoderDecoderTargetSample(EncoderDecoderSample, TargetSample, typing.Generic[T]):
-    pass
+    target_mask: NotRequired[T]
 
 
 class TransformerSampleGenerator(SampleGenerator[EncoderDecoderTargetSample[T]]):
@@ -200,7 +195,7 @@ class TransformerSampleGenerator(SampleGenerator[EncoderDecoderTargetSample[T]])
 
         self._input_data = copy(input_data)
         self._label_data = copy(target_data)
-        self._known_past_data = (
+        self._known_past_data: T | None = (
             copy(known_past_data) if known_past_data is not None else None
         )
 
@@ -210,7 +205,7 @@ class TransformerSampleGenerator(SampleGenerator[EncoderDecoderTargetSample[T]])
                 f"({len(self._input_data)}) and ({len(self._label_data)})"
             )
             raise ValueError(msg)
-        if known_past_data is not None and len(self._input_data) != len(
+        if self._known_past_data is not None and len(self._input_data) != len(
             self._known_past_data
         ):
             msg = (
@@ -240,12 +235,12 @@ class TransformerSampleGenerator(SampleGenerator[EncoderDecoderTargetSample[T]])
         src_slice = slice(sl.start, sl.start + self._src_seq_len)
         tgt_slice = slice(sl.start + self._src_seq_len, sl.stop)
 
-        enc_in_l = [to_2dim(self._input_data[src_slice])]
+        enc_in_l = [to_2dim(self._input_data[src_slice].copy())]
         if self._known_past_data is not None:
-            enc_in_l.append(to_2dim(self._known_past_data[src_slice]))
-        enc_in_l.append(to_2dim(self._label_data[src_slice]))
+            enc_in_l.append(to_2dim(self._known_past_data[src_slice].copy()))
+        enc_in_l.append(to_2dim(self._label_data[src_slice].copy()))
 
-        dec_in_l = [to_2dim(self._input_data[tgt_slice])]
+        dec_in_l = [to_2dim(self._input_data[tgt_slice].copy())]
         if self._known_past_data is not None:
             dec_in_l.append(to_2dim(zeros_like(self._known_past_data[tgt_slice])))
         dec_in_l.append(to_2dim(zeros_like(self._label_data[tgt_slice])))
@@ -254,14 +249,32 @@ class TransformerSampleGenerator(SampleGenerator[EncoderDecoderTargetSample[T]])
         dec_in = concat(*dec_in_l, dim=-1)
         label = to_2dim(self._label_data[tgt_slice])
 
+        decoder_mask = ones_like(dec_in)
+        target_mask = ones_like(label)
+        if idx == len(self) - 1:
+            if not isinstance(decoder_mask, pd.DataFrame):
+                decoder_mask[..., int(self._num_points % self._tgt_seq_len) :] = 0.0
+                target_mask[..., int(self._num_points % self._tgt_seq_len) :] = 0.0
+            else:
+                decoder_mask.iloc[int(self._num_points % self._tgt_seq_len) :] = 0.0
+                target_mask.iloc[int(self._num_points % self._tgt_seq_len) :] = 0.0
+
+        if isinstance(enc_in, pd.DataFrame):
+            enc_in = enc_in.reset_index(drop=True)
+            dec_in = dec_in.reset_index(drop=True)
+            label = label.reset_index(drop=True)
+            decoder_mask = decoder_mask.reset_index(drop=True)
+            target_mask = target_mask.reset_index(drop=True)
+
         return typing.cast(
             EncoderDecoderTargetSample[T],
             {
                 "encoder_input": enc_in,
                 "encoder_mask": ones_like(enc_in),
                 "decoder_input": dec_in,
-                "decoder_mask": ones_like(dec_in),
+                "decoder_mask": decoder_mask,
                 "target": label,
+                "target_mask": target_mask,
             },
         )
 
@@ -318,10 +331,10 @@ class TransformerPredictionSampleGenerator(SampleGenerator[EncoderDecoderSample[
         future_covariates = zero_pad_(
             future_covariates, self._window_generator.real_data_len
         )
-        self._covariates = to_2dim(concat(past_covariates, future_covariates, dim=0))
+        self._covariates: T = to_2dim(concat(past_covariates, future_covariates, dim=0))
 
-        self._past_target = to_2dim(copy(past_targets))
-        self._known_past_covariates = (
+        self._past_target: T = to_2dim(copy(past_targets))
+        self._known_past_covariates: T | None = (
             to_2dim(copy(known_past_covariates))
             if known_past_covariates is not None
             else None
@@ -435,12 +448,21 @@ def check_index(idx: int, length: int) -> int:
     return idx
 
 
+EXC_MSG = (
+    "Unexpected type {}, expected np.ndarray, torch.Tensor, pd.DataFrame or pd.Series"
+)
+
+
 def zeros_like(arr: T) -> T:
     if isinstance(arr, np.ndarray):
         return np.zeros_like(arr)
     if isinstance(arr, torch.Tensor):
         return torch.zeros_like(arr)
-    msg = f"Unexpected type {type(arr)}"
+    if isinstance(arr, pd.DataFrame):
+        return pd.DataFrame(index=arr.index, columns=arr.columns, data=0.0, dtype=float)
+    if isinstance(arr, pd.Series):
+        return pd.Series(index=arr.index, data=0)
+    msg = EXC_MSG.format(type(arr))
     raise TypeError(msg)
 
 
@@ -449,10 +471,16 @@ def ones_like(arr: T) -> T:
         return np.ones_like(arr)
     if isinstance(arr, torch.Tensor):
         return torch.ones_like(arr)
-    raise TypeError
+    if isinstance(arr, pd.DataFrame):
+        return pd.DataFrame(index=arr.index, columns=arr.columns, data=1.0, dtype=float)
+    if isinstance(arr, pd.Series):
+        return pd.Series(index=arr.index, data=1)
+    msg = EXC_MSG.format(type(arr))
+    raise TypeError(msg)
 
 
 def zero_pad_(arr: T, length: int) -> T:
+    zeros: T
     if isinstance(arr, np.ndarray):
         zeros = np.zeros((length, *arr.shape[1:]), dtype=arr.dtype)
         zeros[: len(arr)] = arr
@@ -461,7 +489,25 @@ def zero_pad_(arr: T, length: int) -> T:
         zeros = torch.zeros(*(length, *arr.shape[1:]), dtype=arr.dtype)
         zeros[: len(arr)] = arr
         return zeros
-    raise TypeError
+    if isinstance(arr, pd.DataFrame):
+        zeros = pd.concat(
+            [
+                arr,
+                pd.DataFrame(
+                    index=range(len(arr), length),
+                    columns=arr.columns,
+                    data=0.0,
+                ),
+            ],
+            axis=0,
+        )
+        return zeros
+    if isinstance(arr, pd.Series):
+        zeros = pd.Series(index=range(length), data=0.0, dtype=arr.dtype)
+        zeros.iloc[: len(arr)] = arr
+        return zeros
+    msg = EXC_MSG.format(type(arr))
+    raise TypeError(msg)
 
 
 def copy(arr: T) -> T:
@@ -469,14 +515,25 @@ def copy(arr: T) -> T:
         return arr.copy()
     if isinstance(arr, torch.Tensor):
         return arr.clone()
-    raise TypeError
+    if isinstance(arr, pd.DataFrame | pd.Series):
+        return arr.copy()
+    msg = EXC_MSG.format(type(arr))
+    raise TypeError(msg)
 
 
 def stack(*arrs: T, dim: int = -1) -> T:
     if all(isinstance(arr, np.ndarray) for arr in arrs):
-        return np.stack(arrs, axis=dim)  # pyright: ignore [reportGeneralTypeIssues]
+        return np.stack(arrs, axis=dim)  # type: ignore[return-value]
     if all(isinstance(arr, torch.Tensor) for arr in arrs):
         return torch.stack(arrs, dim=dim)  # pyright: ignore [reportGeneralTypeIssues]
+    if all(isinstance(arr, pd.DataFrame) for arr in arrs) or all(
+        isinstance(arr, pd.Series) for arr in arrs
+    ):
+        return pd.concat(arrs, axis=dim)  # type: ignore[return-value,call-overload]
+    (
+        "All arrays must be of the same type, "
+        "either np.ndarray, torch.Tensor, pd.DataFrame or pd.Series. Got {}"
+    ).format(", ".join(type(arr).__name__ for arr in arrs))
     raise TypeError
 
 
@@ -485,12 +542,27 @@ def concat(*arrs: T, dim: int = 0) -> T:
         return np.concatenate(arrs, axis=dim)  # type: ignore[return-value]
     if all(isinstance(arr, torch.Tensor) for arr in arrs):
         return torch.cat(arrs, dim=dim)  # type: ignore[return-value]
-    raise TypeError
+    if all(isinstance(arr, pd.DataFrame | pd.Series) for arr in arrs):
+        if dim == -1:
+            dim = 1
+        return pd.concat(arrs, axis=dim)  # type: ignore[return-value,call-overload]
+    msg = (
+        "All arrays must be of the same type, "
+        "either np.ndarray, torch.Tensor, pd.DataFrame or pd.Series. "
+        "Got {}".format(", ".join(type(arr).__name__ for arr in arrs))
+    )
+
+    raise TypeError(msg)
 
 
 def to_2dim(arr: T) -> T:
+    if isinstance(arr, pd.DataFrame | pd.Series):
+        return arr
     if arr.ndim == 0:
         return arr[None, None]
     if arr.ndim == 1:
         return arr[..., None]
+    if not hasattr(arr, "ndim"):
+        msg = f"Object {arr} of type {type(arr)} does not have an ndim attribute."
+        raise TypeError(msg)
     return arr

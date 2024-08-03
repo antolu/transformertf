@@ -150,7 +150,13 @@ def predict_phylstm(
 
     """
     covariates = pd.concat((past_covariates, future_covariates))
-
+    # covariates = covariates.rename(
+    #     columns={
+    #         cov.name: cov.col
+    #         for cov in [*datamodule.known_covariates, datamodule.target_covariate]
+    #     }
+    # )
+    #
     dataset = datamodule.make_dataset(covariates, predict=True)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, num_workers=0)
 
@@ -179,14 +185,14 @@ def predict_phylstm(
 
     inputs_t = torch.cat([i.squeeze(0) for i in inputs], dim=0).squeeze()
 
-    if datamodule.target_transform is not None:
-        input_transform = datamodule.input_transforms[
-            datamodule.hparams["known_covariates"][0]
-        ]
+    if datamodule.target_covariate.name in datamodule.transforms:
+        input_transform = datamodule.transforms[datamodule.known_covariates[0].name]
 
         inputs_t = input_transform.inverse_transform(inputs_t)
 
-        predictions = datamodule.target_transform.inverse_transform(
+        predictions = datamodule.transforms[
+            datamodule.target_covariate.name
+        ].inverse_transform(
             inputs_t,
             predictions,
         )
@@ -194,7 +200,7 @@ def predict_phylstm(
     # truncate the outputs to the length of the future covariates
     predictions = predictions[: dataset.num_points]
     predictions = predictions[
-        len(past_covariates) // datamodule.hparams["downsample"] :  # noqa: E203
+        len(past_covariates) // datamodule.hparams["downsample"] :
     ]
     return typing.cast(torch.Tensor, predictions).squeeze().numpy()
 
@@ -256,8 +262,7 @@ def predict_encoder_decoder(
         past_target=past_target,
         context_length=datamodule.hparams["ctxt_seq_len"],
         prediction_length=datamodule.hparams["tgt_seq_len"],
-        input_transforms=datamodule.input_transforms,
-        target_transform=datamodule.target_transform,
+        transforms=datamodule.transforms,
         input_columns=datamodule.hparams["known_covariates"],
         target_column=datamodule.hparams["target_covariate"],
     )
@@ -295,9 +300,11 @@ def predict_encoder_decoder(
     # truncate the outputs to the length of the future covariates
     outputs_t = outputs_t[: len(future_covariates)]
 
-    if datamodule.target_transform is not None:
-        future_x = future_covariates[datamodule.hparams["known_covariates"][0]]
-        outputs_t = datamodule.target_transform.inverse_transform(future_x, outputs_t)
+    if datamodule.target_covariate.name in datamodule.transforms:
+        future_x = future_covariates[datamodule.known_covariates[0].name]
+        outputs_t = datamodule.transforms[
+            datamodule.target_covariate.name
+        ].inverse_transform(future_x, outputs_t)
 
     # truncate the outputs to the length of the future covariates
     return outputs_t[: len(future_covariates)].numpy()  # type: ignore[attr-defined]

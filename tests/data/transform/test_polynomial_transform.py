@@ -7,10 +7,8 @@ from sklearn.utils.validation import check_is_fitted
 
 from transformertf.data import FixedPolynomialTransform, PolynomialTransform
 
-from ..conftest import CURRENT, FIELD
 
-
-@pytest.fixture()
+@pytest.fixture
 def x() -> torch.Tensor:
     return torch.ones(2) * 2
 
@@ -110,38 +108,50 @@ def test_polynomial_transform_three_degree_derivative() -> None:
     assert torch.eq(derivative.weights, torch.tensor([6.0, 9.0])).all()
 
 
-def test_polynomial_transform_fit(df: pd.DataFrame) -> None:
+def test_polynomial_transform_fit(
+    df: pd.DataFrame, current_key: str, field_key: str
+) -> None:
     transform = PolynomialTransform(degree=2, num_iterations=10)
 
-    transform.fit(df[CURRENT].values, df[FIELD].values)
+    transform.fit(df[current_key].to_numpy(), df[field_key].to_numpy())
 
     check_is_fitted(transform)
 
 
-def test_polynomial_transform_transform(df: pd.DataFrame) -> None:
+def test_polynomial_transform_transform(
+    df: pd.DataFrame, current_key: str, field_key: str
+) -> None:
     transform = PolynomialTransform(degree=2, num_iterations=10)
 
-    transform.fit(df[CURRENT].values, df[FIELD].values)
+    transform.fit(df[current_key].to_numpy(), df[field_key].to_numpy())
 
     check_is_fitted(transform)
 
-    transformed = transform.transform(df[CURRENT].values, df[FIELD].values)
+    transformed = transform.transform(
+        df[current_key].to_numpy(), df[field_key].to_numpy()
+    )
 
     assert transformed.shape == (len(df),)
 
 
-def test_polynomial_transform_inverse_transform(df: pd.DataFrame) -> None:
+def test_polynomial_transform_inverse_transform(
+    df: pd.DataFrame, current_key: str, field_key: str
+) -> None:
     transform = PolynomialTransform(degree=2, num_iterations=10)
 
-    transform.fit(df[CURRENT].values, df[FIELD].values)
+    transform.fit(df[current_key].to_numpy(), df[field_key].to_numpy())
 
     check_is_fitted(transform)
 
-    transformed = transform.transform(df[CURRENT].values, df[FIELD].values)
+    transformed = transform.transform(
+        df[current_key].to_numpy(), df[field_key].to_numpy()
+    )
 
     assert transformed.shape == (len(df),)
 
-    inverse_transformed = transform.inverse_transform(df[CURRENT].values, transformed)
+    inverse_transformed = transform.inverse_transform(
+        df[current_key].to_numpy(), transformed
+    )
 
     assert inverse_transformed.shape == (len(df),)
 
@@ -155,3 +165,12 @@ def test_fixed_polynomial_transform_line() -> None:
     assert y.shape == (2,)
 
     assert torch.eq(y, torch.ones(2) * 5.0).all()
+
+
+def test_polynomial_transform_str_repr() -> None:
+    """assert that the __str__ and __repr__ methods do not raise an exception"""
+    transform = PolynomialTransform(degree=2, num_iterations=10)
+    transform.fit(torch.ones(2), torch.ones(2))
+
+    _ = str(transform)
+    _ = repr(transform)

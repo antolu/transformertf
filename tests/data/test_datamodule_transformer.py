@@ -30,7 +30,7 @@ def transformer_datamodule_config(
         "batch_size": 16,
         "num_workers": 0,
         "dtype": "float32",
-        "distributed_sampler": False,
+        "distributed": False,
     }
 
 
@@ -104,6 +104,8 @@ def test_datamodule_transformer_read_input(
     df: pd.DataFrame,
     current_key: str,
     field_key: str,
+    current_cov_key: str,
+    field_cov_key: str,
 ) -> None:
     processed_df = datamodule_transformer.parse_dataframe(
         df, input_columns=[current_key], target_column=field_key
@@ -112,25 +114,25 @@ def test_datamodule_transformer_read_input(
     assert processed_df is not None
     assert isinstance(processed_df, pd.DataFrame)
 
-    assert current_key in processed_df.columns
-    assert field_key in processed_df.columns
+    assert current_cov_key in processed_df.columns
+    assert field_cov_key in processed_df.columns
 
-    assert len(processed_df.columns) == 3
+    assert len(processed_df.columns) == 2  # no time column
 
 
 def test_datamodule_transformer_preprocess_dataframe(
     datamodule_transformer: EncoderDecoderDataModule,
     df: pd.DataFrame,
-    current_key: str,
-    field_key: str,
+    current_cov_key: str,
+    field_cov_key: str,
 ) -> None:
     processed_df = datamodule_transformer.preprocess_dataframe(df)
 
     assert processed_df is not None
     assert isinstance(processed_df, pd.DataFrame)
 
-    assert current_key in processed_df.columns
-    assert field_key in processed_df.columns
+    assert current_cov_key in processed_df.columns
+    assert field_cov_key in processed_df.columns
 
     assert len(processed_df.columns) == len(df.columns)
 
@@ -138,33 +140,33 @@ def test_datamodule_transformer_preprocess_dataframe(
 def test_datamodule_transformer_normalize_dataframe(
     datamodule_transformer: EncoderDecoderDataModule,
     df: pd.DataFrame,
-    current_key: str,
-    field_key: str,
+    current_cov_key: str,
+    field_cov_key: str,
 ) -> None:
     processed_df = datamodule_transformer.apply_transforms(df)
 
     assert processed_df is not None
     assert isinstance(processed_df, pd.DataFrame)
 
-    assert current_key in processed_df.columns
-    assert field_key in processed_df.columns
+    assert current_cov_key in processed_df.columns
+    assert field_cov_key in processed_df.columns
 
 
 def test_datamodule_transformer_transform_input(
     datamodule_transformer: EncoderDecoderDataModule,
     df: pd.DataFrame,
-    current_key: str,
-    field_key: str,
+    current_cov_key: str,
+    field_cov_key: str,
 ) -> None:
     processed_df = datamodule_transformer.transform_input(df)
 
     assert processed_df is not None
     assert isinstance(processed_df, pd.DataFrame)
 
-    assert current_key in processed_df.columns
-    assert field_key in processed_df.columns
+    assert current_cov_key in processed_df.columns
+    assert field_cov_key in processed_df.columns
 
-    assert len(processed_df.columns) == 3
+    assert len(processed_df.columns) == 2
 
 
 def test_datamodule_transformer_make_dataset(

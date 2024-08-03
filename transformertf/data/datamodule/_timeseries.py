@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import typing
 
+import pandas as pd
+
 from transformertf.data.dataset import TimeSeriesDataset
 
-from ._base import DataModuleBase
+from .._dtype import VALID_DTYPES
+from ._base import DataModuleBase, _to_list
 
 if typing.TYPE_CHECKING:
-    import numpy as np
-
     from .._downsample import DOWNSAMPLE_METHODS
     from ..transform import BaseTransform
 
@@ -38,9 +39,9 @@ class TimeSeriesDataModule(DataModuleBase):
         extra_transforms: dict[str, list[BaseTransform]] | None = None,
         batch_size: int = 128,
         num_workers: int = 0,
-        dtype: str = "float32",
+        dtype: VALID_DTYPES = "float32",
         shuffle: bool = True,
-        distributed_sampler: bool = False,
+        distributed: bool | typing.Literal["auto"] = "auto",
     ):
         """
         For documentation of arguments see :class:`DataModuleBase`.
@@ -60,29 +61,37 @@ class TimeSeriesDataModule(DataModuleBase):
             num_workers=num_workers,
             dtype=dtype,
             shuffle=shuffle,
-            distributed_sampler=distributed_sampler,
+            distributed=distributed,
         )
 
         self.save_hyperparameters(ignore=["extra_transforms"])
 
-        self.hparams["known_covariates"] = self._to_list(
-            self.hparams["known_covariates"]
-        )
+        self.hparams["known_covariates"] = _to_list(self.hparams["known_covariates"])
 
-    def _make_dataset_from_arrays(
-        self,
-        input_data: np.ndarray,
-        known_past_data: np.ndarray | None = None,
-        target_data: np.ndarray | None = None,
-        *,
-        predict: bool = False,
+    def _make_dataset_from_df(
+        self, df: pd.DataFrame | list[pd.DataFrame], *, predict: bool = False
     ) -> TimeSeriesDataset:
-        if known_past_data is not None and known_past_data.size > 0:
-            msg = "known_past_data is not used in this class."
+        if len(self.known_past_covariates) > 0:
+            msg = "known_past_covariates is not used in this class."
             raise NotImplementedError(msg)
 
+        input_cols = [cov.col for cov in self.known_covariates]
+        target_data: pd.Series | list[pd.Series] | None
+        if isinstance(df, pd.DataFrame):
+            if self.target_covariate.col in df.columns:
+                target_data = df[self.target_covariate.col]
+            else:
+                target_data = None
+        else:
+            if self.target_covariate.col in df[0].columns:
+                target_data = [d[self.target_covariate.col] for d in df]
+            else:
+                target_data = None
+
         return TimeSeriesDataset(
-            input_data=input_data,
+            input_data=df[input_cols]
+            if isinstance(df, pd.DataFrame)
+            else [df[input_cols] for df in df],
             target_data=target_data,
             stride=self.hparams["stride"],
             seq_len=self.hparams["seq_len"],
@@ -91,8 +100,7 @@ class TimeSeriesDataModule(DataModuleBase):
                 self.hparams["randomize_seq_len"] if not predict else False
             ),
             predict=predict,
-            input_transform=self.input_transforms,
-            target_transform=self.target_transform,
+            transforms=self.transforms,
             dtype=self.hparams["dtype"],
         )
 

@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import enum
 import logging
+import typing
 
 import numpy as np
+import pandas as pd
 import torch
 
 from ..transform import BaseTransform
@@ -25,10 +27,9 @@ class DataSetType(enum.Enum):
 
 
 class AbstractTimeSeriesDataset(torch.utils.data.Dataset):
-    _input_data: list[torch.Tensor]
-    _target_data: list[torch.Tensor] | list[None]
-    _input_transform: dict[str, BaseTransform]
-    _target_transform: BaseTransform | None
+    _input_data: typing.Sequence[pd.DataFrame]
+    _target_data: typing.Sequence[pd.DataFrame] | list[None]
+    _transforms: typing.Mapping[str, BaseTransform]
     _dataset_type: DataSetType
 
     @property
@@ -44,12 +45,8 @@ class AbstractTimeSeriesDataset(torch.utils.data.Dataset):
         return int(np.sum([len(arr) for arr in self._input_data]))
 
     @property
-    def input_transform(self) -> dict[str, BaseTransform]:
-        return self._input_transform
-
-    @property
-    def target_transform(self) -> BaseTransform | None:
-        return self._target_transform
+    def transforms(self) -> dict[str, BaseTransform]:
+        return dict(self._transforms.items())
 
 
 def _check_index(idx: int, length: int) -> int:
@@ -67,8 +64,8 @@ def _check_index(idx: int, length: int) -> int:
 
 
 def _check_label_data_length(
-    input_data: list[torch.Tensor],
-    target_data: list[torch.Tensor] | list[None],
+    input_data: typing.Sequence[pd.DataFrame],
+    target_data: typing.Sequence[pd.DataFrame] | typing.Sequence[None],
 ) -> None:
     """
     This function checks the length of the label data sources
@@ -88,3 +85,15 @@ def _check_label_data_length(
             "sources must be the same."
         )
         raise ValueError(msg)
+
+
+T = typing.TypeVar("T")
+
+
+def _to_list(data: T | typing.Sequence[T]) -> list[T]:
+    if isinstance(data, pd.DataFrame | pd.Series):
+        return [data]  # type: ignore[list-item]
+    if isinstance(data, typing.Sequence):
+        return list(data)
+
+    return [data]

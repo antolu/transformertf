@@ -14,30 +14,27 @@ __all__ = ["DOWNSAMPLE_METHODS", "downsample"]
 
 MIN_DOWNSAMPLE_FACTOR = 1
 DOWNSAMPLE_METHODS: typing.TypeAlias = typing.Literal["interval", "median", "convolve"]
-
-
-if typing.TYPE_CHECKING:
-    T = typing.TypeVar("T", pd.Series, np.ndarray, torch.Tensor)
+ArrayLike: typing.TypeAlias = np.ndarray | torch.Tensor | pd.Series
 
 
 @typing.overload
 def downsample(  # type: ignore[overload-overlap]
-    value: T,
-    downsample: int,
-    method: DOWNSAMPLE_METHODS = "interval",
-) -> np.ndarray: ...
-
-
-@typing.overload
-def downsample(
     value: pd.DataFrame,
     downsample: int,
     method: DOWNSAMPLE_METHODS = "interval",
 ) -> pd.DataFrame: ...
 
 
+@typing.overload
 def downsample(
-    value: T | pd.DataFrame,
+    value: ArrayLike,
+    downsample: int,
+    method: DOWNSAMPLE_METHODS = "interval",
+) -> np.ndarray: ...
+
+
+def downsample(
+    value: ArrayLike | pd.DataFrame,
     downsample: int,
     method: DOWNSAMPLE_METHODS = "interval",
 ) -> np.ndarray | pd.DataFrame:

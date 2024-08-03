@@ -10,17 +10,17 @@ import torch
 from transformertf.data import _downsample  # noqa: PLC2701
 
 
-@pytest.fixture()
+@pytest.fixture
 def arr() -> np.ndarray:
     return np.arange(100)
 
 
-@pytest.fixture()
+@pytest.fixture
 def arr_torch(arr: np.ndarray) -> torch.Tensor:
     return torch.from_numpy(arr)
 
 
-@pytest.fixture()
+@pytest.fixture
 def arr_series(arr: np.ndarray) -> pd.Series:
     return pd.Series(arr)
 

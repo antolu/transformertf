@@ -45,14 +45,18 @@ def get_dtype(dtype: str | torch.dtype) -> torch.dtype:
 
 
 def to_torch(
-    o: pd.Series | np.ndarray | torch.Tensor,
+    o: pd.Series | np.ndarray | torch.Tensor | pd.DataFrame,
+    dtype: VALID_DTYPES = "float32",
 ) -> torch.Tensor:
+    if isinstance(o, pd.DataFrame):
+        # TODO: which type should be used here? pd.DataFrames can have multiple dtypes
+        return torch.from_numpy(o.to_numpy(dtype=np.float64)).to(get_dtype(dtype))
     if isinstance(o, pd.Series):
-        return torch.from_numpy(o.to_numpy())
+        return torch.from_numpy(o.to_numpy()).to(get_dtype(dtype))
     if isinstance(o, np.ndarray):
-        return torch.from_numpy(o)
+        return torch.from_numpy(o).to(get_dtype(dtype))
     if isinstance(o, torch.Tensor):
-        return o
+        return o.to(get_dtype(dtype))
     msg = f"Unsupported type {type(o)} for data"
     raise TypeError(msg)
 

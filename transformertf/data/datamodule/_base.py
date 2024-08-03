@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
+import functools
 import logging
 import pathlib
 import shutil
@@ -16,13 +17,20 @@ import pandas as pd
 import torch
 import torch.utils.data
 
+from .._covariates import (
+    TIME_PREFIX,
+    Covariate,
+    known_cov_col,
+    past_known_cov_col,
+    target_col,
+)
 from .._downsample import DOWNSAMPLE_METHODS, downsample
+from .._dtype import VALID_DTYPES
 from ..dataset import AbstractTimeSeriesDataset
 from ..transform import (
     BaseTransform,
     StandardScaler,
     TransformCollection,
-    TransformType,
 )
 
 if sys.version_info < (3, 12):
@@ -55,6 +63,8 @@ class TmpDir:
 
 
 class TmpDirType(typing.Protocol):
+    """Abstraction to represent a temporary directory."""
+
     name: str
 
     def cleanup(self) -> None: ...
@@ -69,8 +79,11 @@ class DataModuleBase(L.LightningDataModule):
     subclass constructor.
     """
 
-    _input_transforms: torch.nn.ModuleDict[str, TransformCollection]
-    _target_transform: TransformCollection
+    _transforms: torch.nn.ModuleDict[str, TransformCollection]
+    _tmp_dir: TmpDirType
+
+    _raw_train_df: list[pd.DataFrame]
+    _raw_val_df: list[pd.DataFrame]
 
     def __init__(
         self,
@@ -86,10 +99,10 @@ class DataModuleBase(L.LightningDataModule):
         extra_transforms: dict[str, list[BaseTransform]] | None = None,
         batch_size: int = 128,
         num_workers: int = 0,
-        dtype: str = "float32",
+        dtype: VALID_DTYPES = "float32",
         *,
         shuffle: bool = True,
-        distributed_sampler: bool = False,
+        distributed: bool | typing.Literal["auto"] = "auto",
     ):
         """
         Initializes the datamodule.
@@ -129,9 +142,9 @@ class DataModuleBase(L.LightningDataModule):
             "median", and "convolve".
         target_depends_on : str | None
             The column that the target depends on if additional transforms are provided in the
-            ``extra_transforms`` parameter, and are of type :class:`TransformType.XY`, where
-            the target depends on another column. If None, the target does not depend on any
-            other column.
+            ``extra_transforms`` parameter, and are of type
+            :class:`BaseTransform.TransformType.XY`, where the target depends on
+            another column. If None, the target does not depend on any other column.
         extra_transforms : dict[str, list[BaseTransform]] | None
             Additional transforms to apply to the data. The dictionary should have the column
             name as the key, and a list of transforms as the value. If None, no additional
@@ -149,7 +162,7 @@ class DataModuleBase(L.LightningDataModule):
             Whether to shuffle the data. If True, the data is shuffled before creating the
             training dataloader. If False, the data is not shuffled.
             Validation / test dataloaders are never shuffled.
-        distributed_sampler : bool
+        distributed : bool
             Whether to use a distributed sampler for the dataloaders. If True, the dataloader
             is wrapped in a :class:`torch.utils.data.distributed.DistributedSampler`, which must
             be used by distributed training strategies.
@@ -157,49 +170,31 @@ class DataModuleBase(L.LightningDataModule):
         super().__init__()
         self.save_hyperparameters(ignore=["extra_transforms"])
 
-        known_covariates = DataModuleBase._to_list(known_covariates)
+        known_covariates = _to_list(known_covariates)
         known_past_covariates = (
-            DataModuleBase._to_list(known_past_covariates)
-            if known_past_covariates
-            else []
+            _to_list(known_past_covariates) if known_past_covariates else []
         )
 
         self.hparams["known_covariates"] = known_covariates
         self.hparams["known_past_covariates"] = known_past_covariates
 
         self._extra_transforms_source = extra_transforms or {}
-
         self._create_transforms()
 
-        self._train_df_pths = (
-            DataModuleBase._to_list(train_df_paths)
-            if train_df_paths is not None
-            else []
-        )
-        self._val_df_pths = (
-            DataModuleBase._to_list(val_df_paths) if val_df_paths is not None else []
-        )
+        self._train_df_pths = _or_empty(train_df_paths)
+
+        self._val_df_pths = _or_empty(val_df_paths)
 
         # these will be set by prepare_data
         self._train_df: list[pd.DataFrame] = []
         self._val_df: list[pd.DataFrame] = []
 
-        self._tmp_dir: TmpDirType
-        if distributed_sampler:
-            self._tmp_dir = TmpDir("/tmp/tmp_datamodule/")
-            Path(self._tmp_dir.name).mkdir(parents=True, exist_ok=True)
-        else:
-            self._tmp_dir = tempfile.TemporaryDirectory()
+        self._init_tmpdir()
 
     """ Override the following in subclasses """
 
-    def _make_dataset_from_arrays(
-        self,
-        input_data: np.ndarray,
-        known_past_data: np.ndarray | None = None,
-        target_data: np.ndarray | None = None,
-        *,
-        predict: bool = False,
+    def _make_dataset_from_df(
+        self, df: pd.DataFrame | list[pd.DataFrame], *, predict: bool = False
     ) -> AbstractTimeSeriesDataset:
         raise NotImplementedError
 
@@ -218,7 +213,8 @@ class DataModuleBase(L.LightningDataModule):
         return (
             len(self.hparams["known_covariates"])
             + len(self.hparams["known_past_covariates"])
-            + 1
+            + 1  # target
+            + (1 if self.hparams.get("time_column") else 0)
         )
 
     @property
@@ -231,7 +227,11 @@ class DataModuleBase(L.LightningDataModule):
         int
             The number of future known covariates.
         """
-        return len(self.hparams["known_covariates"]) + 1
+        return (
+            len(self.hparams["known_covariates"])
+            + 1  # target
+            + (1 if self.hparams.get("time_column") else 0)
+        )
 
     @property
     def num_static_real_features(self) -> int:
@@ -273,6 +273,27 @@ class DataModuleBase(L.LightningDataModule):
         train_df = list(map(read_dataframe, train_pths))
         val_df = list(map(read_dataframe, val_pths))
 
+        parse_dataframe = functools.partial(
+            self.parse_dataframe,
+            input_columns=self.hparams["known_covariates"],
+            past_known_columns=self.hparams.get("known_past_covariates"),
+            target_column=self.hparams["target_covariate"],
+            timestamp=self.hparams.get("time_column"),
+        )
+
+        train_df = list(
+            map(
+                parse_dataframe,
+                train_df,
+            )
+        )
+        val_df = list(
+            map(
+                parse_dataframe,
+                val_df,
+            )
+        )
+
         self._raw_train_df = train_df
         self._raw_val_df = val_df
 
@@ -280,13 +301,16 @@ class DataModuleBase(L.LightningDataModule):
         val_df = list(map(self.preprocess_dataframe, val_df))
 
         if not self._scalers_fitted():
-            self._fit_transforms(pd.concat(train_df))
+            self._fit_transforms(train_df)
 
         self._train_df = list(map(self.apply_transforms, train_df))
         self._val_df = list(map(self.apply_transforms, val_df))
 
         save_data(self._train_df, "train", self._tmp_dir.name)
         save_data(self._val_df, "val", self._tmp_dir.name)
+
+        if self.distributed_sampler:
+            self._save_tmp_state()
 
     @override  # type: ignore[misc]
     def setup(
@@ -302,6 +326,8 @@ class DataModuleBase(L.LightningDataModule):
         stage : typing.Literal["fit", "train", "val", "test", "predict"] | None
             The stage to setup for. If None, all stages are setup.
         """
+        if self.distributed_sampler:
+            self._load_tmp_state()
 
         def load_parquet(
             name: typing.Literal["train", "val", "test", "predict"],
@@ -336,6 +362,18 @@ class DataModuleBase(L.LightningDataModule):
             msg = f"Unknown stage {stage}."
             raise ValueError(msg)
 
+    def _save_tmp_state(self) -> None:
+        state_dict = self.state_dict()
+
+        with open(path.join(self._tmp_dir.name, "state_dict.pt"), "wb") as f:
+            torch.save(state_dict, f)
+
+    def _load_tmp_state(self) -> None:
+        with open(path.join(self._tmp_dir.name, "state_dict.pt"), "rb") as f:
+            state_dict = torch.load(f)
+
+        self.load_state_dict(state_dict)
+
     def teardown(self, stage: str) -> None:
         """
         Cleans up the temporary directory.
@@ -345,7 +383,18 @@ class DataModuleBase(L.LightningDataModule):
         stage : str
             The stage to teardown.
         """
-        self._tmp_dir.cleanup()
+        if self._tmp_dir is None:
+            return
+
+        if not self.hparams.get("distributed_sampler"):
+            self._tmp_dir.cleanup()
+        else:
+            try:
+                shutil.rmtree(self._tmp_dir.name)
+            except OSError:
+                log.exception(
+                    f"Failed to remove temporary directory {self._tmp_dir.name}."
+                )
 
     @property
     def train_dataset(self) -> AbstractTimeSeriesDataset:
@@ -362,29 +411,12 @@ class DataModuleBase(L.LightningDataModule):
             msg = "No training data available."
             raise ValueError(msg)
 
-        input_data = np.concatenate([
-            df[self.hparams["known_covariates"]].to_numpy() for df in self._train_df
-        ])
-        known_past_data = (
-            np.concatenate([
-                df[self.hparams["known_past_covariates"]].to_numpy()
-                for df in self._train_df
-            ])
-            if self.hparams["known_past_covariates"] is not None
-            else None
-        )
-        target_data = np.concatenate([
-            df[self.hparams["target_covariate"]].to_numpy() for df in self._train_df
-        ])
-
-        return self._make_dataset_from_arrays(
-            input_data, known_past_data, target_data, predict=False
-        )
+        return self._make_dataset_from_df(self._train_df, predict=False)
 
     @property
     def val_dataset(
         self,
-    ) -> AbstractTimeSeriesDataset | typing.Sequence[AbstractTimeSeriesDataset]:
+    ) -> AbstractTimeSeriesDataset | list[AbstractTimeSeriesDataset]:
         """
         The validation dataset(s). If more than one dataframe was provided in the
         constructor, this method returns a list of datasets, one for each dataframe.
@@ -392,7 +424,7 @@ class DataModuleBase(L.LightningDataModule):
 
         Returns
         -------
-        AbstractTimeSeriesDataset | typing.Sequence[AbstractTimeSeriesDataset]
+        AbstractTimeSeriesDataset | list[AbstractTimeSeriesDataset]
             The validation dataset(s).
         """
         if self._val_df is None or len(self._val_df) == 0:
@@ -417,7 +449,7 @@ class DataModuleBase(L.LightningDataModule):
             The training dataloader.
         """
         sampler: torch.utils.data.Sampler | None = None
-        if self.hparams["distributed_sampler"]:
+        if self.distributed_sampler:
             sampler = torch.utils.data.distributed.DistributedSampler(
                 self.train_dataset,
                 shuffle=self.hparams["shuffle"],
@@ -432,6 +464,10 @@ class DataModuleBase(L.LightningDataModule):
             shuffle=sampler is None and self.hparams["shuffle"],
             num_workers=self.hparams["num_workers"],
             sampler=sampler,
+            pin_memory=True,
+            multiprocessing_context="forkserver"
+            if self.hparams["num_workers"] > 0
+            else None,
         )
 
     @override  # type: ignore[misc]
@@ -454,7 +490,7 @@ class DataModuleBase(L.LightningDataModule):
         def make_sampler(
             ds: torch.utils.data.Dataset,
         ) -> torch.utils.data.Sampler | None:
-            if self.hparams["distributed_sampler"]:
+            if self.distributed_sampler:
                 return torch.utils.data.distributed.DistributedSampler(
                     ds,
                     shuffle=False,
@@ -471,33 +507,18 @@ class DataModuleBase(L.LightningDataModule):
                 num_workers=self.hparams["num_workers"],
                 shuffle=False,
                 sampler=make_sampler(ds),
+                pin_memory=True,
+                multiprocessing_context="forkserver"
+                if self.hparams["num_workers"] > 0
+                else None,
             )
 
         if len(self._val_df) == 1:
             return make_dataloader(self.val_dataset)  # type: ignore[arg-type]
         return [make_dataloader(ds) for ds in self.val_dataset]  # type: ignore[arg-type]
 
-    def get_transforms(
-        self,
-    ) -> tuple[dict[str, TransformCollection], TransformCollection]:
-        """
-        Returns the input and target transforms used by the datamodule.
-
-        Returns
-        -------
-        tuple[dict[str, TransformCollection], TransformCollection]
-            The input and target transforms.
-        """
-        return (
-            {
-                col: self._input_transforms[col]
-                for col in self.hparams["known_covariates"]
-            },
-            self._target_transform,
-        )
-
     @property
-    def input_transforms(self) -> dict[str, TransformCollection]:
+    def transforms(self) -> dict[str, TransformCollection]:
         """
         The input transforms used by the datamodule.
 
@@ -506,11 +527,20 @@ class DataModuleBase(L.LightningDataModule):
         dict[str, TransformCollection]
             The input transforms.
         """
-        return {
-            col: self._input_transforms[col]
-            for col in self.hparams["known_covariates"]
-            + (self.hparams.get("known_past_covariates") or [])
-        }
+        return typing.cast(
+            dict[str, TransformCollection],
+            {
+                cov.name: self._transforms[cov.name]
+                for cov in self.known_covariates
+                + self.known_past_covariates
+                + [self.target_covariate]
+                + (
+                    [Covariate(TIME_PREFIX, TIME_PREFIX)]
+                    if self.hparams.get("time_column")
+                    else []
+                )
+            },
+        )
 
     @property
     def target_transform(self) -> TransformCollection:
@@ -522,7 +552,7 @@ class DataModuleBase(L.LightningDataModule):
         TransformCollection
             The target transform.
         """
-        return self._target_transform
+        return self._transforms[self.target_covariate.name]
 
     def transform_input(
         self,
@@ -562,12 +592,13 @@ class DataModuleBase(L.LightningDataModule):
         skip_target = self.hparams["target_covariate"] not in df.columns
         df = self.parse_dataframe(
             df,
-            timestamp=timestamp,
-            input_columns=self.hparams["known_covariates"]
-            + (self.hparams["known_past_covariates"] or []),
-            target_column=(
-                self.hparams["target_covariate"] if not skip_target else None
-            ),
+            timestamp=timestamp
+            if timestamp is not None
+            else self.hparams.get("time_column"),
+            input_columns=[
+                cov.name for cov in self.known_covariates + self.known_past_covariates
+            ],
+            target_column=(self.target_covariate.name if not skip_target else None),
         )
         df = self.preprocess_dataframe(df)
 
@@ -577,6 +608,7 @@ class DataModuleBase(L.LightningDataModule):
     def parse_dataframe(
         df: pd.DataFrame,
         input_columns: str | typing.Sequence[str],
+        past_known_columns: str | typing.Sequence[str] | None = None,
         target_column: str | None = None,
         timestamp: np.ndarray | pd.Series | str | None = None,
     ) -> pd.DataFrame:
@@ -596,8 +628,11 @@ class DataModuleBase(L.LightningDataModule):
             The timestamps of the data.
         input_columns : str | typing.Sequence[str]
             The columns to use as input.
+        past_known_columns : str | typing.Sequence[str] | None
+            The columns to use as known past covariates.
         target_column : str | None
-            The column to use as target.
+            The column to use as target. If not provided,
+            the target column is not included in the output.
         timestamp : np.ndarray | pd.Series | str | None
             The timestamps of the data.
 
@@ -606,19 +641,12 @@ class DataModuleBase(L.LightningDataModule):
         pd.DataFrame
             The transformed dataframe.
         """
-        input_columns = DataModuleBase._to_list(input_columns)
-
         df = df.dropna(how="all", axis="columns")
 
-        col_filter = input_columns
-        if target_column is not None:
-            col_filter += DataModuleBase._to_list(target_column)
-
-        df = df[col_filter]
-
         if timestamp is not None:
+            time: np.ndarray | pd.Series
             if isinstance(timestamp, str):
-                df[TIME] = df[timestamp]
+                time = df[timestamp]
             elif isinstance(timestamp, np.ndarray | pd.Series):
                 if len(timestamp) != len(df):
                     msg = (
@@ -626,11 +654,37 @@ class DataModuleBase(L.LightningDataModule):
                         f"Got {len(timestamp)} timestamps and {len(df)} rows."
                     )
                     raise ValueError(msg)
-                df[TIME] = timestamp
-        else:
-            df[TIME] = np.arange(len(df))
+                time = timestamp
+            else:
+                msg = (
+                    f"Unknown type {type(timestamp)} for timestamp, "
+                    "expected str, np.ndarray, or pd.Series."
+                )
+                raise TypeError(msg)
 
-        return df
+            if (
+                pd.api.types.is_datetime64_any_dtype(time.dtype)
+                or pd.api.types.is_timedelta64_dtype(time.dtype)
+                or pd.api.types.is_string_dtype(time.dtype)
+            ):
+                time = pd.to_numeric(time)
+
+            time = np.array(time, dtype=float)
+            out = pd.DataFrame({TIME_PREFIX: time})
+        else:
+            # out = pd.DataFrame({TIME_PREFIX: np.arange(len(df))})
+            out = pd.DataFrame()
+
+        for col in input_columns:
+            out[known_cov_col(col)] = df[col].to_numpy()
+        if past_known_columns is not None:
+            for col in past_known_columns:
+                out[past_known_cov_col(col)] = df[col].to_numpy()
+        if target_column is not None:
+            for col in _to_list(target_column):
+                out[target_col(col)] = df[col].to_numpy()
+
+        return out
 
     def preprocess_dataframe(
         self,
@@ -640,6 +694,10 @@ class DataModuleBase(L.LightningDataModule):
         Preprocess the dataframe into the format expected by the model.
         This function should be chaininvoked with the ``read_input`` function,
         and must be called before ``apply_transforms``.
+
+        This function extracts the known past and future covariates from the dataframe,
+        and adds them as separate columns to the dataframe. The columns are named
+        using the prefixes ``__past_known_continuous_`` and ``__future_known_continuous_``.
 
         This function can be overridden in subclasses to add additional
         preprocessing steps.
@@ -654,7 +712,8 @@ class DataModuleBase(L.LightningDataModule):
         pd.DataFrame
             The preprocessed dataframe.
         """
-        return downsample(  # type: ignore[return-value]
+        # apply downsampling prior to transforms
+        return downsample(
             df,
             downsample=self.hparams["downsample"],
             method=self.hparams["downsample_method"],
@@ -693,25 +752,26 @@ class DataModuleBase(L.LightningDataModule):
             raise RuntimeError(msg)
 
         out = pd.DataFrame(df)
-        for col in self.hparams["known_covariates"] + (
-            self.hparams["known_past_covariates"] or []
-        ):
-            out[col] = self._input_transforms[col].transform(
-                torch.from_numpy(df[col].to_numpy())
+        for cov in self.known_covariates + self.known_past_covariates:
+            out[cov.col] = self._transforms[cov.name].transform(
+                torch.from_numpy(df[cov.col].to_numpy())
             )
 
         if skip_target:
             return out
 
-        if self.hparams["target_depends_on"] is not None:
-            out[self.hparams["target_covariate"]] = self._target_transform.transform(
-                torch.from_numpy(df[self.hparams["target_depends_on"]].to_numpy()),
-                torch.from_numpy(df[self.hparams["target_covariate"]].to_numpy()),
+        def pd2torch(x: pd.Series) -> torch.Tensor:
+            return torch.from_numpy(x.to_numpy())
+
+        target_transform = self._transforms[self.target_covariate.name]
+        if self.target_depends_on is not None:
+            out[self.target_covariate.col] = target_transform.transform(
+                pd2torch(df[self.target_depends_on.col]),
+                pd2torch(df[self.target_covariate.col]),
             )
         else:
-            out[self.hparams["target_covariate"]] = self._target_transform.transform(
-                torch.tensor([]),
-                torch.from_numpy(df[self.hparams["target_covariate"]].to_numpy()),
+            out[self.target_covariate.col] = target_transform.transform(
+                pd2torch(df[self.target_covariate.col]),
             )
 
         return out
@@ -783,103 +843,194 @@ class DataModuleBase(L.LightningDataModule):
 
         return self._make_dataset_from_df(df, predict=predict)
 
-    def _make_dataset_from_df(
-        self, df: pd.DataFrame, *, predict: bool = False
-    ) -> AbstractTimeSeriesDataset:
-        target_data: np.ndarray | None = None
-        if self.hparams["target_covariate"] in df.columns:
-            target_data = df[self.hparams["target_covariate"]].to_numpy()
+    def state_dict(self) -> dict[str, typing.Any]:
+        state = super().state_dict()
+        if self._transforms is not None:
+            state["transforms"] = {
+                col: transform.state_dict()
+                for col, transform in self._transforms.items()
+            }
 
-        return self._make_dataset_from_arrays(
-            input_data=df[self.hparams["known_covariates"]].to_numpy(),
-            known_past_data=df[self.hparams["known_past_covariates"]].to_numpy()
-            if self.hparams["known_past_covariates"] is not None
-            else None,
-            target_data=target_data,
-            predict=predict,
-        )
+        return state
+
+    def load_state_dict(self, state: dict[str, typing.Any]) -> None:
+        if "transforms" in state:
+            for col, transform in self._transforms.items():
+                if col not in state["transforms"]:
+                    log.warning(f"Could not find state for {col}.")
+                transform.load_state_dict(state["transforms"][col])
+
+            state.pop("transforms")
+
+        # handle old state dicts
+        elif "input_transform" in state or "target_transform" in state:
+            state_dict = None
+            if "input_transform" in state:
+                state_dict = state["input_transform"]
+                state.pop("input_transform")
+            if "target_transform" in state:
+                if state_dict is None:
+                    state_dict = state["target_transform"]
+                else:
+                    state_dict[self.target_covariate.name] = state["target_transform"]
+                state.pop("target_transform")
+
+            if state_dict is not None:
+                self._transforms.load_state_dict(state_dict)
+
+        super().load_state_dict(state)
 
     def _create_transforms(self) -> None:
         """
         Instantiates the transforms to be used by the datamodule.
         """
-        normalize = self.hparams["normalize"]
-
         # input transforms
-        input_transforms: dict[str, list[BaseTransform]]
-        input_transforms = {
-            col: []
-            for col in self.hparams["known_covariates"]
-            + (self.hparams["known_past_covariates"] or [])
+        transforms: dict[str, list[BaseTransform]]
+        transforms = {
+            cov.name: [] for cov in self.known_covariates + self.known_past_covariates
         }
 
-        for col, transforms in self._extra_transforms_source.items():
-            if col == self.hparams["target_covariate"]:
+        for col, extra_transforms in self._extra_transforms_source.items():
+            if col == self.hparams["target_covariate"] or col == TIME_PREFIX:
                 continue
-            if col not in input_transforms:
+            if col not in transforms:
                 msg = f"Unknown column {col} in extra_transforms."
                 raise ValueError(msg)
-            input_transforms[col].extend(transforms)
+            transforms[col].extend(extra_transforms)
 
-        for input_col in self.hparams["known_covariates"] + (
-            self.hparams["known_past_covariates"] or []
-        ):
-            if normalize:
-                input_transforms[input_col].append(StandardScaler(num_features_=1))
-
-        self._input_transforms = torch.nn.ModuleDict({
-            col: TransformCollection(transforms)
-            for col, transforms in input_transforms.items()
-        })
+        if self.hparams["normalize"]:
+            for cov in self.known_covariates + self.known_past_covariates:
+                transforms[cov.name].append(StandardScaler(num_features_=1))
 
         target_transform = []
         if self.hparams["target_covariate"] in self._extra_transforms_source:
             target_transform.extend(
                 self._extra_transforms_source[self.hparams["target_covariate"]]
             )
-        if normalize:
+        if self.hparams["normalize"]:
             target_transform.append(StandardScaler(num_features_=1))
 
-        self._target_transform = TransformCollection(
-            target_transform,
-            transform_type=TransformType.XY,
-        )
+        target_transform_ = TransformCollection(target_transform)
+
+        if (
+            self.target_depends_on is not None
+            and target_transform_.transform_type != BaseTransform.TransformType.XY
+        ):
+            msg = (
+                "The target depends on another column, but the target transform "
+                f"does not support this. Got {target_transform_.transform_type}."
+            )
+            raise ValueError(msg)
+        if (
+            self.target_depends_on is None
+            and target_transform_.transform_type == BaseTransform.TransformType.XY
+        ):
+            msg = (
+                "The target does not depend on another column, but the target transform "
+                f"does. Got {target_transform_.transform_type}."
+            )
+            raise ValueError(msg)
+
+        transforms[self.target_covariate.name] = target_transform_
+        self._transforms = torch.nn.ModuleDict({
+            col: TransformCollection(transforms)
+            for col, transforms in transforms.items()
+        })
 
     def _scalers_fitted(self) -> bool:
-        fitted = all(
-            transform.__sklearn_is_fitted__()
-            for transform in self._input_transforms.values()
+        return all(
+            transform.__sklearn_is_fitted__() for transform in self._transforms.values()
         )
 
-        fitted &= self._target_transform.__sklearn_is_fitted__()
+    def _fit_transforms(self, dfs: list[pd.DataFrame]) -> None:
+        df = pd.concat(dfs)
 
-        return fitted
+        for cov in self.known_covariates + self.known_past_covariates:
+            log.info(f"Fitting input scaler for {cov.name}.")
+            self._transforms[cov.name].fit(torch.from_numpy(df[cov.col].to_numpy()))
 
-    def _fit_transforms(self, df: pd.DataFrame) -> None:
-        for col in self.hparams["known_covariates"] + (
-            self.hparams["known_past_covariates"] or []
-        ):
-            log.info(f"Fitting input scaler for {col}.")
-            self._input_transforms[col].fit(torch.from_numpy(df[col].to_numpy()))
-
-        if self.hparams["target_depends_on"] is not None:
-            self._target_transform.fit(
-                torch.from_numpy(df[self.hparams["target_depends_on"]].to_numpy()),
-                torch.from_numpy(df[self.hparams["target_covariate"]].to_numpy()),
+        if self.target_depends_on is not None:
+            self._transforms[self.target_covariate.name].fit(
+                torch.from_numpy(df[self.target_depends_on.col].to_numpy()),
+                torch.from_numpy(df[self.target_covariate.col].to_numpy()),
             )
         else:
-            self._target_transform.fit(
-                torch.tensor([]),
-                torch.from_numpy(df[self.hparams["target_covariate"]].to_numpy()),
+            self._transforms[self.target_covariate.name].fit(
+                torch.from_numpy(df[self.target_covariate.col].to_numpy()),
             )
 
-    @staticmethod
-    def _to_list(x: T | typing.Sequence[T]) -> list[T]:
-        if isinstance(x, typing.Sequence) and not isinstance(
-            x, str | pd.Series | np.ndarray | torch.Tensor | pd.DataFrame
-        ):
-            return list(x)
-        return typing.cast(list[T], [x])
+    @property
+    def known_covariates(self) -> list[Covariate]:
+        return [
+            Covariate(col, known_cov_col(col))
+            for col in self.hparams["known_covariates"]
+        ]
+
+    @property
+    def known_past_covariates(self) -> list[Covariate]:
+        return [
+            Covariate(col, past_known_cov_col(col))
+            for col in (self.hparams["known_past_covariates"] or [])
+        ]
+
+    @property
+    def target_covariate(self) -> Covariate:
+        return Covariate(
+            self.hparams["target_covariate"],
+            target_col(self.hparams["target_covariate"]),
+        )
+
+    @property
+    def target_depends_on(self) -> Covariate | None:
+        if self.hparams["target_depends_on"] is None:
+            return None
+
+        cov_str = self.hparams["target_depends_on"]
+
+        if cov_str in self.hparams["known_covariates"]:
+            return Covariate(cov_str, known_cov_col(cov_str))
+
+        if cov_str in self.hparams["known_past_covariates"]:
+            return Covariate(cov_str, past_known_cov_col(cov_str))
+
+        msg = (
+            f"Unknown column {cov_str} in target_depends_on that "
+            "is not in known_covariates or known_past_covariates."
+        )
+        raise ValueError(msg)
+
+    @property
+    def distributed_sampler(self) -> bool:
+        return (
+            self.hparams["distributed"]
+            if self.hparams["distributed"] != "auto"
+            else (torch.cuda.is_available() and torch.cuda.device_count() > 1)
+            if "distributed" in self.hparams
+            else False
+        )
+
+    def _init_tmpdir(self) -> TmpDirType:
+        if self.distributed_sampler:
+            self._tmp_dir = TmpDir("/tmp/tmp_datamodule/")
+            Path(self._tmp_dir.name).mkdir(parents=True, exist_ok=True)
+        else:
+            self._tmp_dir = tempfile.TemporaryDirectory()
+
+        return self._tmp_dir
+
+
+def _to_list(x: T | typing.Sequence[T]) -> list[T]:
+    if isinstance(x, typing.Sequence) and not isinstance(
+        x, str | pd.Series | np.ndarray | torch.Tensor | pd.DataFrame
+    ):
+        return list(x)
+    return typing.cast(list[T], [x])
+
+
+def _or_empty(x: T | typing.Sequence[T] | None) -> list[T]:
+    if x is None:
+        return []
+    return _to_list(x)
 
 
 EXT2READER: dict[str, typing.Callable[[typing.Any], pd.DataFrame]] = {
