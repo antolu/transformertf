@@ -389,6 +389,8 @@ class DataModuleBase(L.LightningDataModule):
         if not self.hparams.get("distributed_sampler"):
             self._tmp_dir.cleanup()
         else:
+            if not pathlib.Path(self._tmp_dir.name).exists():
+                return
             try:
                 shutil.rmtree(self._tmp_dir.name)
             except OSError:
