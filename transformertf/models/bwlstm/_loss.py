@@ -290,7 +290,7 @@ class BoucWenLoss(nn.Module):
         """
         B = BoucWenLoss.point_prediction(y_hat)
 
-        return F.mse_loss(targets, B, reduction="sum")
+        return F.mse_loss(targets, B, reduction="mean")
 
     @staticmethod
     def loss2(
@@ -312,7 +312,7 @@ class BoucWenLoss(nn.Module):
         if "b" in y_hat:
             B_dot_hat += y_hat["b"][..., 1]
 
-        return F.mse_loss(B_dot, B_dot_hat, reduction="sum")
+        return F.mse_loss(B_dot, B_dot_hat, reduction="mean")
 
     @staticmethod
     def loss3(
@@ -332,7 +332,7 @@ class BoucWenLoss(nn.Module):
             B_hat_dot += torch.gradient(y_hat["b"][..., 0], dim=1)[0]
             B_dot_hat += y_hat["b"][..., 1]
 
-        return F.mse_loss(B_hat_dot, B_dot_hat, reduction="sum")
+        return F.mse_loss(B_hat_dot, B_dot_hat, reduction="mean")
 
     @staticmethod
     def loss4(
@@ -348,7 +348,7 @@ class BoucWenLoss(nn.Module):
         B_dot_hat_dot = y_hat["dz_dt"][..., 1]
         g = y_hat["g_gamma_x"]
 
-        return F.mse_loss(B_dot_hat_dot[..., None], -g, reduction="sum")
+        return F.mse_loss(B_dot_hat_dot[..., None], -g, reduction="mean")
 
     @staticmethod
     def loss5(
@@ -364,4 +364,4 @@ class BoucWenLoss(nn.Module):
 
         r_dot = y_hat["dz_dt"][..., 2]
 
-        return F.mse_loss(y_hat["dr_dt"], r_dot[..., None], reduction="sum")
+        return F.mse_loss(y_hat["dr_dt"], r_dot[..., None], reduction="mean")
