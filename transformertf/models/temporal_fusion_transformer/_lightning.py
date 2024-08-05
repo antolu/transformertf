@@ -106,6 +106,22 @@ class TemporalFusionTransformer(TransformerModuleBase):
             "point_prediction": point_prediction,
         }
 
+    def on_train_epoch_start(self) -> None:
+        """
+        Set normalizing layers not in trainable_parameters to eval mode.
+        """
+        if self.hparams["trainable_parameters"] is None:
+            return
+
+        trainable_params = set(self.hparams["trainable_parameters"])
+        for name, module in self.named_modules():
+            if not isinstance(module, torch.nn.LayerNorm):
+                continue
+
+            param_name = name.split(".")[1]  # model.[name].xxx
+            if param_name not in trainable_params:
+                module.eval()
+
     def parameters(self, recurse: bool = True) -> typing.Iterator[torch.nn.Parameter]:  # noqa: FBT001, FBT002
         """
         Override the parameters method to only return the trainable parameters, for
