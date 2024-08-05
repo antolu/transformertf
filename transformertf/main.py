@@ -126,7 +126,8 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
             transfer_ckpt = os.fspath(
                 pathlib.Path(self.config.fit.transfer_ckpt).expanduser()
             )
-            self.model = type(self.model).load_from_checkpoint(transfer_ckpt)
+            state_dict = torch.load(transfer_ckpt, map_location="cpu")
+            self.model.load_state_dict(state_dict["state_dict"])
 
 
 def add_trainer_defaults(parser: LightningArgumentParser) -> None:
