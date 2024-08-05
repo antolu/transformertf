@@ -28,6 +28,7 @@ class TemporalFusionTransformer(TransformerModuleBase):
         prediction_type: typing.Literal["delta", "point"] = "point",
         log_grad_norm: bool = False,
         compile_model: bool = False,
+        trainable_parameters: list[str] | None = None,
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["lr_scheduler", "criterion"])
@@ -104,3 +105,28 @@ class TemporalFusionTransformer(TransformerModuleBase):
             "output": model_output["output"],
             "point_prediction": point_prediction,
         }
+
+    def parameters(self, recurse: bool = True) -> typing.Iterator[torch.nn.Parameter]:  # noqa: FBT001, FBT002
+        """
+        Override the parameters method to only return the trainable parameters, for
+        use with LightningCLI where we cannot easily specify the trainable parameters.
+
+        Parameters
+        ----------
+        recurse : bool, optional
+            Whether to return parameters of this module and all submodules,
+            by default True
+
+        Returns
+        -------
+        Iterator[torch.nn.Parameter]
+        """
+        if self.hparams["trainable_parameters"] is None:
+            yield super().parameters(recurse=recurse)
+            return
+
+        trainable_params = set(self.hparams["trainable_parameters"])
+        for name, param in self.named_parameters(recurse=recurse):
+            name = name.split(".")[1]  # model.[name].xxx
+            if name in trainable_params:
+                yield param
