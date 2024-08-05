@@ -100,7 +100,7 @@ class SABWLSTM(BWLSTM3):
             raise ValueError(msg) from e
         output = self(batch["input"])
 
-        loss, losses = self.criterion(output, target)
+        loss, losses = self.criterion(output, target, return_all=True)
 
         for optimizer in self.optimizers():
             optimizer.zero_grad()
@@ -112,7 +112,15 @@ class SABWLSTM(BWLSTM3):
         self.criterion.invert_gradients()
         self.optimizers()[1].step()
 
-        self.common_log_step(losses, "train")
+        loss_weights = {
+            "loss_weight/alpha": self.criterion.alpha.item(),
+            "loss_weight/beta": self.criterion.beta.item(),
+            "loss_weight/gamma": self.criterion.gamma.item(),
+            "loss_weight/kappa": self.criterion.kappa.item(),
+            "loss_weight/eta": self.criterion.eta.item(),
+        }
+
+        self.common_log_step(losses | loss_weights, "train")
 
         return losses | {"output": output}
 
