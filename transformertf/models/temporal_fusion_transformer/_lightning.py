@@ -28,6 +28,7 @@ class TemporalFusionTransformer(TransformerModuleBase):
         prediction_type: typing.Literal["delta", "point"] = "point",
         log_grad_norm: bool = False,
         compile_model: bool = False,
+        trainable_parameters: list[str] | None = None,
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["lr_scheduler", "criterion"])
@@ -71,7 +72,10 @@ class TemporalFusionTransformer(TransformerModuleBase):
 
         loss_dict = {"loss": loss}
         point_prediction = model_output["output"]
-        if isinstance(self.criterion, QuantileLoss):
+        if isinstance(self.criterion, QuantileLoss) or (
+            hasattr(self.criterion, "_orig_mod")
+            and isinstance(self.criterion._orig_mod, QuantileLoss)  # noqa: SLF001
+        ):
             point_prediction = self.criterion.point_prediction(point_prediction)
 
         self.common_log_step(loss_dict, "train")
@@ -94,7 +98,10 @@ class TemporalFusionTransformer(TransformerModuleBase):
 
         loss_dict = {"loss": loss}
         point_prediction = model_output["output"]
-        if isinstance(self.criterion, QuantileLoss):
+        if isinstance(self.criterion, QuantileLoss) or (
+            hasattr(self.criterion, "_orig_mod")
+            and isinstance(self.criterion._orig_mod, QuantileLoss)  # noqa: SLF001
+        ):
             point_prediction = self.criterion.point_prediction(point_prediction)
 
         self.common_log_step(loss_dict, "validation")
@@ -104,3 +111,44 @@ class TemporalFusionTransformer(TransformerModuleBase):
             "output": model_output["output"],
             "point_prediction": point_prediction,
         }
+
+    def on_train_epoch_start(self) -> None:
+        """
+        Set normalizing layers not in trainable_parameters to eval mode.
+        """
+        if self.hparams["trainable_parameters"] is None:
+            return
+
+        trainable_params = set(self.hparams["trainable_parameters"])
+        for name, module in self.named_modules():
+            if not isinstance(module, torch.nn.LayerNorm):
+                continue
+
+            param_name = name.split(".")[1]  # model.[name].xxx
+            if param_name not in trainable_params:
+                module.eval()
+
+    def parameters(self, recurse: bool = True) -> typing.Iterator[torch.nn.Parameter]:  # noqa: FBT001, FBT002
+        """
+        Override the parameters method to only return the trainable parameters, for
+        use with LightningCLI where we cannot easily specify the trainable parameters.
+
+        Parameters
+        ----------
+        recurse : bool, optional
+            Whether to return parameters of this module and all submodules,
+            by default True
+
+        Returns
+        -------
+        Iterator[torch.nn.Parameter]
+        """
+        if self.hparams["trainable_parameters"] is None:
+            yield from super().parameters(recurse=recurse)
+            return
+
+        trainable_params = set(self.hparams["trainable_parameters"])
+        for name, param in self.named_parameters(recurse=recurse):
+            param_name = name.split(".")[1]  # model.[name].xxx
+            if param_name in trainable_params:
+                yield param

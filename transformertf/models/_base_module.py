@@ -42,12 +42,11 @@ class LightningModuleBase(L.LightningModule):
         and is set to True. This is up to the subclass to implement. This also
         requires the model to be set to the "model" attribute.
         """
-        if (
-            "compile_model" in self.hparams
-            and self.hparams["compile_model"]
-            and hasattr(self, "model")
-        ):
-            self.model = torch.compile(self.model)
+        if self.hparams.get("compile_model"):
+            for name, mod in self.named_children():
+                if "loss" in name.lower():
+                    continue
+                setattr(self, name, torch.compile(mod))
 
     def on_train_start(self) -> None:
         self._train_outputs = {}
