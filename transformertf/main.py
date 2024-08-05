@@ -61,6 +61,13 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
         if hasattr(self.config, "fit") and hasattr(self.config.fit, "verbose"):
             setup_logger(self.config.fit.verbose)
 
+        if hasattr(self.config, "fit") and hasattr(
+            self.config.fit, "no_auto_configure_optimizers"
+        ):
+            self.auto_configure_optimizers = (
+                not self.config.fit.no_auto_configure_optimizers
+            )
+
     def add_arguments_to_parser(self, parser: LightningArgumentParser) -> None:
         parser.add_argument(
             "-v",
@@ -85,6 +92,13 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
             type=str,
             default=None,
             help="Path to the checkpoint resume to do transfer learning.",
+        )
+
+        parser.add_argument(
+            "--no-auto-configure-optimizers",
+            action="store_true",
+            dest="no_auto_configure_optimizers",
+            help="Do not auto-configure optimizers.",
         )
 
         parser.set_defaults({
