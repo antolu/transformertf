@@ -44,6 +44,8 @@ class LightningModuleBase(L.LightningModule):
         """
         if self.hparams.get("compile_model"):
             for name, mod in self.named_children():
+                if "loss" in name.lower():
+                    continue
                 setattr(self, name, torch.compile(mod))
 
     def on_train_start(self) -> None:
