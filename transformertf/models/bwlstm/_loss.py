@@ -91,6 +91,43 @@ class BoucWenLoss(nn.Module):
         self.kappa = to_nn_parameter(loss_weights.kappa)
 
     @property
+    def trainable(self) -> bool:
+        """
+        Returns whether the weights are trainable.
+
+        If training a self-adaptive PINN, the weights should be trainable.
+
+        Returns
+        -------
+        bool
+            Whether the weights are trainable.
+        """
+        return all(p.requires_grad for p in self.parameters())
+
+    @trainable.setter
+    def trainable(self, value: bool) -> None:
+        """
+        Sets whether the weights are trainable.
+
+        Parameters
+        ----------
+        value : bool
+            Whether the weights are trainable.
+        """
+        for p in self.parameters():
+            p.requires_grad = value
+
+    def invert_gradients(self) -> None:
+        """
+        Inverts the gradients of the weights.
+
+        This is useful when training a self-adaptive PINN.
+        """
+        for p in self.parameters():
+            if p.grad is not None:
+                p.grad = -p.grad
+
+    @property
     def weights(self) -> BoucWenLoss.LossWeights:
         """
         Returns the weights for the current loss function.

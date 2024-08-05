@@ -587,7 +587,7 @@ class BWLSTM3(BWLSTMBase):
         :param loss_weights: The loss function to be used.
         """
         super().__init__()
-        self.criterion = BoucWenLoss(loss_weights=loss_weights)
+        self.criterion: BoucWenLoss = BoucWenLoss(loss_weights=loss_weights)
         self.save_hyperparameters(ignore=["loss_weights"])
 
         num_layers_ = _parse_tuple_or_int(num_layers, 3)
