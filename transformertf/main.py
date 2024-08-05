@@ -78,6 +78,14 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
             help="Name of the experiment.",
         )
 
+        parser.add_argument(
+            "--transfer-ckpt",
+            dest="transfer_ckpt",
+            type=str,
+            default=None,
+            help="Path to the checkpoint resume to do transfer learning.",
+        )
+
         parser.set_defaults({
             "trainer.logger": jsonargparse.lazy_instance(
                 lightning.pytorch.loggers.TensorBoardLogger,
@@ -111,6 +119,11 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
                 else:
                     dirpath = os.path.join(callback.dirpath, logger_name, version_str)
                 callback.dirpath = dirpath
+
+        # load checkpoint for transfer learning
+        if hasattr(self.config, "fit") and hasattr(self.config.fit, "transfer_ckpt"):
+            transfer_ckpt = self.config.fit.transfer_ckpt
+            self.model = type(self.model).load_from_checkpoint(transfer_ckpt)
 
 
 def add_trainer_defaults(parser: LightningArgumentParser) -> None:
