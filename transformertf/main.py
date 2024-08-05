@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import pathlib
 import typing
 
 import jsonargparse
@@ -122,7 +123,9 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
 
         # load checkpoint for transfer learning
         if hasattr(self.config, "fit") and hasattr(self.config.fit, "transfer_ckpt"):
-            transfer_ckpt = self.config.fit.transfer_ckpt
+            transfer_ckpt = os.fspath(
+                pathlib.Path(self.config.fit.transfer_ckpt).expanduser()
+            )
             self.model = type(self.model).load_from_checkpoint(transfer_ckpt)
 
 
