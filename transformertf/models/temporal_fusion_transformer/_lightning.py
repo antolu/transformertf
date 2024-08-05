@@ -72,7 +72,10 @@ class TemporalFusionTransformer(TransformerModuleBase):
 
         loss_dict = {"loss": loss}
         point_prediction = model_output["output"]
-        if isinstance(self.criterion, QuantileLoss):
+        if isinstance(self.criterion, QuantileLoss) or (
+            hasattr(self.criterion, "_orig_mod")
+            and isinstance(self.criterion._orig_mod, QuantileLoss)  # noqa: SLF001
+        ):
             point_prediction = self.criterion.point_prediction(point_prediction)
 
         self.common_log_step(loss_dict, "train")
