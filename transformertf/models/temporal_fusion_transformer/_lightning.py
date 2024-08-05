@@ -122,11 +122,11 @@ class TemporalFusionTransformer(TransformerModuleBase):
         Iterator[torch.nn.Parameter]
         """
         if self.hparams["trainable_parameters"] is None:
-            yield super().parameters(recurse=recurse)
+            yield from super().parameters(recurse=recurse)
             return
 
         trainable_params = set(self.hparams["trainable_parameters"])
         for name, param in self.named_parameters(recurse=recurse):
-            name = name.split(".")[1]  # model.[name].xxx
-            if name in trainable_params:
+            param_name = name.split(".")[1]  # model.[name].xxx
+            if param_name in trainable_params:
                 yield param
