@@ -26,6 +26,6 @@ def test_forward_pass(
 
     batch = next(iter(encoder_decoder_datamodule.train_dataloader()))
 
-    output = pete_model.training_step(batch, batch_idx=0)
+    output = pete_model.validation_step(batch, batch_idx=0)
 
     assert "output" in output

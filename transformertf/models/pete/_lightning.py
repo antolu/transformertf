@@ -7,7 +7,9 @@ import typing
 import torch
 
 from ...data import EncoderDecoderTargetSample
-from ..bwlstm import BoucWenLoss
+from ...nn import MLP
+from ..bwlstm import BoucWenLoss, StepOutput
+from ..bwlstm.typing import BWState3
 from ..sa_bwlstm import SABWLSTM
 from ._model import PETEModel
 
@@ -123,6 +125,18 @@ class PETE(SABWLSTM):
             dropout=dropout if isinstance(dropout, float) else dropout[0],
         )
 
+        self.b_lstm = torch.nn.LSTM(
+            2,
+            n_dim_model if isinstance(n_dim_model, int) else n_dim_model[0],
+            num_layers=num_layers if isinstance(num_layers, int) else num_layers[0],
+            batch_first=True,
+        )
+        self.b_mlp = MLP(
+            input_dim=n_dim_model if isinstance(n_dim_model, int) else n_dim_model[0],
+            hidden_dim=n_dim_fc,
+            output_dim=2,
+        )
+
     @override
     def training_step(
         self,
@@ -146,6 +160,9 @@ class PETE(SABWLSTM):
             hx2=states["hx2"],
             hx3=states["hx3"],
         )
+        b = self.b_lstm(batch["decoder_input"][..., :2])
+        b = self.b_mlp(b[0])
+        output["b"] = b
 
         loss, losses = self.criterion(output, target, return_all=True)
 
@@ -171,3 +188,38 @@ class PETE(SABWLSTM):
         self.common_log_step(losses | loss_weights, "train")
 
         return losses | {"output": output}
+
+    @override
+    def validation_step(
+        self,
+        batch: EncoderDecoderTargetSample,  # type: ignore[override]
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> StepOutput:
+        prev_hidden = typing.cast(BWState3 | None, self._val_hidden[dataloader_idx])
+
+        if prev_hidden is None:
+            prev_hidden = self.encoder(batch["encoder_input"])
+
+        output, states = self(
+            batch["decoder_input"][..., 2, None],
+            hx=prev_hidden["hx"],
+            hx2=prev_hidden["hx2"],
+            hx3=prev_hidden["hx3"],
+            return_states=True,
+        )
+        b = self.b_lstm(batch["decoder_input"][..., :2])
+        b = self.b_mlp(b[0])
+        output["b"] = b
+
+        _, losses = self.criterion(output, batch["target"], return_all=True)
+
+        # remove batch dimension
+        if output["z"].shape[0] == 1:
+            for key in output:
+                output[key] = output[key].squeeze(0)  # type: ignore[literal-required]
+
+        losses = self.rename_losses_dict(losses)
+        self.common_log_step(losses, "validation")
+
+        return typing.cast(StepOutput, losses | {"output": output, "state": states})
