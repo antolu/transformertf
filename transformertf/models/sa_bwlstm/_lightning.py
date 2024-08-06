@@ -136,7 +136,7 @@ class SABWLSTM(BWLSTM3):
             "loss_weight/eta": self.criterion.eta.item(),
         }
 
-        self.rename_losses_dict(losses)
+        losses = self.rename_losses_dict(losses)
         self.common_log_step(losses | loss_weights, "train")
 
         return losses | {"output": output}
@@ -165,7 +165,7 @@ class SABWLSTM(BWLSTM3):
 
         output = self(batch["input"])
         _, losses = self.criterion(output, target, return_all=True)
-        self.rename_losses_dict(losses)
+        losses = self.rename_losses_dict(losses)
         self.common_log_step(losses, "train")
 
         self.optimizers()[2].step(closure)
