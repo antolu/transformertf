@@ -160,8 +160,8 @@ class PETE(SABWLSTM):
             hx2=states["hx2"],
             hx3=states["hx3"],
         )
-        b = self.b_lstm(batch["decoder_input"][..., :2])
-        b = self.b_mlp(b[0])
+        b, _ = self.b_lstm(batch["decoder_input"][..., :2])
+        b = self.b_mlp(b)
         output["b"] = b
 
         loss, losses = self.criterion(output, target, return_all=True)
