@@ -58,6 +58,10 @@ class SABWLSTM(BWLSTM3):
         sa_max_epochs: int | None = None,
         sa_reduce_on_plateau_patience: int | None = None,
         sa_lr_scheduler_kwargs: dict[str, typing.Any] | None = None,
+        lbfgs_start: typing.Literal[False] | int = False,  # noqa: FBT002
+        lbfgs_lr: float = 1.0,
+        lbfgs_max_iter: int = 20,
+        lbfgs_history_size: int = 5,
         *,
         log_grad_norm: bool = False,
         compile_model: bool = False,
@@ -89,6 +93,17 @@ class SABWLSTM(BWLSTM3):
     def training_step(
         self, batch: TimeSeriesSample, batch_idx: int
     ) -> dict[str, torch.Tensor]:
+        if (
+            self.hparams["lbfgs_start"]
+            and self.current_epoch >= self.hparams["lbfgs_start"]
+        ):
+            return self.second_order_step(batch, batch_idx)
+
+        return self.first_order_step(batch, batch_idx)
+
+    def first_order_step(
+        self, batch: TimeSeriesSample, batch_idx: int
+    ) -> dict[str, torch.Tensor]:
         try:
             target = batch["target"]
         except KeyError as e:
@@ -98,11 +113,12 @@ class SABWLSTM(BWLSTM3):
                 "(e.g. test or predict)."
             )
             raise ValueError(msg) from e
+
         output = self(batch["input"])
 
         loss, losses = self.criterion(output, target, return_all=True)
 
-        for optimizer in self.optimizers():
+        for optimizer in self.optimizers()[:2]:
             optimizer.zero_grad()
 
         self.manual_backward(loss)
@@ -120,9 +136,55 @@ class SABWLSTM(BWLSTM3):
             "loss_weight/eta": self.criterion.eta.item(),
         }
 
+        self.rename_losses_dict(losses)
         self.common_log_step(losses | loss_weights, "train")
 
         return losses | {"output": output}
+
+    def second_order_step(
+        self, batch: TimeSeriesSample, batch_idx: int
+    ) -> dict[str, torch.Tensor]:
+        try:
+            target = batch["target"]
+        except KeyError as e:
+            msg = (
+                "The batch must contain a target key. "
+                "This is probably due to using a dataset without targets "
+                "(e.g. test or predict)."
+            )
+            raise ValueError(msg) from e
+
+        def closure() -> torch.Tensor:
+            self.optimizers()[2].zero_grad()
+
+            output = self(batch["input"])
+            loss = self.criterion(output, target)
+            self.manual_backward(loss)
+
+            return loss
+
+        output = self(batch["input"])
+        _, losses = self.criterion(output, target, return_all=True)
+        self.rename_losses_dict(losses)
+        self.common_log_step(losses, "train")
+
+        self.optimizers()[2].step(closure)
+
+        loss_weights = {
+            "loss_weight/alpha": self.criterion.alpha.item(),
+            "loss_weight/beta": self.criterion.beta.item(),
+            "loss_weight/gamma": self.criterion.gamma.item(),
+            "loss_weight/kappa": self.criterion.kappa.item(),
+            "loss_weight/eta": self.criterion.eta.item(),
+        }
+
+        return losses | {"output": output} | loss_weights
+
+    @staticmethod
+    def rename_losses_dict(losses: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+        return {
+            f"loss_component/{k}" if k != "loss" else k: v for k, v in losses.items()
+        }
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
         optimizer = configure_optimizers(
@@ -179,4 +241,20 @@ class SABWLSTM(BWLSTM3):
         else:
             opt2 = sa_optimizer
 
-        return [opt1, opt2]
+        optimizers = [opt1, opt2]
+
+        if self.hparams.get("lbfgs_start"):
+            optimizers.append(
+                torch.optim.LBFGS(
+                    itertools.chain(
+                        self.bwlstm1.parameters(),
+                        self.bwlstm2.parameters(),
+                        self.bwlstm3.parameters(),
+                    ),
+                    lr=self.hparams["lbfgs_lr"],
+                    max_iter=self.hparams["lbfgs_max_iter"],
+                    history_size=self.hparams["lbfgs_history_size"],
+                )
+            )
+
+        return optimizers
