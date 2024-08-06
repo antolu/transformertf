@@ -77,19 +77,19 @@ class PETEModel(torch.nn.Module):
 
         x = einops.rearrange(x, "b s f -> b f s")
         h_lstm1 = self.grn1h(x)
-        h_lstm1 = einops.rearrange(h_lstm1, "b f l -> l b f")
+        h_lstm1 = einops.rearrange(h_lstm1, "b f l -> l b f").contiguous()
         o_lstm1 = self.grn1o(x)
-        o_lstm1 = einops.rearrange(o_lstm1, "b f l -> l b f")
+        o_lstm1 = einops.rearrange(o_lstm1, "b f l -> l b f").contiguous()
 
         h_lstm2 = self.grn2h(x)
-        h_lstm2 = einops.rearrange(h_lstm2, "b f l -> l b f")
+        h_lstm2 = einops.rearrange(h_lstm2, "b f l -> l b f").contiguous()
         o_lstm2 = self.grn2o(x)
-        o_lstm2 = einops.rearrange(o_lstm2, "b f l -> l b f")
+        o_lstm2 = einops.rearrange(o_lstm2, "b f l -> l b f").contiguous()
 
         h_lstm3 = self.grn3h(x)
-        h_lstm3 = einops.rearrange(h_lstm3, "b f l -> l b f")
+        h_lstm3 = einops.rearrange(h_lstm3, "b f l -> l b f").contiguous()
         o_lstm3 = self.grn3o(x)
-        o_lstm3 = einops.rearrange(o_lstm3, "b f l -> l b f")
+        o_lstm3 = einops.rearrange(o_lstm3, "b f l -> l b f").contiguous()
 
         return typing.cast(
             BWState3,
