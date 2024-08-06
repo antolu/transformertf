@@ -53,14 +53,14 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
             o["point_prediction"].squeeze() for o in validation_outputs[0]
         ])
 
+        if len(predictions) > val_dataset.num_points:
+            predictions = predictions[: val_dataset.num_points]
+
         if isinstance(val_dataset, TimeSeriesDataset):
-            indices = slice(0, min(len(predictions), val_dataset.num_points))
+            indices = slice(0, len(predictions))
         elif isinstance(val_dataset, EncoderDecoderDataset):
             indices = slice(
-                val_dataset.ctxt_seq_len,
-                min(
-                    val_dataset.ctxt_seq_len + len(predictions), val_dataset.num_points
-                ),
+                val_dataset.ctxt_seq_len, val_dataset.ctxt_seq_len + len(predictions)
             )
         else:
             msg = "Only TimeSeriesDataset and EncoderDecoderDataset are supported."
@@ -205,7 +205,7 @@ def plot_field_curve(
 
     ax1.axhline(y=1, color="k", linestyle="dotted", linewidth=0.8)
     ax1.axhline(y=-1, color="k", linestyle="dotted", linewidth=0.8)
-    ax1.set_ylim(-6, 6)
+    ax1.set_ylim(-3, 3)
 
     fig.tight_layout()
 
