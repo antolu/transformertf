@@ -7,7 +7,6 @@ import typing
 import torch
 
 from ...data import EncoderDecoderTargetSample
-from ...nn import MLP
 from ..bwlstm import BoucWenLoss, StepOutput
 from ..bwlstm.typing import BWState3
 from ..sa_bwlstm import SABWLSTM
@@ -77,6 +76,7 @@ class PETE(SABWLSTM):
         compile_model: bool = False,
     ):
         super().__init__(
+            n_features=2,
             num_layers=num_layers,
             n_dim_model=n_dim_model,
             n_dim_fc=n_dim_fc,
@@ -125,18 +125,6 @@ class PETE(SABWLSTM):
             dropout=dropout if isinstance(dropout, float) else dropout[0],
         )
 
-        self.b_lstm = torch.nn.LSTM(
-            2,
-            n_dim_model if isinstance(n_dim_model, int) else n_dim_model[0],
-            num_layers=num_layers if isinstance(num_layers, int) else num_layers[0],
-            batch_first=True,
-        )
-        self.b_mlp = MLP(
-            input_dim=n_dim_model if isinstance(n_dim_model, int) else n_dim_model[0],
-            hidden_dim=n_dim_fc,
-            output_dim=2,
-        )
-
     @override
     def training_step(
         self,
@@ -154,15 +142,15 @@ class PETE(SABWLSTM):
             raise ValueError(msg) from e
 
         states = self.encoder(batch["encoder_input"])
+        x = torch.stack(
+            [batch["decoder_input"][..., 0], batch["decoder_input"][..., 2]], dim=-1
+        )
         output = self(
-            batch["decoder_input"][..., 2, None],
+            x,
             hx=states["hx"],
             hx2=states["hx2"],
             hx3=states["hx3"],
         )
-        b, _ = self.b_lstm(batch["decoder_input"][..., :2])
-        b = self.b_mlp(b)
-        output["b"] = b
 
         loss, losses = self.criterion(output, target, return_all=True)
 
@@ -201,16 +189,16 @@ class PETE(SABWLSTM):
         if prev_hidden is None:
             prev_hidden = self.encoder(batch["encoder_input"])
 
+        x = torch.stack(
+            [batch["decoder_input"][..., 0], batch["decoder_input"][..., 2]], dim=-1
+        )
         output, states = self(
-            batch["decoder_input"][..., 2, None],
+            x,
             hx=prev_hidden["hx"],
             hx2=prev_hidden["hx2"],
             hx3=prev_hidden["hx3"],
             return_states=True,
         )
-        b = self.b_lstm(batch["decoder_input"][..., :2])
-        b = self.b_mlp(b[0])
-        output["b"] = b
 
         _, losses = self.criterion(output, batch["target"], return_all=True)
 

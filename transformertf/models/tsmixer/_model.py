@@ -11,6 +11,7 @@ import typing
 import einops
 import torch
 
+from ...nn import VALID_ACTIVATIONS
 from ._modules import (
     ConditionalFeatureMixer,
     ConditionalMixerBlock,
@@ -35,7 +36,7 @@ class BasicTSMixerModel(torch.nn.Module):
         fc_dim: int = 512,
         hidden_dim: int | None = None,
         dropout: float = 0.2,
-        activation: typing.Literal["relu", "gelu"] = "relu",
+        activation: VALID_ACTIVATIONS = "relu",
         norm: typing.Literal["batch", "layer"] = "batch",
     ):
         super().__init__()

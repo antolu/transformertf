@@ -30,6 +30,7 @@ log = logging.getLogger(__name__)
 class BWLSTM1Model(nn.Module):
     def __init__(
         self,
+        n_features: int = 1,
         num_layers: int = 3,
         n_dim_model: int = 350,
         n_dim_fc: int | None = None,
@@ -83,7 +84,7 @@ class BWLSTM1Model(nn.Module):
 
         # state space variable modeling
         self.lstm1 = nn.LSTM(
-            input_size=1,
+            input_size=n_features,
             hidden_size=n_dim_model,
             num_layers=num_layers,
             batch_first=True,
@@ -250,6 +251,8 @@ class BWLSTM2Model(nn.Module):
 
         :return: Output torch.Tensor of shape (batch_size, seq_len, 1).
         """
+        if x.shape[-1] > 1:
+            x = x[..., 1, None]
         dz_dt = torch.gradient(z, dim=1)[0]
 
         o_lstm2, h_lstm2 = self.lstm2(z, hx=hx)

@@ -9,7 +9,7 @@ import torch
 from ...data import TimeSeriesSample
 from ...utils import ops
 from .._base_module import LightningModuleBase
-from . import typing as t
+from . import typing as bwt
 from ._loss import BoucWenLoss
 from ._model import BWLSTM1Model, BWLSTM2Model, BWLSTM3Model
 
@@ -22,8 +22,8 @@ class PredictOutput(typing.TypedDict):
     or :class:`BWLSTM3` lightning modules.
     """
 
-    output: t.BWLSTMOutput
-    state: t.BWLSTMStates
+    output: bwt.BWLSTMOutput
+    state: bwt.BWLSTMStates
     point_prediction: torch.Tensor
 
 
@@ -57,9 +57,9 @@ class BWLSTMBase(LightningModuleBase):
         super().__init__()
 
         # default assume we have one dataloader only
-        self._val_hidden: t.HiddenStateNone = [None]  # type: ignore[assignment]
-        self._test_hidden: t.HiddenStateNone = [None]  # type: ignore[assignment]
-        self._predict_hidden: t.HiddenStateNone = [None]  # type: ignore[assignment]
+        self._val_hidden: bwt.HiddenStateNone = [None]  # type: ignore[assignment]
+        self._test_hidden: bwt.HiddenStateNone = [None]  # type: ignore[assignment]
+        self._predict_hidden: bwt.HiddenStateNone = [None]  # type: ignore[assignment]
 
     def on_validation_epoch_start(self) -> None:
         """Reset the hidden states"""
@@ -83,8 +83,8 @@ class BWLSTMBase(LightningModuleBase):
         self,
         batch: TimeSeriesSample,
         batch_idx: int,
-        hidden_state: t.BWLSTMStates | None = None,
-    ) -> tuple[dict[str, torch.Tensor], t.BWLSTMOutput, t.BWLSTMStates]:
+        hidden_state: bwt.BWLSTMStates | None = None,
+    ) -> tuple[dict[str, torch.Tensor], bwt.BWLSTMOutput, bwt.BWLSTMStates]:
         """
         Common test step for validation and test steps. This method is used
         by the :meth:`validation_step` and :meth:`test_step` methods. It
@@ -279,7 +279,9 @@ class BWLSTMBase(LightningModuleBase):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> PredictOutput:
-        prev_hidden: t.BWLSTMStates | dict = self._predict_hidden[dataloader_idx] or {}
+        prev_hidden: bwt.BWLSTMStates | dict = (
+            self._predict_hidden[dataloader_idx] or {}
+        )
 
         output, hidden = self.forward(
             batch["input"], hx=prev_hidden.get("hx"), return_states=True
@@ -394,27 +396,27 @@ class BWLSTM1(BWLSTMBase):
     def forward(
         self,
         x: torch.Tensor,
-        hx: t.LSTMState | None = None,
+        hx: bwt.LSTMState | None = None,
         *,
         return_states: typing.Literal[False] = False,
-    ) -> t.BWOutput1: ...
+    ) -> bwt.BWOutput1: ...
 
     @typing.overload
     def forward(
         self,
         x: torch.Tensor,
-        hx: t.LSTMState | None = None,
+        hx: bwt.LSTMState | None = None,
         *,
         return_states: typing.Literal[True],
-    ) -> tuple[t.BWOutput1, t.BWState1]: ...
+    ) -> tuple[bwt.BWOutput1, bwt.BWState1]: ...
 
     def forward(
         self,
         x: torch.Tensor,
-        hx: t.LSTMState | None = None,
+        hx: bwt.LSTMState | None = None,
         *,
         return_states: bool = False,
-    ) -> t.BWOutput1 | tuple[t.BWOutput1, t.BWState1]:
+    ) -> bwt.BWOutput1 | tuple[bwt.BWOutput1, bwt.BWState1]:
         """
         Forward pass through the model.
 
@@ -503,30 +505,30 @@ class BWLSTM2(BWLSTMBase):
     def forward(
         self,
         x: torch.Tensor,
-        hx: t.LSTMState | None = None,
-        hx2: t.LSTMState | None = None,
+        hx: bwt.LSTMState | None = None,
+        hx2: bwt.LSTMState | None = None,
         *,
         return_states: typing.Literal[False] = False,
-    ) -> t.BWOutput12: ...
+    ) -> bwt.BWOutput12: ...
 
     @typing.overload
     def forward(
         self,
         x: torch.Tensor,
-        hx: t.LSTMState | None = None,
-        hx2: t.LSTMState | None = None,
+        hx: bwt.LSTMState | None = None,
+        hx2: bwt.LSTMState | None = None,
         *,
         return_states: typing.Literal[True],
-    ) -> tuple[t.BWOutput12, t.BWState2]: ...
+    ) -> tuple[bwt.BWOutput12, bwt.BWState2]: ...
 
     def forward(
         self,
         x: torch.Tensor,
-        hx: t.LSTMState | None = None,
-        hx2: t.LSTMState | None = None,
+        hx: bwt.LSTMState | None = None,
+        hx2: bwt.LSTMState | None = None,
         *,
         return_states: bool = False,
-    ) -> t.BWOutput12 | tuple[t.BWOutput2, t.BWState2]:
+    ) -> bwt.BWOutput12 | tuple[bwt.BWOutput2, bwt.BWState2]:
         """
         Forward pass through the model.
 
@@ -555,13 +557,14 @@ class BWLSTM2(BWLSTMBase):
         hidden = {"hx": hx, "hx2": hx2}
 
         if return_states:
-            return typing.cast(t.BWOutput12, out), typing.cast(t.BWState2, hidden)
-        return typing.cast(t.BWOutput12, out)
+            return typing.cast(bwt.BWOutput12, out), typing.cast(bwt.BWState2, hidden)
+        return typing.cast(bwt.BWOutput12, out)
 
 
 class BWLSTM3(BWLSTMBase):
     def __init__(
         self,
+        n_features: int = 1,
         num_layers: int | tuple[int, int, int] = 3,
         n_dim_model: int | tuple[int, int, int] = 350,
         n_dim_fc: int | tuple[int, int, int] | None = None,
@@ -600,6 +603,7 @@ class BWLSTM3(BWLSTMBase):
         dropout_ = _parse_tuple_or_int(dropout, 3)
 
         self.bwlstm1 = BWLSTM1Model(
+            n_features=n_features,
             num_layers=num_layers_[0],
             n_dim_model=n_dim_model_[0],
             n_dim_fc=n_dim_fc_[0],
@@ -618,49 +622,49 @@ class BWLSTM3(BWLSTMBase):
             dropout=dropout_[2],
         )
 
-    def maybe_compile_model(self) -> None:
-        if (
-            "compile_model" in self.hparams
-            and self.hparams["compile_model"]
-            and hasattr(self, "bwlstm1")
-            and hasattr(self, "bwlstm2")
-            and hasattr(self, "bwlstm3")
-        ):
-            self.bwlstm1 = torch.compile(self.bwlstm1)
-            self.bwlstm2 = torch.compile(self.bwlstm2)
-            self.bwlstm3 = torch.compile(self.bwlstm3)
-
+    # def maybe_compile_model(self) -> None:
+    #     if (
+    #         "compile_model" in self.hparams
+    #         and self.hparams["compile_model"]
+    #         and hasattr(self, "bwlstm1")
+    #         and hasattr(self, "bwlstm2")
+    #         and hasattr(self, "bwlstm3")
+    #     ):
+    #         self.bwlstm1 = torch.compile(self.bwlstm1)
+    #         self.bwlstm2 = torch.compile(self.bwlstm2)
+    #         self.bwlstm3 = torch.compile(self.bwlstm3)
+    #
     @typing.overload
     def forward(
         self,
         x: torch.Tensor,
-        hx: t.LSTMState | None = None,
-        hx2: t.LSTMState | None = None,
-        hx3: t.LSTMState | None = None,
+        hx: bwt.LSTMState | None = None,
+        hx2: bwt.LSTMState | None = None,
+        hx3: bwt.LSTMState | None = None,
         *,
         return_states: typing.Literal[False] = False,
-    ) -> t.BWOutput3: ...
+    ) -> bwt.BWOutput3: ...
 
     @typing.overload
     def forward(
         self,
         x: torch.Tensor,
-        hx: t.LSTMState | None = None,
-        hx2: t.LSTMState | None = None,
-        hx3: t.LSTMState | None = None,
+        hx: bwt.LSTMState | None = None,
+        hx2: bwt.LSTMState | None = None,
+        hx3: bwt.LSTMState | None = None,
         *,
         return_states: typing.Literal[True],
-    ) -> tuple[t.BWOutput3, t.BWState3]: ...
+    ) -> tuple[bwt.BWOutput3, bwt.BWState3]: ...
 
     def forward(
         self,
         x: torch.Tensor,
-        hx: t.LSTMState | None = None,
-        hx2: t.LSTMState | None = None,
-        hx3: t.LSTMState | None = None,
+        hx: bwt.LSTMState | None = None,
+        hx2: bwt.LSTMState | None = None,
+        hx3: bwt.LSTMState | None = None,
         *,
         return_states: bool = False,
-    ) -> t.BWOutput3 | tuple[t.BWOutput3, t.BWState3]:
+    ) -> bwt.BWOutput3 | tuple[bwt.BWOutput3, bwt.BWState3]:
         """
         Forward pass through the model.
 
@@ -693,8 +697,8 @@ class BWLSTM3(BWLSTMBase):
         hidden = {"hx": hx, "hx2": hx2, "hx3": hx3}
 
         if return_states:
-            return typing.cast(t.BWOutput123, out), typing.cast(t.BWState3, hidden)
-        return typing.cast(t.BWOutput3, out)
+            return typing.cast(bwt.BWOutput123, out), typing.cast(bwt.BWState3, hidden)
+        return typing.cast(bwt.BWOutput3, out)
 
 
 U = typing.TypeVar("U", int, float)

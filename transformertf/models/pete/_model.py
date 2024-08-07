@@ -12,6 +12,7 @@ from ...nn import (
     VariableSelection,
 )
 from ..bwlstm.typing import BWState3
+from ..tsmixer import BasicTSMixerModel
 
 
 class PETEModel(torch.nn.Module):
@@ -41,8 +42,16 @@ class PETEModel(torch.nn.Module):
             n_dim_model=n_dim_model,
             dropout=dropout,
         )
-        self.lstm = torch.nn.LSTM(
-            n_dim_model, n_dim_model, num_layers=n_layers, batch_first=True
+        # self.lstm = torch.nn.LSTM(
+        #     n_dim_model, n_dim_model, num_layers=n_layers, batch_first=True
+        # )
+        self.block = BasicTSMixerModel(
+            seq_len=seq_len,
+            num_features=n_dim_model,
+            num_blocks=n_layers,
+            hidden_dim=n_dim_model,
+            activation="tanh",
+            norm="layer",
         )
         self.attention = InterpretableMultiHeadAttention(
             n_dim_model=n_dim_model, n_heads=n_heads, dropout=dropout
@@ -72,7 +81,8 @@ class PETEModel(torch.nn.Module):
 
     def forward(self, x: torch.Tensor) -> BWState3:
         x, _weights = self.vs(x)
-        x, _ = self.lstm(x)
+        # x, _ = self.lstm(x)
+        x = self.block(x)
         x = self.gate(self.attention(x, x, x)[0], x)
 
         x = einops.rearrange(x, "b s f -> b f s")
