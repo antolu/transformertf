@@ -54,13 +54,18 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
         ])
 
         if len(predictions) > val_dataset.num_points:
-            predictions = predictions[: val_dataset.num_points]
+            predictions = predictions[
+                : val_dataset.num_points - val_dataset.ctxt_seq_len
+            ]
 
         if isinstance(val_dataset, TimeSeriesDataset):
             indices = slice(0, len(predictions))
         elif isinstance(val_dataset, EncoderDecoderDataset):
             indices = slice(
-                val_dataset.ctxt_seq_len, val_dataset.ctxt_seq_len + len(predictions)
+                val_dataset.ctxt_seq_len,
+                val_dataset.ctxt_seq_len + len(predictions)
+                if len(predictions) < val_dataset.num_points
+                else val_dataset.num_points,
             )
         else:
             msg = "Only TimeSeriesDataset and EncoderDecoderDataset are supported."
@@ -69,7 +74,7 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
         try:
             time = val_dataset._sample_gen[0]._input_data[TIME].to_numpy()  # noqa: SLF001
             time = time[indices]
-            time -= time[0]
+            time = time - time[0]
         except KeyError:
             time = np.arange(len(predictions))
 
@@ -91,7 +96,7 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
 
         depends_on_key = next(
             filter(
-                lambda x: not x.startswith("__time__"),
+                lambda x: not x.startswith("__time__") and not x.endswith("_dot"),
                 val_dataset._sample_gen[0]._input_data.columns,  # noqa: SLF001
             )
         )
