@@ -60,6 +60,7 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
 
         if isinstance(val_dataset, TimeSeriesDataset):
             indices = slice(0, len(predictions))
+            sample_len = val_dataset.seq_len
         elif isinstance(val_dataset, EncoderDecoderDataset):
             indices = slice(
                 val_dataset.ctxt_seq_len,
@@ -67,6 +68,7 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
                 if len(predictions) < val_dataset.num_points
                 else val_dataset.num_points,
             )
+            sample_len = val_dataset.tgt_seq_len
         else:
             msg = "Only TimeSeriesDataset and EncoderDecoderDataset are supported."
             raise ValueError(msg)  # noqa: TRY004
@@ -120,12 +122,14 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
             .numpy()
         )
 
+        prediction_horizons = np.arange(sample_len, len(predictions), sample_len)
+
         fig = plot_hysteresis_phase_space(depends_on, predictions, targets)
         trainer.logger.experiment.add_figure(
             "hysteresis/validation", fig, global_step=trainer.global_step
         )
 
-        fig = plot_field_curve(time, predictions, targets)
+        fig = plot_field_curve(time, predictions, targets, prediction_horizons)
 
         trainer.logger.experiment.add_figure(
             "field_curve/validation", fig, global_step=trainer.global_step
@@ -172,6 +176,7 @@ def plot_field_curve(
     time: np.ndarray,
     field_pred: np.ndarray,
     field_gt: np.ndarray,
+    prediction_horizons: np.ndarray | None = None,
 ) -> matplotlib.figure.Figure:
     """Plot the true and predicted field over time."""
     s = slice(None, None)
@@ -193,6 +198,14 @@ def plot_field_curve(
     ax2.set_xlabel("Time [s]")
     ax2.set_ylabel("Field [T]")
     ax2.set_title("Ground truth B-field vs. predicted B-field")
+    if prediction_horizons is not None:
+        ax2.scatter(
+            time[prediction_horizons],
+            field_gt[prediction_horizons],
+            label="Prediction horizon",
+            c="k",
+            marker=".",
+        )
     # ax2.set_xlim(data.time[0], data.time[-1])
     ax2.legend()
 
