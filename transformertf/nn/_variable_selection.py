@@ -33,6 +33,7 @@ class VariableSelection(torch.nn.Module):
                     output_dim=self.n_features,
                     context_dim=self.context_size,
                     dropout=dropout,
+                    projection="interpolate",
                 )
             else:
                 self.flattened_grn = GatedResidualNetwork(
@@ -40,6 +41,7 @@ class VariableSelection(torch.nn.Module):
                     hidden_dim=min(self.n_dim_model, self.n_features),
                     output_dim=self.n_features,
                     dropout=dropout,
+                    projection="interpolate",
                 )
         else:
             self.flattened_grn = torch.nn.Identity()
@@ -50,6 +52,7 @@ class VariableSelection(torch.nn.Module):
                 hidden_dim=min(hidden_dim, self.n_dim_model),
                 output_dim=self.n_dim_model,
                 dropout=dropout,
+                projection="interpolate",
             )
             for i in range(n_features)
         ])

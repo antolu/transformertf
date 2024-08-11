@@ -134,6 +134,7 @@ class TemporalFusionTransformerModel(torch.nn.Module):
             output_dim=n_dim_model,
             context_dim=n_dim_model,
             dropout=dropout,
+            projection="interpolate",
         )
 
         self.attn = InterpretableMultiHeadAttention(
@@ -295,4 +296,5 @@ def basic_grn(dim: int, dropout: float) -> GatedResidualNetwork:
         hidden_dim=dim,
         output_dim=dim,
         dropout=dropout,
+        projection="interpolate",
     )

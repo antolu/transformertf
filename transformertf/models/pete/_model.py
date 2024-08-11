@@ -61,22 +61,40 @@ class PETEModel(torch.nn.Module):
         )
 
         self.grn1h = GatedResidualNetwork(
-            input_dim=seq_len, output_dim=n_layers_encoded, dropout=dropout
+            input_dim=seq_len,
+            output_dim=n_layers_encoded,
+            dropout=dropout,
+            projection="linear",
         )
         self.grn1o = GatedResidualNetwork(
-            input_dim=seq_len, output_dim=n_layers_encoded, dropout=dropout
+            input_dim=seq_len,
+            output_dim=n_layers_encoded,
+            dropout=dropout,
+            projection="linear",
         )
         self.grn2h = GatedResidualNetwork(
-            input_dim=seq_len, output_dim=n_layers_encoded, dropout=dropout
+            input_dim=seq_len,
+            output_dim=n_layers_encoded,
+            dropout=dropout,
+            projection="linear",
         )
         self.grn2o = GatedResidualNetwork(
-            input_dim=seq_len, output_dim=n_layers_encoded, dropout=dropout
+            input_dim=seq_len,
+            output_dim=n_layers_encoded,
+            dropout=dropout,
+            projection="linear",
         )
         self.grn3h = GatedResidualNetwork(
-            input_dim=seq_len, output_dim=n_layers_encoded, dropout=dropout
+            input_dim=seq_len,
+            output_dim=n_layers_encoded,
+            dropout=dropout,
+            projection="linear",
         )
         self.grn3o = GatedResidualNetwork(
-            input_dim=seq_len, output_dim=n_layers_encoded, dropout=dropout
+            input_dim=seq_len,
+            output_dim=n_layers_encoded,
+            dropout=dropout,
+            projection="linear",
         )
 
     def forward(self, x: torch.Tensor) -> BWState3:
