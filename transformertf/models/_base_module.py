@@ -122,7 +122,7 @@ class LightningModuleBase(L.LightningModule):
         loss: dict[str, torch.Tensor],
         stage: typing.Literal["train", "validation", "test", "predict"],
     ) -> dict[str, torch.Tensor]:
-        log_dict = {k + f"/{stage}": v for k, v in loss.items()}
+        log_dict = {k + f"/{stage}": v.detach() for k, v in loss.items()}
 
         if self.logger is not None:
             self.log_dict(
