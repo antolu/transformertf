@@ -186,6 +186,7 @@ class TransformerSampleGenerator(SampleGenerator[EncoderDecoderTargetSample[T]])
         *,
         zero_pad: bool = False,
     ):
+        self._zero_pad = zero_pad
         self._num_points = len(input_data)
         self._window_generator = WindowGenerator(
             self._num_points, src_seq_len + tgt_seq_len, stride, zero_pad=zero_pad
@@ -251,13 +252,14 @@ class TransformerSampleGenerator(SampleGenerator[EncoderDecoderTargetSample[T]])
 
         decoder_mask = ones_like(dec_in)
         target_mask = ones_like(label)
-        if idx == len(self) - 1:
+        if idx == len(self) - 1 and self._zero_pad:
+            numel_pad = self._window_generator.real_data_len - len(self._input_data)
             if not isinstance(decoder_mask, pd.DataFrame):
-                decoder_mask[..., int(self._num_points % self._tgt_seq_len) :] = 0.0
-                target_mask[..., int(self._num_points % self._tgt_seq_len) :] = 0.0
+                decoder_mask[..., -numel_pad:] = 0.0
+                target_mask[..., -numel_pad:] = 0.0
             else:
-                decoder_mask.iloc[int(self._num_points % self._tgt_seq_len) :] = 0.0
-                target_mask.iloc[int(self._num_points % self._tgt_seq_len) :] = 0.0
+                decoder_mask.iloc[-numel_pad:] = 0.0
+                target_mask.iloc[-numel_pad:] = 0.0
 
         if isinstance(enc_in, pd.DataFrame):
             enc_in = enc_in.reset_index(drop=True)
