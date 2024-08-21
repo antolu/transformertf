@@ -20,10 +20,12 @@ class SetOptimizerLRCallback(L.pytorch.callbacks.Callback):
         self,
         lr_file: str | os.PathLike = "/tmp/lr.txt",
         on: typing.Literal["epoch", "step"] = "epoch",
+        to: list[int] | None = None,
     ):
         super().__init__()
         self.lr_file = pathlib.Path(lr_file)
         self.on = on
+        self.to = to
 
     def on_train_epoch_start(
         self, trainer: L.pytorch.Trainer, pl_module: LightningModuleBase
@@ -67,9 +69,17 @@ class SetOptimizerLRCallback(L.pytorch.callbacks.Callback):
                 return
 
         log.info(f"Setting LR to {lr}.")
-        for optimizer in trainer.optimizers:
-            for param_group in optimizer.param_groups:
-                param_group["lr"] = lr
+        if self.to is None:
+            for optimizer in trainer.optimizers:
+                for param_group in optimizer.param_groups:
+                    param_group["lr"] = lr
+        else:
+            for i in self.to:
+                if i < len(trainer.optimizers):
+                    for param_group in trainer.optimizers[i].param_groups:
+                        param_group["lr"] = lr
+                else:
+                    log.error(f"Optimizer index {i} out of range, skipping setting LR.")
 
         trainer.strategy.barrier()
 

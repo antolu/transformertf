@@ -91,6 +91,43 @@ class BoucWenLoss(nn.Module):
         self.kappa = to_nn_parameter(loss_weights.kappa)
 
     @property
+    def trainable(self) -> bool:
+        """
+        Returns whether the weights are trainable.
+
+        If training a self-adaptive PINN, the weights should be trainable.
+
+        Returns
+        -------
+        bool
+            Whether the weights are trainable.
+        """
+        return all(p.requires_grad for p in self.parameters())
+
+    @trainable.setter
+    def trainable(self, value: bool) -> None:
+        """
+        Sets whether the weights are trainable.
+
+        Parameters
+        ----------
+        value : bool
+            Whether the weights are trainable.
+        """
+        for p in self.parameters():
+            p.requires_grad = value
+
+    def invert_gradients(self) -> None:
+        """
+        Inverts the gradients of the weights.
+
+        This is useful when training a self-adaptive PINN.
+        """
+        for p in self.parameters():
+            if p.grad is not None:
+                p.grad = -p.grad
+
+    @property
     def weights(self) -> BoucWenLoss.LossWeights:
         """
         Returns the weights for the current loss function.
@@ -253,7 +290,7 @@ class BoucWenLoss(nn.Module):
         """
         B = BoucWenLoss.point_prediction(y_hat)
 
-        return F.mse_loss(targets, B, reduction="sum")
+        return F.mse_loss(targets, B, reduction="mean")
 
     @staticmethod
     def loss2(
@@ -273,9 +310,9 @@ class BoucWenLoss(nn.Module):
         B_dot_hat = y_hat["z"][..., 1]
 
         if "b" in y_hat:
-            B_dot_hat += y_hat["b"][..., 1]
+            B_dot_hat = B_dot_hat + y_hat["b"][..., 1]
 
-        return F.mse_loss(B_dot, B_dot_hat, reduction="sum")
+        return F.mse_loss(B_dot, B_dot_hat, reduction="mean")
 
     @staticmethod
     def loss3(
@@ -291,11 +328,12 @@ class BoucWenLoss(nn.Module):
         B_hat_dot = y_hat["dz_dt"][..., 0]
         B_dot_hat = y_hat["z"][..., 1]
 
+        # avoid inplace operation
         if "b" in y_hat:
-            B_hat_dot += torch.gradient(y_hat["b"][..., 0], dim=1)[0]
-            B_dot_hat += y_hat["b"][..., 1]
+            B_hat_dot = B_hat_dot + torch.gradient(y_hat["b"][..., 0], dim=1)[0]
+            B_dot_hat = B_dot_hat + y_hat["b"][..., 1]
 
-        return F.mse_loss(B_hat_dot, B_dot_hat, reduction="sum")
+        return F.mse_loss(B_hat_dot, B_dot_hat, reduction="mean")
 
     @staticmethod
     def loss4(
@@ -309,9 +347,11 @@ class BoucWenLoss(nn.Module):
         :return: The loss value. For mathematical formulation see the module documentation.
         """
         B_dot_hat_dot = y_hat["dz_dt"][..., 1]
+        if "b" in y_hat:
+            B_dot_hat_dot = B_dot_hat_dot + torch.gradient(y_hat["b"][..., 1], dim=1)[0]
         g = y_hat["g_gamma_x"]
 
-        return F.mse_loss(B_dot_hat_dot[..., None], -g, reduction="sum")
+        return F.mse_loss(B_dot_hat_dot[..., None], -g, reduction="mean")
 
     @staticmethod
     def loss5(
@@ -327,4 +367,4 @@ class BoucWenLoss(nn.Module):
 
         r_dot = y_hat["dz_dt"][..., 2]
 
-        return F.mse_loss(y_hat["dr_dt"], r_dot[..., None], reduction="sum")
+        return F.mse_loss(y_hat["dr_dt"], r_dot[..., None], reduction="mean")

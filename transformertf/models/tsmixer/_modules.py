@@ -5,7 +5,7 @@ import typing
 import einops
 import torch
 
-from ...nn import get_activation
+from ...nn import VALID_ACTIVATIONS, get_activation
 
 
 @typing.overload
@@ -56,7 +56,7 @@ class TemporalProjection(torch.nn.Module):
         self,
         input_len: int,
         output_len: int,
-        activation: typing.Literal["relu", "gelu"] | None = "relu",
+        activation: VALID_ACTIVATIONS | None = "relu",
         dropout: float = 0.2,
     ):
         """
@@ -131,7 +131,7 @@ class TimeMixer(torch.nn.Module):
         num_features: int,
         dropout: float = 0.2,
         norm: typing.Literal["batch", "layer"] = "batch",
-        activation: typing.Literal["relu", "gelu"] = "relu",
+        activation: VALID_ACTIVATIONS = "relu",
     ):
         super().__init__()
 
@@ -186,7 +186,7 @@ class FeatureMixer(torch.nn.Module):
         fc_dim: int = 512,
         dropout: float = 0.2,
         norm: typing.Literal["batch", "layer"] = "batch",
-        activation: typing.Literal["relu", "gelu"] = "relu",
+        activation: VALID_ACTIVATIONS = "relu",
         out_num_features: int | None = None,
     ):
         """
@@ -355,7 +355,7 @@ class MixerBlock(torch.nn.Module):
         input_len: int,
         num_features: int,
         norm: typing.Literal["batch", "layer"] = "batch",
-        activation: typing.Literal["relu", "gelu"] = "relu",
+        activation: VALID_ACTIVATIONS = "relu",
         fc_dim: int = 512,
         dropout: float = 0.2,
         out_num_features: int | None = None,

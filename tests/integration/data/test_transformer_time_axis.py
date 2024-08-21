@@ -122,7 +122,23 @@ def test_absolute_time_dataset(
     assert torch.max(sample["encoder_input"][:, 0]) <= 1.0  # time is normalized
 
 
-def test_absolute_time_dataset_zero_padded(
+def test_absolute_time_dataset_zero_padded_train(
+    absolute_time_datamodule: EncoderDecoderDataModule,
+) -> None:
+    """Test that last decoder input is zero-padded"""
+    absolute_time_datamodule.prepare_data()
+    absolute_time_datamodule.setup()
+
+    dataset = absolute_time_datamodule.train_dataset
+    sample = dataset[-1]
+
+    assert (
+        sample["decoder_input"][-1, :] != 0.0
+    ).any()  # not zero-padded decoder input
+    assert sample["target"][-1] != 0.0  # not zero-padded target
+
+
+def test_absolute_time_dataset_zero_padded_val(
     absolute_time_datamodule: EncoderDecoderDataModule,
 ) -> None:
     """Test that last decoder input is zero-padded"""

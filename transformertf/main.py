@@ -61,6 +61,13 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
         if hasattr(self.config, "fit") and hasattr(self.config.fit, "verbose"):
             setup_logger(self.config.fit.verbose)
 
+        if hasattr(self.config, "fit") and hasattr(
+            self.config.fit, "no_auto_configure_optimizers"
+        ):
+            self.auto_configure_optimizers = (
+                not self.config.fit.no_auto_configure_optimizers
+            )
+
     def add_arguments_to_parser(self, parser: LightningArgumentParser) -> None:
         parser.add_argument(
             "-v",
@@ -87,11 +94,18 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
             help="Path to the checkpoint resume to do transfer learning.",
         )
 
+        parser.add_argument(
+            "--no-auto-configure-optimizers",
+            action="store_true",
+            dest="no_auto_configure_optimizers",
+            help="Do not auto-configure optimizers.",
+        )
+
         parser.set_defaults({
             "trainer.logger": jsonargparse.lazy_instance(
                 lightning.pytorch.loggers.TensorBoardLogger,
                 save_dir="logs",
-                name=None,
+                name="",
             ),
         })
 
@@ -105,24 +119,35 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
 
     def before_fit(self) -> None:
         # hijack model checkpoint callbacks to save to checkpoint_dir/version_{version}
-        if hasattr(self.config, "fit") and hasattr(self.config.fit, "experiment_name"):
+        if (
+            hasattr(self.config, "fit")
+            and hasattr(self.config.fit, "experiment_name")
+            and self.config.fit.experiment_name
+        ):
             logger_name = self.config.fit.experiment_name
             self.trainer.logger._name = logger_name  # noqa: SLF001
         else:
             logger_name = ""
-        version = self.trainer.logger.version
+        try:
+            version = self.trainer.logger.version
+        except TypeError:
+            version = 0
         version_str = f"version_{version}"
 
         for callback in self.trainer.callbacks:
             if isinstance(callback, lightning.pytorch.callbacks.ModelCheckpoint):
                 if logger_name:
-                    dirpath = os.path.join(callback.dirpath, version_str)
-                else:
                     dirpath = os.path.join(callback.dirpath, logger_name, version_str)
+                else:
+                    dirpath = os.path.join(callback.dirpath, version_str)
                 callback.dirpath = dirpath
 
         # load checkpoint for transfer learning
-        if hasattr(self.config, "fit") and hasattr(self.config.fit, "transfer_ckpt"):
+        if (
+            hasattr(self.config, "fit")
+            and hasattr(self.config.fit, "transfer_ckpt")
+            and self.config.fit.transfer_ckpt is not None
+        ):
             transfer_ckpt = os.fspath(
                 pathlib.Path(self.config.fit.transfer_ckpt).expanduser()
             )
