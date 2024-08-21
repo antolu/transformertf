@@ -135,7 +135,7 @@ def test_absolute_time_dataset_zero_padded_train(
     assert (
         sample["decoder_input"][-1, :] != 0.0
     ).any()  # not zero-padded decoder input
-    assert sample["target"][-1] == 0.0  # zero-padded target
+    assert sample["target"][-1] != 0.0  # not zero-padded target
 
 
 def test_absolute_time_dataset_zero_padded_val(
