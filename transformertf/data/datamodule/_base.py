@@ -936,6 +936,8 @@ class DataModuleBase(L.LightningDataModule):
         transforms[self.target_covariate.name] = target_transform_
         self._transforms = torch.nn.ModuleDict({
             col: TransformCollection(transforms)
+            if isinstance(transforms, list)
+            else transforms
             for col, transforms in transforms.items()
         })
 
