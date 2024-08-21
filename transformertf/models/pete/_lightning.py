@@ -126,11 +126,60 @@ class PETE(SABWLSTM):
         )
 
     @override
-    def training_step(
+    def first_order_step(
         self,
         batch: EncoderDecoderTargetSample,  # type: ignore[override]
         batch_idx: int,
     ) -> dict[str, torch.Tensor]:
+        for optimizer in self.optimizers()[2:]:
+            optimizer.zero_grad()
+
+        losses, output, _states = self.common_train_step(batch, batch_idx)
+
+        for optimizer in self.optimizers()[:2]:
+            optimizer.zero_grad()
+
+        self.manual_backward(losses["loss"])
+
+        self.optimizers()[0].step()
+
+        self.criterion.invert_gradients()
+        self.optimizers()[1].step()
+
+        losses = self.rename_losses_dict(losses)
+        self.common_log_step(losses, "train")
+
+        return losses | {"output": output}
+
+    @override
+    def second_order_step(
+        self,
+        batch: EncoderDecoderTargetSample,  # type: ignore[override]
+        batch_idx: int,
+    ) -> dict[str, torch.Tensor]:
+        self.optimizers()[2].zero_grad()
+
+        losses: dict[str, torch.Tensor] = {}
+        output = torch.tensor([])
+        states: BWState3 = {}  # type: ignore[typeddict-item]
+
+        def closure() -> torch.Tensor:
+            nonlocal losses, output, states
+            self.optimizers()[2].zero_grad()
+
+            losses, output, states = self.common_train_step(batch, batch_idx)
+
+            self.manual_backward(losses["loss"])
+
+            return losses["loss"]
+
+        self.optimizers()[2].step(closure=closure)
+
+        return losses | {"output": output, "state": states}
+
+    def common_train_step(
+        self, batch: EncoderDecoderTargetSample, batch_idx: int
+    ) -> tuple[dict[str, torch.Tensor], torch.Tensor, BWState3]:
         try:
             target = batch["target"]
         except KeyError as e:
@@ -152,30 +201,20 @@ class PETE(SABWLSTM):
             hx3=states["hx3"],
         )
 
-        loss, losses = self.criterion(output, target, return_all=True)
-
-        for optimizer in self.optimizers()[:2]:
-            optimizer.zero_grad()
-
-        self.manual_backward(loss)
-
-        self.optimizers()[0].step()
-
-        self.criterion.invert_gradients()
-        self.optimizers()[1].step()
+        _, losses = self.criterion(output, target, return_all=True)
 
         loss_weights = {
-            "loss_weight/alpha": self.criterion.alpha.item(),
-            "loss_weight/beta": self.criterion.beta.item(),
-            "loss_weight/gamma": self.criterion.gamma.item(),
-            "loss_weight/kappa": self.criterion.kappa.item(),
-            "loss_weight/eta": self.criterion.eta.item(),
+            "loss_weight/alpha": self.criterion.alpha,
+            "loss_weight/beta": self.criterion.beta,
+            "loss_weight/gamma": self.criterion.gamma,
+            "loss_weight/kappa": self.criterion.kappa,
+            "loss_weight/eta": self.criterion.eta,
         }
 
         losses = self.rename_losses_dict(losses)
         self.common_log_step(losses | loss_weights, "train")
 
-        return losses | {"output": output}
+        return losses, output, states
 
     @override
     def validation_step(
