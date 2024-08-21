@@ -146,7 +146,6 @@ class PETE(SABWLSTM):
         self.criterion.invert_gradients()
         self.optimizers()[1].step()
 
-        losses = self.rename_losses_dict(losses)
         self.common_log_step(losses, "train")
 
         return losses | {"output": output}
@@ -204,14 +203,13 @@ class PETE(SABWLSTM):
         _, losses = self.criterion(output, target, return_all=True)
 
         loss_weights = {
-            "loss_weight/alpha": self.criterion.alpha,
-            "loss_weight/beta": self.criterion.beta,
-            "loss_weight/gamma": self.criterion.gamma,
-            "loss_weight/kappa": self.criterion.kappa,
-            "loss_weight/eta": self.criterion.eta,
+            "weight/alpha": self.criterion.alpha,
+            "weight/beta": self.criterion.beta,
+            "weight/gamma": self.criterion.gamma,
+            "weight/kappa": self.criterion.kappa,
+            "weight/eta": self.criterion.eta,
         }
 
-        losses = self.rename_losses_dict(losses)
         self.common_log_step(losses | loss_weights, "train")
 
         return losses, output, states
@@ -246,7 +244,6 @@ class PETE(SABWLSTM):
             for key in output:
                 output[key] = output[key].squeeze(0)  # type: ignore[literal-required]
 
-        losses = self.rename_losses_dict(losses)
         self.common_log_step(losses, "validation")
 
         return typing.cast(StepOutput, losses | {"output": output, "state": states})
