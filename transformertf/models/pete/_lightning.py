@@ -21,6 +21,8 @@ else:
 class PETE(SABWLSTM):
     def __init__(
         self,
+        num_past_features: int = 4,  # I, I_dot, B, target
+        num_future_features: int = 2,
         ctxt_seq_len: int = 100,
         num_layers: int | tuple[int, int, int] = 3,
         n_enc_heads: int = 4,
@@ -76,7 +78,7 @@ class PETE(SABWLSTM):
         compile_model: bool = False,
     ):
         super().__init__(
-            n_features=2,
+            n_features=num_future_features,
             num_layers=num_layers,
             n_dim_model=n_dim_model,
             n_dim_fc=n_dim_fc,
@@ -190,9 +192,7 @@ class PETE(SABWLSTM):
             raise ValueError(msg) from e
 
         states = self.encoder(batch["encoder_input"])
-        x = torch.stack(
-            [batch["decoder_input"][..., 0], batch["decoder_input"][..., 2]], dim=-1
-        )
+        x = batch["decoder_input"][..., : self.hparams["num_future_features"]]
         output = self(
             x,
             hx=states["hx"],
