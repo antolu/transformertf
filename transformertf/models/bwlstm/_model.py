@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import collections
 import logging
 import typing
 
@@ -13,6 +12,7 @@ try:
 except ImportError:
     from torch.optim.lr_scheduler import _LRScheduler as LRScheduler  # noqa
 
+from ...nn import MLP
 from ...utils import ops
 from .typing import (
     BWOutput1,
@@ -92,13 +92,12 @@ class BWLSTM1Model(nn.Module):
         )
 
         n_dim_fc_ = n_dim_fc or n_dim_model // 2
-        self.fc1 = nn.Sequential(
-            collections.OrderedDict([
-                ("fc11", nn.Linear(n_dim_model, n_dim_fc_)),
-                ("lrelu1", nn.LeakyReLU()),
-                ("ln1", nn.LayerNorm(n_dim_fc_)),
-                ("fc12", nn.Linear(n_dim_fc_, 3)),
-            ])
+        self.fc1 = MLP(
+            input_dim=n_dim_model,
+            hidden_dim=n_dim_fc_,
+            output_dim=3,
+            activation="lrelu",
+            dropout=dropout,
         )
         self.apply(self.weights_init)
 
@@ -197,13 +196,19 @@ class BWLSTM2Model(nn.Module):
 
         n_dim_fc_ = n_dim_fc or n_dim_model // 2
 
-        self.fc2 = nn.Sequential(
-            collections.OrderedDict([
-                ("fc21", nn.Linear(n_dim_model, n_dim_fc_)),
-                ("lrelu2", nn.LeakyReLU()),
-                ("ln1", nn.LayerNorm(n_dim_fc_)),
-                ("fc22", nn.Linear(n_dim_fc_, 1)),
-            ])
+        self.fc2 = MLP(
+            input_dim=n_dim_model,
+            hidden_dim=n_dim_fc_,
+            output_dim=1,
+            activation="lrelu",
+            dropout=dropout,
+        )
+
+        self.g_plus_x = MLP(
+            input_dim=2,
+            hidden_dim=n_dim_fc_,
+            output_dim=1,
+            activation="lrelu",
         )
 
         self.g_plus_x = nn.Sequential(
@@ -279,7 +284,7 @@ class BWLSTM3Model(nn.Module):
         num_layers: int = 3,
         n_dim_model: int = 350,
         n_dim_fc: int | None = None,
-        dropout: float | tuple[float] = 0.2,
+        dropout: float = 0.2,
     ):
         super().__init__()
         # hysteric parameter modeling
@@ -293,13 +298,12 @@ class BWLSTM3Model(nn.Module):
 
         n_dim_fc = n_dim_fc or n_dim_model // 2
 
-        self.fc3 = nn.Sequential(
-            collections.OrderedDict([
-                ("fc31", nn.Linear(n_dim_model, n_dim_fc)),
-                ("lrelu3", nn.LeakyReLU()),
-                ("ln3", nn.LayerNorm(n_dim_fc)),
-                ("fc32", nn.Linear(n_dim_fc, 1)),
-            ])
+        self.fc3 = MLP(
+            input_dim=n_dim_model,
+            hidden_dim=n_dim_fc,
+            output_dim=1,
+            activation="lrelu",
+            dropout=dropout,
         )
 
     @typing.overload  # type: ignore[override]
