@@ -200,7 +200,13 @@ class PETE(SABWLSTM):
             hx3=states["hx3"],
         )
 
-        _, losses = self.criterion(output, target, return_all=True)
+        _, losses = self.criterion(
+            output,
+            target,
+            weights=batch["decoder_lengths"],
+            mask=batch["decoder_mask"],
+            return_all=True,
+        )
 
         loss_weights = {
             "weight/alpha": self.criterion.alpha,
@@ -237,7 +243,13 @@ class PETE(SABWLSTM):
             return_states=True,
         )
 
-        _, losses = self.criterion(output, batch["target"], return_all=True)
+        _, losses = self.criterion(
+            output,
+            batch["target"],
+            weights=batch["decoder_lengths"],
+            mask=batch["decoder_mask"],
+            return_all=True,
+        )
 
         # remove batch dimension
         if output["z"].shape[0] == 1:

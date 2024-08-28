@@ -5,8 +5,8 @@ import typing
 
 import torch
 from torch import nn
-from torch.nn import functional as F
 
+from ...nn import functional as F
 from . import typing as t
 
 
@@ -187,7 +187,8 @@ class BoucWenLoss(nn.Module):
         self,
         y_hat: t.BWOutput1 | t.BWOutput12 | t.BWOutput123,
         targets: torch.torch.Tensor,
-        weights: BoucWenLoss.LossWeights | None = None,
+        weights: torch.Tensor | None = None,
+        mask: torch.Tensor | None = None,
         *,
         return_all: typing.Literal[True],
     ) -> tuple[torch.Tensor, t.BWLoss1 | t.BWLoss2 | t.BWLoss3]: ...
@@ -197,7 +198,8 @@ class BoucWenLoss(nn.Module):
         self,
         y_hat: t.BWOutput1 | t.BWOutput12 | t.BWOutput123,
         targets: torch.torch.Tensor,
-        weights: BoucWenLoss.LossWeights | None = None,
+        weights: torch.Tensor | None = None,
+        mask: torch.Tensor | None = None,
         *,
         return_all: typing.Literal[False] = False,
     ) -> torch.Tensor: ...
@@ -206,7 +208,8 @@ class BoucWenLoss(nn.Module):
         self,
         y_hat: t.BWOutput1 | t.BWOutput12 | t.BWOutput123,
         targets: torch.torch.Tensor,
-        weights: BoucWenLoss.LossWeights | None = None,
+        weights: torch.Tensor | None = None,
+        mask: torch.Tensor | None = None,
         *,
         return_all: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, t.BWLoss1 | t.BWLoss2 | t.BWLoss3]:
@@ -218,10 +221,13 @@ class BoucWenLoss(nn.Module):
         y_hat : BoucWenOutput1 | BoucWenOutput12 | BoucWenOutput123
             The output of the PhyLSTM model.
         targets : torch.Tensor
-            The target values, i.e. the B field.
-        weights : BoucWenLoss.LossWeights | None, optional
-            The weights for the loss terms, by default None. If None, the weights
-            from the class initialization are used.
+            The target values, i.e. the B field of shape [batch_size, seq_len, 1].
+        weights : torch.Tensor | None, optional
+            The loss weights for each sample, by default None.
+            Should be shape [batch_size, 1].
+        mask : torch.Tensor | None, optional
+            The mask for the loss, by default None.
+            Should be the same shape as the targets.
         return_all : bool, optional
             Whether to return all the loss terms, by default False.
 
@@ -238,39 +244,35 @@ class BoucWenLoss(nn.Module):
             )
             raise ValueError(msg)
 
-        if weights is None:
-            alpha = self.alpha
-            beta = self.beta
-            gamma = self.gamma
-            eta = self.eta
-            kappa = self.kappa
-        else:
-            alpha = weights.alpha
-            beta = weights.beta
-            gamma = weights.gamma
-            eta = weights.eta
-            kappa = weights.kappa
-
         loss_dict: dict[str, torch.Tensor] = {}
 
         loss1 = BoucWenLoss.loss1(y_hat, targets)
         loss2 = BoucWenLoss.loss2(y_hat, targets)
 
-        loss_dict["loss1"] = alpha * loss1
-        loss_dict["loss2"] = beta * loss2
+        loss_dict["loss1"] = loss1
+        loss_dict["loss2"] = loss2
 
         if "dz_dt" in y_hat and "g_gamma_x" in y_hat:
             y_hat = typing.cast(t.BWOutput12, y_hat)
-            loss_dict["loss3"] = gamma * BoucWenLoss.loss3(y_hat)
-            loss_dict["loss4"] = eta * BoucWenLoss.loss4(y_hat)
+            loss_dict["loss3"] = BoucWenLoss.loss3(y_hat)
+            loss_dict["loss4"] = BoucWenLoss.loss4(y_hat)
 
             if "dr_dt" in y_hat:
                 y_hat = typing.cast(t.BWOutput123, y_hat)
-                loss_dict["loss5"] = kappa * BoucWenLoss.loss5(y_hat)
+                loss_dict["loss5"] = BoucWenLoss.loss5(y_hat)
 
-        total_loss: torch.Tensor = torch.stack(list(loss_dict.values())).sum()
+        total_loss: torch.Tensor = (
+            self.alpha * loss1
+            + self.beta * loss2
+            + self.gamma * loss_dict.get("loss3", 0.0)
+            + self.eta * loss_dict.get("loss4", 0.0)
+            + self.kappa * loss_dict.get("loss5", 0.0)
+        )
 
         if return_all:
+            loss_dict["loss_unweighted"] = typing.cast(
+                torch.Tensor, sum(loss_dict.values())
+            )
             loss_dict["loss"] = total_loss
             return total_loss, loss_dict
         return total_loss
@@ -279,6 +281,8 @@ class BoucWenLoss(nn.Module):
     def loss1(
         y_hat: t.BWOutput1,
         targets: torch.Tensor,
+        weights: torch.Tensor | None = None,
+        mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """
         Computes the loss function for the first output of the model.
@@ -290,12 +294,16 @@ class BoucWenLoss(nn.Module):
         """
         B = BoucWenLoss.point_prediction(y_hat)
 
-        return F.mse_loss(targets, B, reduction="mean")
+        return F.masked_mse_loss(
+            targets, B, weight=weights, mask=mask, reduction="mean"
+        )
 
     @staticmethod
     def loss2(
         y_hat: t.BWOutput1,
         targets: torch.Tensor,
+        weights: torch.Tensor | None = None,
+        mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """
         Computes the loss function for the second output of the model.
@@ -312,11 +320,15 @@ class BoucWenLoss(nn.Module):
         if "b" in y_hat:
             B_dot_hat = B_dot_hat + y_hat["b"][..., 1]
 
-        return F.mse_loss(B_dot, B_dot_hat, reduction="mean")
+        return F.masked_mse_loss(
+            B_dot, B_dot_hat, weight=weights, mask=mask, reduction="mean"
+        )
 
     @staticmethod
     def loss3(
         y_hat: t.BWOutput12,
+        weights: torch.Tensor | None = None,
+        mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """
         Computes the loss function for the third output of the model.
@@ -333,11 +345,15 @@ class BoucWenLoss(nn.Module):
             B_hat_dot = B_hat_dot + torch.gradient(y_hat["b"][..., 0], dim=1)[0]
             B_dot_hat = B_dot_hat + y_hat["b"][..., 1]
 
-        return F.mse_loss(B_hat_dot, B_dot_hat, reduction="mean")
+        return F.masked_mse_loss(
+            B_hat_dot, B_dot_hat, weight=weights, mask=mask, reduction="mean"
+        )
 
     @staticmethod
     def loss4(
         y_hat: t.BWOutput12,
+        weights: torch.Tensor | None = None,
+        mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """
         Computes the loss function for the fourth output of the model.
@@ -351,11 +367,15 @@ class BoucWenLoss(nn.Module):
             B_dot_hat_dot = B_dot_hat_dot + torch.gradient(y_hat["b"][..., 1], dim=1)[0]
         g = y_hat["g_gamma_x"]
 
-        return F.mse_loss(B_dot_hat_dot[..., None], -g, reduction="mean")
+        return F.masked_mse_loss(
+            B_dot_hat_dot[..., None], -g, weight=weights, mask=mask, reduction="mean"
+        )
 
     @staticmethod
     def loss5(
         y_hat: t.BWOutput123,
+        weights: torch.Tensor | None = None,
+        mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """
         Computes the loss function for the fifth output of the model.
@@ -367,4 +387,10 @@ class BoucWenLoss(nn.Module):
 
         r_dot = y_hat["dz_dt"][..., 2]
 
-        return F.mse_loss(y_hat["dr_dt"], r_dot[..., None], reduction="mean")
+        return F.masked_mse_loss(
+            y_hat["dr_dt"],
+            r_dot[..., None],
+            weight=weights,
+            mask=mask,
+            reduction="mean",
+        )
