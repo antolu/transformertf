@@ -203,7 +203,7 @@ class PETE(SABWLSTM):
         _, losses = self.criterion(
             output,
             target,
-            weights=batch["decoder_lengths"],
+            weights=1.0 / batch["decoder_lengths"],
             mask=batch["decoder_mask"],
             return_all=True,
         )
@@ -244,7 +244,7 @@ class PETE(SABWLSTM):
         _, losses = self.criterion(
             output,
             batch["target"],
-            weights=batch["decoder_lengths"],
+            weights=1.0 / batch["decoder_lengths"],
             mask=batch["decoder_mask"],
             return_all=True,
         )
