@@ -38,3 +38,17 @@ def test_masked_mse_loss_with_different_shapes() -> None:
     target = torch.tensor([[1.0, 2.0], [3.0, 5.0]])
     mask = torch.tensor([[1.0, 1.0], [1.0, 0.0]])
     assert masked_mse_loss(input_, target, mask) == 0.0
+
+
+def test_batched_mse_loss() -> None:
+    input_ = torch.rand((2, 10, 3))
+    target = torch.rand((2, 10, 3))
+
+    weight = torch.tensor([[0.5, 0.75]]).T
+    mask = torch.ones_like(input_)
+    mask[0, 5:, :] = 0.0
+    mask[1, 7:, :] = 0.0
+
+    value = masked_mse_loss(input_, target, weight, mask)
+    # make sure we get a single value back
+    assert value.shape == ()
