@@ -232,9 +232,7 @@ class PETE(SABWLSTM):
         if prev_hidden is None:
             prev_hidden = self.encoder(batch["encoder_input"])
 
-        x = torch.stack(
-            [batch["decoder_input"][..., 0], batch["decoder_input"][..., 2]], dim=-1
-        )
+        x = batch["decoder_input"][..., : self.hparams["num_future_features"]]
         output, states = self(
             x,
             hx=prev_hidden["hx"],
