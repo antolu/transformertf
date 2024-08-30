@@ -233,6 +233,9 @@ class PETE(SABWLSTM):
             prev_hidden = self.encoder(batch["encoder_input"])
 
         x = batch["decoder_input"][..., : self.hparams["num_future_features"]]
+
+        # shift time to start with 0
+        x[..., 0] = x[..., 0] - x[:, 0, 0]
         output, states = self(
             x,
             hx=prev_hidden["hx"],
