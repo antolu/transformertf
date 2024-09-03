@@ -67,7 +67,7 @@ class GatedResidualNetwork(torch.nn.Module):
             if projection == "linear":
                 self.project = torch.nn.Linear(input_dim, output_dim)
             elif projection == "interpolate":
-                self.project = ResampleNorm(input_dim, output_dim)
+                self.resample = ResampleNorm(input_dim, output_dim)
             else:
                 msg = (
                     f"Unknown resampling method: {projection} "
@@ -99,7 +99,12 @@ class GatedResidualNetwork(torch.nn.Module):
         torch.Tensor
             Output tensor of shape (batch_size, input_dim, n_features)
         """
-        residual = self.project(x)
+        if hasattr(self, "resample"):
+            residual = self.resample(x)
+        elif hasattr(self, "project"):
+            residual = self.project(x)
+        else:
+            residual = x
 
         x = self.fc1(x)
         if self.fc3 is not None:
