@@ -252,8 +252,9 @@ class TransformerSampleGenerator(SampleGenerator[EncoderDecoderTargetSample[T]])
 
         decoder_mask = ones_like(dec_in)
         target_mask = ones_like(label)
-        if idx == len(self) - 1 and self._zero_pad:
-            numel_pad = self._window_generator.real_data_len - len(self._input_data)
+
+        numel_pad = len(self._input_data) - self._num_points
+        if idx == len(self) - 1 and self._zero_pad and numel_pad > 0:
             if not isinstance(decoder_mask, pd.DataFrame):
                 decoder_mask[..., -numel_pad:] = 0.0
                 target_mask[..., -numel_pad:] = 0.0
