@@ -9,8 +9,6 @@ import pytest
 from transformertf.data import TimeSeriesDataModule
 from transformertf.utils import ops
 
-from ...conftest import CURRENT, FIELD
-
 
 @pytest.fixture(scope="module")
 def dm(df_path: str, current_key: str, field_key: str) -> TimeSeriesDataModule:
@@ -29,7 +27,7 @@ def dm(df_path: str, current_key: str, field_key: str) -> TimeSeriesDataModule:
 
 
 def test_data_transform_inverse_transform(
-    dm: TimeSeriesDataModule, df: pd.DataFrame
+    dm: TimeSeriesDataModule, df: pd.DataFrame, current_key: str, field_key: str
 ) -> None:
     dataset = dm.val_dataset
 
@@ -48,8 +46,8 @@ def test_data_transform_inverse_transform(
     assert len(x) == len(df)
     assert len(y) == len(df)
 
-    input_transform = dm.transforms[CURRENT]
-    target_transform = dm.transforms[FIELD]
+    input_transform = dm.transforms[current_key]
+    target_transform = dm.transforms[field_key]
 
     x = input_transform.inverse_transform(x)
     y = target_transform.inverse_transform(y)
@@ -57,8 +55,8 @@ def test_data_transform_inverse_transform(
     x = x.numpy().flatten()
     y = y.numpy().flatten()
 
-    x_true = df[CURRENT].to_numpy()
-    y_true = df[FIELD].to_numpy()
+    x_true = df[current_key].to_numpy()
+    y_true = df[field_key].to_numpy()
 
     assert np.allclose(x, x_true)
     assert np.allclose(y, y_true)
