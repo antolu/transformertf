@@ -116,7 +116,7 @@ class PETE(SABWLSTM):
 
         self.encoder = PETEModel(
             seq_len=ctxt_seq_len,
-            num_features=4,
+            num_features=num_past_features,
             n_dim_selection=n_dim_selection,
             n_dim_model=n_dim_model if isinstance(n_dim_model, int) else n_dim_model[0],
             n_heads=n_enc_heads,
