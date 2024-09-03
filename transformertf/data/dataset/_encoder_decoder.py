@@ -244,11 +244,11 @@ class EncoderDecoderDataset(TransformerDataset):
 
             df = df.iloc[-seq_len:]
 
-        if TIME not in df:
-            if time_data is None:
-                msg = "Time column not found in DataFrame and time_data is None."
-                raise ValueError(msg)
-            df[TIME] = time_data.to_numpy()
+        # if TIME not in df:
+        #     if time_data is None:
+        #         msg = "Time column not found in DataFrame and time_data is None."
+        #         raise ValueError(msg)
+        #     df[TIME] = time_data.to_numpy()
 
         df = df.reset_index(drop=True)
 
@@ -300,11 +300,11 @@ class EncoderDecoderDataset(TransformerDataset):
 
             df = df.iloc[-seq_len:]
 
-        if TIME not in df:
-            if time_data is None:
-                msg = "Time column not found in DataFrame and time_data is None."
-                raise ValueError(msg)
-            df[TIME] = time_data.to_numpy()
+        # if TIME not in df:
+        #     if time_data is None:
+        #         msg = "Time column not found in DataFrame and time_data is None."
+        #         raise ValueError(msg)
+        #     df[TIME] = time_data.to_numpy()
 
         df = df.reset_index(drop=True)
 
