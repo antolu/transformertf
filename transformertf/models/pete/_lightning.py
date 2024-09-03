@@ -113,7 +113,6 @@ class PETE(SABWLSTM):
             log_grad_norm=log_grad_norm,
             compile_model=compile_model,
         )
-        self.hparams["num_future_features"] = num_future_features - 1
 
         self.encoder = PETEModel(
             seq_len=ctxt_seq_len,
@@ -193,7 +192,7 @@ class PETE(SABWLSTM):
             raise ValueError(msg) from e
 
         states = self.encoder(batch["encoder_input"])
-        x = batch["decoder_input"][..., : self.hparams["num_future_features"]]
+        x = batch["decoder_input"][..., : self.hparams["num_future_features"] - 1]
         output = self(
             x,
             hx=states["hx"],
@@ -233,7 +232,7 @@ class PETE(SABWLSTM):
         if prev_hidden is None:
             prev_hidden = self.encoder(batch["encoder_input"])
 
-        x = batch["decoder_input"][..., : self.hparams["num_future_features"]]
+        x = batch["decoder_input"][..., : self.hparams["num_future_features"] - 1]
         output, states = self(
             x,
             hx=prev_hidden["hx"],
