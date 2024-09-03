@@ -78,7 +78,7 @@ class PETE(SABWLSTM):
         compile_model: bool = False,
     ):
         super().__init__(
-            n_features=num_future_features,
+            n_features=num_future_features - 1,
             num_layers=num_layers,
             n_dim_model=n_dim_model,
             n_dim_fc=n_dim_fc,
@@ -113,6 +113,7 @@ class PETE(SABWLSTM):
             log_grad_norm=log_grad_norm,
             compile_model=compile_model,
         )
+        self.hparams["num_future_features"] = num_future_features - 1
 
         self.encoder = PETEModel(
             seq_len=ctxt_seq_len,
