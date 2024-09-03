@@ -19,6 +19,7 @@ import torch
 from ._window_generator import WindowGenerator
 
 __all__ = [
+    "DecoderSample",
     "EncoderDecoderSample",
     "EncoderDecoderTargetSample",
     "EncoderSample",
@@ -156,15 +157,18 @@ class EncoderSample(TypedDict, typing.Generic[T]):
     encoder_lengths: NotRequired[T]
 
 
-class EncoderTargetSample(EncoderSample, TargetSample, typing.Generic[T]): ...
-
-
-class EncoderDecoderSample(EncoderSample, typing.Generic[T]):
+class DecoderSample(TypedDict, typing.Generic[T]):
     decoder_input: T
     """ Target sequence input to transformer. Typically should all be zeros. """
     decoder_mask: NotRequired[T]
     """ Target mask. Typically should all be ones. """
     decoder_lengths: NotRequired[T]
+
+
+class EncoderTargetSample(EncoderSample, TargetSample, typing.Generic[T]): ...
+
+
+class EncoderDecoderSample(EncoderSample, DecoderSample, typing.Generic[T]): ...
 
 
 class EncoderDecoderTargetSample(EncoderDecoderSample, TargetSample, typing.Generic[T]):
