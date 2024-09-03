@@ -8,7 +8,7 @@ import torch
 
 from .._covariates import TIME_PREFIX as TIME
 from .._dtype import VALID_DTYPES, convert_data
-from .._sample_generator import EncoderDecoderTargetSample
+from .._sample_generator import EncoderDecoderTargetSample, EncoderSample
 from ..transform import BaseTransform
 from ._base import _check_index
 from ._transformer import TransformerDataset
@@ -39,9 +39,13 @@ class EncoderDecoderDataset(TransformerDataset):
 
         sample = self._sample_gen[df_idx][shifted_idx]
         sample = self._apply_randomize_seq_len(sample)
-        sample = self._format_time_data(sample)
+        sample = self._format_time_data(
+            sample,
+            time_format=self._time_format,
+            ctxt_seq_len=self.ctxt_seq_len,
+        )
         sample = apply_transforms(  # N.B. transforms also zeroed out data
-            sample, self._transforms
+            sample, transforms=self._transforms
         )
 
         sample_torch = convert_sample(sample, self._dtype)
@@ -77,18 +81,24 @@ class EncoderDecoderDataset(TransformerDataset):
             sample["target"] *= sample["target_mask"]
         return sample
 
+    @staticmethod
     def _format_time_data(
-        self, sample: EncoderDecoderTargetSample[pd.DataFrame]
+        sample: EncoderDecoderTargetSample[pd.DataFrame],
+        time_format: typing.Literal["absolute", "relative"] = "relative",
+        ctxt_seq_len: int | None = None,
     ) -> EncoderDecoderTargetSample[pd.DataFrame]:
-        if self._time_data and self._time_data[0] is None:
+        if ctxt_seq_len is None:
+            ctxt_seq_len = len(sample["encoder_input"])
+
+        if TIME not in sample["encoder_input"]:
             return sample
 
         if TIME not in sample["encoder_input"]:
             msg = "Time column not found in encoder_input."
             raise ValueError(msg)
 
-        seq_start = int(self.ctxt_seq_len - sample["encoder_lengths"].iloc[0].item())
-        if self._time_format == "absolute":
+        seq_start = int(ctxt_seq_len - sample["encoder_lengths"].iloc[0].item())
+        if time_format == "absolute":
             dt = float(sample["encoder_input"].loc[seq_start, TIME])
 
             # if randomize seq len, then we need to adjust the time only for the
@@ -137,6 +147,57 @@ class EncoderDecoderDataset(TransformerDataset):
 
         return sample
 
+    @staticmethod
+    def make_encoder_input(
+        df: pd.DataFrame,
+        seq_len: int | None = None,
+        time_data: pd.Series | pd.DataFrame | None = None,
+        time_format: typing.Literal["absolute", "relative"] = "relative",
+        transforms: dict[str, BaseTransform] | None = None,
+        dtype: VALID_DTYPES = "float32",
+    ) -> pd.DataFrame:
+        """
+        Make the encoder input from the DataFrame. The whole DataFrame is used.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            DataFrame to make encoder input from.
+        time_format
+
+        Returns
+        -------
+        pd.DataFrame
+        """
+        if seq_len is not None:
+            if seq_len > len(df):
+                msg = (
+                    "seq_len must be less than or equal to the length of the DataFrame."
+                )
+                raise ValueError(msg)
+
+            df = df.iloc[-seq_len:]
+
+        if TIME not in df:
+            if time_data is None:
+                msg = "Time column not found in DataFrame and time_data is None."
+                raise ValueError(msg)
+            df[TIME] = time_data.to_numpy()
+
+        sample: EncoderSample[pd.DataFrame] = {
+            "encoder_input": df,
+            "encoder_mask": pd.DataFrame(np.ones((len(df), 1))),
+            "encoder_lengths": pd.DataFrame({"encoder_lengths": [len(df)]}),
+        }
+
+        # shift time to start with 0
+        sample = EncoderDecoderDataset._format_time_data(
+            sample, time_format=time_format, ctxt_seq_len=len(df)
+        )
+        sample = apply_transforms(sample, transforms=transforms)  # type: ignore[arg-type]
+
+        return convert_sample(sample, dtype)  # type: ignore[return-value]
+
 
 def sample_len(min_: int, max_: int) -> int:
     return int(np.round(RND_G.beta(1.0, 0.5) * (max_ - min_) + min_))
@@ -153,6 +214,9 @@ def convert_sample(
 
 def apply_transforms(
     sample: EncoderDecoderTargetSample[pd.DataFrame],
+    *,
+    encoder: bool = True,
+    decoder: bool = True,
     transforms: typing.Mapping[str, BaseTransform] | None = None,
 ) -> EncoderDecoderTargetSample[pd.DataFrame]:
     """
@@ -171,10 +235,13 @@ def apply_transforms(
         return sample
 
     df: pd.DataFrame
-    for key in ["encoder_input", "decoder_input", "target"]:
-        if key.endswith(("_mask", "_lengths")):
-            continue
-
+    keys = []
+    if encoder:
+        keys.append("encoder_input")
+    if decoder:
+        keys.extend(["decoder_input", "target"])
+    keys.append("target")
+    for key in keys:
         df = sample[key]  # type: ignore[literal-required]
         for col in df.columns:
             if col in transforms and col != TIME:
@@ -185,19 +252,33 @@ def apply_transforms(
 
                 sample[key][col] = transform.transform(df[col].to_numpy()).numpy()  # type: ignore[literal-required]
 
-    encoder_len = len(sample["encoder_input"])
+    if encoder and TIME in sample["encoder_input"] and TIME in transforms:
+        encoder_len = len(sample["encoder_input"])
 
-    if (
-        TIME in sample["encoder_input"]
-        and TIME in sample["decoder_input"]
-        and TIME in transforms
-    ):
-        time = np.concatenate([
-            sample["encoder_input"][TIME].to_numpy(),
-            sample["decoder_input"][TIME].to_numpy(),
-        ])
-        time = transforms[TIME].transform(time).numpy()
-        sample["encoder_input"][TIME] = time[:encoder_len]
-        sample["decoder_input"][TIME] = time[encoder_len:]
+        if decoder and TIME in sample["decoder_input"]:
+            # transform time for both encoder and decoder and ensure
+            # that the time is continuous
+            time = np.concatenate([
+                sample["encoder_input"][TIME].to_numpy(),
+                sample["decoder_input"][TIME].to_numpy(),
+            ])
+            time = transforms[TIME].transform(time).numpy()
+            sample["encoder_input"][TIME] = time[:encoder_len]
+            sample["decoder_input"][TIME] = time[encoder_len:]
+        else:
+            # transform time for encoder only
+            sample["encoder_input"][TIME] = (
+                transforms[TIME]
+                .transform(sample["encoder_input"][TIME].to_numpy())
+                .numpy()
+            )
+    else:
+        # transform time for decoder only
+        if decoder and TIME in sample["decoder_input"] and TIME in transforms:
+            sample["decoder_input"][TIME] = (
+                transforms[TIME]
+                .transform(sample["decoder_input"][TIME].to_numpy())
+                .numpy()
+            )
 
     return sample
