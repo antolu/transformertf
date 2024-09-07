@@ -35,3 +35,4 @@ repos:
       - id: mypy
         additional_dependencies:
           - "numpy>=1.21, <2"
+          - "pandas-stubs >= 1.2.0"
