@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import abc
 import logging
 import os
 import threading
@@ -15,6 +16,10 @@ from transformertf.data.datamodule import DataModuleBase
 from transformertf.models import LightningModuleBase
 from transformertf.utils import signal
 
+if typing.TYPE_CHECKING:
+    SameType = typing.TypeVar("SameType", bound="BasePredictor")
+
+
 I_PROG_COLNAME = "I_meas_A_filtered"
 I_PROG_DOT_COLNAME = "I_meas_A_filtered_dot"
 
@@ -28,7 +33,9 @@ T_DataModule_co = typing.TypeVar(
 log = logging.getLogger(__name__)
 
 
-class BasePredictor(typing.Generic[T_Module_co, T_DataModule_co]):
+class BasePredictor(
+    typing.Generic[T_Module_co, T_DataModule_co], metaclass=abc.ABCMeta
+):
     """
     Base for all predictors. All predictors should inherit from this class.
 
@@ -171,6 +178,7 @@ class BasePredictor(typing.Generic[T_Module_co, T_DataModule_co]):
             self._module = self._fabric.setup(self._module)
             self._module.eval()  # type: ignore[union-attr]
 
+    @abc.abstractmethod
     def set_initial_state(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         """
         Set the initial state of the model. This method should be
@@ -189,6 +197,7 @@ class BasePredictor(typing.Generic[T_Module_co, T_DataModule_co]):
         """
         raise NotImplementedError
 
+    @abc.abstractmethod
     def reset_state(self) -> None:
         """
         Reset the state of the model. This method should be implemented by
@@ -196,6 +205,7 @@ class BasePredictor(typing.Generic[T_Module_co, T_DataModule_co]):
         """
         raise NotImplementedError
 
+    @abc.abstractmethod
     def set_cycled_initial_state(
         self,
         cycles: list[CycleData],
@@ -226,6 +236,7 @@ class BasePredictor(typing.Generic[T_Module_co, T_DataModule_co]):
         """
         raise NotImplementedError
 
+    @abc.abstractmethod
     def predict(
         self,
         future_covariates: pd.DataFrame,
@@ -257,6 +268,7 @@ class BasePredictor(typing.Generic[T_Module_co, T_DataModule_co]):
         """
         raise NotImplementedError
 
+    @abc.abstractmethod
     def predict_cycle(
         self,
         cycle: CycleData,
@@ -308,6 +320,10 @@ class BasePredictor(typing.Generic[T_Module_co, T_DataModule_co]):
         """
         Predict the field for the last cycle in the given data.
 
+        Uses the :meth:`set_cycled_initial_state` method to set the initial
+        state of the model, and then uses the :meth:`predict_cycle` method
+        to make the prediction.
+
         Parameters
         ----------
         cycle_data : list[CycleData]
@@ -328,8 +344,9 @@ class BasePredictor(typing.Generic[T_Module_co, T_DataModule_co]):
         Returns
         -------
         np.ndarray
-            The predicted field of the last cycle. Will be interpolated
-            to the same time axis as the input.
+            The predicted field of the last cycle. Does not necessarily have the same
+            length as the measured field, and may have to be interpolated to match the
+            length of the measurements.
 
         Raises
         ------
@@ -351,9 +368,10 @@ class BasePredictor(typing.Generic[T_Module_co, T_DataModule_co]):
 
     @classmethod
     def load_from_checkpoint(
-        cls: type[BasePredictor[T_Module_co, T_DataModule_co]],
+        cls: type[SameType],
         checkpoint_path: str | os.PathLike,
-    ) -> BasePredictor[T_Module_co, T_DataModule_co]:
+        device: typing.Literal["cpu", "cuda", "auto"] = "auto",
+    ) -> SameType:
         """
         Load a predictor from a checkpoint file.
 
@@ -369,8 +387,12 @@ class BasePredictor(typing.Generic[T_Module_co, T_DataModule_co]):
         BasePredictor
             Predictor loaded from the checkpoint file.
         """
-        raise NotImplementedError
+        predictor = cls(device=device)
+        predictor.load_checkpoint(checkpoint_path)
 
+        return predictor
+
+    @abc.abstractmethod
     def load_checkpoint(self, checkpoint_path: str | os.PathLike) -> None:
         """
         Load a checkpoint from disk.

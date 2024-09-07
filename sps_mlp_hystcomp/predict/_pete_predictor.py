@@ -14,7 +14,7 @@ from transformertf.data.dataset import EncoderDecoderDataset
 from transformertf.models.pete import PETE
 from transformertf.utils import ops
 
-from ._base_predictor import BasePredictor, T_DataModule_co, T_Module_co
+from ._base_predictor import BasePredictor
 
 HiddenState = tuple[torch.Tensor, torch.Tensor]
 
@@ -256,17 +256,6 @@ class PETEPredictor(BasePredictor):
                 "Use the set_initial_state method."
             )
             raise ValueError(msg)
-
-    @classmethod
-    def load_from_checkpoint(
-        cls: type[BasePredictor[T_Module_co, T_DataModule_co]],
-        checkpoint_path: str | os.PathLike,
-        device: typing.Literal["cpu", "cuda", "auto"] = "auto",
-    ) -> BasePredictor[T_Module_co, T_DataModule_co]:
-        predictor = cls(device=device)
-        predictor.load_checkpoint(checkpoint_path)
-
-        return predictor
 
     def load_checkpoint(self, checkpoint_path: str | os.PathLike) -> None:
         self._module = PETE.load_from_checkpoint(checkpoint_path)
