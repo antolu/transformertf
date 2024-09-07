@@ -46,6 +46,7 @@ class PredictorHooks:
 
 
 class PredictorABC(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
     def _set_initial_state_impl(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         """
         Set the initial state of the model. The method should be implemented by
