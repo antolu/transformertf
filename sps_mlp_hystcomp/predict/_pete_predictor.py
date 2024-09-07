@@ -15,7 +15,7 @@ from transformertf.data.dataset import EncoderDecoderDataset
 from transformertf.models.pete import PETE
 from transformertf.utils import ops
 
-from ._base_predictor import BasePredictor
+from ._base_predictor import Predictor
 
 if sys.version_info >= (3, 12):
     from typing import override
@@ -27,7 +27,7 @@ HiddenState = tuple[torch.Tensor, torch.Tensor]
 log = logging.getLogger(__name__)
 
 
-class PETEPredictor(BasePredictor):
+class PETEPredictor(Predictor):
     _module: PETE
     _datamodule: EncoderDecoderDataModule
 
@@ -37,7 +37,7 @@ class PETEPredictor(BasePredictor):
         self.state: HiddenState | None = None
 
     @override
-    def set_initial_state(
+    def _set_initial_state_impl(
         self,
         initial_state: tuple[npt.NDArray[np.float32], npt.NDArray[np.float32]]
         | tuple[torch.Tensor, torch.Tensor]
@@ -80,10 +80,6 @@ class PETEPredictor(BasePredictor):
         else:
             msg = "Either initial_state or initial_state_path must be provided."
             raise ValueError(msg)
-
-    @override
-    def reset_state(self) -> None:
-        self.state = None
 
     def _fit_initial_state(
         self,
@@ -133,7 +129,7 @@ class PETEPredictor(BasePredictor):
         return df
 
     @override
-    def predict(
+    def _predict_impl(
         self,
         future_covariates: pd.DataFrame,
         *args: typing.Any,
@@ -193,7 +189,7 @@ class PETEPredictor(BasePredictor):
         return prediction.numpy().astype(np.float64)
 
     @override
-    def predict_cycle(
+    def _predict_cycle_impl(
         self,
         cycle: CycleData,
         *args: typing.Any,
@@ -201,7 +197,7 @@ class PETEPredictor(BasePredictor):
         use_programmed_current: bool = True,
         **kwargs: typing.Any,
     ) -> npt.NDArray[np.float64]:
-        future_covariates = BasePredictor.buffer_to_covariates(
+        future_covariates = Predictor.buffer_to_covariates(
             [cycle],
             use_programmed_current=use_programmed_current,
             add_target=False,

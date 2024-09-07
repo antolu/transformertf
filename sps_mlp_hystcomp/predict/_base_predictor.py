@@ -17,11 +17,12 @@ from transformertf.models import LightningModuleBase
 from transformertf.utils import signal
 
 if typing.TYPE_CHECKING:
-    SameType = typing.TypeVar("SameType", bound="BasePredictor")
+    SameType = typing.TypeVar("SameType", bound="Predictor")
 
 
 I_PROG_COLNAME = "I_meas_A_filtered"
 I_PROG_DOT_COLNAME = "I_meas_A_filtered_dot"
+TARGET_COLNAME = "B_meas_T_filtered"
 
 
 T_Module_co = typing.TypeVar("T_Module_co", bound=LightningModuleBase, covariant=True)
@@ -33,8 +34,164 @@ T_DataModule_co = typing.TypeVar(
 log = logging.getLogger(__name__)
 
 
-class BasePredictor(
-    typing.Generic[T_Module_co, T_DataModule_co], metaclass=abc.ABCMeta
+class PredictorHooks:
+    def on_before_predict(self) -> None:
+        pass
+
+    def on_after_predict(self) -> None:
+        pass
+
+    def on_after_load_checkpoint(self) -> None:
+        pass
+
+
+class PredictorABC(metaclass=abc.ABCMeta):
+    def _set_initial_state_impl(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+        """
+        Set the initial state of the model. The method should be implemented by
+        subclasses.
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _predict_impl(
+        self,
+        future_covariates: pd.DataFrame,
+        *args: typing.Any,
+        save_state: bool = True,
+        **kwargs: typing.Any,
+    ) -> npt.NDArray[np.float64]:
+        """
+        Predict the next value. The method should be implemented by
+        subclasses and update the internal state of the model for the
+        next prediction.
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _predict_cycle_impl(
+        self,
+        cycle: CycleData,
+        *args: typing.Any,
+        save_state: bool = True,
+        use_programmed_current: bool = True,
+        **kwargs: typing.Any,
+    ) -> npt.NDArray[np.float64]:
+        """
+        Predict the next value. The method should be implemented by
+        subclasses and update the internal state of the model for the
+        next prediction.
+
+        Parameters
+        ----------
+        cycle : CycleData
+            Cycle to use for prediction
+        save_state : bool
+            Whether to save the state of the model after making the
+            prediction, by default True. This is required when making an autoregressive
+            prediction.
+        use_programmed_current : bool
+            Whether to use the programmed current, by default True. If false,
+            measured current will be used instead.
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _load_checkpoint_impl(self, checkpoint_path: str | os.PathLike) -> None:
+        """
+        Load a checkpoint from disk.
+
+        Parameters
+        ----------
+        checkpoint_path : str | os.PathLike
+            Path to the checkpoint file.
+        """
+        raise NotImplementedError
+
+
+class PredictorUtils:
+    @staticmethod
+    def buffer_to_covariates(
+        buffer: list[CycleData],
+        *,
+        use_programmed_current: bool = True,
+        add_target: bool = True,
+    ) -> pd.DataFrame:
+        """
+        Convert a buffer of cycles to covariates for the model.
+        """
+        if len(buffer) == 0:
+            msg = "Buffer must contain at least one cycle."
+            raise ValueError(msg)
+
+        if use_programmed_current:
+            covariates = make_prog_base_covariates(buffer)
+        else:
+            covariates = make_meas_base_covariates(buffer)
+
+        if add_target:
+            if all(cycle.field_meas is not None for cycle in buffer):
+                b_meas = np.concatenate(
+                    [cycle.field_meas.flatten() for cycle in buffer]
+                )
+                b_meas = filter_bmeas(b_meas)
+
+                covariates["__target__"] = b_meas
+            else:
+                msg = "Buffer must contain field measurements to add target."
+                raise ValueError(msg)
+
+        return covariates
+
+    @staticmethod
+    def chain_programs(
+        *programs: tuple[np.ndarray, np.ndarray],
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Chain multiple LSA programs, shaped (2, N), into a single program.
+
+        This requires shifting the time of each program so that the end of one
+        program is the start of the next program.
+        """
+        if len(programs) < 2:
+            msg = "Must provide at least two programs to chain."
+            raise ValueError(msg)
+
+        program = [programs[0]]
+
+        for p in programs[1:]:
+            # shift the time of the program so that the end of the previous program
+            # is the start of the current program
+            p = (p[0] + program[-1][0][-1], p[1])
+            program.append((p[0][1:], p[1][1:]))
+
+        return (
+            np.concatenate([p[0] for p in program], axis=-1).astype(np.float64),
+            np.concatenate([p[1] for p in program], axis=-1).astype(np.float64),
+        )
+
+    @staticmethod
+    def interpolate_program(
+        program: tuple[np.ndarray, np.ndarray],
+        fs: float = 1e3,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Interpolate a program to a new time array.
+        """
+        time_s, value = program
+        time_interp = np.arange(time_s[0], time_s[-1], 1 / fs)
+
+        value_interp = np.interp(time_interp, time_s, value)
+
+        return time_interp, value_interp
+
+
+class Predictor(
+    PredictorHooks,
+    PredictorUtils,
+    PredictorABC,
+    typing.Generic[T_Module_co, T_DataModule_co],
+    metaclass=abc.ABCMeta,
 ):
     """
     Base for all predictors. All predictors should inherit from this class.
@@ -178,11 +335,9 @@ class BasePredictor(
             self._module = self._fabric.setup(self._module)
             self._module.eval()  # type: ignore[union-attr]
 
-    @abc.abstractmethod
     def set_initial_state(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         """
-        Set the initial state of the model. This method should be
-        implemented by subclasses.
+        Set the initial state of the model.
 
         Parameters
         ----------
@@ -195,15 +350,13 @@ class BasePredictor(
         -------
         None
         """
-        raise NotImplementedError
+        self._set_initial_state_impl(*args, **kwargs)
 
-    @abc.abstractmethod
     def reset_state(self) -> None:
         """
-        Reset the state of the model. This method should be implemented by
-        subclasses.
+        Reset the state of the model. By default, this method sets the state to None.
         """
-        raise NotImplementedError
+        self.state = None
 
     def set_cycled_initial_state(
         self,
@@ -233,7 +386,7 @@ class BasePredictor(
         -------
         None
         """
-        past_covariates = BasePredictor.buffer_to_covariates(
+        past_covariates = Predictor.buffer_to_covariates(
             cycles[:-1],
             use_programmed_current=use_programmed_current,
         )
@@ -246,7 +399,6 @@ class BasePredictor(
             **kwargs,
         )
 
-    @abc.abstractmethod
     def predict(
         self,
         future_covariates: pd.DataFrame,
@@ -255,9 +407,7 @@ class BasePredictor(
         **kwargs: typing.Any,
     ) -> npt.NDArray[np.float64]:
         """
-        Predict the next value. The method should be implemented by
-        subclasses and update the internal state of the model for the
-        next prediction.
+        Predict the next value.
 
         Parameters
         ----------
@@ -276,9 +426,14 @@ class BasePredictor(
         np.ndarray
             Prediction of shape [n_points]
         """
-        raise NotImplementedError
+        self.on_before_predict()
+        prediction = self._predict_impl(
+            future_covariates, *args, save_state=save_state, **kwargs
+        )
+        self.on_after_predict()
 
-    @abc.abstractmethod
+        return prediction
+
     def predict_cycle(
         self,
         cycle: CycleData,
@@ -316,7 +471,13 @@ class BasePredictor(
         RuntimeError
             If the initial state has not been set.
         """
-        raise NotImplementedError
+        return self._predict_cycle_impl(
+            cycle,
+            *args,
+            save_state=save_state,
+            use_programmed_current=use_programmed_current,
+            **kwargs,
+        )
 
     def predict_last_cycle(
         self,
@@ -394,11 +555,11 @@ class BasePredictor(
 
         Returns
         -------
-        BasePredictor
+        Predictor
             Predictor loaded from the checkpoint file.
         """
         predictor = cls(device=device)
-        predictor.load_from_checkpoint(checkpoint_path)
+        predictor.load_checkpoint(checkpoint_path)
 
         return predictor
 
@@ -420,106 +581,8 @@ class BasePredictor(
         None
         """
         self._load_checkpoint_impl(checkpoint_path)
-        self.on_after_load_checkpoint()
-
-    @abc.abstractmethod
-    def _load_checkpoint_impl(self, checkpoint_path: str | os.PathLike) -> None:
-        """
-        Load a checkpoint from disk.
-
-        Parameters
-        ----------
-        checkpoint_path : str | os.PathLike
-            Path to the checkpoint file.
-
-        Returns
-        -------
-        None
-        """
-        raise NotImplementedError
-
-    def on_after_load_checkpoint(self) -> None:
-        """
-        Callback to run after loading a checkpoint. By default, this method
-        reconfigures the module with the current device with Lightning Fabric.
-
-        Returns
-        -------
-        None
-        """
         self._reconfigure_module()
-
-    @staticmethod
-    def buffer_to_covariates(
-        buffer: list[CycleData],
-        *,
-        use_programmed_current: bool = True,
-        add_target: bool = True,
-    ) -> pd.DataFrame:
-        if len(buffer) == 0:
-            msg = "Buffer must contain at least one cycle."
-            raise ValueError(msg)
-
-        if use_programmed_current:
-            covariates = make_prog_base_covariates(buffer)
-        else:
-            covariates = make_meas_base_covariates(buffer)
-
-        if add_target:
-            if all(cycle.field_meas is not None for cycle in buffer):
-                b_meas = np.concatenate(
-                    [cycle.field_meas.flatten() for cycle in buffer]
-                )
-                b_meas = filter_bmeas(b_meas)
-
-                covariates["__target__"] = b_meas
-            else:
-                msg = "Buffer must contain field measurements to add target."
-                raise ValueError(msg)
-
-        return covariates
-
-    @staticmethod
-    def chain_programs(
-        *programs: tuple[np.ndarray, np.ndarray],
-    ) -> tuple[np.ndarray, np.ndarray]:
-        """
-        Chain multiple LSA programs, shaped (2, N), into a single program.
-
-        This requires shifting the time of each program so that the end of one
-        program is the start of the next program.
-        """
-        if len(programs) < 2:
-            msg = "Must provide at least two programs to chain."
-            raise ValueError(msg)
-
-        program = [programs[0]]
-
-        for p in programs[1:]:
-            # shift the time of the program so that the end of the previous program
-            # is the start of the current program
-            p = (p[0] + program[-1][0][-1], p[1])
-            program.append((p[0][1:], p[1][1:]))
-
-        return (
-            np.concatenate([p[0] for p in program], axis=-1).astype(np.float64),
-            np.concatenate([p[1] for p in program], axis=-1).astype(np.float64),
-        )
-
-    @staticmethod
-    def interpolate_program(
-        program: tuple[np.ndarray, np.ndarray],
-        fs: float = 1e3,
-    ) -> tuple[np.ndarray, np.ndarray]:
-        """
-        Interpolate a program to a new time array.
-        """
-        time_s, value = program
-        time_interp = np.arange(time_s[0], time_s[-1], 1 / fs)
-
-        value_interp = np.interp(time_interp, time_s, value)
-
-        return time_interp, value_interp
+        self.on_after_load_checkpoint()
 
 
 def make_prog_base_covariates(
@@ -544,10 +607,8 @@ def make_prog_base_covariates(
     if len(buffers) == 1:
         i_prog_2d = buffers[0].current_prog
     else:
-        i_prog_2d = BasePredictor.chain_programs(
-            *[cycle.current_prog for cycle in buffers]
-        )
-    t_prog, i_prog = BasePredictor.interpolate_program(i_prog_2d, fs=1)
+        i_prog_2d = Predictor.chain_programs(*[cycle.current_prog for cycle in buffers])
+    t_prog, i_prog = Predictor.interpolate_program(i_prog_2d, fs=1)
     t_prog /= 1e3
 
     # NB: we are using the programmed current, which is noise-free
