@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 import typing
 
 import numpy as np
@@ -15,6 +16,11 @@ from transformertf.models.pete import PETE
 from transformertf.utils import ops
 
 from ._base_predictor import BasePredictor
+
+if sys.version_info >= (3, 12):
+    from typing import override
+else:
+    from typing_extensions import override
 
 HiddenState = tuple[torch.Tensor, torch.Tensor]
 
@@ -30,6 +36,7 @@ class PETEPredictor(BasePredictor):
 
         self.state: HiddenState | None = None
 
+    @override
     def set_initial_state(
         self,
         initial_state: tuple[npt.NDArray[np.float32], npt.NDArray[np.float32]]
@@ -46,7 +53,7 @@ class PETEPredictor(BasePredictor):
                 torch.tensor(initial_state[1]),
             )
 
-            self._initial_state = initial_state
+            self.state = initial_state
         elif initial_state_path is not None:
             # load from file
             initial_state_ = torch.load(initial_state_path)
@@ -74,9 +81,11 @@ class PETEPredictor(BasePredictor):
             msg = "Either initial_state or initial_state_path must be provided."
             raise ValueError(msg)
 
+    @override
     def reset_state(self) -> None:
         self.state = None
 
+    @override
     def set_cycled_initial_state(
         self,
         cycles: list[CycleData],
@@ -144,6 +153,7 @@ class PETEPredictor(BasePredictor):
 
         return df
 
+    @override
     def predict(
         self,
         future_covariates: pd.DataFrame,
@@ -203,6 +213,7 @@ class PETEPredictor(BasePredictor):
 
         return prediction.numpy().astype(np.float64)
 
+    @override
     def predict_cycle(
         self,
         cycle: CycleData,
@@ -225,30 +236,6 @@ class PETEPredictor(BasePredictor):
 
         return np.vstack((time, prediction))
 
-    def predict_last_cycle(
-        self,
-        cycle_data: list[CycleData],
-        *args: typing.Any,
-        save_state: bool = True,
-        autoregressive: bool = False,
-        use_programmed_current: bool = True,
-        **kwargs: typing.Any,
-    ) -> npt.NDArray[np.float64]:
-        if autoregressive or self.state is None:
-            self.set_initial_state(
-                past_covariates=BasePredictor.buffer_to_covariates(
-                    cycle_data[:-1],
-                    use_programmed_current=use_programmed_current,
-                ),
-            )
-
-        return self.predict_cycle(
-            cycle_data[-1],
-            save_state=save_state,
-            use_programmed_current=use_programmed_current,
-            **kwargs,
-        )
-
     def _check_state(self) -> None:
         if self.state is None:
             msg = (
@@ -257,6 +244,7 @@ class PETEPredictor(BasePredictor):
             )
             raise ValueError(msg)
 
+    @override
     def load_checkpoint(self, checkpoint_path: str | os.PathLike) -> None:
         self._module = PETE.load_from_checkpoint(checkpoint_path)
         self._datamodule = EncoderDecoderDataModule.load_from_checkpoint(
