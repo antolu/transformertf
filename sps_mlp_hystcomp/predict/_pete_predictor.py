@@ -85,27 +85,6 @@ class PETEPredictor(BasePredictor):
     def reset_state(self) -> None:
         self.state = None
 
-    @override
-    def set_cycled_initial_state(
-        self,
-        cycles: list[CycleData],
-        *args: typing.Any,
-        use_programmed_current: bool = True,
-        **kwargs: typing.Any,
-    ) -> None:
-        past_covariates = BasePredictor.buffer_to_covariates(
-            cycles[:-1],
-            use_programmed_current=use_programmed_current,
-        )
-        past_targets = past_covariates.pop("__target__").to_numpy()
-
-        self.set_initial_state(
-            *args,
-            past_covariates=past_covariates,  # type: ignore[misc]
-            past_targets=past_targets,  # type: ignore[misc]
-            **kwargs,
-        )
-
     def _fit_initial_state(
         self,
         past_covariates: pd.DataFrame,

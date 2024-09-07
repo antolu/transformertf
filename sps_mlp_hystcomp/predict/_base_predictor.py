@@ -205,7 +205,6 @@ class BasePredictor(
         """
         raise NotImplementedError
 
-    @abc.abstractmethod
     def set_cycled_initial_state(
         self,
         cycles: list[CycleData],
@@ -234,7 +233,18 @@ class BasePredictor(
         -------
         None
         """
-        raise NotImplementedError
+        past_covariates = BasePredictor.buffer_to_covariates(
+            cycles[:-1],
+            use_programmed_current=use_programmed_current,
+        )
+        past_targets = past_covariates.pop("__target__").to_numpy()
+
+        self.set_initial_state(
+            *args,
+            past_covariates=past_covariates,  # type: ignore[misc]
+            past_targets=past_targets,  # type: ignore[misc]
+            **kwargs,
+        )
 
     @abc.abstractmethod
     def predict(
