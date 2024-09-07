@@ -6,7 +6,6 @@ docs/html/
 # torch
 lightning_logs/
 *.pth
-*.ckpt
 
 ### C++ ###
 # Prerequisites
