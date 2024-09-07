@@ -224,10 +224,8 @@ class PETEPredictor(BasePredictor):
             raise ValueError(msg)
 
     @override
-    def load_checkpoint(self, checkpoint_path: str | os.PathLike) -> None:
+    def _load_checkpoint_impl(self, checkpoint_path: str | os.PathLike) -> None:
         self._module = PETE.load_from_checkpoint(checkpoint_path)
         self._datamodule = EncoderDecoderDataModule.load_from_checkpoint(
             checkpoint_path
         )
-
-        self._reconfigure_module()

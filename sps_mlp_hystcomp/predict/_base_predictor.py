@@ -398,12 +398,32 @@ class BasePredictor(
             Predictor loaded from the checkpoint file.
         """
         predictor = cls(device=device)
-        predictor.load_checkpoint(checkpoint_path)
+        predictor.load_from_checkpoint(checkpoint_path)
 
         return predictor
 
+    def load_checkpoint(
+        self,
+        checkpoint_path: str | os.PathLike,
+    ) -> None:
+        """
+        Load a checkpoint from disk and run the :meth:`on_after_load_checkpoint`
+        method.
+
+        Parameters
+        ----------
+        checkpoint_path : str | os.PathLike
+            Path to the checkpoint file.
+
+        Returns
+        -------
+        None
+        """
+        self._load_checkpoint_impl(checkpoint_path)
+        self.on_after_load_checkpoint()
+
     @abc.abstractmethod
-    def load_checkpoint(self, checkpoint_path: str | os.PathLike) -> None:
+    def _load_checkpoint_impl(self, checkpoint_path: str | os.PathLike) -> None:
         """
         Load a checkpoint from disk.
 
@@ -417,6 +437,17 @@ class BasePredictor(
         None
         """
         raise NotImplementedError
+
+    def on_after_load_checkpoint(self) -> None:
+        """
+        Callback to run after loading a checkpoint. By default, this method
+        reconfigures the module with the current device with Lightning Fabric.
+
+        Returns
+        -------
+        None
+        """
+        self._reconfigure_module()
 
     @staticmethod
     def buffer_to_covariates(
