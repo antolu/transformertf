@@ -15,7 +15,7 @@ from transformertf.data.dataset import EncoderDecoderDataset
 from transformertf.models.pete import PETE
 from transformertf.utils import ops
 
-from ._base_predictor import Predictor
+from ._base_predictor import NoInitialStateError, Predictor
 
 if sys.version_info >= (3, 12):
     from typing import override
@@ -46,6 +46,22 @@ class PETEPredictor(Predictor):
         past_covariates: pd.DataFrame | None = None,
         past_targets: pd.DataFrame | np.ndarray | None = None,
     ) -> None:
+        """
+        Set the initial state of the model. The initial state can be provided as a
+        tuple of numpy arrays, a tuple of torch tensors, a path to a file containing
+        the initial state, or as past covariates and targets to fit the initial state.
+
+        Parameters
+        ----------
+        initial_state : tuple[npt.NDArray[np.float32], npt.NDArray[np.float32]] | tuple[torch.Tensor, torch.Tensor] | None
+            Initial state of the model. The tuple should contain the hidden and cell states.
+        initial_state_path : str | os.PathLike | None
+            Path to a file containing the initial state.
+        past_covariates : pd.DataFrame | None
+            Past covariates to fit the initial state.
+        past_targets : pd.DataFrame | np.ndarray | None
+            Past targets to fit the initial state.
+        """
         if initial_state is not None:
             # convert to torch tensor
             initial_state = (
@@ -138,8 +154,10 @@ class PETEPredictor(Predictor):
     ) -> npt.NDArray[np.float64]:
         self._check_state()
 
+        # transform input
         preprocessed_df = self.preprocess_df(future_covariates, seq_len=None)
 
+        # make sample
         sample = EncoderDecoderDataset.make_decoder_input(
             preprocessed_df,
             seq_len=None,
@@ -151,6 +169,7 @@ class PETEPredictor(Predictor):
         ]
         x = ops.to(x, self._module.device)
 
+        # predict
         with torch.no_grad():
             prediction, state = self._module.bwlstm1(
                 x,
@@ -162,6 +181,7 @@ class PETEPredictor(Predictor):
 
             prediction = prediction["z"][..., 0].squeeze().detach().cpu()
 
+        # inverse transform output
         target_transform = self._datamodule.target_transform
 
         # inverse transform
@@ -217,7 +237,7 @@ class PETEPredictor(Predictor):
                 "Initial state must be set before making predictions. "
                 "Use the set_initial_state method."
             )
-            raise ValueError(msg)
+            raise NoInitialStateError(msg)
 
     @override
     def _load_checkpoint_impl(self, checkpoint_path: str | os.PathLike) -> None:
