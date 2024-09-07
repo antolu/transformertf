@@ -25,7 +25,7 @@ repos:
     rev: "v0.6.4"
     hooks:
       - id: ruff
-        args: [--fix, --exit-non-zero-on-fix]
+        args: [--fix, --exit-non-zero-on-fix, --unsafe-fixes, --preview]
         exclude: "^docs/source/conf.py$"
       - id: ruff-format
         exclude: "^docs/source/conf.py$"
