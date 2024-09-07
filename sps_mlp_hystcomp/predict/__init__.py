@@ -1,8 +1,8 @@
 from .._mod_replace import replace_modname
+from ._base_predictor import BasePredictor
 from ._pete_predictor import PETEPredictor
-from ._predictor_base import PredictorBase
 
-for _mod in (PredictorBase, PETEPredictor):
+for _mod in (BasePredictor, PETEPredictor):
     replace_modname(_mod, __name__)
 
 

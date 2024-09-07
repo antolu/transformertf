@@ -28,7 +28,7 @@ T_DataModule_co = typing.TypeVar(
 log = logging.getLogger(__name__)
 
 
-class PredictorBase(typing.Generic[T_Module_co, T_DataModule_co]):
+class BasePredictor(typing.Generic[T_Module_co, T_DataModule_co]):
     """
     Base for all predictors. All predictors should inherit from this class.
 
@@ -190,6 +190,10 @@ class PredictorBase(typing.Generic[T_Module_co, T_DataModule_co]):
         raise NotImplementedError
 
     def reset_state(self) -> None:
+        """
+        Reset the state of the model. This method should be implemented by
+        subclasses.
+        """
         raise NotImplementedError
 
     def set_cycled_initial_state(
@@ -205,8 +209,14 @@ class PredictorBase(typing.Generic[T_Module_co, T_DataModule_co]):
 
         Parameters
         ----------
+        cycles : list[CycleData]
+            Cycles to use for setting the initial state. Not all cycles may be used
+            if the context length is shorter than the number of cycles.
         *args
             Positional arguments.
+        use_programmed_current : bool
+            Whether to use the programmed current, by default True. If false, measured
+            current will be used instead.
         **kwargs
             Keyword arguments.
 
@@ -341,9 +351,9 @@ class PredictorBase(typing.Generic[T_Module_co, T_DataModule_co]):
 
     @classmethod
     def load_from_checkpoint(
-        cls: type[PredictorBase[T_Module_co, T_DataModule_co]],
+        cls: type[BasePredictor[T_Module_co, T_DataModule_co]],
         checkpoint_path: str | os.PathLike,
-    ) -> PredictorBase[T_Module_co, T_DataModule_co]:
+    ) -> BasePredictor[T_Module_co, T_DataModule_co]:
         """
         Load a predictor from a checkpoint file.
 
@@ -356,7 +366,7 @@ class PredictorBase(typing.Generic[T_Module_co, T_DataModule_co]):
 
         Returns
         -------
-        PredictorBase
+        BasePredictor
             Predictor loaded from the checkpoint file.
         """
         raise NotImplementedError
@@ -471,10 +481,10 @@ def make_prog_base_covariates(
     if len(buffers) == 1:
         i_prog_2d = buffers[0].current_prog
     else:
-        i_prog_2d = PredictorBase.chain_programs(
+        i_prog_2d = BasePredictor.chain_programs(
             *[cycle.current_prog for cycle in buffers]
         )
-    t_prog, i_prog = PredictorBase.interpolate_program(i_prog_2d, fs=1)
+    t_prog, i_prog = BasePredictor.interpolate_program(i_prog_2d, fs=1)
     t_prog /= 1e3
 
     # NB: we are using the programmed current, which is noise-free

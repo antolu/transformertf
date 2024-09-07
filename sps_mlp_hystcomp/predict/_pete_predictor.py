@@ -14,14 +14,14 @@ from transformertf.data.dataset import EncoderDecoderDataset
 from transformertf.models.pete import PETE
 from transformertf.utils import ops
 
-from ._predictor_base import PredictorBase, T_DataModule_co, T_Module_co
+from ._base_predictor import BasePredictor, T_DataModule_co, T_Module_co
 
 HiddenState = tuple[torch.Tensor, torch.Tensor]
 
 log = logging.getLogger(__name__)
 
 
-class PETEPredictor(PredictorBase):
+class PETEPredictor(BasePredictor):
     _module: PETE
     _datamodule: EncoderDecoderDataModule
 
@@ -84,7 +84,7 @@ class PETEPredictor(PredictorBase):
         use_programmed_current: bool = True,
         **kwargs: typing.Any,
     ) -> None:
-        past_covariates = PredictorBase.buffer_to_covariates(
+        past_covariates = BasePredictor.buffer_to_covariates(
             cycles[:-1],
             use_programmed_current=use_programmed_current,
         )
@@ -211,7 +211,7 @@ class PETEPredictor(PredictorBase):
         use_programmed_current: bool = True,
         **kwargs: typing.Any,
     ) -> npt.NDArray[np.float64]:
-        future_covariates = PredictorBase.buffer_to_covariates(
+        future_covariates = BasePredictor.buffer_to_covariates(
             [cycle],
             use_programmed_current=use_programmed_current,
             add_target=False,
@@ -236,7 +236,7 @@ class PETEPredictor(PredictorBase):
     ) -> npt.NDArray[np.float64]:
         if autoregressive or self.state is None:
             self.set_initial_state(
-                past_covariates=PredictorBase.buffer_to_covariates(
+                past_covariates=BasePredictor.buffer_to_covariates(
                     cycle_data[:-1],
                     use_programmed_current=use_programmed_current,
                 ),
@@ -259,10 +259,10 @@ class PETEPredictor(PredictorBase):
 
     @classmethod
     def load_from_checkpoint(
-        cls: type[PredictorBase[T_Module_co, T_DataModule_co]],
+        cls: type[BasePredictor[T_Module_co, T_DataModule_co]],
         checkpoint_path: str | os.PathLike,
         device: typing.Literal["cpu", "cuda", "auto"] = "auto",
-    ) -> PredictorBase[T_Module_co, T_DataModule_co]:
+    ) -> BasePredictor[T_Module_co, T_DataModule_co]:
         predictor = cls(device=device)
         predictor.load_checkpoint(checkpoint_path)
 
