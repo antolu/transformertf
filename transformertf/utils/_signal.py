@@ -21,7 +21,7 @@ __all__ = [
 ]
 
 
-@njit
+@njit(cache=True)
 def convolve_PDE(  # noqa: N802
     U: npt.NDArray[np.float64 | np.float32],  # noqa: N803
     sigma: float = 1,
@@ -54,7 +54,7 @@ def convolve_PDE(  # noqa: N802
     return C
 
 
-@njit
+@njit(cache=True)
 def gradient1(x: np.ndarray) -> np.ndarray:
     """
     Calculate the first order gradient for an array, excluding the edge values.
@@ -66,7 +66,7 @@ def gradient1(x: np.ndarray) -> np.ndarray:
     return (x[2:] - x[:-2]) / 2
 
 
-@njit
+@njit(cache=True)
 def gradient2(x: np.ndarray) -> np.ndarray:
     """
     Calculate the second order gradient for an array, excluding the edge values.
@@ -158,7 +158,7 @@ def butter_lowpass_filter(
     return signal.sosfiltfilt(sos, data)
 
 
-@njit
+@njit(cache=True)
 def mean_filter(
     value: np.ndarray,
     window_size: int = 10,

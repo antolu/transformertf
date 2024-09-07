@@ -12,13 +12,12 @@ from transformertf.models.bwlstm import (
     BWLSTM3,
 )
 
-from ....conftest import FIELD
-
 
 def test_phylstm_forward_pass(
     bouc_wen_module: BWLSTM3,
     bouc_wen_datamodule: TimeSeriesDataModule,
     df: pd.DataFrame,
+    field_key: str,
 ) -> None:
     bouc_wen_datamodule.prepare_data()
     bouc_wen_datamodule.setup()
@@ -68,7 +67,7 @@ def test_phylstm_forward_pass(
         assert key in outputs
 
     # predict
-    df = df.copy().drop(columns=[FIELD])
+    df = df.copy().drop(columns=[field_key])
     dataloader = bouc_wen_datamodule.make_dataloader(df, predict=True)
 
     batch = next(iter(dataloader))

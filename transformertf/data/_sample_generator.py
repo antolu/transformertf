@@ -19,6 +19,7 @@ import torch
 from ._window_generator import WindowGenerator
 
 __all__ = [
+    "DecoderSample",
     "EncoderDecoderSample",
     "EncoderDecoderTargetSample",
     "EncoderSample",
@@ -156,15 +157,18 @@ class EncoderSample(TypedDict, typing.Generic[T]):
     encoder_lengths: NotRequired[T]
 
 
-class EncoderTargetSample(EncoderSample, TargetSample, typing.Generic[T]): ...
-
-
-class EncoderDecoderSample(EncoderSample, typing.Generic[T]):
+class DecoderSample(TypedDict, typing.Generic[T]):
     decoder_input: T
     """ Target sequence input to transformer. Typically should all be zeros. """
     decoder_mask: NotRequired[T]
     """ Target mask. Typically should all be ones. """
     decoder_lengths: NotRequired[T]
+
+
+class EncoderTargetSample(EncoderSample, TargetSample, typing.Generic[T]): ...
+
+
+class EncoderDecoderSample(EncoderSample, DecoderSample, typing.Generic[T]): ...
 
 
 class EncoderDecoderTargetSample(EncoderDecoderSample, TargetSample, typing.Generic[T]):
@@ -252,8 +256,9 @@ class TransformerSampleGenerator(SampleGenerator[EncoderDecoderTargetSample[T]])
 
         decoder_mask = ones_like(dec_in)
         target_mask = ones_like(label)
-        if idx == len(self) - 1 and self._zero_pad:
-            numel_pad = self._window_generator.real_data_len - len(self._input_data)
+
+        numel_pad = len(self._input_data) - self._num_points
+        if idx == len(self) - 1 and self._zero_pad and numel_pad > 0:
             if not isinstance(decoder_mask, pd.DataFrame):
                 decoder_mask[..., -numel_pad:] = 0.0
                 target_mask[..., -numel_pad:] = 0.0

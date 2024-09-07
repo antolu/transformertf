@@ -482,7 +482,7 @@ class BWLSTM2(BWLSTMBase):
         num_layers_ = _parse_tuple_or_int(num_layers, 2)
         n_dim_model_ = _parse_tuple_or_int(n_dim_model, 2)
         if n_dim_fc is None:
-            n_dim_fc_ = tuple([dim // 2 for dim in n_dim_model_])
+            n_dim_fc_ = tuple(dim // 2 for dim in n_dim_model_)
         else:
             n_dim_fc_ = _parse_tuple_or_int(n_dim_fc, 2)
 
@@ -597,7 +597,7 @@ class BWLSTM3(BWLSTMBase):
         n_dim_model_ = _parse_tuple_or_int(n_dim_model, 3)
 
         if n_dim_fc is None:
-            n_dim_fc_ = tuple([dim // 2 for dim in n_dim_model_])
+            n_dim_fc_ = tuple(dim // 2 for dim in n_dim_model_)
         else:
             n_dim_fc_ = _parse_tuple_or_int(n_dim_fc, 3)
         dropout_ = _parse_tuple_or_int(dropout, 3)

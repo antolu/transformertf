@@ -94,7 +94,7 @@ class TransformerDataModule(DataModuleBase):
             distributed=distributed,
         )
 
-        self.save_hyperparameters(ignore=["extra_transforms"])
+        self.save_hyperparameters()
 
         self.hparams["known_covariates"] = _to_list(self.hparams["known_covariates"])
         self.hparams["known_past_covariates"] = (

@@ -168,7 +168,7 @@ class DataModuleBase(L.LightningDataModule):
             be used by distributed training strategies.
         """
         super().__init__()
-        self.save_hyperparameters(ignore=["extra_transforms"])
+        self.save_hyperparameters()
 
         known_covariates = _to_list(known_covariates)
         known_past_covariates = (

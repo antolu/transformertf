@@ -21,6 +21,8 @@ else:
 class PETE(SABWLSTM):
     def __init__(
         self,
+        num_past_features: int = 4,  # I, I_dot, B, target
+        num_future_features: int = 2,
         ctxt_seq_len: int = 100,
         num_layers: int | tuple[int, int, int] = 3,
         n_enc_heads: int = 4,
@@ -76,7 +78,7 @@ class PETE(SABWLSTM):
         compile_model: bool = False,
     ):
         super().__init__(
-            n_features=2,
+            n_features=num_future_features - 1,
             num_layers=num_layers,
             n_dim_model=n_dim_model,
             n_dim_fc=n_dim_fc,
@@ -114,7 +116,7 @@ class PETE(SABWLSTM):
 
         self.encoder = PETEModel(
             seq_len=ctxt_seq_len,
-            num_features=4,
+            num_features=num_past_features,
             n_dim_selection=n_dim_selection,
             n_dim_model=n_dim_model if isinstance(n_dim_model, int) else n_dim_model[0],
             n_heads=n_enc_heads,
@@ -190,9 +192,7 @@ class PETE(SABWLSTM):
             raise ValueError(msg) from e
 
         states = self.encoder(batch["encoder_input"])
-        x = torch.stack(
-            [batch["decoder_input"][..., 0], batch["decoder_input"][..., 2]], dim=-1
-        )
+        x = batch["decoder_input"][..., : self.hparams["num_future_features"] - 1]
         output = self(
             x,
             hx=states["hx"],
@@ -200,7 +200,13 @@ class PETE(SABWLSTM):
             hx3=states["hx3"],
         )
 
-        _, losses = self.criterion(output, target, return_all=True)
+        _, losses = self.criterion(
+            output,
+            target,
+            weights=1.0 / batch["decoder_lengths"],
+            mask=batch["decoder_mask"],
+            return_all=True,
+        )
 
         loss_weights = {
             "weight/alpha": self.criterion.alpha,
@@ -226,9 +232,7 @@ class PETE(SABWLSTM):
         if prev_hidden is None:
             prev_hidden = self.encoder(batch["encoder_input"])
 
-        x = torch.stack(
-            [batch["decoder_input"][..., 0], batch["decoder_input"][..., 2]], dim=-1
-        )
+        x = batch["decoder_input"][..., : self.hparams["num_future_features"] - 1]
         output, states = self(
             x,
             hx=prev_hidden["hx"],
@@ -237,7 +241,13 @@ class PETE(SABWLSTM):
             return_states=True,
         )
 
-        _, losses = self.criterion(output, batch["target"], return_all=True)
+        _, losses = self.criterion(
+            output,
+            batch["target"],
+            weights=1.0 / batch["decoder_lengths"],
+            mask=batch["decoder_mask"],
+            return_all=True,
+        )
 
         # remove batch dimension
         if output["z"].shape[0] == 1:
