@@ -34,6 +34,14 @@ T_DataModule_co = typing.TypeVar(
 log = logging.getLogger(__name__)
 
 
+class NoModelLoadedError(Exception):
+    pass
+
+
+class NoInitialStateError(Exception):
+    pass
+
+
 class PredictorHooks:
     def on_before_predict(self) -> None:
         pass
@@ -351,6 +359,10 @@ class Predictor(
         -------
         None
         """
+        if self._module is None:
+            msg = "No model loaded."
+            raise NoModelLoadedError(msg)
+
         self._set_initial_state_impl(*args, **kwargs)
 
     def reset_state(self) -> None:
@@ -427,6 +439,10 @@ class Predictor(
         np.ndarray
             Prediction of shape [n_points]
         """
+        if self._module is None:
+            msg = "No model loaded."
+            raise NoModelLoadedError(msg)
+
         self.on_before_predict()
         prediction = self._predict_impl(
             future_covariates, *args, save_state=save_state, **kwargs
@@ -537,6 +553,27 @@ class Predictor(
             use_programmed_current=use_programmed_current,
             **kwargs,
         )
+
+    @property
+    def hparams(self) -> dict[str, typing.Any]:
+        """
+        Hyperparameters of the model.
+
+        Returns
+        -------
+        dict[str, Any]
+            Hyperparameters of the model.
+
+        Raises
+        ------
+        NoModelLoadedError
+            If no model is loaded.
+        """
+        if self._module is None or self._datamodule is None:
+            msg = "No model loaded."
+            raise NoModelLoadedError(msg)
+
+        return dict(self._module.hparams) | dict(self._datamodule.hparams)
 
     @classmethod
     def load_from_checkpoint(
