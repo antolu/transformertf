@@ -94,7 +94,7 @@ class TransformerDataModule(DataModuleBase):
             distributed=distributed,
         )
 
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=["extra_transforms"])
 
         self.hparams["known_covariates"] = _to_list(self.hparams["known_covariates"])
         self.hparams["known_past_covariates"] = (
@@ -126,7 +126,9 @@ class TransformerDataModule(DataModuleBase):
             transforms = []
 
         if TIME in self._extra_transforms_source:
-            transforms += self._extra_transforms_source[TIME]
+            transforms += typing.cast(
+                list[BaseTransform], self._extra_transforms_source[TIME]
+            )
 
         self._transforms[TIME] = TransformCollection(*transforms)
 
