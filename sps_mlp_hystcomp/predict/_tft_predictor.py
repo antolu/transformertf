@@ -178,7 +178,15 @@ class TFTPredictor(Predictor):
         self._module.on_predict_end()
 
         outputs_arr = np.concatenate([o.flatten() for o in outputs], axis=0)
-        return outputs_arr[: len(future_covariates)]
+        outputs_arr = outputs_arr[: len(future_covariates)]
+
+        if self.hparams["target_depends_on"] is not None:
+            return self._datamodule.target_transform.inverse_transform(
+                future_covariates[self.hparams["target_depends_on"]].to_numpy(),
+                outputs_arr,
+            ).numpy()
+
+        return self._datamodule.target_transform.inverse_transform(outputs_arr).numpy()
 
     @override
     def _predict_cycle_impl(
