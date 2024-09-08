@@ -208,7 +208,7 @@ class EncoderDecoderPredictDataset(
 
     def append_past_covariates(
         self,
-        past_covariates: np.ndarray | torch.Tensor,
+        past_covariates: np.ndarray | torch.Tensor | pd.DataFrame,
         *,
         transform: bool = False,
     ) -> None:
@@ -217,7 +217,8 @@ class EncoderDecoderPredictDataset(
         between iterations to append the past covariates to the dataset.
         """
         colname = (self._known_past_columns or [])[0]
-        past_covariates = pd.DataFrame({colname: past_covariates})
+        if not isinstance(past_covariates, pd.DataFrame):
+            past_covariates = pd.DataFrame({colname: past_covariates})
         if transform:
             colname = (self._known_past_columns or [])[0]
             past_covariates = _apply_transforms(

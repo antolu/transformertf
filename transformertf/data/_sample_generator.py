@@ -347,6 +347,17 @@ class TransformerPredictionSampleGenerator(SampleGenerator[EncoderDecoderSample[
             else None
         )
 
+        if isinstance(self._covariates, pd.DataFrame):
+            self._covariates = self._covariates.reset_index(drop=True)
+        if isinstance(self._past_target, pd.DataFrame):
+            self._past_target = self._past_target.reset_index(drop=True)
+        if self._known_past_covariates is not None and isinstance(
+            self._known_past_covariates, pd.DataFrame
+        ):
+            self._known_past_covariates = self._known_past_covariates.reset_index(
+                drop=True
+            )
+
     def add_target_context(self, future_target: T) -> None:
         """
         Add future target to the dataset to increase the context length.
@@ -426,11 +437,11 @@ class TransformerPredictionSampleGenerator(SampleGenerator[EncoderDecoderSample[
         src_l.append(to_2dim(self._past_target[src_slice]).copy())
 
         tgt_l = [to_2dim(self._covariates[tgt_slice]).copy()]
-        tgt_slice = slice(
-            0, tgt_slice.stop - tgt_slice.start
-        )  # hack to get the indices
         if isinstance(tgt_l[0], pd.DataFrame):
             tgt_l[0] = tgt_l[0].reset_index(drop=True)
+            tgt_slice = slice(
+                0, tgt_slice.stop - tgt_slice.start
+            )  # hack to get the indices
         if self._known_past_covariates is not None:
             tgt_l.append(to_2dim(zeros_like(self._known_past_covariates[tgt_slice])))
         tgt_l.append(to_2dim(zeros_like(self._past_target[tgt_slice])))
