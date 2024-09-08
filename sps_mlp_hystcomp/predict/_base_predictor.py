@@ -173,7 +173,7 @@ class PredictorUtils:
         if use_programmed_current:
             covariates = make_prog_base_covariates(buffer, interpolate=not rdp)
         else:
-            covariates = make_meas_base_covariates(buffer)
+            covariates = make_meas_base_covariates(buffer, rdp=rdp)
 
         if add_target:
             if all(cycle.field_meas is not None for cycle in buffer):
@@ -444,7 +444,7 @@ class Predictor(
         None
         """
         past_covariates = Predictor.buffer_to_covariates(
-            cycles[:-1],
+            cycles,
             use_programmed_current=use_programmed_current,
         )
         past_targets = past_covariates.pop(TARGET_COLNAME).to_numpy()
@@ -745,6 +745,8 @@ def make_prog_base_covariates(
 
 def make_meas_base_covariates(
     buffers: list[CycleData],
+    *,
+    rdp: bool = False,
 ) -> pd.DataFrame:
     """
     Make the covariates for the base model.
@@ -773,6 +775,14 @@ def make_meas_base_covariates(
     if len(time) != len(i_meas):
         msg = f"Wrong array lengths: {len(time)} != {len(i_meas)}"
         log.error(msg)
+
+    if rdp:
+        prog_covariates = make_prog_base_covariates(buffers, interpolate=False)
+        time_prog = prog_covariates[TIME_COLNAME].to_numpy()
+
+        i_meas_filtered = np.interp(time_prog, time, i_meas_filtered)
+        i_meas_filtered_dot = np.interp(time_prog, time, i_meas_filtered_dot)
+        time = time_prog
 
     return pd.DataFrame(
         {
