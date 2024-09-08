@@ -69,6 +69,7 @@ class RunningNormalizer(BaseTransform):
         num_features_: int = 1,
         center_: torch.Tensor | float = 0.0,
         scale_: torch.Tensor | float = 1.0,
+        n_samples_seen_: torch.Tensor | float = 0,
     ):
         """
         Parameters
@@ -88,11 +89,15 @@ class RunningNormalizer(BaseTransform):
         """
         super().__init__()
 
-        self.num_features_ = num_features_
         center_ += torch.zeros(num_features_, requires_grad=False)
         scale_ += torch.zeros(num_features_, requires_grad=False)
-        n_samples_seen_ = torch.tensor([0], requires_grad=False, dtype=torch.long)
+        n_samples_seen_ += torch.zeros(
+            num_features_, requires_grad=False, dtype=torch.long
+        )
 
+        self.register_buffer(
+            "num_features_", torch.tensor(num_features_, requires_grad=False)
+        )
         self.register_buffer("center_", center_)
         self.register_buffer("scale_", scale_)
         self.register_buffer("n_samples_seen_", n_samples_seen_)
@@ -253,7 +258,7 @@ class RunningNormalizer(BaseTransform):
         self.n_samples_seen_ += n_samples
 
     def __sklearn_is_fitted__(self) -> bool:  # noqa: PLW3201
-        return self.n_samples_seen_.item() > 0
+        return torch.all(self.n_samples_seen_ > 0).item()
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}()"
@@ -263,11 +268,11 @@ class MaxScaler(BaseTransform):
     _transform_type = BaseTransform.TransformType.X
     max_: torch.Tensor
 
-    def __init__(self, num_features_: int = 1):
+    def __init__(self, num_features_: int = 1, max_: torch.Tensor | float = 0.0):
         super().__init__()
         self.num_features_ = num_features_
 
-        max_ = torch.zeros(num_features_, requires_grad=False)
+        max_ += torch.zeros(num_features_, requires_grad=False)
         self.register_buffer("max_", max_)
 
     def forward(self, y: torch.Tensor) -> torch.Tensor:  # type: ignore[has-type]

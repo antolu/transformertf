@@ -68,3 +68,8 @@ def current_cov_key() -> str:
 @pytest.fixture(scope="session")
 def field_cov_key() -> str:
     return target_col(FIELD)
+
+
+@pytest.fixture(scope="session")
+def tmp_dir(tmpdir_factory: pytest.TempdirFactory) -> Path:
+    return Path(tmpdir_factory.mktemp("tmp"))

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import functools
+import importlib
 import logging
 import pathlib
 import shutil
@@ -68,6 +69,16 @@ class TmpDirType(typing.Protocol):
     name: str
 
     def cleanup(self) -> None: ...
+
+
+class ExtraTransformsHparams(typing.TypedDict):
+    """
+    Type definition for the extra transforms hyperparameters.
+    """
+
+    module: str
+    name: str
+    kwargs: dict[str, typing.Any]
 
 
 class DataModuleBase(L.LightningDataModule):
@@ -168,7 +179,7 @@ class DataModuleBase(L.LightningDataModule):
             be used by distributed training strategies.
         """
         super().__init__()
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=["extra_transforms"])
 
         known_covariates = _to_list(known_covariates)
         known_past_covariates = (
@@ -178,8 +189,12 @@ class DataModuleBase(L.LightningDataModule):
         self.hparams["known_covariates"] = known_covariates
         self.hparams["known_past_covariates"] = known_past_covariates
 
-        self._extra_transforms_source = extra_transforms or {}
+        self._extra_transforms_source: typing.Mapping[
+            str, list[BaseTransform] | list[ExtraTransformsHparams]
+        ] = extra_transforms or {}
+        self._patch_extra_transforms_load()
         self._create_transforms()
+        self._patch_extra_transforms_hparams()
 
         self._train_df_pths = _or_empty(train_df_paths)
 
@@ -893,6 +908,7 @@ class DataModuleBase(L.LightningDataModule):
         }
 
         for col, extra_transforms in self._extra_transforms_source.items():
+            extra_transforms = typing.cast(list[BaseTransform], extra_transforms)
             if col == self.hparams["target_covariate"] or col == TIME_PREFIX:
                 continue
             if col not in transforms:
@@ -907,7 +923,10 @@ class DataModuleBase(L.LightningDataModule):
         target_transform = []
         if self.hparams["target_covariate"] in self._extra_transforms_source:
             target_transform.extend(
-                self._extra_transforms_source[self.hparams["target_covariate"]]
+                typing.cast(
+                    list[BaseTransform],
+                    self._extra_transforms_source[self.hparams["target_covariate"]],
+                )
             )
         if self.hparams["normalize"]:
             target_transform.append(StandardScaler(num_features_=1))
@@ -940,6 +959,54 @@ class DataModuleBase(L.LightningDataModule):
             else transforms
             for col, transforms in transforms.items()
         })
+
+    def _patch_extra_transforms_load(self) -> None:
+        extra_transforms_loaded: dict[str, list[BaseTransform]] = {}
+        for colname, extra_transforms in self._extra_transforms_source.items():
+            extra_transforms_loaded[colname] = [
+                transform
+                if isinstance(transform, BaseTransform)
+                else instantiate_transform(**transform)
+                for transform in extra_transforms
+            ]
+
+        self._extra_transforms_source = extra_transforms_loaded
+
+    def _patch_extra_transforms_hparams(self) -> None:
+        """
+        Patches the hparams with extra transforms to ensure that the transforms
+        are serializable. This function translates transforms into strings, with the
+        init kwargs taken from the transform's state_dict. No positional arguments are
+        supported.
+        """
+        if len(self._extra_transforms_source) == 0:  # no extra transforms
+            return
+
+        covariate_name: str
+        transforms: list[BaseTransform] | list[ExtraTransformsHparams]
+        extra_transforms_patched: dict[str, list[ExtraTransformsHparams]] = {}
+        for covariate_name, transforms in self._extra_transforms_source.items():
+            transforms_patched: list[ExtraTransformsHparams] = []
+            for transform in transforms:
+                if not isinstance(transform, BaseTransform):  # already patched
+                    continue
+
+                state_dict = transform.state_dict()
+                cls = transform.__class__
+                _module = cls.__module__
+
+                kwargs = {k: v for k, v in state_dict.items() if k.endswith("_")}
+
+                # save where to import it from and how to instantiate it
+                transforms_patched.append({
+                    "module": _module,
+                    "name": cls.__name__,
+                    "kwargs": kwargs,
+                })
+
+            extra_transforms_patched[covariate_name] = transforms_patched
+
+        self.hparams["extra_transforms"] = extra_transforms_patched
 
     def _scalers_fitted(self) -> bool:
         return all(
@@ -1135,3 +1202,24 @@ def tmp_data_paths(
         i += 1
 
     return paths
+
+
+def instantiate_transform(
+    module: str,
+    name: str,
+    kwargs: dict[str, str | dict[str, typing.Any]],
+) -> BaseTransform:
+    """
+    Instantiates a transform from a module and class name.
+
+    Parameters
+    ----------
+    module : str
+        The module to import the class from.
+    name : str
+        The name of the class to instantiate.
+    kwargs : dict[str, str | dict[str, typing.Any]]
+        The keyword arguments to pass to the class constructor
+    """
+    cls = getattr(importlib.import_module(module), name)
+    return cls(**kwargs)
