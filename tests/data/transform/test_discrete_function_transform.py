@@ -30,8 +30,8 @@ def test_discrete_fn_init_with_numpy_arrays(
     xs, ys = numpy_arrays
     transform = DiscreteFunctionTransform(xs, ys)
 
-    np.testing.assert_array_equal(transform.xs, xs)
-    np.testing.assert_array_equal(transform.ys, ys)
+    np.testing.assert_array_equal(transform.xs_, xs)
+    np.testing.assert_array_equal(transform.ys_, ys)
 
 
 def test_discrete_fn_init_with_torch_tensors(
@@ -40,8 +40,8 @@ def test_discrete_fn_init_with_torch_tensors(
     xs, ys = torch_tensors
     transform = DiscreteFunctionTransform(xs, ys)
 
-    np.testing.assert_array_equal(transform.xs, xs.numpy())
-    np.testing.assert_array_equal(transform.ys, ys.numpy())
+    np.testing.assert_array_equal(transform.xs_, xs.numpy())
+    np.testing.assert_array_equal(transform.ys_, ys.numpy())
 
 
 def test_discrete_fn_forward_with_numpy_array(
@@ -137,15 +137,15 @@ def test_discrete_fn_from_csv(tmp_path: pathlib.Path) -> None:
 
     transform = DiscreteFunctionTransform.from_csv(csv_path)
 
-    np.testing.assert_array_equal(transform.xs, data["xs"].to_numpy())
-    np.testing.assert_array_equal(transform.ys, data["ys"].to_numpy())
+    np.testing.assert_array_equal(transform.xs_, data["xs"].to_numpy())
+    np.testing.assert_array_equal(transform.ys_, data["ys"].to_numpy())
 
     transform = DiscreteFunctionTransform(csv_path)
 
-    np.testing.assert_array_equal(transform.xs, data["xs"].to_numpy())
-    np.testing.assert_array_equal(transform.ys, data["ys"].to_numpy())
+    np.testing.assert_array_equal(transform.xs_, data["xs"].to_numpy())
+    np.testing.assert_array_equal(transform.ys_, data["ys"].to_numpy())
 
     transform = DiscreteFunctionTransform(str(csv_path))
 
-    np.testing.assert_array_equal(transform.xs, data["xs"].to_numpy())
-    np.testing.assert_array_equal(transform.ys, data["ys"].to_numpy())
+    np.testing.assert_array_equal(transform.xs_, data["xs"].to_numpy())
+    np.testing.assert_array_equal(transform.ys_, data["ys"].to_numpy())

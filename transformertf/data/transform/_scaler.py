@@ -91,7 +91,7 @@ class RunningNormalizer(BaseTransform):
 
         center_ += torch.zeros(num_features_, requires_grad=False)
         scale_ += torch.zeros(num_features_, requires_grad=False)
-        n_samples_seen_ += torch.tensor(
+        n_samples_seen_ += torch.zeros(
             num_features_, requires_grad=False, dtype=torch.long
         )
 
@@ -258,7 +258,7 @@ class RunningNormalizer(BaseTransform):
         self.n_samples_seen_ += n_samples
 
     def __sklearn_is_fitted__(self) -> bool:  # noqa: PLW3201
-        return self.n_samples_seen_.item() > 0
+        return torch.all(self.n_samples_seen_ > 0).item()
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}()"
