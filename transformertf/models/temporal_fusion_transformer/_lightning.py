@@ -55,12 +55,14 @@ class TemporalFusionTransformer(TransformerModuleBase):
 
     def forward(self, x: EncoderDecoderTargetSample) -> torch.Tensor:
         return self.model(
-            past_covariates=x["encoder_input"],
-            future_covariates=x["decoder_input"][
+            past_covariates=x["encoder_input"],  # (B, T, F_past)
+            future_covariates=x["decoder_input"][  # (B, T, F_future)
                 ...,
                 -self.hparams["num_future_features"] :,
             ],
             static_covariates=x["encoder_lengths"],  # type: ignore[typeddict-item]
+            past_mask=x["encoder_mask"][..., 0],  # (B, T)
+            future_mask=x["decoder_mask"][..., 0],  # (B, T)
         )
 
     def training_step(

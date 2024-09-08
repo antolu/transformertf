@@ -157,6 +157,8 @@ class TemporalFusionTransformerModel(torch.nn.Module):
         past_covariates: torch.Tensor,
         future_covariates: torch.Tensor,
         static_covariates: torch.Tensor | None = None,
+        past_mask: torch.Tensor | None = None,
+        future_mask: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         """
         Forward pass.
@@ -252,9 +254,16 @@ class TemporalFusionTransformerModel(torch.nn.Module):
             ),
         )
 
+        if past_mask is None:
+            past_mask = torch.ones(batch_size, enc_seq_len)
+        if future_mask is None:
+            future_mask = torch.ones(batch_size, dec_seq_len)
+
+        attn_mask = torch.cat([past_mask, future_mask], dim=1)
+
         # multi-head attention and post-processing
         attn_output, attn_weights = self.attn(
-            attn_input[:, enc_seq_len:], attn_input, attn_input
+            attn_input[:, enc_seq_len:], attn_input, attn_input, mask=attn_mask
         )
         attn_output = self.attn_gate1(attn_output)
         attn_output = self.attn_norm1(attn_output, attn_input[:, enc_seq_len:])
