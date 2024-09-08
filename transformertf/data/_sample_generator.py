@@ -363,6 +363,8 @@ class TransformerPredictionSampleGenerator(SampleGenerator[EncoderDecoderSample[
             raise ValueError(msg)
 
         self._past_target = concat(self._past_target, to_2dim(future_target), dim=0)
+        if isinstance(self._past_target, pd.DataFrame):
+            self._past_target = self._past_target.reset_index(drop=True)
 
     def add_known_past_context(self, known_past_covariates: T) -> None:
         """
@@ -385,6 +387,10 @@ class TransformerPredictionSampleGenerator(SampleGenerator[EncoderDecoderSample[
         self._known_past_covariates = concat(
             self._known_past_covariates, to_2dim(known_past_covariates), dim=0
         )
+        if isinstance(self._known_past_covariates, pd.DataFrame):
+            self._known_past_covariates = self._known_past_covariates.reset_index(
+                drop=True
+            )
 
     def _make_sample(self, idx: int) -> EncoderDecoderSample[T]:
         idx = check_index(idx, len(self))
@@ -414,26 +420,52 @@ class TransformerPredictionSampleGenerator(SampleGenerator[EncoderDecoderSample[
             )
             raise IndexError(msg)
 
-        src_l = [to_2dim(self._covariates[src_slice])]
+        src_l = [to_2dim(self._covariates[src_slice]).copy()]
         if self._known_past_covariates is not None:
-            src_l.append(to_2dim(self._known_past_covariates[src_slice]))
-        src_l.append(to_2dim(self._past_target[src_slice]))
+            src_l.append(to_2dim(self._known_past_covariates[src_slice]).copy())
+        src_l.append(to_2dim(self._past_target[src_slice]).copy())
 
-        tgt_l = [to_2dim(self._covariates[tgt_slice])]
+        tgt_l = [to_2dim(self._covariates[tgt_slice]).copy()]
+        tgt_slice = slice(
+            0, tgt_slice.stop - tgt_slice.start
+        )  # hack to get the indices
+        if isinstance(tgt_l[0], pd.DataFrame):
+            tgt_l[0] = tgt_l[0].reset_index(drop=True)
         if self._known_past_covariates is not None:
-            tgt_l.append(to_2dim(zeros_like(self._covariates[tgt_slice])))
-        tgt_l.append(to_2dim(zeros_like(self._covariates[tgt_slice])))
+            tgt_l.append(to_2dim(zeros_like(self._known_past_covariates[tgt_slice])))
+        tgt_l.append(to_2dim(zeros_like(self._past_target[tgt_slice])))
 
         src = concat(*src_l, dim=-1)
         tgt = concat(*tgt_l, dim=-1)
+
+        encoder_mask = ones_like(src)
+        decoder_mask = ones_like(tgt)
+
+        numel_pad = (
+            self._window_generator.real_data_len
+            - self._context_length
+            - self._num_points
+        )
+        if idx == len(self) - 1 and numel_pad > 0:
+            if not isinstance(decoder_mask, pd.DataFrame):
+                decoder_mask[..., -numel_pad:] = 0.0
+            else:
+                decoder_mask.iloc[-numel_pad:] = 0.0
+
+        if isinstance(src, pd.DataFrame):
+            src = src.reset_index(drop=True)
+            tgt = tgt.reset_index(drop=True)
+            decoder_mask = decoder_mask.reset_index(drop=True)
 
         return typing.cast(
             EncoderDecoderSample[T],
             {
                 "encoder_input": src,
-                "encoder_mask": ones_like(src),
+                "encoder_mask": encoder_mask,
+                "encoder_lengths": zeros_like(src) + self._context_length,
                 "decoder_input": tgt,
-                "decoder_mask": ones_like(tgt),
+                "decoder_mask": decoder_mask,
+                "decoder_lengths": zeros_like(tgt) + self._prediction_length,
             },
         )
 

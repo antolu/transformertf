@@ -3,16 +3,17 @@ from __future__ import annotations
 import typing
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import torch
 
-from .._dtype import convert_data
 from .._sample_generator import (
     EncoderDecoderSample,
     TransformerPredictionSampleGenerator,
 )
 from ..transform import BaseTransform
 from ._base import AbstractTimeSeriesDataset, DataSetType
+from ._encoder_decoder import EncoderDecoderDataset, apply_transforms, convert_sample
 
 
 class EncoderDecoderPredictDataset(
@@ -22,15 +23,16 @@ class EncoderDecoderPredictDataset(
 
     def __init__(
         self,
-        past_covariates: pd.DataFrame | np.ndarray,
-        future_covariates: pd.DataFrame | np.ndarray,
+        past_covariates: pd.DataFrame,
+        future_covariates: pd.DataFrame,
         past_target: pd.DataFrame | np.ndarray | pd.Series,
         context_length: int,
         prediction_length: int,
-        transforms: dict[str, BaseTransform] | None = None,
-        input_columns: list[str] | None = None,
+        input_columns: list[str],
         target_column: str | None = None,
         known_past_columns: list[str] | None = None,
+        transforms: dict[str, BaseTransform] | None = None,
+        time_format: typing.Literal["relative", "absolute"] = "relative",
         *,
         apply_transforms: bool = True,
         dtype: torch.dtype = torch.float32,
@@ -50,13 +52,13 @@ class EncoderDecoderPredictDataset(
 
         Parameters
         ----------
-        past_covariates : pd.DataFrame | np.ndarray
+        past_covariates : pd.DataFrame
             Past covariates to be used for prediction. If a DataFrame, the
             `input_columns` parameter must be provided. The data should not
             be preprocessed with the transforms, as the transforms will be
             applied during iteration. If a numpy array, the data must be
             of the same order during training.
-        future_covariates : pd.DataFrame | np.ndarray
+        future_covariates : pd.DataFrame
             Future covariates to be used for prediction. If a DataFrame, the
             `input_columns` parameter must be provided. The data should not
             be preprocessed with the transforms, as the transforms will be
@@ -89,24 +91,10 @@ class EncoderDecoderPredictDataset(
         torch.utils.data.IterableDataset.__init__(self)
         AbstractTimeSeriesDataset.__init__(self)
 
-        if isinstance(past_covariates, pd.DataFrame) and input_columns is None:
-            msg = (
-                "The input_columns parameter must be provided if "
-                "the past_covariates is a DataFrame."
-            )
-            raise ValueError(msg)
-
         if isinstance(past_target, pd.DataFrame) and target_column is None:
             msg = (
                 "The target_column parameter must be provided if "
                 "the past_target is a DataFrame."
-            )
-            raise ValueError(msg)
-
-        if isinstance(future_covariates, pd.DataFrame) and input_columns is None:
-            msg = (
-                "The input_columns parameter must be provided if "
-                "the future_covariates is a DataFrame."
             )
             raise ValueError(msg)
 
@@ -118,21 +106,28 @@ class EncoderDecoderPredictDataset(
         self._input_columns = input_columns
         self._target_column = target_column
         self._known_past_columns = known_past_columns
+        self._time_format = time_format
 
         self._past_known_covariates = (
-            extract_covariates_from_df(past_covariates, known_past_columns)
+            extract_covariates_from_df(past_covariates, known_past_columns).reset_index(
+                drop=True
+            )
             if known_past_columns is not None
             and isinstance(past_covariates, pd.DataFrame)
             else None
         )
 
-        self._past_covariates = extract_covariates_from_df(
+        self._past_covariates: pd.DataFrame = extract_covariates_from_df(
             past_covariates, input_columns
-        )
-        self._future_covariates = extract_covariates_from_df(
+        ).reset_index(drop=True)
+        self._future_covariates: pd.DataFrame = extract_covariates_from_df(
             future_covariates, input_columns
+        ).reset_index(drop=True)
+        self._past_target: npt.NDArray[np.float64] = (
+            past_target[target_column].to_numpy()
+            if isinstance(past_target, pd.DataFrame)
+            else np.array(past_target)
         )
-        self._past_target = extract_covariates_from_df(past_target, target_column)
 
         self._past_covariates = keep_only_context(self._past_covariates, context_length)
         self._past_target = keep_only_context(self._past_target, context_length)
@@ -143,43 +138,22 @@ class EncoderDecoderPredictDataset(
         )
 
         if apply_transforms:
-            if input_columns is not None:
-                past_covariate_transforms = {
-                    k: v for k, v in self._transforms.items() if k in input_columns
-                }
-            else:  # numpy array
-                # take first n transforms based on number of covariates
-                num_past_covariates = (
-                    past_covariates.shape[1] if len(past_covariates.shape) > 1 else 1
-                )
-                past_covariate_transforms = dict(
-                    list(self._transforms.items())[:num_past_covariates]
-                )
+            past_covariate_transforms = {
+                k: v
+                for k, v in self._transforms.items()
+                if k in input_columns and k != "__time__"
+            }
 
             if known_past_columns is not None:
                 past_known_covariate_transforms = {
                     k: v for k, v in self._transforms.items() if k in known_past_columns
                 }
-            elif self._past_known_covariates is not None:
-                num_past_covariates = (
-                    past_covariates.shape[1] if len(past_covariates.shape) > 1 else 1
-                )
-                num_past_known_covariates = (
-                    self._past_known_covariates.shape[1]
-                    if len(self._past_known_covariates.shape) > 1
-                    else 1
-                )
-                past_known_covariate_transforms = dict(
-                    list(self._transforms.items())[
-                        num_past_covariates : num_past_covariates
-                        + num_past_known_covariates
-                    ]
-                )
             else:
                 past_known_covariate_transforms = {}
 
             # assume first feature is what the target depends on
-            first_feature = self._past_covariates[..., 0]
+            columns = self._past_covariates.columns
+            first_feature = next(iter([col for col in columns if col != "__time__"]))
 
             self._past_covariates = _apply_transforms(
                 self._past_covariates,
@@ -191,7 +165,9 @@ class EncoderDecoderPredictDataset(
             )
             if target_column in self._transforms:
                 self._past_target = _apply_transforms(
-                    self._past_target, self._transforms[target_column], first_feature
+                    self._past_target,
+                    self._transforms[target_column],
+                    self._past_covariates[first_feature].to_numpy(),
                 )
             self._past_known_covariates = (
                 _apply_transforms(
@@ -201,20 +177,10 @@ class EncoderDecoderPredictDataset(
                 else None
             )
 
-        # convert to torch tensors
-        self._past_covariates = convert_data(self._past_covariates, dtype)[0]
-        self._future_covariates = convert_data(self._future_covariates, dtype)[0]
-        self._past_target = convert_data(self._past_target, dtype)[0]
-        self._past_known_covariates = (
-            convert_data(self._past_known_covariates, dtype)[0]
-            if self._past_known_covariates is not None
-            else None
-        )
-
         self._sample_generator = TransformerPredictionSampleGenerator(
             past_covariates=self._past_covariates,
             future_covariates=self._future_covariates,
-            past_targets=self._past_target,
+            past_targets=pd.DataFrame({target_column: self._past_target}),
             context_length=context_length,
             prediction_length=prediction_length,
             known_past_covariates=self._past_known_covariates,
@@ -231,12 +197,12 @@ class EncoderDecoderPredictDataset(
         between iterations to append the past target to the dataset.
         """
         assert self._target_column is not None
+        if isinstance(past_target, np.ndarray):
+            past_target = pd.DataFrame({self._target_column: past_target})
         if transform:
             past_target = _apply_transforms(
                 past_target, self._transforms[self._target_column]
             )
-        else:
-            past_target = torch.as_tensor(past_target)
 
         self._sample_generator.add_target_context(past_target)
 
@@ -250,17 +216,39 @@ class EncoderDecoderPredictDataset(
         Appends the past covariates to the dataset. This method must be called
         between iterations to append the past covariates to the dataset.
         """
+        colname = (self._known_past_columns or [])[0]
+        past_covariates = pd.DataFrame({colname: past_covariates})
         if transform:
+            colname = (self._known_past_columns or [])[0]
             past_covariates = _apply_transforms(
-                past_covariates, self.transforms[(self._known_past_columns or [])[0]]
+                past_covariates, {colname: self._transforms[colname]}
             )
-        else:
-            past_covariates = torch.as_tensor(past_covariates)
 
         self._sample_generator.add_known_past_context(past_covariates)
 
     def __getitem__(self, idx: int) -> EncoderDecoderSample:
-        return self._sample_generator[idx]
+        sample = self._sample_generator[idx]
+        sample = EncoderDecoderDataset._format_time_data(  # noqa: SLF001
+            sample, time_format=self._time_format
+        )
+        sample = apply_transforms(
+            sample,  # type: ignore[arg-type]
+            transforms={"__time__": self._transforms["__time__"]},
+        )
+        sample_torch = convert_sample(sample, self._dtype)
+        sample_torch = EncoderDecoderDataset._apply_masks(sample_torch)  # noqa: SLF001
+
+        if "__time__" in sample["encoder_input"].columns:
+            sample_torch["encoder_input"][0, 0] = 0.0
+
+        sample_torch["encoder_lengths"] = torch.ones(
+            (1,), dtype=self._dtype, device=sample_torch["encoder_input"].device
+        )
+        sample_torch["decoder_lengths"] = torch.ones(
+            (1,), dtype=self._dtype, device=sample_torch["encoder_input"].device
+        )
+
+        return sample_torch
 
     def __iter__(self) -> typing.Generator[EncoderDecoderSample, None, None]:
         for idx in range(len(self)):
@@ -271,34 +259,34 @@ class EncoderDecoderPredictDataset(
 
 
 def extract_covariates_from_df(
-    data: pd.DataFrame | np.ndarray | pd.Series,
-    columns: list[str] | str | None = None,
-) -> np.ndarray:
-    if isinstance(data, pd.Series):
-        return data.to_numpy()
-    if isinstance(data, pd.DataFrame):
-        if columns is None:
-            msg = "The columns parameter must be provided if the data is a DataFrame."
-            raise ValueError(msg)
-        return data[columns].to_numpy()
-    return data  # type: ignore[return-value]
+    data: pd.DataFrame,
+    columns: list[str] | str,
+) -> pd.DataFrame:
+    columns = columns if isinstance(columns, list) else [columns]
+    return data[columns]
+
+
+T = typing.TypeVar("T", np.ndarray, pd.Series, pd.DataFrame)
 
 
 def keep_only_context(
-    data: np.ndarray,
+    data: T,
     context_length: int,
-) -> np.ndarray:
+) -> T:
     if len(data) < context_length:
         msg = "The data is shorter than the context length."
         raise ValueError(msg)
     return data[-context_length:]
 
 
+U = typing.TypeVar("U", np.ndarray, pd.DataFrame)
+
+
 def _apply_transforms(
-    data: np.ndarray | pd.Series,
+    data: U,
     transforms: dict[str, BaseTransform] | BaseTransform | None = None,
-    dependency: np.ndarray | pd.Series | None = None,
-) -> torch.Tensor:
+    dependency: npt.NDArray[np.float64] | None = None,
+) -> U:
     """
     Applies the provided transforms to the data. If the data is a 2D array,
     the transforms must be a dictionary with the column names as keys and
@@ -307,7 +295,7 @@ def _apply_transforms(
 
     Parameters
     ----------
-    data : np.ndarray | pd.Series
+    data : np.ndarray | pd.DataFrame
         The data to be transformed.
     transforms : dict[str, BaseTransform] | BaseTransform
         The transforms to be applied to the data. If the data is a 2D array,
@@ -317,17 +305,14 @@ def _apply_transforms(
 
     Returns
     -------
-    torch.Tensor
+    np.ndarray | pd.DataFrame
         The transformed data.
     """
     if transforms is None or (isinstance(transforms, dict) and len(transforms) == 0):
-        return torch.as_tensor(data)
+        return data
     assert transforms is not None  # mypy
 
-    if isinstance(data, pd.Series):
-        data = data.to_numpy()
-
-    if data.ndim == 1:
+    if isinstance(data, np.ndarray):  # only target will be np.ndarray
         if not isinstance(transforms, BaseTransform) and (
             isinstance(transforms, dict) and len(transforms) > 1
         ):
@@ -335,43 +320,21 @@ def _apply_transforms(
             raise ValueError(msg)
         if isinstance(transforms, dict):
             transforms = next(iter(transforms.values()))
-        assert isinstance(transforms, BaseTransform)  # mypy
+        assert isinstance(transforms, BaseTransform)
 
         if (
             dependency is not None
             and transforms.transform_type == BaseTransform.TransformType.XY
         ):
-            dependency = (
-                dependency.to_numpy()
-                if isinstance(dependency, pd.Series)
-                else dependency
-            )
-
             return transforms.transform(dependency, data)
-        return transforms.transform(data)
+        return transforms.transform(data).numpy()
 
-    # If the data is a 2D array
-    num_cols = data.shape[1]
-
-    if isinstance(transforms, BaseTransform):
+    if isinstance(transforms, BaseTransform) and len(data.columns) > 1:
         msg = "A single transform was provided for multiple columns."
-        raise ValueError(msg)  # noqa: TRY004
-    if (
-        isinstance(transforms, dict)
-        and num_cols != len(transforms)
-        and len(transforms) > 0
-    ):
-        msg = (
-            "The number of transforms must match the number of columns "
-            "if transforms are provided."
-        )
         raise ValueError(msg)
 
-    if len(transforms) == 0:
-        return torch.as_tensor(data)
+    df = data.copy()
+    for col, transform in transforms.items():
+        df[col] = transform.transform(data[col].to_numpy()).numpy()
 
-    output = []
-    for col, (_col_name, transform) in enumerate(transforms.items()):
-        output.append(transform.transform(data[:, col]))
-
-    return torch.stack(output, dim=1)
+    return df
