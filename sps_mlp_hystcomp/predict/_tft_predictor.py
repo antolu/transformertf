@@ -81,9 +81,7 @@ class TFTPredictor(Predictor):
         past_covariates = self.state.copy()
         past_targets = past_covariates.pop(TARGET_COLNAME).to_numpy().flatten()
         future_covariates[TIME_COLNAME] += past_covariates[TIME_COLNAME].iloc[-1]
-        future_covariates.index = pd.Index(
-            range(len(past_covariates), len(past_covariates) + len(future_covariates))
-        )
+        future_covariates = future_covariates.reset_index(drop=True)
 
         dataset = EncoderDecoderPredictDataset(
             past_covariates=past_covariates,
@@ -99,6 +97,7 @@ class TFTPredictor(Predictor):
             ],
             target_column=TARGET_COLNAME,
             apply_transforms=True,
+            time_format="absolute",
         )
 
         predictions = self._predict_dataset(dataset, future_covariates)
@@ -129,11 +128,6 @@ class TFTPredictor(Predictor):
 
         outputs: list[npt.NDArray[np.float64]] = []
         for idx, batch in enumerate(dataloader):
-            batch["encoder_lengths"] = torch.ones(
-                (batch["encoder_input"].shape[0], 1),
-                dtype=torch.float32,
-                device=self._module.device,
-            )
             self._module.on_predict_batch_start(batch, idx)
             output = self._module.predict_step(batch, idx)
             output = ops.to_cpu(ops.detach(output))
@@ -141,7 +135,8 @@ class TFTPredictor(Predictor):
 
             if idx < len(dataloader) - 1:  # only append if not the last batch
                 dataset.append_past_target(
-                    output["point_prediction"].squeeze(), transform=False
+                    output["point_prediction"].squeeze().numpy(),
+                    transform=False,
                 )
 
                 if self.hparams["target_depends_on"] is not None:
@@ -172,7 +167,7 @@ class TFTPredictor(Predictor):
                     )
 
                 dataset.append_past_covariates(
-                    target_inverse,
+                    pd.DataFrame({TARGET_PAST_COLNAME: target_inverse}),
                     transform=True,
                 )
 
