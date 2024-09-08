@@ -140,13 +140,38 @@ class PredictorUtils:
     ) -> pd.DataFrame:
         """
         Convert a buffer of cycles to covariates for the model.
+
+        Parameters
+        ----------
+        buffer : list[CycleData]
+            List of CycleData objects.
+        use_programmed_current : bool
+            Whether to use the programmed current, by default True.
+            If False, measured current will be used instead.
+        add_target : bool
+            Whether to add the target to the covariates, by default True.
+        rdp : bool
+            Whether to use adaptive downsampling, by default False.
+            If true, the programmed current will not be interpolated if
+            use_programmed_current is True. If False, the programmed current
+            will be used as collocation points to sample the measured current.
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame with the covariates. The columns are:
+            - "__time__": time array
+            - "past_current": past current
+            - "past_current_dot": derivative of the past current
+            - "past_target_": past target
+            - "past_target": past target
         """
         if len(buffer) == 0:
             msg = "Buffer must contain at least one cycle."
             raise ValueError(msg)
 
         if use_programmed_current:
-            covariates = make_prog_base_covariates(buffer)
+            covariates = make_prog_base_covariates(buffer, interpolate=not rdp)
         else:
             covariates = make_meas_base_covariates(buffer)
 
@@ -156,6 +181,12 @@ class PredictorUtils:
                     [cycle.field_meas.flatten() for cycle in buffer]
                 )
                 b_meas = filter_bmeas(b_meas)
+
+                if rdp:
+                    time = covariates[TIME_COLNAME].to_numpy()
+                    time_b = np.arange(len(b_meas)) / 1e3
+
+                    b_meas = np.interp(time, time_b, b_meas)
 
                 covariates[PredictionCovariates.TARGET] = b_meas
                 covariates[PredictionCovariates.PAST_TARGET_] = b_meas
@@ -667,6 +698,8 @@ def rename_columns(
 
 def make_prog_base_covariates(
     buffers: list[CycleData],
+    *,
+    interpolate: bool = True,
 ) -> pd.DataFrame:
     """
     Make the covariates for the base model.
@@ -675,6 +708,9 @@ def make_prog_base_covariates(
     ----------
     buffers : list[CycleData]
         List of CycleData objects.
+    interpolate : bool
+        Whether to interpolate the programmed current to a new time array,
+        by default True.
 
     Returns
     -------
@@ -688,7 +724,11 @@ def make_prog_base_covariates(
         i_prog_2d = buffers[0].current_prog
     else:
         i_prog_2d = Predictor.chain_programs(*[cycle.current_prog for cycle in buffers])
-    t_prog, i_prog = Predictor.interpolate_program(i_prog_2d, fs=1)
+
+    if interpolate:
+        t_prog, i_prog = Predictor.interpolate_program(i_prog_2d, fs=1)
+    else:
+        t_prog, i_prog = i_prog_2d
     t_prog /= 1e3
 
     # NB: we are using the programmed current, which is noise-free
