@@ -37,19 +37,19 @@ class DiscreteFunctionTransform(BaseTransform):
 
     def __init__(
         self,
-        xs: np.ndarray | torch.Tensor | os.PathLike | str,
-        ys: np.ndarray | torch.Tensor | None = None,
+        xs_: np.ndarray | torch.Tensor | os.PathLike | str,
+        ys_: np.ndarray | torch.Tensor | None = None,
     ):
         super().__init__()
 
-        if isinstance(xs, os.PathLike | str):
-            xs, ys = self.parse_csv_to_numpy_array(xs, skip_rows=1)
-        elif ys is None:
+        if isinstance(xs_, os.PathLike | str):
+            xs_, ys_ = self.parse_csv_to_numpy_array(xs_, skip_rows=1)
+        elif ys_ is None:
             msg = "DiscreteFunctionTransform requires y."
             raise ValueError(msg)
 
-        self.xs = _as_numpy(xs)
-        self.ys = _as_numpy(ys)
+        self.register_buffer("xs_", _as_torch(xs_))
+        self.register_buffer("ys_", _as_torch(ys_))
 
     def fit(
         self,
@@ -72,7 +72,9 @@ class DiscreteFunctionTransform(BaseTransform):
             The discrete function evaluated at the given x values.
         """
         x = _as_numpy(x)
-        return _as_torch(np.interp(x, self.xs, self.ys))
+        xs = _as_numpy(self.xs_)
+        ys = _as_numpy(self.ys_)
+        return _as_torch(np.interp(x, xs, ys))
 
     def transform(
         self,
