@@ -5,7 +5,7 @@ dependencies = [
   "pandas >= 2.0, < 3.0",
   "hystcomp-utils >= 0.1.0",
   "pybind11-rdp >= 0.1.4",
-  "transformertf >= 0.3, < 0.4",
+  "transformertf >= 0.3.1, < 0.4",
 ]
 name = "sps-mlp-hysteresis-compensation"
 dynamic = ["version", "readme"]
