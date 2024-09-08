@@ -10,7 +10,7 @@ from transformertf.models.temporal_fusion_transformer import (
 )
 
 
-def test_transformer_v2_forward_pass_simple(
+def test_tft_forward_pass_simple(
     tft_module: TemporalFusionTransformer,
     tft_module_config: dict[str, typing.Any],
 ) -> None:
@@ -29,6 +29,8 @@ def test_transformer_v2_forward_pass_simple(
         "encoder_input": x_past,
         "decoder_input": x_future,
         "encoder_lengths": torch.tensor([[1.0]]),
+        "encoder_mask": torch.ones_like(x_past),
+        "decoder_mask": torch.ones_like(x_future),
     }
 
     with torch.no_grad():
@@ -37,7 +39,7 @@ def test_transformer_v2_forward_pass_simple(
     assert y.shape[:2] == x_future.shape[:2]
 
 
-def test_transformer_v2_forward_pass(
+def test_tft_forward_pass(
     encoder_decoder_datamodule: EncoderDecoderDataModule,
     tft_module: TemporalFusionTransformer,
 ) -> None:

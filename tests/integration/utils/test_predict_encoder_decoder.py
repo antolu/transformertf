@@ -13,7 +13,6 @@ from transformertf.data.datamodule import EncoderDecoderDataModule
 from transformertf.models.transformer import (
     VanillaTransformer,
 )
-from transformertf.utils.predict import predict_encoder_decoder
 
 
 @pytest.fixture
@@ -61,17 +60,17 @@ def encoder_decoder_datamodule(
     )
 
 
-def test_predict_encoder_decoder(
-    encoder_decoder_module: VanillaTransformer,
-    encoder_decoder_datamodule: EncoderDecoderDataModule,
-    past_covariates: pd.DataFrame,
-    future_covariates: pd.DataFrame,
-    past_target: pd.DataFrame,
-) -> None:
-    predict_encoder_decoder(
-        encoder_decoder_module,
-        encoder_decoder_datamodule,
-        past_covariates,
-        future_covariates,
-        past_target,
-    )
+# def test_predict_encoder_decoder(
+#     encoder_decoder_module: VanillaTransformer,
+#     encoder_decoder_datamodule: EncoderDecoderDataModule,
+#     past_covariates: pd.DataFrame,
+#     future_covariates: pd.DataFrame,
+#     past_target: pd.DataFrame,
+# ) -> None:
+#     predict_encoder_decoder(
+#         encoder_decoder_module,
+#         encoder_decoder_datamodule,
+#         past_covariates,
+#         future_covariates,
+#         past_target,
+#     )

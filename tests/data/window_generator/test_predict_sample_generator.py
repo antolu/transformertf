@@ -5,6 +5,7 @@ Tests for the `transformertf.data.TransformerPredictionSampleGenerator` class.
 from __future__ import annotations
 
 import numpy as np
+import pandas as pd
 import pytest
 
 from transformertf.data import TransformerPredictionSampleGenerator
@@ -14,29 +15,29 @@ PREDICTION_LENGTH = 2
 
 
 @pytest.fixture(scope="module")
-def past_covariates(x_data: np.ndarray) -> np.ndarray:
-    return x_data[:CONTEXT_LENGTH]
+def past_covariates(x_data: np.ndarray) -> pd.DataFrame:
+    return pd.DataFrame({"x": x_data[:CONTEXT_LENGTH]})
 
 
 @pytest.fixture(scope="module")
-def future_covariates(x_data: np.ndarray) -> np.ndarray:
-    return x_data[CONTEXT_LENGTH:]
+def future_covariates(x_data: np.ndarray) -> pd.DataFrame:
+    return pd.DataFrame({"x": x_data[CONTEXT_LENGTH:]})
 
 
 @pytest.fixture(scope="module")
-def past_targets(y_data: np.ndarray) -> np.ndarray:
-    return y_data[:CONTEXT_LENGTH]
+def past_targets(y_data: np.ndarray) -> pd.DataFrame:
+    return pd.DataFrame({"y": y_data[:CONTEXT_LENGTH]})
 
 
 @pytest.fixture(scope="module")
-def future_targets(y_data: np.ndarray) -> np.ndarray:
-    return y_data[CONTEXT_LENGTH:]
+def future_targets(y_data: np.ndarray) -> pd.DataFrame:
+    return pd.DataFrame({"y": y_data[CONTEXT_LENGTH:]})
 
 
 def test_create_prediction_sample_generator_1d(
-    past_covariates: np.ndarray,
-    future_covariates: np.ndarray,
-    past_targets: np.ndarray,
+    past_covariates: pd.DataFrame,
+    future_covariates: pd.DataFrame,
+    past_targets: pd.DataFrame,
 ) -> None:
     TransformerPredictionSampleGenerator(
         past_covariates=past_covariates,
@@ -48,9 +49,9 @@ def test_create_prediction_sample_generator_1d(
 
 
 def test_create_prediction_sample_generator_wrong_context_length_1d(
-    past_covariates: np.ndarray,
-    future_covariates: np.ndarray,
-    past_targets: np.ndarray,
+    past_covariates: pd.DataFrame,
+    future_covariates: pd.DataFrame,
+    past_targets: pd.DataFrame,
 ) -> None:
     with pytest.raises(ValueError):  # noqa: PT011
         TransformerPredictionSampleGenerator(
@@ -63,13 +64,13 @@ def test_create_prediction_sample_generator_wrong_context_length_1d(
 
 
 def test_create_prediction_sample_generator_wrong_past_covariate_length_1d(
-    past_covariates: np.ndarray,
-    future_covariates: np.ndarray,
-    past_targets: np.ndarray,
+    past_covariates: pd.DataFrame,
+    future_covariates: pd.DataFrame,
+    past_targets: pd.DataFrame,
 ) -> None:
     with pytest.raises(ValueError):  # noqa: PT011
         TransformerPredictionSampleGenerator(
-            past_covariates=past_covariates[:-1],
+            past_covariates=past_covariates.iloc[:-1],
             future_covariates=future_covariates,
             past_targets=past_targets,
             context_length=CONTEXT_LENGTH,
@@ -78,24 +79,24 @@ def test_create_prediction_sample_generator_wrong_past_covariate_length_1d(
 
 
 def test_create_prediction_sample_generator_wrong_past_target_length_1d(
-    past_covariates: np.ndarray,
-    future_covariates: np.ndarray,
-    past_targets: np.ndarray,
+    past_covariates: pd.DataFrame,
+    future_covariates: pd.DataFrame,
+    past_targets: pd.DataFrame,
 ) -> None:
     with pytest.raises(ValueError):  # noqa: PT011
         TransformerPredictionSampleGenerator(
             past_covariates=past_covariates,
             future_covariates=future_covariates,
-            past_targets=past_targets[:-1],
+            past_targets=past_targets.iloc[:-1],
             context_length=CONTEXT_LENGTH,
             prediction_length=PREDICTION_LENGTH,
         )
 
 
 def test_prediction_sample_generator_num_samples_1d(
-    past_covariates: np.ndarray,
-    future_covariates: np.ndarray,
-    past_targets: np.ndarray,
+    past_covariates: pd.DataFrame,
+    future_covariates: pd.DataFrame,
+    past_targets: pd.DataFrame,
 ) -> None:
     pg = TransformerPredictionSampleGenerator(
         past_covariates=past_covariates,
@@ -108,9 +109,9 @@ def test_prediction_sample_generator_num_samples_1d(
 
 
 def test_prediction_sample_generator_first_sample_1d(
-    past_covariates: np.ndarray,
-    future_covariates: np.ndarray,
-    past_targets: np.ndarray,
+    past_covariates: pd.DataFrame,
+    future_covariates: pd.DataFrame,
+    past_targets: pd.DataFrame,
 ) -> None:
     pg = TransformerPredictionSampleGenerator(
         past_covariates=past_covariates,
@@ -129,9 +130,9 @@ def test_prediction_sample_generator_first_sample_1d(
 
 
 def test_prediction_sample_generator_next_sample_raises_1d(
-    past_covariates: np.ndarray,
-    future_covariates: np.ndarray,
-    past_targets: np.ndarray,
+    past_covariates: pd.DataFrame,
+    future_covariates: pd.DataFrame,
+    past_targets: pd.DataFrame,
 ) -> None:
     pg = TransformerPredictionSampleGenerator(
         past_covariates=past_covariates,
@@ -145,10 +146,10 @@ def test_prediction_sample_generator_next_sample_raises_1d(
 
 
 def test_prediction_sample_generator_add_context_1d(
-    past_covariates: np.ndarray,
-    future_covariates: np.ndarray,
-    past_targets: np.ndarray,
-    future_targets: np.ndarray,
+    past_covariates: pd.DataFrame,
+    future_covariates: pd.DataFrame,
+    past_targets: pd.DataFrame,
+    future_targets: pd.DataFrame,
 ) -> None:
     pg = TransformerPredictionSampleGenerator(
         past_covariates=past_covariates,
@@ -174,10 +175,10 @@ def test_prediction_sample_generator_add_context_1d(
 
 
 def test_prediction_sample_generator_add_full_context_1d(
-    past_covariates: np.ndarray,
-    future_covariates: np.ndarray,
-    past_targets: np.ndarray,
-    future_targets: np.ndarray,
+    past_covariates: pd.DataFrame,
+    future_covariates: pd.DataFrame,
+    past_targets: pd.DataFrame,
+    future_targets: pd.DataFrame,
 ) -> None:
     pg = TransformerPredictionSampleGenerator(
         past_covariates=past_covariates,
@@ -204,10 +205,10 @@ def test_prediction_sample_generator_add_full_context_1d(
 
 
 def test_prediction_sample_generator_add_full_context_iteratively_1d(
-    past_covariates: np.ndarray,
-    future_covariates: np.ndarray,
-    past_targets: np.ndarray,
-    future_targets: np.ndarray,
+    past_covariates: pd.DataFrame,
+    future_covariates: pd.DataFrame,
+    past_targets: pd.DataFrame,
+    future_targets: pd.DataFrame,
 ) -> None:
     pg = TransformerPredictionSampleGenerator(
         past_covariates=past_covariates,
@@ -226,8 +227,10 @@ def test_prediction_sample_generator_add_full_context_iteratively_1d(
 
         if i > 0:
             assert np.all(
-                sample["encoder_input"][..., 1]
+                sample["encoder_input"]["y"].to_numpy()
                 == future_targets[(i - 1) * PREDICTION_LENGTH : i * PREDICTION_LENGTH]
+                .to_numpy()
+                .flatten()
             )
 
         pg.add_target_context(
@@ -239,10 +242,10 @@ def test_prediction_sample_generator_add_full_context_iteratively_1d(
 
 
 def test_prediction_sample_generator_add_too_much_context_1d(
-    past_covariates: np.ndarray,
-    future_covariates: np.ndarray,
-    past_targets: np.ndarray,
-    future_targets: np.ndarray,
+    past_covariates: pd.DataFrame,
+    future_covariates: pd.DataFrame,
+    past_targets: pd.DataFrame,
+    future_targets: pd.DataFrame,
 ) -> None:
     pg = TransformerPredictionSampleGenerator(
         past_covariates=past_covariates,
@@ -263,10 +266,10 @@ def test_prediction_sample_generator_add_too_much_context_1d(
 
 
 def test_prediction_sample_generator_last_sample_zero_padded_1d(
-    past_covariates: np.ndarray,
-    future_covariates: np.ndarray,
-    past_targets: np.ndarray,
-    future_targets: np.ndarray,
+    past_covariates: pd.DataFrame,
+    future_covariates: pd.DataFrame,
+    past_targets: pd.DataFrame,
+    future_targets: pd.DataFrame,
 ) -> None:
     pg = TransformerPredictionSampleGenerator(
         past_covariates=past_covariates,
@@ -287,8 +290,10 @@ def test_prediction_sample_generator_last_sample_zero_padded_1d(
     assert sample["decoder_input"].shape == (PREDICTION_LENGTH, 2)
 
     assert np.all(
-        sample["encoder_input"][..., 0]
+        sample["encoder_input"]["x"].to_numpy()
         == future_covariates[(3 - 1) * PREDICTION_LENGTH : 3 * PREDICTION_LENGTH]
+        .to_numpy()
+        .flatten()
     )
-    assert np.all(sample["decoder_input"][..., 0] == [9, 0])
-    assert np.all(sample["decoder_input"][..., 1] == 0.0)
+    assert np.all(sample["decoder_input"]["x"].to_numpy().flatten() == [9, 0])
+    assert np.all(sample["decoder_input"]["y"].to_numpy().flatten() == 0.0)

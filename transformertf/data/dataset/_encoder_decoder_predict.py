@@ -232,11 +232,12 @@ class EncoderDecoderPredictDataset(
         sample = EncoderDecoderDataset._format_time_data(  # noqa: SLF001
             sample, time_format=self._time_format
         )
-        sample = apply_transforms(
-            sample,  # type: ignore[arg-type]
-            transforms={"__time__": self._transforms["__time__"]},
-        )
-        sample_torch = convert_sample(sample, self._dtype)
+        if "__time__" in sample["encoder_input"].columns:
+            sample = apply_transforms(
+                sample,  # type: ignore[arg-type]
+                transforms={"__time__": self._transforms["__time__"]},
+            )
+        sample_torch = convert_sample(sample, self._dtype)  # type: ignore[arg-type]
         sample_torch = EncoderDecoderDataset._apply_masks(sample_torch)  # noqa: SLF001
 
         if "__time__" in sample["encoder_input"].columns:
