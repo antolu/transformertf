@@ -117,6 +117,7 @@ class EncoderDecoderPredictDataset(
         self._dtype = dtype
         self._input_columns = input_columns
         self._target_column = target_column
+        self._known_past_columns = known_past_columns
 
         self._past_known_covariates = (
             extract_covariates_from_df(past_covariates, known_past_columns)
@@ -250,7 +251,9 @@ class EncoderDecoderPredictDataset(
         between iterations to append the past covariates to the dataset.
         """
         if transform:
-            past_covariates = _apply_transforms(past_covariates, self.transforms)
+            past_covariates = _apply_transforms(
+                past_covariates, self.transforms[(self._known_past_columns or [])[0]]
+            )
         else:
             past_covariates = torch.as_tensor(past_covariates)
 

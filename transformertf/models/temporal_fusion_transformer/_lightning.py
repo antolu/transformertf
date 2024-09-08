@@ -4,7 +4,7 @@ import typing
 
 import torch
 
-from ...data import EncoderDecoderTargetSample
+from ...data import EncoderDecoderSample, EncoderDecoderTargetSample
 from ...nn import QuantileLoss
 from .._base_transformer import TransformerModuleBase
 from ._model import TemporalFusionTransformerModel
@@ -111,6 +111,21 @@ class TemporalFusionTransformer(TransformerModuleBase):
             "output": model_output["output"],
             "point_prediction": point_prediction,
         }
+
+    def predict_step(
+        self, batch: EncoderDecoderSample, batch_idx: int
+    ) -> dict[str, torch.Tensor]:
+        model_output = self(batch)
+
+        point_prediction = model_output["output"]
+        if isinstance(self.criterion, QuantileLoss) or (
+            hasattr(self.criterion, "_orig_mod")
+            and isinstance(self.criterion._orig_mod, QuantileLoss)  # noqa: SLF001
+        ):
+            point_prediction = self.criterion.point_prediction(model_output["output"])
+
+        model_output["point_prediction"] = point_prediction
+        return model_output
 
     def on_train_epoch_start(self) -> None:
         """
