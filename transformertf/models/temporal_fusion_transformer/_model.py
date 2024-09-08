@@ -254,12 +254,24 @@ class TemporalFusionTransformerModel(torch.nn.Module):
             ),
         )
 
-        if past_mask is None:
-            past_mask = torch.ones(batch_size, enc_seq_len)
-        if future_mask is None:
-            future_mask = torch.ones(batch_size, dec_seq_len)
+        if past_mask is None and future_mask is None:
+            attn_mask = None
+        else:
+            if past_mask is None:
+                past_mask = torch.ones(batch_size, enc_seq_len)
+            if future_mask is None:
+                future_mask = torch.ones(batch_size, dec_seq_len)
 
-        attn_mask = torch.cat([past_mask, future_mask], dim=1)
+            # make attn mask of shape [batch_size, dec_seq_len, enc_seq_len + dec_seq_len] from past_mask and future_mask
+            full_mask = (
+                torch.cat([past_mask, future_mask], dim=1)
+                .unsqueeze(1)
+                .expand(-1, dec_seq_len, -1)
+            )
+            future_mask_expanded = future_mask.unsqueeze(-1).expand(
+                -1, -1, enc_seq_len + dec_seq_len
+            )
+            attn_mask = torch.logical_and(full_mask, future_mask_expanded)
 
         # multi-head attention and post-processing
         attn_output, attn_weights = self.attn(
