@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+import enum
 import logging
 import os
 import threading
@@ -20,9 +21,19 @@ if typing.TYPE_CHECKING:
     SameType = typing.TypeVar("SameType", bound="Predictor")
 
 
+TIME_COLNAME = "__time__"
 I_PROG_COLNAME = "I_meas_A_filtered"
 I_PROG_DOT_COLNAME = "I_meas_A_filtered_dot"
+TARGET_PAST_COLNAME = "B_meas_T_filtered_"
 TARGET_COLNAME = "B_meas_T_filtered"
+
+
+class PredictionCovariates(enum.StrEnum):
+    TIME = "__time__"
+    CURRENT = "past_current"
+    CURRENT_DOT = "past_current_dot"
+    PAST_TARGET_ = "past_target_"
+    TARGET = "past_target"
 
 
 T_Module_co = typing.TypeVar("T_Module_co", bound=LightningModuleBase, covariant=True)
@@ -125,6 +136,7 @@ class PredictorUtils:
         *,
         use_programmed_current: bool = True,
         add_target: bool = True,
+        rdp: bool = False,
     ) -> pd.DataFrame:
         """
         Convert a buffer of cycles to covariates for the model.
@@ -145,12 +157,13 @@ class PredictorUtils:
                 )
                 b_meas = filter_bmeas(b_meas)
 
-                covariates["__target__"] = b_meas
+                covariates[PredictionCovariates.TARGET] = b_meas
+                covariates[PredictionCovariates.PAST_TARGET_] = b_meas
             else:
                 msg = "Buffer must contain field measurements to add target."
                 raise ValueError(msg)
 
-        return covariates
+        return rename_columns(covariates)
 
     @staticmethod
     def chain_programs(
@@ -403,7 +416,7 @@ class Predictor(
             cycles[:-1],
             use_programmed_current=use_programmed_current,
         )
-        past_targets = past_covariates.pop("__target__").to_numpy()
+        past_targets = past_covariates.pop(TARGET_COLNAME).to_numpy()
 
         self.set_initial_state(
             *args,
@@ -623,6 +636,35 @@ class Predictor(
         self.on_after_load_checkpoint()
 
 
+def rename_columns(
+    df: pd.DataFrame, old_to_new: dict[str, str] | None = None
+) -> pd.DataFrame:
+    """
+    Rename columns in a DataFrame.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame to rename columns in.
+    old_to_new : dict[str, str]
+        Dictionary mapping old column names to new column names.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with renamed columns.
+    """
+    if old_to_new is None:
+        old_to_new = {
+            PredictionCovariates.TIME: TIME_COLNAME,
+            PredictionCovariates.CURRENT: I_PROG_COLNAME,
+            PredictionCovariates.CURRENT_DOT: I_PROG_DOT_COLNAME,
+            PredictionCovariates.TARGET: TARGET_COLNAME,
+            PredictionCovariates.PAST_TARGET_: TARGET_PAST_COLNAME,
+        }
+    return df.rename(columns=old_to_new)
+
+
 def make_prog_base_covariates(
     buffers: list[CycleData],
 ) -> pd.DataFrame:
@@ -654,9 +696,9 @@ def make_prog_base_covariates(
 
     return pd.DataFrame(
         {
-            "__time__": t_prog,
-            I_PROG_COLNAME: i_prog,
-            I_PROG_DOT_COLNAME: i_prog_dot,
+            TIME_COLNAME: t_prog,
+            PredictionCovariates.CURRENT: i_prog,
+            PredictionCovariates.CURRENT_DOT: i_prog_dot,
         }
     )
 
@@ -694,9 +736,9 @@ def make_meas_base_covariates(
 
     return pd.DataFrame(
         {
-            "__time__": time,
-            I_PROG_COLNAME: i_meas_filtered,
-            I_PROG_DOT_COLNAME: i_meas_filtered_dot,
+            TIME_COLNAME: time,
+            PredictionCovariates.CURRENT: i_meas_filtered,
+            PredictionCovariates.CURRENT_DOT: i_meas_filtered_dot,
         }
     )
 
