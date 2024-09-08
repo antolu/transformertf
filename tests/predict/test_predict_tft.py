@@ -75,7 +75,7 @@ def test_tft_predict_cycle(
     assert rmse < 0.1
 
 
-def test_tft_predict_lasy_cycle(
+def test_tft_predict_last_cycle(
     buffers: list[list[CycleData]], tft_predictor: TFTPredictor
 ) -> None:
     buffer = buffers[0]

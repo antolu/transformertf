@@ -729,7 +729,7 @@ def make_prog_base_covariates(
         t_prog, i_prog = Predictor.interpolate_program(i_prog_2d, fs=1)
     else:
         t_prog, i_prog = i_prog_2d
-    t_prog /= 1e3
+    t_prog = t_prog / 1e3  # noqa: PLR6104
 
     # NB: we are using the programmed current, which is noise-free
     i_prog_dot = np.gradient(i_prog, t_prog * 1e3)
