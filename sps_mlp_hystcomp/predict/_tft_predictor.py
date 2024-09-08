@@ -100,7 +100,8 @@ class TFTPredictor(Predictor):
             time_format="absolute",
         )
 
-        predictions = self._predict_dataset(dataset, future_covariates)
+        with torch.no_grad():
+            predictions = self._predict_dataset(dataset, future_covariates)
 
         if save_state:
             future_covariates = future_covariates.copy()
