@@ -3,8 +3,9 @@ dependencies = [
   "matplotlib >= 3.6",
   "numpy >= 1.26, < 2.0",
   "pandas >= 2.0, < 3.0",
-  "transformertf >= 0.2.5, < 0.3",
   "hystcomp-utils >= 0.1.0",
+  "pybind11-rdp >= 0.1.4",
+  "transformertf >= 0.3.1, < 0.4",
 ]
 name = "sps-mlp-hysteresis-compensation"
 dynamic = ["version", "readme"]

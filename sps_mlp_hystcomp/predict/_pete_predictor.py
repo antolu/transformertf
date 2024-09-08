@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 import typing
 
 import numpy as np
@@ -14,14 +15,19 @@ from transformertf.data.dataset import EncoderDecoderDataset
 from transformertf.models.pete import PETE
 from transformertf.utils import ops
 
-from ._predictor_base import PredictorBase, T_DataModule_co, T_Module_co
+from ._base_predictor import NoInitialStateError, Predictor
+
+if sys.version_info >= (3, 12):
+    from typing import override
+else:
+    from typing_extensions import override
 
 HiddenState = tuple[torch.Tensor, torch.Tensor]
 
 log = logging.getLogger(__name__)
 
 
-class PETEPredictor(PredictorBase):
+class PETEPredictor(Predictor):
     _module: PETE
     _datamodule: EncoderDecoderDataModule
 
@@ -30,7 +36,8 @@ class PETEPredictor(PredictorBase):
 
         self.state: HiddenState | None = None
 
-    def set_initial_state(
+    @override
+    def _set_initial_state_impl(
         self,
         initial_state: tuple[npt.NDArray[np.float32], npt.NDArray[np.float32]]
         | tuple[torch.Tensor, torch.Tensor]
@@ -39,6 +46,22 @@ class PETEPredictor(PredictorBase):
         past_covariates: pd.DataFrame | None = None,
         past_targets: pd.DataFrame | np.ndarray | None = None,
     ) -> None:
+        """
+        Set the initial state of the model. The initial state can be provided as a
+        tuple of numpy arrays, a tuple of torch tensors, a path to a file containing
+        the initial state, or as past covariates and targets to fit the initial state.
+
+        Parameters
+        ----------
+        initial_state : tuple[npt.NDArray[np.float32], npt.NDArray[np.float32]] | tuple[torch.Tensor, torch.Tensor] | None
+            Initial state of the model. The tuple should contain the hidden and cell states.
+        initial_state_path : str | os.PathLike | None
+            Path to a file containing the initial state.
+        past_covariates : pd.DataFrame | None
+            Past covariates to fit the initial state.
+        past_targets : pd.DataFrame | np.ndarray | None
+            Past targets to fit the initial state.
+        """
         if initial_state is not None:
             # convert to torch tensor
             initial_state = (
@@ -46,7 +69,7 @@ class PETEPredictor(PredictorBase):
                 torch.tensor(initial_state[1]),
             )
 
-            self._initial_state = initial_state
+            self.state = initial_state
         elif initial_state_path is not None:
             # load from file
             initial_state_ = torch.load(initial_state_path)
@@ -73,29 +96,6 @@ class PETEPredictor(PredictorBase):
         else:
             msg = "Either initial_state or initial_state_path must be provided."
             raise ValueError(msg)
-
-    def reset_state(self) -> None:
-        self.state = None
-
-    def set_cycled_initial_state(
-        self,
-        cycles: list[CycleData],
-        *args: typing.Any,
-        use_programmed_current: bool = True,
-        **kwargs: typing.Any,
-    ) -> None:
-        past_covariates = PredictorBase.buffer_to_covariates(
-            cycles[:-1],
-            use_programmed_current=use_programmed_current,
-        )
-        past_targets = past_covariates.pop("__target__").to_numpy()
-
-        self.set_initial_state(
-            *args,
-            past_covariates=past_covariates,  # type: ignore[misc]
-            past_targets=past_targets,  # type: ignore[misc]
-            **kwargs,
-        )
 
     def _fit_initial_state(
         self,
@@ -144,7 +144,8 @@ class PETEPredictor(PredictorBase):
 
         return df
 
-    def predict(
+    @override
+    def _predict_impl(
         self,
         future_covariates: pd.DataFrame,
         *args: typing.Any,
@@ -153,8 +154,10 @@ class PETEPredictor(PredictorBase):
     ) -> npt.NDArray[np.float64]:
         self._check_state()
 
+        # transform input
         preprocessed_df = self.preprocess_df(future_covariates, seq_len=None)
 
+        # make sample
         sample = EncoderDecoderDataset.make_decoder_input(
             preprocessed_df,
             seq_len=None,
@@ -166,6 +169,7 @@ class PETEPredictor(PredictorBase):
         ]
         x = ops.to(x, self._module.device)
 
+        # predict
         with torch.no_grad():
             prediction, state = self._module.bwlstm1(
                 x,
@@ -177,6 +181,7 @@ class PETEPredictor(PredictorBase):
 
             prediction = prediction["z"][..., 0].squeeze().detach().cpu()
 
+        # inverse transform output
         target_transform = self._datamodule.target_transform
 
         # inverse transform
@@ -203,7 +208,8 @@ class PETEPredictor(PredictorBase):
 
         return prediction.numpy().astype(np.float64)
 
-    def predict_cycle(
+    @override
+    def _predict_cycle_impl(
         self,
         cycle: CycleData,
         *args: typing.Any,
@@ -211,7 +217,7 @@ class PETEPredictor(PredictorBase):
         use_programmed_current: bool = True,
         **kwargs: typing.Any,
     ) -> npt.NDArray[np.float64]:
-        future_covariates = PredictorBase.buffer_to_covariates(
+        future_covariates = Predictor.buffer_to_covariates(
             [cycle],
             use_programmed_current=use_programmed_current,
             add_target=False,
@@ -225,53 +231,17 @@ class PETEPredictor(PredictorBase):
 
         return np.vstack((time, prediction))
 
-    def predict_last_cycle(
-        self,
-        cycle_data: list[CycleData],
-        *args: typing.Any,
-        save_state: bool = True,
-        autoregressive: bool = False,
-        use_programmed_current: bool = True,
-        **kwargs: typing.Any,
-    ) -> npt.NDArray[np.float64]:
-        if autoregressive or self.state is None:
-            self.set_initial_state(
-                past_covariates=PredictorBase.buffer_to_covariates(
-                    cycle_data[:-1],
-                    use_programmed_current=use_programmed_current,
-                ),
-            )
-
-        return self.predict_cycle(
-            cycle_data[-1],
-            save_state=save_state,
-            use_programmed_current=use_programmed_current,
-            **kwargs,
-        )
-
     def _check_state(self) -> None:
         if self.state is None:
             msg = (
                 "Initial state must be set before making predictions. "
                 "Use the set_initial_state method."
             )
-            raise ValueError(msg)
+            raise NoInitialStateError(msg)
 
-    @classmethod
-    def load_from_checkpoint(
-        cls: type[PredictorBase[T_Module_co, T_DataModule_co]],
-        checkpoint_path: str | os.PathLike,
-        device: typing.Literal["cpu", "cuda", "auto"] = "auto",
-    ) -> PredictorBase[T_Module_co, T_DataModule_co]:
-        predictor = cls(device=device)
-        predictor.load_checkpoint(checkpoint_path)
-
-        return predictor
-
-    def load_checkpoint(self, checkpoint_path: str | os.PathLike) -> None:
+    @override
+    def _load_checkpoint_impl(self, checkpoint_path: str | os.PathLike) -> None:
         self._module = PETE.load_from_checkpoint(checkpoint_path)
         self._datamodule = EncoderDecoderDataModule.load_from_checkpoint(
             checkpoint_path
         )
-
-        self._reconfigure_module()
