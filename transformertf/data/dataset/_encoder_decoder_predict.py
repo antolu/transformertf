@@ -155,6 +155,15 @@ class EncoderDecoderPredictDataset(
             columns = self._past_covariates.columns
             first_feature = next(iter([col for col in columns if col != "__time__"]))
 
+            # apply target transform **before** covariate transform in case dependency
+            # also transforms
+            if target_column in self._transforms:
+                self._past_target = _apply_transforms(
+                    self._past_target,
+                    self._transforms[target_column],
+                    self._past_covariates[first_feature].to_numpy(),
+                )
+
             self._past_covariates = _apply_transforms(
                 self._past_covariates,
                 past_covariate_transforms,
@@ -163,12 +172,6 @@ class EncoderDecoderPredictDataset(
                 self._future_covariates,
                 past_covariate_transforms,
             )
-            if target_column in self._transforms:
-                self._past_target = _apply_transforms(
-                    self._past_target,
-                    self._transforms[target_column],
-                    self._past_covariates[first_feature].to_numpy(),
-                )
             self._past_known_covariates = (
                 _apply_transforms(
                     self._past_known_covariates, past_known_covariate_transforms
