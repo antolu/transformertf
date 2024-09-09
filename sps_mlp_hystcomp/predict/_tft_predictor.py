@@ -33,6 +33,23 @@ class TFTPredictor(Predictor):
     _datamodule: EncoderDecoderDataModule
     state: pd.DataFrame | None
 
+    def __init__(self, device: typing.Literal["cpu", "cuda", "auto"] = "auto") -> None:
+        super().__init__(device=device)
+
+        self.state = None
+        self._rdp_eps = 0.0
+
+    @property
+    def rdp_eps(self) -> float:
+        return self._rdp_eps
+
+    @rdp_eps.setter
+    def rdp_eps(self, value: float) -> None:
+        self._rdp_eps = value
+
+    def set_rdp_eps(self, value: float) -> None:
+        self.rdp_eps = value
+
     @override
     def _set_initial_state_impl(
         self,
@@ -57,7 +74,7 @@ class TFTPredictor(Predictor):
         past_covariates = self.buffer_to_covariates(
             cycles,
             use_programmed_current=use_programmed_current,
-            rdp=True,
+            rdp=self.rdp_eps,
         )
 
         self.set_initial_state(
@@ -200,7 +217,7 @@ class TFTPredictor(Predictor):
         future_covariates = self.buffer_to_covariates(
             [cycle],
             use_programmed_current=use_programmed_current,
-            rdp=True,
+            rdp=self.rdp_eps,
         )
 
         return self.predict(

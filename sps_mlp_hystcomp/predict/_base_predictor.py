@@ -11,6 +11,7 @@ import lightning as L
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
+import pybind11_rdp
 import torch
 from hystcomp_utils.cycle_data import CycleData
 from transformertf.data.datamodule import DataModuleBase
@@ -136,7 +137,7 @@ class PredictorUtils:
         *,
         use_programmed_current: bool = True,
         add_target: bool = True,
-        rdp: bool = False,
+        rdp: typing.Literal[False] | float = False,
     ) -> pd.DataFrame:
         """
         Convert a buffer of cycles to covariates for the model.
@@ -150,11 +151,13 @@ class PredictorUtils:
             If False, measured current will be used instead.
         add_target : bool
             Whether to add the target to the covariates, by default True.
-        rdp : bool
+        rdp : bool or float
             Whether to use adaptive downsampling, by default False.
             If true, the programmed current will not be interpolated if
             use_programmed_current is True. If False, the programmed current
             will be used as collocation points to sample the measured current.
+            If a float, the value will be used as the epsilon parameter for
+            the Ramer-Douglas-Peucker algorithm.
 
         Returns
         -------
@@ -171,7 +174,11 @@ class PredictorUtils:
             raise ValueError(msg)
 
         if use_programmed_current:
-            covariates = make_prog_base_covariates(buffer, interpolate=not rdp)
+            covariates = make_prog_base_covariates(
+                buffer,
+                interpolate=not isinstance(rdp, float),
+                rdp_eps=0.0 if rdp is False else rdp,
+            )
         else:
             covariates = make_meas_base_covariates(buffer, rdp=rdp)
 
@@ -182,7 +189,7 @@ class PredictorUtils:
                 )
                 b_meas = filter_bmeas(b_meas)
 
-                if rdp:
+                if use_programmed_current:
                     time = covariates[TIME_COLNAME].to_numpy()
                     time_b = np.arange(len(b_meas)) / 1e3
 
@@ -198,7 +205,7 @@ class PredictorUtils:
 
     @staticmethod
     def chain_programs(
-        *programs: tuple[np.ndarray, np.ndarray],
+        *programs: tuple[np.ndarray, np.ndarray] | np.ndarray,
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         Chain multiple LSA programs, shaped (2, N), into a single program.
@@ -225,7 +232,7 @@ class PredictorUtils:
 
     @staticmethod
     def interpolate_program(
-        program: tuple[np.ndarray, np.ndarray],
+        program: tuple[np.ndarray, np.ndarray] | np.ndarray,
         fs: float = 1e3,
     ) -> tuple[np.ndarray, np.ndarray]:
         """
@@ -700,6 +707,7 @@ def make_prog_base_covariates(
     buffers: list[CycleData],
     *,
     interpolate: bool = True,
+    rdp_eps: float = 0.0,
 ) -> pd.DataFrame:
     """
     Make the covariates for the base model.
@@ -720,16 +728,24 @@ def make_prog_base_covariates(
     if len(buffers) == 0:
         msg = "Buffer must contain at least one cycle."
         raise ValueError(msg)
+    i_prog_2d: (
+        tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]
+        | npt.NDArray[np.float64]
+    )
     if len(buffers) == 1:
-        i_prog_2d = buffers[0].current_prog
+        i_prog_2d = apply_rdp(prog_to_s(buffers[0].current_prog), epsilon=rdp_eps)
     else:
-        i_prog_2d = Predictor.chain_programs(*[cycle.current_prog for cycle in buffers])
+        i_prog_2d = Predictor.chain_programs(
+            *[
+                apply_rdp(prog_to_s(cycle.current_prog), epsilon=rdp_eps)
+                for cycle in buffers
+            ]
+        )
 
     if interpolate:
-        t_prog, i_prog = Predictor.interpolate_program(i_prog_2d, fs=1)
+        t_prog, i_prog = Predictor.interpolate_program(i_prog_2d, fs=1e3)
     else:
         t_prog, i_prog = i_prog_2d
-    t_prog = t_prog / 1e3  # noqa: PLR6104
 
     # NB: we are using the programmed current, which is noise-free
     i_prog_dot = np.gradient(i_prog, t_prog * 1e3)
@@ -743,10 +759,49 @@ def make_prog_base_covariates(
     )
 
 
+def apply_rdp(
+    array: npt.NDArray[np.float64],  # [2, N]
+    epsilon: float,
+) -> npt.NDArray[np.float64]:
+    if epsilon == 0.0:
+        return array
+
+    new_array = pybind11_rdp.rdp(array.T, epsilon=epsilon).T
+    # add edge points if they were removed
+    if new_array[0, 0] != array[0, 0]:
+        new_array = np.concatenate([array[:, :1], new_array], axis=1)
+    if new_array[0, -1] != array[0, -1]:
+        new_array = np.concatenate([new_array, array[:, -1:]], axis=1)
+    msg = f"RDP: {array.shape[1]} -> {new_array.shape[1]}"
+
+    log.info(msg)
+    return new_array
+
+
+def prog_to_s(
+    prog: npt.NDArray[np.float64],  # [2, N]
+) -> npt.NDArray[np.float64]:
+    """
+    Convert a program to seconds.
+
+    Parameters
+    ----------
+    prog : np.ndarray
+        Program to convert. The first row is the time array, and the second
+        row is the value array.
+
+    Returns
+    -------
+    np.ndarray
+        Program converted to seconds.
+    """
+    return np.vstack((prog[0] / 1e3, prog[1]))
+
+
 def make_meas_base_covariates(
     buffers: list[CycleData],
     *,
-    rdp: bool = False,
+    rdp: typing.Literal[False] | float = False,
 ) -> pd.DataFrame:
     """
     Make the covariates for the base model.
@@ -755,6 +810,11 @@ def make_meas_base_covariates(
     ----------
     buffers : list[CycleData]
         List of CycleData objects.
+    rdp : float
+        Whether to use adaptive downsampling, by default False if 0.0.
+        If non-zero, the programmed current will not be interpolated if
+        use_programmed_current is True. If zero, the programmed current
+        will be used as collocation points to sample the measured current.
 
     Returns
     -------
@@ -776,8 +836,10 @@ def make_meas_base_covariates(
         msg = f"Wrong array lengths: {len(time)} != {len(i_meas)}"
         log.error(msg)
 
-    if rdp:
-        prog_covariates = make_prog_base_covariates(buffers, interpolate=False)
+    if isinstance(rdp, float):
+        prog_covariates = make_prog_base_covariates(
+            buffers, interpolate=False, rdp_eps=rdp
+        )
         time_prog = prog_covariates[TIME_COLNAME].to_numpy()
 
         i_meas_filtered = np.interp(time_prog, time, i_meas_filtered)

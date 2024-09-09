@@ -134,7 +134,7 @@ class PETEPredictor(Predictor):
 
         if seq_len is not None:
             if len(df) < seq_len:
-                msg = "df must have at least seq_len rows."
+                msg = f"df must have at least seq_len ({seq_len}) rows."
                 raise ValueError(msg)
 
             df = df.iloc[-seq_len:]
