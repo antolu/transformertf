@@ -180,7 +180,9 @@ class PredictorUtils:
                 rdp_eps=0.0 if rdp is False else rdp,
             )
         else:
-            covariates = make_meas_base_covariates(buffer, rdp=rdp)
+            covariates = make_meas_base_covariates(
+                buffer, rdp=rdp if isinstance(rdp, float) and rdp > 0.0 else False
+            )
 
         if add_target:
             if all(cycle.field_meas is not None for cycle in buffer):
