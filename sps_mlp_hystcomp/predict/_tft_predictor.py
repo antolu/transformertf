@@ -97,7 +97,7 @@ class TFTPredictor(Predictor):
             ],
             target_column=TARGET_COLNAME,
             apply_transforms=True,
-            time_format="absolute",
+            time_format=self.hparams["time_format"],
         )
 
         with torch.no_grad():
