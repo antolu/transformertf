@@ -189,11 +189,10 @@ class PredictorUtils:
                 )
                 b_meas = filter_bmeas(b_meas)
 
-                if use_programmed_current:
-                    time = covariates[TIME_COLNAME].to_numpy()
-                    time_b = np.arange(len(b_meas)) / 1e3
+                time = covariates[TIME_COLNAME].to_numpy()
+                time_b = np.arange(len(b_meas)) / 1e3
 
-                    b_meas = np.interp(time, time_b, b_meas)
+                b_meas = np.interp(time, time_b, b_meas)
 
                 covariates[PredictionCovariates.TARGET] = b_meas
                 covariates[PredictionCovariates.PAST_TARGET_] = b_meas
