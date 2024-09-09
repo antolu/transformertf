@@ -28,6 +28,8 @@ class TemporalFusionTransformerModel(torch.nn.Module):
         num_lstm_layers: int = 2,
         dropout: float = 0.1,
         output_dim: int = 7,
+        *,
+        casual_attention: bool = True,
     ):
         """
         Implementation of the Temporal Fusion Transformer architecture.
@@ -75,6 +77,7 @@ class TemporalFusionTransformerModel(torch.nn.Module):
         self.num_lstm_layers = num_lstm_layers
         self.dropout = dropout
         self.output_dim = output_dim
+        self.casual_attention = casual_attention
 
         # TODO: static covariate embeddings
         self.static_vs = VariableSelection(
@@ -254,24 +257,7 @@ class TemporalFusionTransformerModel(torch.nn.Module):
             ),
         )
 
-        if past_mask is None and future_mask is None:
-            attn_mask = None
-        else:
-            if past_mask is None:
-                past_mask = torch.ones(batch_size, enc_seq_len)
-            if future_mask is None:
-                future_mask = torch.ones(batch_size, dec_seq_len)
-
-            # make attn mask of shape [batch_size, dec_seq_len, enc_seq_len + dec_seq_len] from past_mask and future_mask
-            full_mask = (
-                torch.cat([past_mask, future_mask], dim=1)
-                .unsqueeze(1)
-                .expand(-1, dec_seq_len, -1)
-            )
-            future_mask_expanded = future_mask.unsqueeze(-1).expand(
-                -1, -1, enc_seq_len + dec_seq_len
-            )
-            attn_mask = torch.logical_and(full_mask, future_mask_expanded)
+        attn_mask = self.get_attention_mask(past_mask, future_mask)
 
         # multi-head attention and post-processing
         attn_output, attn_weights = self.attn(
@@ -294,6 +280,66 @@ class TemporalFusionTransformerModel(torch.nn.Module):
             "attn_weights": attn_weights,
             "static_weights": static_variable_selection,
         }
+
+    def get_attention_mask(
+        self,
+        past_mask: torch.Tensor | None,
+        future_mask: torch.Tensor | None,
+    ) -> torch.Tensor | None:
+        """
+        Get attention masks.
+
+        Parameters
+        ----------
+        past_mask : torch.Tensor, optional
+            [batch_size, ctxt_seq_len]
+        future_mask : torch.Tensor, optional
+            [batch_size, tgt_seq_len]
+
+        Returns
+        -------
+        tuple[torch.Tensor, torch.Tensor]
+            Attention masks for the encoder and decoder.
+        """
+        if past_mask is None and future_mask is None:
+            return None
+
+        if past_mask is None:
+            assert future_mask is not None
+            batch_size = future_mask.shape[0]
+
+            past_mask = torch.ones(
+                batch_size,
+                self.ctxt_seq_len,
+                self.tgt_seq_len,
+                device=future_mask.device,
+            )
+        else:
+            past_mask = past_mask[:, None, :]
+            past_mask = past_mask.expand(-1, self.tgt_seq_len, -1)
+
+        if future_mask is None:
+            assert past_mask is not None
+            batch_size = past_mask.shape[0]
+
+            if self.casual_attention:
+                future_mask = torch.triu(
+                    torch.ones(self.tgt_seq_len, self.tgt_seq_len),
+                    diagonal=1,
+                    device=past_mask.device,
+                )
+            else:
+                future_mask = torch.ones(
+                    batch_size,
+                    self.tgt_seq_len,
+                    self.tgt_seq_len,
+                    device=past_mask.device,
+                )
+        else:
+            future_mask = future_mask[:, None, :]
+            future_mask = future_mask.expand(-1, self.tgt_seq_len, -1)
+
+        return torch.cat([past_mask, future_mask], dim=2)
 
 
 def basic_grn(dim: int, dropout: float) -> GatedResidualNetwork:

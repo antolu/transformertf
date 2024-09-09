@@ -25,6 +25,7 @@ class TemporalFusionTransformer(TransformerModuleBase):
         output_dim: int = 7,
         criterion: QuantileLoss | torch.nn.Module | None = None,
         *,
+        casual_attention: bool = True,
         prediction_type: typing.Literal["delta", "point"] = "point",
         log_grad_norm: bool = False,
         compile_model: bool = False,
@@ -51,6 +52,7 @@ class TemporalFusionTransformer(TransformerModuleBase):
             num_lstm_layers=num_lstm_layers,
             dropout=dropout,
             output_dim=output_dim,
+            casual_attention=casual_attention,
         )
 
     def forward(self, x: EncoderDecoderTargetSample) -> torch.Tensor:
