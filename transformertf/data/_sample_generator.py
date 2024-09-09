@@ -313,10 +313,6 @@ class TransformerPredictionSampleGenerator(SampleGenerator[EncoderDecoderSample[
             msg = f"Past covariates must have length {context_length}"
             raise ValueError(msg)
 
-        if len(future_covariates) < prediction_length:
-            msg = f"Future covariates must have at least length " f"{prediction_length}"
-            raise ValueError(msg)
-
         if (
             known_past_covariates is not None
             and len(known_past_covariates) != context_length
@@ -328,8 +324,12 @@ class TransformerPredictionSampleGenerator(SampleGenerator[EncoderDecoderSample[
         self._prediction_length = prediction_length
         self._total_context = len(future_covariates)
 
-        self._window_generator = WindowGenerator(
+        wg_len = max(
             len(past_covariates) + len(future_covariates),
+            context_length + prediction_length,
+        )
+        self._window_generator = WindowGenerator(
+            wg_len,
             context_length + prediction_length,
             stride=prediction_length,
             zero_pad=True,
