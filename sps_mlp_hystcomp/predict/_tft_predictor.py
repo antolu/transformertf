@@ -60,6 +60,9 @@ class TFTPredictor(Predictor):
         if past_targets is not None:
             df = pd.concat([df, pd.DataFrame(past_targets)], axis=1)
 
+        if "downsample" in self.hparams and self.hparams["downsample"] > 1:
+            df = df.iloc[:: self.hparams["downsample"]].reset_index(drop=True)
+
         # keep ctxt_seq_len number of points for context
         self.state = self._keep_ctxt(df).reset_index(drop=True)
 
@@ -74,6 +77,7 @@ class TFTPredictor(Predictor):
         past_covariates = self.buffer_to_covariates(
             cycles,
             use_programmed_current=use_programmed_current,
+            interpolate=self.rdp_eps == 0.0,
             rdp=self.rdp_eps,
         )
 
@@ -99,6 +103,10 @@ class TFTPredictor(Predictor):
         past_targets = past_covariates.pop(TARGET_COLNAME).to_numpy().flatten()
         future_covariates[TIME_COLNAME] += past_covariates[TIME_COLNAME].iloc[-1]
         future_covariates = future_covariates.reset_index(drop=True)
+        if "downsample" in self.hparams and self.hparams["downsample"] > 1:
+            future_covariates = future_covariates.iloc[
+                :: self.hparams["downsample"]
+            ].reset_index(drop=True)
 
         dataset = EncoderDecoderPredictDataset(
             past_covariates=past_covariates,
@@ -217,6 +225,7 @@ class TFTPredictor(Predictor):
         future_covariates = self.buffer_to_covariates(
             [cycle],
             use_programmed_current=use_programmed_current,
+            interpolate=self.rdp_eps == 0.0,
             rdp=self.rdp_eps,
         )
 

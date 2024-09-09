@@ -136,6 +136,7 @@ class PredictorUtils:
         buffer: list[CycleData],
         *,
         use_programmed_current: bool = True,
+        interpolate: bool = True,
         add_target: bool = True,
         rdp: typing.Literal[False] | float = False,
     ) -> pd.DataFrame:
@@ -176,7 +177,7 @@ class PredictorUtils:
         if use_programmed_current:
             covariates = make_prog_base_covariates(
                 buffer,
-                interpolate=not isinstance(rdp, float),
+                interpolate=interpolate,
                 rdp_eps=0.0 if rdp is False else rdp,
             )
         else:
