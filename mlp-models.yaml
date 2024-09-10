@@ -1,0 +1,5 @@
+models:
+  - name: "sps_mlp_hystcomp.predict.PETEPredictor"
+    standalone: false
+  - name: "sps_mlp_hystcomp.predict.TFTPredictor"
+    standalone: false
