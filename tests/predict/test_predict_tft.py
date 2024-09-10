@@ -84,7 +84,9 @@ def test_tft_predict_rdp(
     tft_predictor.rdp_eps = 1e-5
 
     past_covariates = TFTPredictor.buffer_to_covariates(
-        buffer[:-1], rdp=tft_predictor.rdp_eps
+        buffer[:-1],
+        rdp=tft_predictor.rdp_eps,
+        interpolate=False,
     )
 
     tft_predictor.set_initial_state(
@@ -92,7 +94,9 @@ def test_tft_predict_rdp(
     )
 
     future_covariates = TFTPredictor.buffer_to_covariates(
-        [buffer[-1]], rdp=tft_predictor.rdp_eps
+        [buffer[-1]],
+        rdp=tft_predictor.rdp_eps,
+        interpolate=False,
     )
     b_pred_future = tft_predictor.predict(future_covariates)
 
@@ -119,28 +123,16 @@ def test_tft_predict_downsampled_measured(
 
     # tft_predictor.rdp_eps = 1e-5
 
-    b_pred_future = tft_predictor_downsample.predict_last_cycle(
+    t_pred_future, b_pred_future = tft_predictor_downsample.predict_last_cycle(
         buffer,
         use_programmed_current=True,
     )
 
     np.vstack((buffer[-1].current_prog[0] / 1e3, buffer[-1].current_prog[1]))
-    # t_prog_future = pybind11_rdp.rdp(i_prog_future.T, epsilon=tft_predictor.rdp_eps).T[
-    #     0
-    # ]
 
     b_meas_future = buffer[-1].field_meas.flatten()
     t_prog_future = np.arange(len(b_meas_future)) / 1e3
-    # b_meas_future = np.interp(
-    #     t_prog_future, np.arange(len(b_meas_future)) / 1e3, b_meas_future
-    # )
 
-    t_pred_future = t_prog_future
-    if (
-        "downsample" in tft_predictor_downsample.hparams
-        and tft_predictor_downsample.hparams["downsample"] > 1
-    ):
-        t_pred_future = t_pred_future[:: tft_predictor_downsample.hparams["downsample"]]
     b_pred_future = np.interp(t_prog_future, t_pred_future, b_pred_future)
 
     rmse = np.sqrt(np.mean((b_meas_future - b_pred_future) ** 2))
@@ -155,12 +147,11 @@ def test_tft_predict_cycle(
     # set initial state
     tft_predictor.set_cycled_initial_state(buffer[:-1])
 
-    b_pred_future = tft_predictor.predict_cycle(buffer[-1])
+    t_pred_future, b_pred_future = tft_predictor.predict_cycle(buffer[-1])
 
-    t_prog_future = buffer[-1].current_prog[0] / 1e3
     b_meas_future = buffer[-1].field_meas.flatten()
     b_meas_future = np.interp(
-        t_prog_future, np.arange(len(b_meas_future)) / 1e3, b_meas_future
+        t_pred_future, np.arange(len(b_meas_future)) / 1e3, b_meas_future
     )
 
     rmse = np.sqrt(np.mean((b_meas_future - b_pred_future) ** 2))
@@ -172,12 +163,11 @@ def test_tft_predict_last_cycle(
 ) -> None:
     buffer = buffers[0]
 
-    b_pred_future = tft_predictor.predict_last_cycle(buffer)
+    t_pred_future, b_pred_future = tft_predictor.predict_last_cycle(buffer)
 
-    t_prog_future = buffer[-1].current_prog[0] / 1e3
     b_meas_future = buffer[-1].field_meas.flatten()
     b_meas_future = np.interp(
-        t_prog_future, np.arange(len(b_meas_future)) / 1e3, b_meas_future
+        t_pred_future, np.arange(len(b_meas_future)) / 1e3, b_meas_future
     )
 
     rmse = np.sqrt(np.mean((b_meas_future - b_pred_future) ** 2))
