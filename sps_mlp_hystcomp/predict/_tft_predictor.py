@@ -34,8 +34,13 @@ class TFTPredictor(Predictor):
     _datamodule: EncoderDecoderDataModule
     state: pd.DataFrame | None
 
-    def __init__(self, device: typing.Literal["cpu", "cuda", "auto"] = "auto") -> None:
-        super().__init__(device=device)
+    def __init__(
+        self,
+        device: typing.Literal["cpu", "cuda", "auto"] = "auto",
+        *,
+        compile: bool = False,  # noqa: A002
+    ) -> None:
+        super().__init__(device=device, compile=compile)
 
         self.state = None
         self._rdp_eps = 0.0

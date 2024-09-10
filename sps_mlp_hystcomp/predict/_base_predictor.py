@@ -278,6 +278,10 @@ class Predictor(
     ----------
     device : "cpu" | "cuda" | "auto"
         Device to use for prediction, by default "auto".
+    compile : bool
+        Whether to compile the model with torch.compile, by default False.
+        N.B. If true, the first prediction will be slower, but subsequent
+        predictions will be faster.
     """
 
     state: typing.Any | None
@@ -285,12 +289,15 @@ class Predictor(
     def __init__(
         self,
         device: typing.Literal["cpu", "cuda", "auto"] = "auto",
+        *,
+        compile: bool = False,  # noqa: A002
     ) -> None:
         self._module: T_Module_co | None = None
         self._datamodule: T_DataModule_co | None = None
 
         self._fabric = L.fabric.Fabric(accelerator=device)
         self._device = device
+        self._compile = compile
 
         self.lock = threading.Lock()
         self._busy = False
@@ -343,6 +350,22 @@ class Predictor(
 
             self._reconfigure_module()
 
+    def set_device(self, value: typing.Literal["cpu", "cuda", "auto"]) -> None:
+        """
+        Set the device to use for prediction. Callable version of the
+        :attr:`device` setter.
+
+        Parameters
+        ----------
+        value : torch.device | str
+            Device to use for prediction.
+
+        Returns
+        -------
+        None
+        """
+        self.device = value
+
     @property
     def busy(self) -> bool:
         """
@@ -391,6 +414,40 @@ class Predictor(
         None
         """
         self.busy = value
+
+    @property
+    def compile(self) -> bool:
+        """
+        Whether the model is compiled.
+
+        Returns
+        -------
+        bool
+            True if the model is compiled, False otherwise.
+        """
+        return self._compile
+
+    @compile.setter
+    def compile(self, value: bool) -> None:
+        """
+        Set whether to compile the model.
+
+        Parameters
+        ----------
+        value : bool
+            Whether to compile the model.
+
+        Returns
+        -------
+        None
+        """
+        self._compile = value
+
+        if self._module is not None:
+            log.warning(
+                "Model is already configured. "
+                "Model will be compiled on next call of 'load_checkpoint'."
+            )
 
     def _reconfigure_module(self) -> None:
         if self._module is not None:
@@ -672,6 +729,8 @@ class Predictor(
         None
         """
         self._load_checkpoint_impl(checkpoint_path)
+        if self._compile:
+            self._module = torch.compile(self._module)
         self._reconfigure_module()
         self.on_after_load_checkpoint()
 

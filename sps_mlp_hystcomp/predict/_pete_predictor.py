@@ -31,8 +31,13 @@ class PETEPredictor(Predictor):
     _module: PETE
     _datamodule: EncoderDecoderDataModule
 
-    def __init__(self, device: typing.Literal["cpu", "cuda", "auto"] = "auto") -> None:
-        super().__init__(device=device)
+    def __init__(
+        self,
+        device: typing.Literal["cpu", "cuda", "auto"] = "auto",
+        *,
+        compile: bool = False,  # noqa: A002
+    ) -> None:
+        super().__init__(device=device, compile=compile)
 
         self.state: HiddenState | None = None
 
