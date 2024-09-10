@@ -279,7 +279,10 @@ def keep_only_context(
     context_length: int,
 ) -> T:
     if len(data) < context_length:
-        msg = "The data is shorter than the context length."
+        msg = (
+            "The data is shorter than the context length. "
+            f"(data length: {len(data)}, context length: {context_length})"
+        )
         raise ValueError(msg)
     return data[-context_length:]
 
