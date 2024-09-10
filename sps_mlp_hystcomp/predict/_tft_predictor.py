@@ -4,6 +4,7 @@ import os
 import sys
 import typing
 
+import numpy
 import numpy as np
 import pandas as pd
 import torch
@@ -33,6 +34,28 @@ class TFTPredictor(Predictor):
     _datamodule: EncoderDecoderDataModule
     state: pd.DataFrame | None
 
+    def __init__(
+        self,
+        device: typing.Literal["cpu", "cuda", "auto"] = "auto",
+        *,
+        compile: bool = False,  # noqa: A002
+    ) -> None:
+        super().__init__(device=device, compile=compile)
+
+        self.state = None
+        self._rdp_eps = 0.0
+
+    @property
+    def rdp_eps(self) -> float:
+        return self._rdp_eps
+
+    @rdp_eps.setter
+    def rdp_eps(self, value: float) -> None:
+        self._rdp_eps = value
+
+    def set_rdp_eps(self, value: float) -> None:
+        self.rdp_eps = value
+
     @override
     def _set_initial_state_impl(
         self,
@@ -42,6 +65,9 @@ class TFTPredictor(Predictor):
         df = past_covariates
         if past_targets is not None:
             df = pd.concat([df, pd.DataFrame(past_targets)], axis=1)
+
+        if "downsample" in self.hparams and self.hparams["downsample"] > 1:
+            df = df.iloc[:: self.hparams["downsample"]].reset_index(drop=True)
 
         # keep ctxt_seq_len number of points for context
         self.state = self._keep_ctxt(df).reset_index(drop=True)
@@ -57,7 +83,8 @@ class TFTPredictor(Predictor):
         past_covariates = self.buffer_to_covariates(
             cycles,
             use_programmed_current=use_programmed_current,
-            rdp=True,
+            interpolate=self.rdp_eps == 0.0,
+            rdp=self.rdp_eps,
         )
 
         self.set_initial_state(
@@ -82,6 +109,10 @@ class TFTPredictor(Predictor):
         past_targets = past_covariates.pop(TARGET_COLNAME).to_numpy().flatten()
         future_covariates[TIME_COLNAME] += past_covariates[TIME_COLNAME].iloc[-1]
         future_covariates = future_covariates.reset_index(drop=True)
+        if "downsample" in self.hparams and self.hparams["downsample"] > 1:
+            future_covariates = future_covariates.iloc[
+                :: self.hparams["downsample"]
+            ].reset_index(drop=True)
 
         dataset = EncoderDecoderPredictDataset(
             past_covariates=past_covariates,
@@ -97,7 +128,7 @@ class TFTPredictor(Predictor):
             ],
             target_column=TARGET_COLNAME,
             apply_transforms=True,
-            time_format="absolute",
+            time_format=self.hparams["time_format"],
         )
 
         with torch.no_grad():
@@ -108,7 +139,10 @@ class TFTPredictor(Predictor):
             future_covariates[TARGET_PAST_COLNAME] = predictions
             future_covariates[TARGET_COLNAME] = predictions
 
-            self.state = future_covariates.reset_index(drop=True)
+            new_state = pd.concat([self.state, future_covariates], axis=0).reset_index(
+                drop=True
+            )
+            self.state = self._keep_ctxt(new_state).reset_index(drop=True)
 
         return predictions
 
@@ -200,15 +234,26 @@ class TFTPredictor(Predictor):
         future_covariates = self.buffer_to_covariates(
             [cycle],
             use_programmed_current=use_programmed_current,
-            rdp=True,
+            interpolate=self.rdp_eps == 0.0,
+            rdp=self.rdp_eps,
         )
 
-        return self.predict(
+        prediction = self.predict(
             future_covariates,
             *args,
             save_state=save_state,
             **kwargs,
         )
+
+        if "__time__" in future_covariates.columns:
+            time = future_covariates["__time__"].to_numpy()
+            time -= time[0]
+            time = time[:: self.hparams["downsample"]]
+        else:
+            time = np.arange(0, cycle.num_samples) / 1e3
+            time = time[:: self.hparams["downsample"]]
+
+        return numpy.vstack((time, prediction))
 
     @override
     def _load_checkpoint_impl(self, checkpoint_path: str | os.PathLike) -> None:
