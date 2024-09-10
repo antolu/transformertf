@@ -594,7 +594,7 @@ class Predictor(
         ValueError
             If not all data has input current set.
         """
-        if autoregressive or self.state is None:
+        if not autoregressive or self.state is None:
             self.set_cycled_initial_state(
                 cycles=cycle_data[:-1],
                 use_programmed_current=use_programmed_current,

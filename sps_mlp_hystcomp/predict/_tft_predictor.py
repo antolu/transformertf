@@ -4,6 +4,7 @@ import os
 import sys
 import typing
 
+import numpy
 import numpy as np
 import pandas as pd
 import torch
@@ -133,7 +134,10 @@ class TFTPredictor(Predictor):
             future_covariates[TARGET_PAST_COLNAME] = predictions
             future_covariates[TARGET_COLNAME] = predictions
 
-            self.state = future_covariates.reset_index(drop=True)
+            new_state = pd.concat([self.state, future_covariates], axis=0).reset_index(
+                drop=True
+            )
+            self.state = self._keep_ctxt(new_state).reset_index(drop=True)
 
         return predictions
 
@@ -229,12 +233,22 @@ class TFTPredictor(Predictor):
             rdp=self.rdp_eps,
         )
 
-        return self.predict(
+        prediction = self.predict(
             future_covariates,
             *args,
             save_state=save_state,
             **kwargs,
         )
+
+        if "__time__" in future_covariates.columns:
+            time = future_covariates["__time__"].to_numpy()
+            time -= time[0]
+            time = time[:: self.hparams["downsample"]]
+        else:
+            time = np.arange(0, cycle.num_samples) / 1e3
+            time = time[:: self.hparams["downsample"]]
+
+        return numpy.vstack((time, prediction))
 
     @override
     def _load_checkpoint_impl(self, checkpoint_path: str | os.PathLike) -> None:
