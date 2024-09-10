@@ -8,7 +8,7 @@ import pybind11_rdp
 import pytest
 from hystcomp_utils.cycle_data import CycleData
 
-from sps_mlp_hystcomp.predict import TFTPredictor
+from sps_mlp_hystcomp import TFTPredictor
 
 
 @pytest.fixture(scope="module")
