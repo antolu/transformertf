@@ -4,8 +4,7 @@
 include:
 - project: acc-co/devops/python/acc-py-gitlab-ci-templates
   file: v2/python.gitlab-ci.yml
-- project: acc-co/machine-learning-platform/mlp-ci
-  file: pipeline-templates/mlp-model-gitlab-ci-template.yml
+- local: mlp-ci.yml
 
 
 variables:
