@@ -2,8 +2,6 @@
 # https://gitlab.cern.ch/acc-co/devops/python/acc-py-gitlab-ci-templates/-/blob/master/v2/python.gitlab-ci.yml
 
 include:
-- project: acc-co/devops/python/acc-py-gitlab-ci-templates
-  file: v2/python.gitlab-ci.yml
 - local: mlp-ci.yml
 
 
