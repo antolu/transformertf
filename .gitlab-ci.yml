@@ -4,6 +4,8 @@
 include:
 - project: acc-co/devops/python/acc-py-gitlab-ci-templates
   file: v2/python.gitlab-ci.yml
+- local: mlp-ci.yml
+
 
 variables:
   project_name: sps-mlp-hysteresis-compensation
@@ -64,6 +66,18 @@ build_docs_on_tag:
 pre-commit:
   extends: .acc_py_pre-commit
 
+# vvv MLP vvv
 
 release_dist:
   extends: .acc_py_publish
+
+check_mlp_config:
+  extends: .check_mlp_config
+
+
+publish_bom:
+  extends: .publish_bom
+
+
+register_models_on_tag:
+  extends: .register_models_on_tag

@@ -1,25 +1,36 @@
 from __future__ import annotations
 
 import abc
+import contextlib
 import enum
 import logging
 import os
+import pathlib
+import sys
 import threading
 import typing
 
 import lightning as L
+import mlp_model_api
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
 import pybind11_rdp
 import torch
 from hystcomp_utils.cycle_data import CycleData
+from mlp_model_api import MlpModel
 from transformertf.data.datamodule import DataModuleBase
 from transformertf.models import LightningModuleBase
 from transformertf.utils import signal
 
+if sys.version_info >= (3, 12):
+    from typing import override
+else:
+    from typing_extensions import override
+
 if typing.TYPE_CHECKING:
     SameType = typing.TypeVar("SameType", bound="Predictor")
+    from lightning.fabric.fabric import _FabricModule as FabricModule
 
 
 TIME_COLNAME = "__time__"
@@ -252,6 +263,7 @@ class Predictor(
     PredictorHooks,
     PredictorUtils,
     PredictorABC,
+    mlp_model_api.MlpModel,
     typing.Generic[T_Module_co, T_DataModule_co],
     metaclass=abc.ABCMeta,
 ):
@@ -292,7 +304,8 @@ class Predictor(
         *,
         compile: bool = False,  # noqa: A002
     ) -> None:
-        self._module: T_Module_co | None = None
+        MlpModel.__init__(self)
+        self._module: T_Module_co | FabricModule | None = None
         self._datamodule: T_DataModule_co | None = None
 
         self._fabric = L.fabric.Fabric(accelerator=device)
@@ -522,6 +535,7 @@ class Predictor(
             **kwargs,
         )
 
+    @override  # type: ignore[misc]
     def predict(
         self,
         future_covariates: pd.DataFrame,
@@ -733,6 +747,24 @@ class Predictor(
             self._module = torch.compile(self._module)
         self._reconfigure_module()
         self.on_after_load_checkpoint()
+
+    @override  # type: ignore[misc]
+    def load_parameters(self, parameters_src: pathlib.Path) -> None:
+        self.load_checkpoint(parameters_src)
+
+    @override  # type: ignore[misc]
+    def export_parameters(self, parameters_target: pathlib.Path) -> None:
+        with (
+            open(os.devnull, "w", encoding="utf-8") as f,
+            contextlib.redirect_stdout(f),
+        ):
+            trainer = L.Trainer(accelerator="cpu", fast_dev_run=True)
+
+        # disable stdout
+        with contextlib.suppress(Exception):
+            trainer.predict(self._module.module, datamodule=self._datamodule)  # type: ignore[union-attr]
+
+        trainer.save_checkpoint(parameters_target)
 
 
 def rename_columns(

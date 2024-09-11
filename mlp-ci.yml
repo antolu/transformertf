@@ -1,0 +1,72 @@
+include:
+  - project: acc-co/devops/python/acc-py-gitlab-ci-templates
+    file: v2/python.gitlab-ci.yml
+
+variables:
+  # MLP-CI variables
+  ENV: "PRO"
+  DTRACK_API_URL: "https://dtrack.web.cern.ch/api/v1/bom"
+  PYTHONUNBUFFERED: 1
+
+.mlp_ci_dotenv:
+  before_script:
+    # Find the path to the MLP CI logging configuration file
+    - pip install cern-mlp-ci importlib-resources
+    - export MLP_LOGGING_CONFIGURATION=$(python -c 'import importlib_resources; print(importlib_resources.files("mlp_ci").joinpath("logging.conf"), end="")')
+    - echo "Found MLP CI logging configuration at $MLP_LOGGING_CONFIGURATION"
+
+    # Generate distribution environment metadata
+    - python -m mlp_ci.utils.generate_distribution_env $PWD distribution_env.sh
+    - . distribution_env.sh
+
+    # Generate MLP CI dot.env file
+    - echo "MLP_LOGGING_CONFIGURATION=$MLP_LOGGING_CONFIGURATION" >> dot.env
+    - echo "DISTRIBUTION_NAME=$DISTRIBUTION_NAME" >> dot.env
+    - echo "DISTRIBUTION_VERSION=$DISTRIBUTION_VERSION" >> dot.env
+    - cat dot.env
+
+.check_mlp_config:
+  stage: build
+  extends:
+    - .acc_py_run_on_acc_py
+    - .mlp_ci_dotenv
+  before_script:
+    - !reference [.acc_py_run_on_acc_py, before_script]
+    - !reference [.mlp_ci_dotenv, before_script]
+    - python -m pip install -e "${project_root}"
+  script:
+    - python -m mlp_ci.check_mlp_config $PWD
+  artifacts:
+    reports:
+      dotenv: dot.env
+
+.publish_bom: # Security: publish Bill of Materials (BOM) to dependency tracker
+  stage: deploy
+  allow_failure: true
+  extends:
+    - .acc_py_run_on_acc_py
+    - .acc_py_on_tag
+  script:
+    - pip install cyclonedx-bom .
+    - pip freeze --exclude-editable > requirements.txt
+    - cyclonedx-py requirements -v --index-url "$PIP_INDEX_URL" --of XML -o sbom.xml
+    - >
+      curl -X "POST"
+      -H "Content-Type: multipart/form-data"
+      -H "X-API-Key: $DTRACK_API_KEY"
+      -F "autoCreate=true"
+      -F "projectName=mlp-$DISTRIBUTION_NAME"
+      -F "projectVersion=$DISTRIBUTION_VERSION"
+      -F "bom=@sbom.xml" -v
+      $DTRACK_API_URL
+
+.register_models_on_tag:
+  stage: deploy
+  extends:
+    - .acc_py_run_on_acc_py
+    - .acc_py_on_tag
+  before_script:
+    - !reference [.acc_py_run_on_acc_py, before_script]
+    - pip install cern-mlp-ci
+  script:
+    - python -m mlp_ci.register_mlp_models $PWD --environment $ENV

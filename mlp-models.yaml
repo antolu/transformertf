@@ -1,0 +1,5 @@
+models:
+  - name: "sps_mlp_hystcomp:PETEPredictor"
+    standalone: false
+  - name: "sps_mlp_hystcomp:TFTPredictor"
+    standalone: false
