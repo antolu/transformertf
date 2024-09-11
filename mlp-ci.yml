@@ -4,7 +4,6 @@ variables:
   DTRACK_API_URL: "https://dtrack.web.cern.ch/api/v1/bom"
   PYTHONUNBUFFERED: 1
 
-
 ._mlp_ci_dotenv:
   before_script:
     # Find the path to the MLP CI logging configuration file
@@ -22,7 +21,7 @@ variables:
     - echo "DISTRIBUTION_VERSION=$DISTRIBUTION_VERSION" >> dot.env
     - cat dot.env
 
-._check_mlp_config:
+.check_mlp_config:
   stage: build
   extends:
     - .acc_py_run_on_acc_py
@@ -36,8 +35,7 @@ variables:
     reports:
       dotenv: dot.env
 
-
-._publish_bom: # Security: publish Bill of Materials (BOM) to dependency tracker
+.publish_bom: # Security: publish Bill of Materials (BOM) to dependency tracker
   stage: security
   allow_failure: true
   extends:
@@ -57,7 +55,7 @@ variables:
       -F "bom=@sbom.xml" -v
       $DTRACK_API_URL
 
-._register_models_on_tag:
+.register_models_on_tag:
   stage: register
   extends:
     - .acc_py_run_on_acc_py

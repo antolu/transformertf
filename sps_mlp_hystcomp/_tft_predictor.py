@@ -236,6 +236,7 @@ class TFTPredictor(Predictor):
             use_programmed_current=use_programmed_current,
             interpolate=self.rdp_eps == 0.0,
             rdp=self.rdp_eps,
+            add_target=False,
         )
 
         prediction = self.predict(
