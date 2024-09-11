@@ -64,23 +64,23 @@ def main(argv: list[str] | None = None) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         client = mlp_client.Client(
             profile=mlp_client.Profile.PRO,
-            temp_directory=tmp.name,  # type: ignore[attr-defined]
+            temp_directory=pathlib.Path(tmp),
         )
 
-    if args.model == "PETE":
-        predictor = PETEPredictor.load_from_checkpoint(args.checkpoint)
-    elif args.model == "TFT":
-        predictor = TFTPredictor.load_from_checkpoint(args.checkpoint)
-    else:
-        msg = f"Invalid model: {args.model}"
-        raise ValueError(msg)
+        if args.model == "PETE":
+            predictor = PETEPredictor.load_from_checkpoint(args.checkpoint)
+        elif args.model == "TFT":
+            predictor = TFTPredictor.load_from_checkpoint(args.checkpoint)
+        else:
+            msg = f"Invalid model: {args.model}"
+            raise ValueError(msg)
 
-    version = client.publish_model_parameters_version(
-        predictor,
-        name=args.name,
-        version=args.version or mlp_client.VersionFlag.AUTO,
-        verbose=True,
-    )
+        version = client.publish_model_parameters_version(
+            predictor,
+            name=args.name,
+            version=args.version or mlp_client.VersionFlag.AUTO,
+            verbose=True,
+        )
 
     log.info(f"Model uploaded successfully. Version: {version}")
 
