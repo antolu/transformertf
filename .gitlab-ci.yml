@@ -77,9 +77,7 @@ check_mlp_config:
 
 publish_bom:
   extends: .publish_bom
-  stage: deploy
 
 
 register_models_on_tag:
   extends: .register_models_on_tag
-  stage: deploy

@@ -36,7 +36,7 @@ variables:
       dotenv: dot.env
 
 .publish_bom: # Security: publish Bill of Materials (BOM) to dependency tracker
-  stage: security
+  stage: deploy
   allow_failure: true
   extends:
     - .acc_py_run_on_acc_py
@@ -56,7 +56,7 @@ variables:
       $DTRACK_API_URL
 
 .register_models_on_tag:
-  stage: register
+  stage: deploy
   extends:
     - .acc_py_run_on_acc_py
     - .acc_py_on_tag
