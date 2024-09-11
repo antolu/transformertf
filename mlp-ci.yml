@@ -29,6 +29,7 @@ variables:
   before_script:
     - !reference [.acc_py_run_on_acc_py, before_script]
     - !reference [.mlp_ci_dotenv, before_script]
+    - python -m pip install -e "${project_root}"
   script:
     - python -m mlp_ci.check_mlp_config $PWD
   artifacts:
