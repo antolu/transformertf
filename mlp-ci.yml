@@ -5,7 +5,7 @@ variables:
   PYTHONUNBUFFERED: 1
 
 
-.mlp_ci_dotenv:
+._mlp_ci_dotenv:
   before_script:
     # Find the path to the MLP CI logging configuration file
     - pip install cern-mlp-ci importlib-resources
@@ -22,7 +22,7 @@ variables:
     - echo "DISTRIBUTION_VERSION=$DISTRIBUTION_VERSION" >> dot.env
     - cat dot.env
 
-check_mlp_config:
+._check_mlp_config:
   stage: build
   extends:
     - .acc_py_run_on_acc_py
@@ -37,7 +37,7 @@ check_mlp_config:
       dotenv: dot.env
 
 
-publish_bom: # Security: publish Bill of Materials (BOM) to dependency tracker
+._publish_bom: # Security: publish Bill of Materials (BOM) to dependency tracker
   stage: security
   allow_failure: true
   extends:
@@ -57,7 +57,7 @@ publish_bom: # Security: publish Bill of Materials (BOM) to dependency tracker
       -F "bom=@sbom.xml" -v
       $DTRACK_API_URL
 
-register_models_on_tag:
+._register_models_on_tag:
   stage: register
   extends:
     - .acc_py_run_on_acc_py

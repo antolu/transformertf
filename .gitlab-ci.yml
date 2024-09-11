@@ -66,6 +66,20 @@ build_docs_on_tag:
 pre-commit:
   extends: .acc_py_pre-commit
 
+# vvv MLP vvv
 
 release_dist:
   extends: .acc_py_publish
+
+check_mlp_config:
+  extends: ._check_mlp_config
+
+
+publish_bom:
+  extends: ._publish_bom
+  stage: deploy
+
+
+register_models_on_tag:
+  extends: ._register_models_on_tag
+  stage: deploy
