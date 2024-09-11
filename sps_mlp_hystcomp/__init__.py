@@ -1,4 +1,4 @@
-from _version import version as __version__  # noqa
+from ._version import version as __version__  # noqa
 
 from ._base_predictor import Predictor
 from ._mod_replace import replace_modname
