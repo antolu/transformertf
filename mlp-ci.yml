@@ -4,7 +4,7 @@ variables:
   DTRACK_API_URL: "https://dtrack.web.cern.ch/api/v1/bom"
   PYTHONUNBUFFERED: 1
 
-._mlp_ci_dotenv:
+.mlp_ci_dotenv:
   before_script:
     # Find the path to the MLP CI logging configuration file
     - pip install cern-mlp-ci importlib-resources
