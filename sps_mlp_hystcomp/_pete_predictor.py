@@ -232,6 +232,7 @@ class PETEPredictor(Predictor):
 
         # interpolate to match the length of the cycle at 1kHz
         time = np.arange(0, cycle.num_samples) / 1e3
+        time = np.round(time, 3)  # round to ms
         time = time[:: self._datamodule.hparams["downsample"]]
 
         return np.vstack((time, prediction))

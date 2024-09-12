@@ -254,6 +254,8 @@ class TFTPredictor(Predictor):
             time = np.arange(0, cycle.num_samples) / 1e3
             time = time[:: self.hparams["downsample"]]
 
+        time = np.round(time, 3)  # round to ms
+
         return numpy.vstack((time, prediction))
 
     @override
