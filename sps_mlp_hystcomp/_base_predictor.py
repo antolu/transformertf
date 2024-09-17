@@ -24,8 +24,10 @@ from transformertf.models import LightningModuleBase
 from transformertf.utils import signal
 
 if sys.version_info >= (3, 12):
-    from typing import override
+    from typing import Self, override
 else:
+    from typing import Self
+
     from typing_extensions import override
 
 if typing.TYPE_CHECKING:
@@ -312,9 +314,9 @@ class Predictor(
         self._device = device
         self._compile = compile
 
-        self.lock = threading.Lock()
+        self._lock = threading.Lock()
         self._busy = False
-        self._busy_cv = threading.Condition(self.lock)
+        self._busy_cv = threading.Condition(self._lock)
 
     @property
     def device(self) -> typing.Literal["cpu", "cuda", "auto"]:
@@ -390,7 +392,7 @@ class Predictor(
             True if the predictor is currently busy making a prediction,
             False otherwise.
         """
-        with self.lock:
+        with self._lock:
             return self._busy
 
     @busy.setter
@@ -406,7 +408,7 @@ class Predictor(
         -------
         None
         """
-        with self.lock:
+        with self._lock:
             self._busy = value
 
             if not value:
@@ -765,6 +767,18 @@ class Predictor(
             trainer.predict(self._module.module, datamodule=self._datamodule)  # type: ignore[union-attr]
 
         trainer.save_checkpoint(parameters_target)
+
+    def __enter__(self) -> Self:
+        self._lock.acquire()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException],
+        exc_value: BaseException,
+        traceback: types.TracebackType | None,
+    ) -> None:
+        self._lock.release()
 
 
 def rename_columns(
