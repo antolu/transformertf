@@ -8,6 +8,7 @@ import os
 import pathlib
 import sys
 import threading
+import types
 import typing
 
 import lightning as L
@@ -145,13 +146,14 @@ class PredictorABC(metaclass=abc.ABCMeta):
 
 class PredictorUtils:
     @staticmethod
-    def buffer_to_covariates(
+    def buffer_to_covariates(  # noqa: PLR0913
         buffer: list[CycleData],
         *,
         use_programmed_current: bool = True,
         interpolate: bool = True,
         add_target: bool = True,
         rdp: typing.Literal[False] | float = False,
+        prog_t_phase: float = 0.0,
     ) -> pd.DataFrame:
         """
         Convert a buffer of cycles to covariates for the model.
@@ -172,6 +174,10 @@ class PredictorUtils:
             will be used as collocation points to sample the measured current.
             If a float, the value will be used as the epsilon parameter for
             the Ramer-Douglas-Peucker algorithm.
+        prog_t_phase : float
+            Phase shift of the programmed current, by default 0.0.
+            If non-zero, the timestamps of the programmed current will be shifted
+            (additively) by this phase, beside the first and last time stamp.
 
         Returns
         -------
@@ -192,6 +198,7 @@ class PredictorUtils:
                 buffer,
                 interpolate=interpolate,
                 rdp_eps=0.0 if rdp is False else rdp,
+                prog_t_phase=prog_t_phase,
             )
         else:
             covariates = make_meas_base_covariates(
@@ -303,6 +310,7 @@ class Predictor(
     def __init__(
         self,
         device: typing.Literal["cpu", "cuda", "auto"] = "auto",
+        prog_t_phase: float = 0.0,
         *,
         compile: bool = False,  # noqa: A002
     ) -> None:
@@ -313,6 +321,7 @@ class Predictor(
         self._fabric = L.fabric.Fabric(accelerator=device)
         self._device = device
         self._compile = compile
+        self._prog_t_phase = prog_t_phase
 
         self._lock = threading.Lock()
         self._busy = False
@@ -464,6 +473,14 @@ class Predictor(
                 "Model will be compiled on next call of 'load_checkpoint'."
             )
 
+    @property
+    def prog_t_phase(self) -> float:
+        return self._prog_t_phase
+
+    @prog_t_phase.setter
+    def prog_t_phase(self, value: float) -> None:
+        self._prog_t_phase = value
+
     def _reconfigure_module(self) -> None:
         if self._module is not None:
             self._module = self._fabric.setup(self._module)
@@ -527,6 +544,7 @@ class Predictor(
         past_covariates = Predictor.buffer_to_covariates(
             cycles,
             use_programmed_current=use_programmed_current,
+            prog_t_phase=self._prog_t_phase,
         )
         past_targets = past_covariates.pop(TARGET_COLNAME).to_numpy()
 
@@ -774,8 +792,8 @@ class Predictor(
 
     def __exit__(
         self,
-        exc_type: type[BaseException],
-        exc_value: BaseException,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
         traceback: types.TracebackType | None,
     ) -> None:
         self._lock.release()
@@ -815,6 +833,7 @@ def make_prog_base_covariates(
     *,
     interpolate: bool = True,
     rdp_eps: float = 0.0,
+    prog_t_phase: float = 0.0,
 ) -> pd.DataFrame:
     """
     Make the covariates for the base model.
@@ -826,6 +845,16 @@ def make_prog_base_covariates(
     interpolate : bool
         Whether to interpolate the programmed current to a new time array,
         by default True.
+    rdp_eps : float
+        Epsilon parameter for the Ramer-Douglas-Peucker algorithm, by default 0.0.
+        If non-zero, the programmed current will not be interpolated if
+        use_programmed_current is True. If zero, the programmed current
+        will be used as collocation points to sample the measured current.
+    prog_t_phase : float
+        Phase shift of the programmed current, by default 0.0.
+        If non-zero, the timestamps of the programmed current will be shifted
+        (additively) by this phase, beside the first and last time stamp.
+        The phase is in seconds.
 
     Returns
     -------
@@ -839,12 +868,21 @@ def make_prog_base_covariates(
         tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]
         | npt.NDArray[np.float64]
     )
+
     if len(buffers) == 1:
-        i_prog_2d = apply_rdp(prog_to_s(buffers[0].current_prog), epsilon=rdp_eps)
+        i_prog_2d = apply_rdp(
+            prog_to_s(phase_shift_program(buffers[0].current_prog, phase=prog_t_phase)),
+            epsilon=rdp_eps,
+        )
     else:
         i_prog_2d = Predictor.chain_programs(
             *[
-                apply_rdp(prog_to_s(cycle.current_prog), epsilon=rdp_eps)
+                apply_rdp(
+                    prog_to_s(
+                        phase_shift_program(cycle.current_prog, phase=prog_t_phase)
+                    ),
+                    epsilon=rdp_eps,
+                )
                 for cycle in buffers
             ]
         )
@@ -1000,3 +1038,18 @@ def filter_bmeas(
     """
     b_meas = signal.butter_lowpass_filter(b_meas, cutoff=80, fs=1e3, order=1)
     return signal.mean_filter(b_meas, window_size=151, stride=1, threshold=1.5e-5 / 2)
+
+
+def phase_shift_program(
+    program: npt.NDArray[np.float64],
+    phase: float = 0.0,
+) -> npt.NDArray[np.float64]:
+    if phase == 0.0:
+        return program
+
+    time = program[0]
+    time_shifted = time + phase * 1e3
+    time_shifted[0] = time[0]
+    time_shifted[-1] = time[-1]
+
+    return np.vstack((time_shifted, program[1]))

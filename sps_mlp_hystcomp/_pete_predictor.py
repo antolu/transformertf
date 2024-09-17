@@ -226,6 +226,7 @@ class PETEPredictor(Predictor):
             [cycle],
             use_programmed_current=use_programmed_current,
             add_target=False,
+            prog_t_phase=self._prog_t_phase,
         )
 
         prediction = self.predict(future_covariates, save_state=save_state, **kwargs)

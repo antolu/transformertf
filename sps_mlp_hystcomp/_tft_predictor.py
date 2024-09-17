@@ -85,6 +85,7 @@ class TFTPredictor(Predictor):
             use_programmed_current=use_programmed_current,
             interpolate=self.rdp_eps == 0.0,
             rdp=self.rdp_eps,
+            prog_t_phase=self._prog_t_phase,
         )
 
         self.set_initial_state(
@@ -237,6 +238,7 @@ class TFTPredictor(Predictor):
             interpolate=self.rdp_eps == 0.0,
             rdp=self.rdp_eps,
             add_target=False,
+            prog_t_phase=self._prog_t_phase,
         )
 
         prediction = self.predict(
