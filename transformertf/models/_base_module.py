@@ -24,7 +24,7 @@ class LightningModuleBase(L.LightningModule):
     model: torch.nn.Module
     criterion: torch.nn.Module
 
-    def __init__(self) -> None:
+    def __init__(self, *, log_timeseries_metrics: bool = True) -> None:
         super().__init__()
         self.save_hyperparameters()
 
@@ -65,8 +65,9 @@ class LightningModuleBase(L.LightningModule):
         assert outputs is not None
         assert "target" in batch
         assert isinstance(outputs, dict)
-        other_metrics = self.calc_other_metrics(outputs, batch["target"])
-        self.common_log_step(other_metrics, "train")  # type: ignore[attr-defined]
+        if self.hparams.get("log_timeseries_metrics"):
+            other_metrics = self.calc_other_metrics(outputs, batch["target"])
+            self.common_log_step(other_metrics, "train")  # type: ignore[attr-defined]
 
         return super().on_train_batch_end(outputs, batch, batch_idx)  # type: ignore[misc]
 
@@ -81,9 +82,10 @@ class LightningModuleBase(L.LightningModule):
             self._val_outputs[dataloader_idx] = []
         self._val_outputs[dataloader_idx].append(ops.to_cpu(ops.detach(outputs)))  # type: ignore[arg-type,type-var]
 
-        assert "target" in batch
-        other_metrics = self.calc_other_metrics(outputs, batch["target"])
-        self.common_log_step(other_metrics, "validation")  # type: ignore[attr-defined]
+        if self.hparams.get("log_timeseries_metrics"):
+            assert "target" in batch
+            other_metrics = self.calc_other_metrics(outputs, batch["target"])
+            self.common_log_step(other_metrics, "validation")  # type: ignore[attr-defined]
 
     def on_test_epoch_start(self) -> None:
         self._test_outputs = {}
