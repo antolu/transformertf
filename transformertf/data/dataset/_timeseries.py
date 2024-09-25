@@ -199,6 +199,10 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
         # needed to determine which dataframe to get samples from
         self._cum_num_samples = np.cumsum([len(gen) for gen in self._sample_gen])
 
+    @property
+    def seq_len(self) -> int:
+        return self._seq_len
+
     def __getitem__(self, idx: int) -> TimeSeriesSample[torch.Tensor]:
         """
         Get a single sample from the dataset.
