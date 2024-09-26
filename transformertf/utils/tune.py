@@ -345,7 +345,8 @@ def load_cli_config(tune_config: TuneConfig) -> dict[str, typing.Any]:
     with open(tune_config.cli_config_path, encoding="utf-8") as f:
         cli_config = yaml.full_load(f)
 
-    cli_config.pop("ckpt_path")
+    if "ckpt_path" in cli_config:
+        cli_config.pop("ckpt_path")
 
     apply_key(cli_config, "trainer.max_epochs", tune_config.num_epochs_per_trial)
     apply_key(cli_config, "trainer.enable_progress_bar", value=False)
