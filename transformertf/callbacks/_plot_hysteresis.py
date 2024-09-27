@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from ..data import EncoderDecoderDataset, TimeSeriesDataset
+from ..data import BaseTransform, EncoderDecoderDataset, TimeSeriesDataset
 from ..data._covariates import TIME_PREFIX as TIME
 from ..models import LightningModuleBase
 
@@ -109,18 +109,19 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
             val_dataset.transforms[depends_on_key].inverse_transform(depends_on).numpy()
         )
 
-        predictions = (
-            val_dataset.transforms[target_key]
-            .inverse_transform(depends_on, predictions)
-            .cpu()
-            .numpy()
-        )
-        targets = (
-            val_dataset.transforms[target_key]
-            .inverse_transform(depends_on, targets)
-            .cpu()
-            .numpy()
-        )
+        target_transform = transforms[target_key]
+        if target_transform.transform_type == BaseTransform.TransformType.XY:
+            predictions = (
+                target_transform.inverse_transform(depends_on, predictions)
+                .cpu()
+                .numpy()
+            )
+            targets = (
+                target_transform.inverse_transform(depends_on, targets).cpu().numpy()
+            )
+        else:
+            predictions = target_transform.inverse_transform(predictions).cpu().numpy()
+            targets = target_transform.inverse_transform(targets).cpu().numpy()
 
         prediction_horizons = np.arange(sample_len, len(predictions), sample_len)
 
@@ -130,10 +131,11 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
         )
 
         fig = plot_field_curve(time, predictions, targets, prediction_horizons)
-
         trainer.logger.experiment.add_figure(
             "field_curve/validation", fig, global_step=trainer.global_step
         )
+
+        plt.close("all")
 
 
 def plot_hysteresis_phase_space(
