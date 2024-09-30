@@ -3,13 +3,13 @@ from __future__ import annotations
 import pytest
 import torch
 
-from transformertf.nn import QuantileLoss, get_loss
+from transformertf.nn import QuantileLoss, WeightedMSELoss, get_loss
 
 
 @pytest.mark.parametrize(
     ("loss", "expected"),
     [
-        ("mse", torch.nn.MSELoss),
+        ("mse", WeightedMSELoss),
         ("mae", torch.nn.L1Loss),
         ("quantile", QuantileLoss),
         ("huber", torch.nn.HuberLoss),
