@@ -72,7 +72,7 @@ class TSMixer(LightningModuleBase):
 
         self.common_log_step({"loss": loss}, "train")
 
-        return {"loss": loss}
+        return {"loss": loss, "output": model_output}
 
     def validation_step(
         self,
@@ -94,12 +94,10 @@ class TSMixer(LightningModuleBase):
                 -1
             )
 
-        loss_mse = torch.nn.MSELoss()(point_prediction, target)
-        loss_dict["loss_MSE"] = loss_mse
-
-        loss_mae = torch.nn.L1Loss()(point_prediction, target)
-        loss_dict["loss_MAE"] = loss_mae
-
         self.common_log_step(loss_dict, "validation")
 
-        return {"loss": loss, "output": model_output}
+        return {
+            "loss": loss,
+            "output": model_output,
+            "point_prediction": point_prediction,
+        }
