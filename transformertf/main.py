@@ -4,6 +4,7 @@ import logging
 import os
 import pathlib
 import typing
+import warnings
 
 import jsonargparse
 import lightning.pytorch.cli
@@ -11,7 +12,8 @@ import pytorch_optimizer  # noqa: F401
 import rich
 import rich.logging
 import torch
-from lightning.pytorch.cli import LightningArgumentParser
+from lightning import LightningModule
+from lightning.pytorch.cli import LightningArgumentParser, LRSchedulerTypeUnion
 
 from transformertf.data import (
     DataModuleBase,
@@ -23,6 +25,8 @@ from transformertf.models import LightningModuleBase
 from transformertf.models.bwlstm import BWLSTM1, BWLSTM2, BWLSTM3  # noqa: F401
 from transformertf.models.lstm import LSTM  # noqa: F401
 from transformertf.models.tsmixer import TSMixer  # noqa: F401
+
+warnings.filterwarnings("ignore", category=UserWarning)
 
 
 def setup_logger(logging_level: int = 0) -> None:
@@ -101,6 +105,13 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
             help="Do not auto-configure optimizers.",
         )
 
+        parser.add_argument(
+            "--lr_step_interval",
+            default="epoch",
+            choices=["epoch", "step"],
+            help="Learning rate scheduler step interval",
+        )
+
         parser.set_defaults({
             "trainer.logger": jsonargparse.lazy_instance(
                 lightning.pytorch.loggers.TensorBoardLogger,
@@ -153,6 +164,31 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
             )
             state_dict = torch.load(transfer_ckpt, map_location="cpu")
             self.model.load_state_dict(state_dict["state_dict"])
+
+    def configure_optimizers(
+        self,
+        lightning_module: LightningModule,
+        optimizer: torch.optim.Optimizer,
+        lr_scheduler: LRSchedulerTypeUnion | None = None,
+    ) -> torch.optim.Optimizer | dict[str, typing.Any]:
+        if lr_scheduler is None:
+            return optimizer
+        if isinstance(lr_scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+            return {
+                "optimizer": optimizer,
+                "lr_scheduler": {
+                    "scheduler": lr_scheduler,
+                    "monitor": lr_scheduler.monitor,
+                    "interval": self.config.fit.lr_step_interval,
+                },
+            }
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": lr_scheduler,
+                "interval": self.config.fit.lr_step_interval,
+            },
+        }
 
 
 def add_trainer_defaults(parser: LightningArgumentParser) -> None:
