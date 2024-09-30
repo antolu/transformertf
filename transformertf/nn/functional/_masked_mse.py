@@ -18,6 +18,7 @@ def masked_mse_loss(
     if mask is None and weight is None:
         return torch.nn.functional.mse_loss(input, target, reduction=reduction)
 
+    target = target.view_as(input)
     _loss = torch.nn.functional.mse_loss(input, target, reduction="none")
     _loss = (_loss * mask) if mask is not None else _loss
 
