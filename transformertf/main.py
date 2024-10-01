@@ -153,6 +153,11 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
                     dirpath = os.path.join(callback.dirpath, version_str)
                 callback.dirpath = dirpath
 
+        # patch LR monitor to log at the correct interval
+        for callback in self.trainer.callbacks:
+            if isinstance(callback, lightning.pytorch.callbacks.LearningRateMonitor):
+                callback.logging_interval = self.config.lr_step_interval
+
         # load checkpoint for transfer learning
         if (
             hasattr(self.config, "fit")
