@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import typing
 
 import numpy as np
@@ -7,6 +8,8 @@ import torch
 
 from ._base import BaseTransform
 from ._utils import _as_torch, _view_as_y
+
+log = logging.getLogger(__name__)
 
 
 class RunningNormalizer(BaseTransform):
@@ -70,6 +73,8 @@ class RunningNormalizer(BaseTransform):
         center_: torch.Tensor | float = 0.0,
         scale_: torch.Tensor | float = 1.0,
         n_samples_seen_: torch.Tensor | float = 0,
+        *,
+        frozen_: bool = False,
     ):
         """
         Parameters
@@ -82,6 +87,12 @@ class RunningNormalizer(BaseTransform):
 
         scale_ : torch.Tensor or float, optional
             The scale value for normalization. Default is 1.0.
+
+        n_samples_seen_ : torch.Tensor or float, optional
+            The total number of samples seen for fitting. Default is 0.
+
+        frozen_ : bool, optional
+            Whether to freeze the normalizer. Default is False.
 
         Notes
         -----
@@ -101,6 +112,7 @@ class RunningNormalizer(BaseTransform):
         self.register_buffer("center_", center_)
         self.register_buffer("scale_", scale_)
         self.register_buffer("n_samples_seen_", n_samples_seen_)
+        self.frozen_ = frozen_
 
     def forward(
         self,
@@ -140,6 +152,9 @@ class RunningNormalizer(BaseTransform):
 
         :return: The fitted normalizer (self).
         """
+        if self.frozen_:
+            log.warning("The normalizer is frozen and cannot be fitted.")
+            return self
         x = _as_torch(x)
 
         self._set_parameters(y_center=x, y_scale=x)
