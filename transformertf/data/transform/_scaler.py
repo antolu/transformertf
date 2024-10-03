@@ -273,7 +273,7 @@ class RunningNormalizer(BaseTransform):
         self.n_samples_seen_ += n_samples
 
     def __sklearn_is_fitted__(self) -> bool:  # noqa: PLW3201
-        return torch.all(self.n_samples_seen_ > 0).item()
+        return torch.all(self.n_samples_seen_ > 0).item() or self.frozen_
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}()"
