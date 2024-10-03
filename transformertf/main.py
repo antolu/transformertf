@@ -156,7 +156,7 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
         # patch LR monitor to log at the correct interval
         for callback in self.trainer.callbacks:
             if isinstance(callback, lightning.pytorch.callbacks.LearningRateMonitor):
-                callback.logging_interval = self.config.lr_step_interval
+                callback.logging_interval = self.config.fit.lr_step_interval
 
         # load checkpoint for transfer learning
         if (
@@ -168,7 +168,7 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
                 pathlib.Path(self.config.fit.transfer_ckpt).expanduser()
             )
             state_dict = torch.load(transfer_ckpt, map_location="cpu")
-            self.model.load_state_dict(state_dict["state_dict"])
+            self.model.load_state_dict(state_dict["state_dict"], strict=False)
 
     def configure_optimizers(
         self,
