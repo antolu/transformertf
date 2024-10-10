@@ -408,7 +408,7 @@ class DataModuleBase(L.LightningDataModule):
                 return
             try:
                 shutil.rmtree(self._tmp_dir.name)
-            except OSError:
+            except (FileNotFoundError, PermissionError, OSError):
                 log.exception(
                     f"Failed to remove temporary directory {self._tmp_dir.name}."
                 )
