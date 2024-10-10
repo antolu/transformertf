@@ -112,7 +112,7 @@ class RunningNormalizer(BaseTransform):
         self.register_buffer("center_", center_)
         self.register_buffer("scale_", scale_)
         self.register_buffer("n_samples_seen_", n_samples_seen_)
-        self.frozen_ = frozen_
+        self.register_buffer("frozen_", torch.tensor(frozen_, requires_grad=False))
 
     def forward(
         self,
