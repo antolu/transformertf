@@ -875,6 +875,7 @@ class DataModuleBase(L.LightningDataModule):
             for col, transform in self._transforms.items():
                 if col not in state["transforms"]:
                     log.warning(f"Could not find state for {col}.")
+                    continue
                 transform.load_state_dict(state["transforms"][col])
 
             state.pop("transforms")
