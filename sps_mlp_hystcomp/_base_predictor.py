@@ -893,7 +893,7 @@ def make_prog_base_covariates(
         t_prog, i_prog = i_prog_2d
 
     # NB: we are using the programmed current, which is noise-free
-    i_prog_dot = np.gradient(i_prog, t_prog * 1e3)
+    i_prog_dot = np.gradient(i_prog, t_prog)
 
     return pd.DataFrame(
         {
@@ -972,7 +972,7 @@ def make_meas_base_covariates(
 
     i_meas = np.concatenate([cycle.current_input.flatten() for cycle in buffers])
     i_meas_filtered = filter_imeas(i_meas)
-    i_meas_filtered_dot = np.gradient(i_meas_filtered, 1.0)
+    i_meas_filtered_dot = np.gradient(i_meas_filtered, 1e-3)
 
     time_max = sum(cycle.num_samples for cycle in buffers)
     time = np.arange(time_max) / 1e3
