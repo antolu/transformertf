@@ -69,6 +69,9 @@ class TFTPredictor(Predictor):
         if "downsample" in self.hparams and self.hparams["downsample"] > 1:
             df = df.iloc[:: self.hparams["downsample"]].reset_index(drop=True)
 
+        if self.hparams["time_column"] is None:
+            past_covariates = past_covariates.drop(columns=TIME_COLNAME)
+
         # keep ctxt_seq_len number of points for context
         self.state = self._keep_ctxt(df).reset_index(drop=True)
 
@@ -115,6 +118,12 @@ class TFTPredictor(Predictor):
                 :: self.hparams["downsample"]
             ].reset_index(drop=True)
 
+        input_columns = [TIME_COLNAME] + [
+            col.name for col in self._datamodule.known_covariates
+        ]
+        if self.hparams["time_column"] is None:
+            input_columns = input_columns[1:]
+
         dataset = EncoderDecoderPredictDataset(
             past_covariates=past_covariates,
             past_target=past_targets,
@@ -122,8 +131,7 @@ class TFTPredictor(Predictor):
             context_length=self.hparams["ctxt_seq_len"],
             prediction_length=self.hparams["tgt_seq_len"],
             transforms=self._datamodule.transforms,
-            input_columns=[TIME_COLNAME]
-            + [col.name for col in self._datamodule.known_covariates],
+            input_columns=input_columns,
             known_past_columns=[
                 col.name for col in self._datamodule.known_past_covariates
             ],
@@ -264,7 +272,7 @@ class TFTPredictor(Predictor):
     def _load_checkpoint_impl(self, checkpoint_path: str | os.PathLike) -> None:
         self._module = TemporalFusionTransformer.load_from_checkpoint(checkpoint_path)
         self._datamodule = EncoderDecoderDataModule.load_from_checkpoint(
-            checkpoint_path
+            checkpoint_path,
         )
 
     def _keep_ctxt(self, df: pd.DataFrame) -> pd.DataFrame:
