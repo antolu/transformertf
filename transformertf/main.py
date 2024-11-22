@@ -117,6 +117,7 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
                 lightning.pytorch.loggers.TensorBoardLogger,
                 save_dir="logs",
                 name="",
+                default_hp_metric=False,
             ),
         })
 
