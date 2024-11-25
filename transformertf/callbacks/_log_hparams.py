@@ -32,7 +32,7 @@ class LogHparamsCallback(L.pytorch.callbacks.callback.Callback):
         if self.monitor not in trainer.callback_metrics:
             return False
 
-        metric = trainer.metrics[self.monitor]
+        metric = trainer.callback_metrics[self.monitor]
 
         if self.last_metric_value is None:
             self.last_metric_value = metric
@@ -53,7 +53,7 @@ class LogHparamsCallback(L.pytorch.callbacks.callback.Callback):
             return
 
         metrics = {
-            k: v
+            k.split("/")[0]: v  # remove the "validation" prefix
             for k, v in trainer.callback_metrics.items()
             if k.endswith("validation")
         }
