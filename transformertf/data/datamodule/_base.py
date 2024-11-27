@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import functools
 import importlib
@@ -60,7 +61,8 @@ class TmpDir:
     name: str
 
     def cleanup(self) -> None:
-        shutil.rmtree(self.name)
+        with contextlib.suppress(FileNotFoundError, PermissionError, OSError):
+            shutil.rmtree(self.name)
 
 
 class TmpDirType(typing.Protocol):
