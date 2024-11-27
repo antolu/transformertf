@@ -57,5 +57,7 @@ class LogHparamsCallback(L.pytorch.callbacks.callback.Callback):
             for k, v in trainer.callback_metrics.items()
             if k.endswith("validation")
         }
+        hparams = dict(module.hparams.items())
+        hparams["num_params"] = sum(p.numel() for p in module.parameters())
 
-        trainer.logger.log_hyperparams(module.hparams, metrics=metrics)
+        trainer.logger.log_hyperparams(hparams, metrics=metrics)
