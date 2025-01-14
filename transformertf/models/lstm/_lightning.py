@@ -161,8 +161,8 @@ class LSTM(LightningModuleBase):
 
         out = {
             "loss": loss,
-            "hidden": ops.to_cpu(ops.detach(hx)),
-            "output": ops.to_cpu(ops.detach(model_output)),
+            "hidden": ops.detach(hx),
+            "output": ops.detach(model_output),
         }
         if isinstance(self.criterion, QuantileLoss):
             out["point_prediction"] = self.criterion.point_prediction(model_output)
@@ -189,8 +189,8 @@ class LSTM(LightningModuleBase):
         self.common_log_step(loss, "validation")
 
         output_dict = {
-            "state": ops.to_cpu(ops.detach(hidden)),
-            "output": ops.to_cpu(ops.detach(model_output)),
+            "state": ops.detach(hidden),
+            "output": ops.detach(model_output),
         }
         if isinstance(self.criterion, QuantileLoss):
             output_dict["point_prediction"] = self.criterion.point_prediction(
