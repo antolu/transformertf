@@ -81,7 +81,7 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
             time = np.arange(len(predictions))
 
         targets = val_dataset._sample_gen[0]._label_data.to_numpy().flatten()  # noqa: SLF001
-        targets = targets[indices]
+        targets = targets[indices]  # type: ignore[assignment]
 
         transforms = val_dataset.transforms
         try:
