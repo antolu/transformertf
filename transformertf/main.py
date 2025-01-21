@@ -3,15 +3,18 @@ from __future__ import annotations
 import logging
 import os
 import pathlib
+import tempfile
 import typing
 import warnings
 
 import jsonargparse
+import lightning as L
 import lightning.pytorch.cli
 import pytorch_optimizer  # noqa: F401
 import rich
 import rich.logging
 import torch
+import yaml
 from lightning import LightningModule
 from lightning.pytorch.cli import LightningArgumentParser, LRSchedulerTypeUnion
 
@@ -137,14 +140,27 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
             and self.config.fit.experiment_name
         ):
             logger_name = self.config.fit.experiment_name
-            self.trainer.logger._name = logger_name  # noqa: SLF001
+
+            if isinstance(self.trainer.logger, L.pytorch.loggers.TensorBoardLogger):
+                self.trainer.logger._name = logger_name  # noqa: SLF001
         else:
             logger_name = ""
         try:
-            version = self.trainer.logger.version
+            if isinstance(self.trainer.logger, L.pytorch.loggers.TensorBoardLogger):
+                version = self.trainer.logger.version
+            else:
+                version = "na"
         except TypeError:
             version = 0
         version_str = f"version_{version}"
+
+        # if logger is a neptune logger, save the config to a temporary file and upload it
+        if isinstance(self.trainer.logger, L.pytorch.loggers.neptune.NeptuneLogger):
+            with tempfile.TemporaryDirectory() as tempdir:
+                config_path = os.path.join(tempdir, "config.yaml")
+                with open(config_path, "w", encoding="utf-8") as f:
+                    yaml.dump(self.config, f)
+                self.trainer.logger.experiment["config"].upload(config_path)
 
         for callback in self.trainer.callbacks:
             if isinstance(callback, lightning.pytorch.callbacks.ModelCheckpoint):
