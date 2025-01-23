@@ -49,6 +49,10 @@ class LogHparamsCallback(L.pytorch.callbacks.callback.Callback):
         if trainer.logger is None:
             return
 
+        # we only need this logger with TensorBoardLogger; other loggers are more intelligent...
+        if not isinstance(trainer.logger, L.pytorch.loggers.TensorBoardLogger):
+            return
+
         if not self._should_log_hparams(trainer):
             return
 
