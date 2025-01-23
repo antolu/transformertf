@@ -7,7 +7,6 @@ import tempfile
 import typing
 import warnings
 
-import jsonargparse
 import lightning as L
 import lightning.pytorch.cli
 import pytorch_optimizer  # noqa: F401
@@ -114,15 +113,6 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
             choices=["epoch", "step"],
             help="Learning rate scheduler step interval",
         )
-
-        parser.set_defaults({
-            "trainer.logger": jsonargparse.lazy_instance(
-                lightning.pytorch.loggers.TensorBoardLogger,
-                save_dir="logs",
-                name="",
-                default_hp_metric=False,
-            ),
-        })
 
         add_trainer_defaults(parser)
 
