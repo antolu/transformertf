@@ -4,6 +4,7 @@ import logging
 import os
 import pathlib
 import typing
+import tempfile
 import warnings
 
 import lightning as L
@@ -12,6 +13,7 @@ import pytorch_optimizer  # noqa: F401
 import rich
 import rich.logging
 import torch
+import yaml
 from lightning import LightningModule
 from lightning.pytorch.cli import LightningArgumentParser, LRSchedulerTypeUnion
 
@@ -143,12 +145,13 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
         version_str = f"version_{version}"
 
         # if logger is a neptune logger, save the config to a temporary file and upload it
-        # if isinstance(self.trainer.logger, L.pytorch.loggers.neptune.NeptuneLogger):
-        #     with tempfile.TemporaryDirectory() as tempdir:
-        #         config_path = os.path.join(tempdir, "config.yaml")
-        #         with open(config_path, "w", encoding="utf-8") as f:
-        #             yaml.dump(self.config, f)
-        #         self.trainer.logger.experiment["config"].upload(config_path)
+        if isinstance(self.trainer.logger, L.pytorch.loggers.neptune.NeptuneLogger):
+            with tempfile.TemporaryDirectory() as tempdir:
+                config_path = os.path.join(tempdir, "config.yaml")
+                with open(config_path, "w", encoding="utf-8") as f:
+                    yaml.dump(self.config, f)
+                self.trainer.logger.experiment["model/config"].upload(config_path)
+                self.trainer.logger.experiment.sync()
 
         for callback in self.trainer.callbacks:
             if isinstance(callback, lightning.pytorch.callbacks.ModelCheckpoint):
