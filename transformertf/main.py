@@ -3,8 +3,8 @@ from __future__ import annotations
 import logging
 import os
 import pathlib
-import typing
 import tempfile
+import typing
 import warnings
 
 import lightning as L
