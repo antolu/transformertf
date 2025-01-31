@@ -211,10 +211,10 @@ def add_callback_defaults(parser: LightningArgumentParser) -> None:
     )
     parser.set_defaults({"lr_monitor.logging_interval": "epoch"})
 
-    parser.add_lightning_class_args(
-        lightning.pytorch.callbacks.RichProgressBar, "progress_bar"
-    )
-    parser.set_defaults({"progress_bar.refresh_rate": 1})
+    # parser.add_lightning_class_args(
+    #     lightning.pytorch.callbacks.RichProgressBar, "progress_bar"
+    # )
+    # parser.set_defaults({"progress_bar.refresh_rate": 1})
 
     parser.add_lightning_class_args(
         lightning.pytorch.callbacks.RichModelSummary, "model_summary"
