@@ -86,7 +86,8 @@ class TemporalFusionTransformer(TransformerModuleBase):
 
         return {
             **loss_dict,
-            "output": model_output["output"],
+            "output": model_output.pop("output"),
+            **{k: v.detach() for k, v in model_output.items()},
             "point_prediction": point_prediction,
         }
 
@@ -112,7 +113,8 @@ class TemporalFusionTransformer(TransformerModuleBase):
 
         return {
             **loss_dict,
-            "output": model_output["output"],
+            "output": model_output.pop("output"),
+            **{k: v.detach() for k, v in model_output.items()},
             "point_prediction": point_prediction,
         }
 
