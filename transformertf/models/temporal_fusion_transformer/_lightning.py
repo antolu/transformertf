@@ -36,6 +36,7 @@ class TemporalFusionTransformer(TransformerModuleBase):
 
         if criterion is None:
             criterion = QuantileLoss()
+        if isinstance(criterion, QuantileLoss):
             self.hparams["output_dim"] = len(criterion.quantiles)
             output_dim = self.hparams["output_dim"]
         self.criterion = criterion
