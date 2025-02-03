@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 import os
 import pathlib
-import tempfile
 import typing
 import warnings
 
@@ -13,7 +12,6 @@ import pytorch_optimizer  # noqa: F401
 import rich
 import rich.logging
 import torch
-import yaml
 from lightning import LightningModule
 from lightning.pytorch.cli import LightningArgumentParser, LRSchedulerTypeUnion
 
