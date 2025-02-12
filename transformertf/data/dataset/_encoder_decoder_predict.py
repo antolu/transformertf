@@ -200,7 +200,9 @@ class EncoderDecoderPredictDataset(
         between iterations to append the past target to the dataset.
         """
         assert self._target_column is not None
-        if isinstance(past_target, np.ndarray):
+        if isinstance(past_target, np.ndarray | torch.Tensor):
+            if isinstance(past_target, torch.Tensor):
+                past_target = past_target.cpu().numpy()
             past_target = pd.DataFrame({self._target_column: past_target})
         if transform:
             past_target = _apply_transforms(
