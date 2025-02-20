@@ -108,11 +108,13 @@ class EncoderDecoderPredictDataset(
         self._known_past_columns = known_past_columns
         self._time_format = time_format
 
+        # keep only the columns of interest
         self._past_known_covariates = (
             extract_covariates_from_df(past_covariates, known_past_columns).reset_index(
                 drop=True
             )
             if known_past_columns is not None
+            and len(known_past_columns) > 0
             and isinstance(past_covariates, pd.DataFrame)
             else None
         )
@@ -129,6 +131,7 @@ class EncoderDecoderPredictDataset(
             else np.array(past_target)
         )
 
+        # keep only the last context_length elements
         self._past_covariates = keep_only_context(self._past_covariates, context_length)
         self._past_target = keep_only_context(self._past_target, context_length)
         self._past_known_covariates = (
@@ -144,7 +147,7 @@ class EncoderDecoderPredictDataset(
                 if k in input_columns and k != "__time__"
             }
 
-            if known_past_columns is not None:
+            if known_past_columns is not None and len(known_past_columns) > 0:
                 past_known_covariate_transforms = {
                     k: v for k, v in self._transforms.items() if k in known_past_columns
                 }
@@ -245,6 +248,7 @@ class EncoderDecoderPredictDataset(
         sample_torch = convert_sample(sample, self._dtype)  # type: ignore[arg-type]
         sample_torch = EncoderDecoderDataset._apply_masks(sample_torch)  # noqa: SLF001
 
+        # always ensure that time starts at 0
         if "__time__" in sample["encoder_input"].columns:
             sample_torch["encoder_input"][0, 0] = 0.0
 
