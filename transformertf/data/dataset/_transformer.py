@@ -38,7 +38,8 @@ class TransformerDataset(AbstractTimeSeriesDataset):
         | list[pd.Series | pd.DataFrame]
         | None = None,
         time_format: typing.Literal["absolute", "relative"] = "relative",
-        stride: int = 1,
+        sample_stride: int = 1,
+        timestep_stride: int = 1,
         predict: bool = False,
         apply_transforms: bool = True,
         min_ctxt_seq_len: int | None = None,
@@ -68,16 +69,10 @@ class TransformerDataset(AbstractTimeSeriesDataset):
 
         if randomize_seq_len:
             if min_tgt_seq_len is None:
-                msg = (
-                    "min_tgt_seq_len must be specified when "
-                    "randomize_seq_len is True"
-                )
+                msg = "min_tgt_seq_len must be specified when randomize_seq_len is True"
                 raise ValueError(msg)
             if min_ctxt_seq_len is None:
-                msg = (
-                    "min_ctx_seq_len must be specified when "
-                    "randomize_seq_len is True"
-                )
+                msg = "min_ctx_seq_len must be specified when randomize_seq_len is True"
                 raise ValueError(msg)
 
         self._input_data = _to_list(input_data)
@@ -108,21 +103,43 @@ class TransformerDataset(AbstractTimeSeriesDataset):
         self._dataset_type = DataSetType.VAL_TEST if predict else DataSetType.TRAIN
 
         if predict:
-            if stride != 1:
+            if sample_stride != 1:
                 log.warning("Stride is ignored when predicting.")
-            stride = tgt_seq_len
+            sample_stride = tgt_seq_len
             if randomize_seq_len:
                 # TODO: allow random seq len for validation purposes
                 log.warning("randomize_seq_len is ignored when predicting.")
 
                 randomize_seq_len = False
 
+        if timestep_stride > 1:
+            self._input_data = [
+                df.iloc[start::timestep_stride]
+                for df in self._input_data
+                for start in range(timestep_stride)
+            ]
+            self._target_data = [
+                df.iloc[start::timestep_stride]
+                for df in self._target_data
+                for start in range(timestep_stride)
+            ]
+            self._known_past_data = [  # type: ignore[assignment]
+                df.iloc[start::timestep_stride] if df is not None else None
+                for df in self._known_past_data
+                for start in range(timestep_stride)
+            ]
+            self._time_data = [  # type: ignore[assignment]
+                df.iloc[start::timestep_stride] if df is not None else None
+                for df in self._time_data
+                for start in range(timestep_stride)
+            ]
+
         self._ctxt_seq_len = ctx_seq_len
         self._min_ctxt_seq_len = min_ctxt_seq_len
         self._tgt_seq_len = tgt_seq_len
         self._min_tgt_seq_len = min_tgt_seq_len
         self._predict = predict
-        self._stride = stride
+        self._stride = sample_stride
         self._randomize_seq_len = randomize_seq_len
         self._dtype = dtype
         self._time_format = time_format
@@ -140,7 +157,7 @@ class TransformerDataset(AbstractTimeSeriesDataset):
                 src_seq_len=ctx_seq_len,
                 tgt_seq_len=tgt_seq_len,
                 zero_pad=predict,
-                stride=stride,
+                stride=sample_stride,
             )
             for input_, target_, known_, time_ in zip(
                 self._input_data,

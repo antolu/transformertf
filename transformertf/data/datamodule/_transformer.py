@@ -45,6 +45,7 @@ class TransformerDataModule(DataModuleBase):
         min_tgt_seq_len: int | None = None,
         randomize_seq_len: bool = False,
         stride: int = 1,
+        timestep_stride: int = 1,
         downsample: int = 1,
         downsample_method: DOWNSAMPLE_METHODS = "interval",
         target_depends_on: str | None = None,
@@ -225,7 +226,8 @@ class EncoderDecoderDataModule(TransformerDataModule):
             if self.hparams["time_column"] is not None
             else None,
             time_format=self.hparams["time_format"],
-            stride=self.hparams["stride"],
+            sample_stride=self.hparams["stride"],
+            timestep_stride=self.hparams["timestep_stride"],
             randomize_seq_len=(
                 self.hparams["randomize_seq_len"] if not predict else False
             ),
@@ -256,7 +258,8 @@ class EncoderDataModule(TransformerDataModule):
             min_ctxt_seq_len=self.hparams["min_ctxt_seq_len"],
             tgt_seq_len=self.hparams["tgt_seq_len"],
             min_tgt_seq_len=self.hparams["min_tgt_seq_len"],
-            stride=self.hparams["stride"],
+            sample_stride=self.hparams["stride"],
+            timestep_stride=self.hparams["timestep_stride"],
             randomize_seq_len=(
                 self.hparams["randomize_seq_len"] if not predict else False
             ),
