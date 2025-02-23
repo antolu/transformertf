@@ -487,6 +487,7 @@ class DataModuleBase(L.LightningDataModule):
             multiprocessing_context="forkserver"
             if self.hparams["num_workers"] > 0
             else None,
+            persistent_workers=True,
         )
 
     @override  # type: ignore[misc]
@@ -530,6 +531,7 @@ class DataModuleBase(L.LightningDataModule):
                 multiprocessing_context="forkserver"
                 if self.hparams["num_workers"] > 0
                 else None,
+                persistent_workers=True,
             )
 
         if len(self._val_df) == 1:
