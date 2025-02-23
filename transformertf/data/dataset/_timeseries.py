@@ -171,11 +171,6 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
             seq_len = len(self._input_data[0])
             log.info(f"Using full dataset as sequence length: {seq_len}")
 
-        if predict:
-            if stride != 1:
-                log.warning("Stride is ignored when predicting.")
-            stride = seq_len
-
         self._seq_len = seq_len
         self._min_seq_len = min_seq_len
         self._randomize_seq_len = randomize_seq_len
@@ -185,12 +180,21 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
 
         self._transforms = transforms or {}
 
+        self._input_data = [
+            df.iloc[start::stride] for df in self._input_data for start in range(stride)
+        ]
+        self._target_data = [  # type: ignore[assignment]
+            df.iloc[start::stride] if df is not None else None
+            for df in self._target_data
+            for start in range(stride)
+        ]
+
         self._sample_gen: list[TimeSeriesSampleGenerator[pd.DataFrame]] = [
             TimeSeriesSampleGenerator(
                 input_data=input_,
                 window_size=seq_len,
                 label_data=target,
-                stride=stride,
+                stride=seq_len if predict else 1,
                 zero_pad=predict,
             )
             for input_, target in zip(self._input_data, self._target_data, strict=False)
