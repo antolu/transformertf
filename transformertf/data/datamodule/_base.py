@@ -487,7 +487,7 @@ class DataModuleBase(L.LightningDataModule):
             multiprocessing_context="forkserver"
             if self.hparams["num_workers"] > 0
             else None,
-            persistent_workers=True,
+            persistent_workers=self.hparams["num_workers"] > 0,
         )
 
     @override  # type: ignore[misc]
@@ -531,7 +531,7 @@ class DataModuleBase(L.LightningDataModule):
                 multiprocessing_context="forkserver"
                 if self.hparams["num_workers"] > 0
                 else None,
-                persistent_workers=True,
+                persistent_workers=self.hparams["num_workers"] > 0,
             )
 
         if len(self._val_df) == 1:
@@ -842,6 +842,8 @@ class DataModuleBase(L.LightningDataModule):
             "batch_size": self.hparams["batch_size"] if not predict else 1,
             "num_workers": self.hparams["num_workers"],
             "shuffle": not predict and self.hparams["shuffle"],
+            "persistent_workers": self.hparams["num_workers"] > 0,
+            "pin_memory": True,
         }
         default_kwargs.update(kwargs)
 
