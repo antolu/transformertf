@@ -204,7 +204,6 @@ def configure_lr_scheduler(
                 optimizer=optimizer,
                 mode="min",
                 factor=0.1,
-                verbose=True,
                 patience=reduce_on_plateau_patience,
             )
         elif lr_scheduler == "constant_then_cosine":
