@@ -77,7 +77,7 @@ class TemporalFusionTransformerModel(torch.nn.Module):
         self.num_lstm_layers = num_lstm_layers
         self.dropout = dropout
         self.output_dim = output_dim
-        self.casual_attention = casual_attention
+        self.causal_attention = casual_attention
 
         # TODO: static covariate embeddings
         self.static_vs = VariableSelection(
@@ -298,8 +298,8 @@ class TemporalFusionTransformerModel(torch.nn.Module):
 
         Returns
         -------
-        tuple[torch.Tensor, torch.Tensor]
-            Attention masks for the encoder and decoder.
+        torch.Tensor | None
+            Attention mask for the encoder and decoder.
         """
         if past_mask is None and future_mask is None:
             return None
@@ -308,38 +308,63 @@ class TemporalFusionTransformerModel(torch.nn.Module):
             assert future_mask is not None
             batch_size = future_mask.shape[0]
 
-            past_mask = torch.ones(
+            past_mask = torch.ones(  # [batch_size, ctxt_seq_len, tgt_seq_len]
                 batch_size,
                 self.ctxt_seq_len,
                 self.tgt_seq_len,
                 device=future_mask.device,
             )
         else:
-            past_mask = past_mask[:, None, :]
-            past_mask = past_mask.expand(-1, self.tgt_seq_len, -1)
+            past_mask = past_mask[:, None, :]  # [batch_size, 1, ctxt_seq_len]
+            past_mask = past_mask.expand(  # [batch_size, tgt_seq_len, ctxt_seq_len]
+                -1, self.tgt_seq_len, -1
+            )
 
         if future_mask is None:
             assert past_mask is not None
             batch_size = past_mask.shape[0]
 
-            if self.casual_attention:
-                future_mask = torch.triu(
-                    torch.ones(self.tgt_seq_len, self.tgt_seq_len),
+            if self.causal_attention:
+                future_mask = torch.triu(  # [tgt_seq_len, tgt_seq_len]
+                    torch.ones(
+                        self.tgt_seq_len, self.tgt_seq_len, device=past_mask.device
+                    ),
                     diagonal=1,
-                    device=past_mask.device,
                 )
             else:
-                future_mask = torch.ones(
+                future_mask = torch.ones(  # [batch_size, tgt_seq_len, tgt_seq_len]
                     batch_size,
                     self.tgt_seq_len,
                     self.tgt_seq_len,
                     device=past_mask.device,
                 )
         else:
-            future_mask = future_mask[:, None, :]
-            future_mask = future_mask.expand(-1, self.tgt_seq_len, -1)
+            future_mask = future_mask[:, None, :]  # [batch_size, 1, tgt_seq_len]
+            future_mask = future_mask.expand(  # [batch_size, tgt_seq_len, tgt_seq_len]
+                -1, self.tgt_seq_len, -1
+            )
 
-        return torch.cat([past_mask, future_mask], dim=2)
+            if self.causal_attention:
+                causal_mask = torch.triu(  # [tgt_seq_len, tgt_seq_len]
+                    torch.ones(
+                        self.tgt_seq_len, self.tgt_seq_len, device=future_mask.device
+                    ),
+                    diagonal=1,
+                )
+                causal_mask = causal_mask.unsqueeze(
+                    0
+                ).expand(  # [batch_size, tgt_seq_len, tgt_seq_len]
+                    future_mask.shape[0], -1, -1
+                )
+
+                # Apply causal masking on top of the provided future_mask
+                future_mask = future_mask * (
+                    1 - causal_mask
+                )  # Zero-out upper triangular part
+
+        return torch.cat(  # [batch_size, tgt_seq_len, ctxt_seq_len + tgt_seq_len]
+            [past_mask, future_mask], dim=2
+        )
 
 
 def basic_grn(dim: int, dropout: float) -> GatedResidualNetwork:
