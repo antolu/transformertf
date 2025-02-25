@@ -68,6 +68,8 @@ class TFTPredictor(Predictor):
 
         if "downsample" in self.hparams and self.hparams["downsample"] > 1:
             df = df.iloc[:: self.hparams["downsample"]].reset_index(drop=True)
+        if "stride" in self.hparams and self.hparams["stride"] > 1:
+            df = df.iloc[:: self.hparams["stride"]].reset_index(drop=True)
 
         if self.hparams["time_column"] is None:
             past_covariates = past_covariates.drop(columns=TIME_COLNAME)
@@ -113,9 +115,14 @@ class TFTPredictor(Predictor):
         past_targets = past_covariates.pop(TARGET_COLNAME).to_numpy().flatten()
         future_covariates[TIME_COLNAME] += past_covariates[TIME_COLNAME].iloc[-1]
         future_covariates = future_covariates.reset_index(drop=True)
+
         if "downsample" in self.hparams and self.hparams["downsample"] > 1:
             future_covariates = future_covariates.iloc[
                 :: self.hparams["downsample"]
+            ].reset_index(drop=True)
+        if "stride" in self.hparams and self.hparams["stride"] > 1:
+            future_covariates = future_covariates.iloc[
+                :: self.hparams["stride"]
             ].reset_index(drop=True)
 
         input_columns = [TIME_COLNAME] + [
@@ -256,13 +263,16 @@ class TFTPredictor(Predictor):
             **kwargs,
         )
 
+        downsample = self.hparams.get("downsample", 1)
+        downsample *= self.hparams.get("stride", 1)
+
         if "__time__" in future_covariates.columns:
             time = future_covariates["__time__"].to_numpy()
             time -= time[0]
-            time = time[:: self.hparams["downsample"]]
+            time = time[::downsample]
         else:
             time = np.arange(0, cycle.num_samples) / 1e3
-            time = time[:: self.hparams["downsample"]]
+            time = time[::downsample]
 
         time = np.round(time, 3)  # round to ms
 
