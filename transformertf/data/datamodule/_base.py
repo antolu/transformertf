@@ -616,9 +616,8 @@ class DataModuleBase(L.LightningDataModule):
             timestamp=timestamp
             if timestamp is not None
             else self.hparams.get("time_column"),
-            input_columns=[
-                cov.name for cov in self.known_covariates + self.known_past_covariates
-            ],
+            input_columns=[cov.name for cov in self.known_covariates],
+            past_known_columns=[cov.name for cov in self.known_past_covariates],
             target_column=(self.target_covariate.name if not skip_target else None),
         )
         df = self.preprocess_dataframe(df)
