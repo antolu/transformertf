@@ -4,6 +4,7 @@ import sys
 import typing
 
 import numba
+import numba.typed
 import numpy as np
 import pandas as pd
 
@@ -166,7 +167,7 @@ class TransformerDataModule(DataModuleBase):
         for df, wg in zip(dfs, wgs, strict=False):
             time = df[TIME].to_numpy(dtype=float)
 
-            dt = _calc_fast_absolute_dt(time, list(wg))
+            dt = _calc_fast_absolute_dt(time, numba.typed.List(wg))
             dts.append(dt)
 
         transform.fit(np.concatenate(dts).flatten())

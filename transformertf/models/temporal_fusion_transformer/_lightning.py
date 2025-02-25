@@ -64,8 +64,8 @@ class TemporalFusionTransformer(TransformerModuleBase):
                 -self.hparams["num_future_features"] :,
             ],
             static_covariates=x["encoder_lengths"],  # type: ignore[typeddict-item]
-            past_mask=x["encoder_mask"][..., 0],  # (B, T)
-            future_mask=x["decoder_mask"][..., 0],  # (B, T)
+            encoder_lengths=x["encoder_lengths"][..., 0],  # (B, T)
+            decoder_lengths=x["decoder_lengths"][..., 0],  # (B, T)
         )
 
     def training_step(

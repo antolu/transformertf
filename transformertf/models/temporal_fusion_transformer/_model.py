@@ -160,8 +160,8 @@ class TemporalFusionTransformerModel(torch.nn.Module):
         past_covariates: torch.Tensor,
         future_covariates: torch.Tensor,
         static_covariates: torch.Tensor | None = None,
-        past_mask: torch.Tensor | None = None,
-        future_mask: torch.Tensor | None = None,
+        encoder_lengths: torch.Tensor | None = None,
+        decoder_lengths: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         """
         Forward pass.
@@ -187,6 +187,17 @@ class TemporalFusionTransformerModel(torch.nn.Module):
         batch_size = past_covariates.shape[0]
         enc_seq_len = past_covariates.shape[1]
         dec_seq_len = future_covariates.shape[1]
+
+        encoder_lengths = (
+            (encoder_lengths * enc_seq_len).to(torch.long)
+            if encoder_lengths is not None
+            else torch.tensor([enc_seq_len] * batch_size, device=past_covariates.device)
+        )
+        decoder_lengths = (
+            (decoder_lengths * dec_seq_len).to(torch.long)
+            if decoder_lengths is not None
+            else torch.tensor([dec_seq_len] * batch_size, device=past_covariates.device)
+        )
 
         if static_covariates is None:
             # normally static embedding is computed using an
@@ -257,7 +268,7 @@ class TemporalFusionTransformerModel(torch.nn.Module):
             ),
         )
 
-        attn_mask = self.get_attention_mask(past_mask, future_mask)
+        attn_mask = self.get_attention_mask(encoder_lengths, decoder_lengths)
 
         # multi-head attention and post-processing
         attn_output, attn_weights = self.attn(
@@ -282,89 +293,80 @@ class TemporalFusionTransformerModel(torch.nn.Module):
         }
 
     def get_attention_mask(
-        self,
-        past_mask: torch.Tensor | None,
-        future_mask: torch.Tensor | None,
-    ) -> torch.Tensor | None:
+        self, encoder_lengths: torch.LongTensor, decoder_lengths: torch.LongTensor
+    ):
         """
-        Get attention masks.
-
-        Parameters
-        ----------
-        past_mask : torch.Tensor, optional
-            [batch_size, ctxt_seq_len]
-        future_mask : torch.Tensor, optional
-            [batch_size, tgt_seq_len]
-
-        Returns
-        -------
-        torch.Tensor | None
-            Attention mask for the encoder and decoder.
+        Returns causal mask to apply for self-attention layer.
         """
-        if past_mask is None and future_mask is None:
-            return None
-
-        if past_mask is None:
-            assert future_mask is not None
-            batch_size = future_mask.shape[0]
-
-            past_mask = torch.ones(  # [batch_size, ctxt_seq_len, tgt_seq_len]
-                batch_size,
-                self.ctxt_seq_len,
-                self.tgt_seq_len,
-                device=future_mask.device,
+        decoder_length = self.tgt_seq_len
+        if self.causal_attention:
+            # indices to which is attended
+            attend_step = torch.arange(decoder_length, device=encoder_lengths.device)
+            # indices for which is predicted
+            predict_step = torch.arange(
+                0, decoder_length, device=encoder_lengths.device
+            )[:, None]
+            # do not attend to steps to self or after prediction
+            decoder_mask = (
+                (attend_step >= predict_step)
+                .unsqueeze(0)
+                .expand(encoder_lengths.size(0), -1, -1)
             )
         else:
-            past_mask = past_mask[:, None, :]  # [batch_size, 1, ctxt_seq_len]
-            past_mask = past_mask.expand(  # [batch_size, tgt_seq_len, ctxt_seq_len]
-                -1, self.tgt_seq_len, -1
+            # there is value in attending to future forecasts if
+            # they are made with knowledge currently available
+            #   one possibility is here to use a second attention layer
+            # for future attention
+            # (assuming different effects matter in the future than the past)
+            #  or alternatively using the same layer but
+            # allowing forward attention - i.e. only
+            #  masking out non-available data and self
+            decoder_mask = (
+                create_mask(decoder_length, decoder_lengths)
+                .unsqueeze(1)
+                .expand(-1, decoder_length, -1)
             )
-
-        if future_mask is None:
-            assert past_mask is not None
-            batch_size = past_mask.shape[0]
-
-            if self.causal_attention:
-                future_mask = torch.triu(  # [tgt_seq_len, tgt_seq_len]
-                    torch.ones(
-                        self.tgt_seq_len, self.tgt_seq_len, device=past_mask.device
-                    ),
-                    diagonal=1,
-                )
-            else:
-                future_mask = torch.ones(  # [batch_size, tgt_seq_len, tgt_seq_len]
-                    batch_size,
-                    self.tgt_seq_len,
-                    self.tgt_seq_len,
-                    device=past_mask.device,
-                )
-        else:
-            future_mask = future_mask[:, None, :]  # [batch_size, 1, tgt_seq_len]
-            future_mask = future_mask.expand(  # [batch_size, tgt_seq_len, tgt_seq_len]
-                -1, self.tgt_seq_len, -1
-            )
-
-            if self.causal_attention:
-                causal_mask = torch.triu(  # [tgt_seq_len, tgt_seq_len]
-                    torch.ones(
-                        self.tgt_seq_len, self.tgt_seq_len, device=future_mask.device
-                    ),
-                    diagonal=1,
-                )
-                causal_mask = causal_mask.unsqueeze(
-                    0
-                ).expand(  # [batch_size, tgt_seq_len, tgt_seq_len]
-                    future_mask.shape[0], -1, -1
-                )
-
-                # Apply causal masking on top of the provided future_mask
-                future_mask = future_mask * (
-                    1 - causal_mask
-                )  # Zero-out upper triangular part
-
-        return torch.cat(  # [batch_size, tgt_seq_len, ctxt_seq_len + tgt_seq_len]
-            [past_mask, future_mask], dim=2
+        # do not attend to steps where data is padded
+        encoder_mask = (
+            create_mask(self.ctxt_seq_len, encoder_lengths)
+            .unsqueeze(1)
+            .expand(-1, decoder_length, -1)
         )
+        # combine masks along attended time - first encoder and then decoder
+        return torch.cat(
+            (
+                encoder_mask,
+                decoder_mask,
+            ),
+            dim=2,
+        )
+
+
+def create_mask(
+    size: int, lengths: torch.LongTensor, *, inverse: bool = False
+) -> torch.BoolTensor:
+    """
+    Create boolean masks of shape len(lenghts) x size.
+
+    An entry at (i, j) is True if lengths[i] > j.
+
+    Args:
+        size (int): size of second dimension
+        lengths (torch.LongTensor): tensor of lengths
+        inverse (bool, optional): If true, boolean mask is inverted. Defaults to False.
+
+    Returns:
+        torch.BoolTensor: mask
+    """
+
+    if inverse:  # return where values are
+        return torch.arange(size, device=lengths.device).unsqueeze(
+            0
+        ) < lengths.unsqueeze(-1)
+    # return where no values are
+    return torch.arange(size, device=lengths.device).unsqueeze(0) >= lengths.unsqueeze(
+        -1
+    )
 
 
 def basic_grn(dim: int, dropout: float) -> GatedResidualNetwork:

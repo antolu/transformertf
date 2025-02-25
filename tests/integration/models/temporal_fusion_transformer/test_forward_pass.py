@@ -29,6 +29,7 @@ def test_tft_forward_pass_simple(
         "encoder_input": x_past,
         "decoder_input": x_future,
         "encoder_lengths": torch.tensor([[1.0]]),
+        "decoder_lengths": torch.tensor([[1.0]]),
         "encoder_mask": torch.ones_like(x_past),
         "decoder_mask": torch.ones_like(x_future),
     }
