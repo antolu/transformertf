@@ -294,7 +294,7 @@ class TemporalFusionTransformerModel(torch.nn.Module):
 
     def get_attention_mask(
         self, encoder_lengths: torch.LongTensor, decoder_lengths: torch.LongTensor
-    ):
+    ) -> torch.Tensor:
         """
         Returns causal mask to apply for self-attention layer.
         """
