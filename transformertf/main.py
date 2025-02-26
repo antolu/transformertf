@@ -143,9 +143,21 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
         version_str = f"version_{version}"
 
         # if logger is a neptune logger, save the config to a temporary file and upload it
+        # also track artifacts from datamodule
         if isinstance(self.trainer.logger, L.pytorch.loggers.neptune.NeptuneLogger):
             config_path = ".neptune/config.yaml"
             self.trainer.logger.experiment["model/config"].upload(config_path)
+            if "train_df_paths" in self.datamodule.hparams:
+                for train_df_path in self.datamodule.hparams["train_df_paths"]:
+                    self.trainer.logger.experiment["train/dataset"].track_files(
+                        os.fspath(pathlib.Path(train_df_path).resolve())
+                    )
+            if "val_df_paths" in self.datamodule.hparams:
+                for val_df_path in self.datamodule.hparams["val_df_paths"]:
+                    self.trainer.logger.experiment["validation/dataset"].track_files(
+                        os.fspath(pathlib.Path(val_df_path).resolve())
+                    )
+
             self.trainer.logger.experiment.sync()
 
         for callback in self.trainer.callbacks:
