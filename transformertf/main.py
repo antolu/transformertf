@@ -165,7 +165,7 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
                     )
 
             # log the command used to launch training to neptune
-            self.trainer.logger.experiment["sys/argv"] = " ".join(sys.argv)
+            self.trainer.logger.experiment["source_code/argv"] = " ".join(sys.argv)
 
             self.trainer.logger.experiment.sync()
 
