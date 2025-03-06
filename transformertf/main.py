@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import pathlib
+import sys
 import typing
 import warnings
 
@@ -157,6 +158,9 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
                     self.trainer.logger.experiment["validation/dataset"].track_files(
                         os.fspath(pathlib.Path(val_df_path).resolve())
                     )
+
+            # log the command used to launch training to neptune
+            self.trainer.logger.experiment["sys/argv"].log(" ".join(sys.argv))
 
             self.trainer.logger.experiment.sync()
 
