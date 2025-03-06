@@ -151,12 +151,12 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
             if "train_df_paths" in self.datamodule.hparams:
                 for train_df_path in self.datamodule.hparams["train_df_paths"]:
                     self.trainer.logger.experiment["train/dataset"].track_files(
-                        os.fspath(pathlib.Path(train_df_path).resolve())
+                        os.fspath(pathlib.Path(train_df_path).expanduser())
                     )
             if "val_df_paths" in self.datamodule.hparams:
                 for val_df_path in self.datamodule.hparams["val_df_paths"]:
                     self.trainer.logger.experiment["validation/dataset"].track_files(
-                        os.fspath(pathlib.Path(val_df_path).resolve())
+                        os.fspath(pathlib.Path(val_df_path).expanduser())
                     )
 
             # log the command used to launch training to neptune
