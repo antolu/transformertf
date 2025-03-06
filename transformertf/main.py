@@ -13,6 +13,7 @@ import pytorch_optimizer  # noqa: F401
 import rich
 import rich.logging
 import torch
+import yaml
 from lightning import LightningModule
 from lightning.pytorch.cli import LightningArgumentParser, LRSchedulerTypeUnion
 
@@ -147,6 +148,10 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
         # also track artifacts from datamodule
         if isinstance(self.trainer.logger, L.pytorch.loggers.neptune.NeptuneLogger):
             config_path = ".neptune/config.yaml"
+            if not os.path.exists(config_path):
+                with open(config_path, "w", encoding="utf8") as f:
+                    yaml.dump(self.config, f)
+
             self.trainer.logger.experiment["model/config"].upload(config_path)
             if "train_df_paths" in self.datamodule.hparams:
                 for train_df_path in self.datamodule.hparams["train_df_paths"]:
