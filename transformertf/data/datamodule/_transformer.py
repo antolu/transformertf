@@ -13,6 +13,7 @@ from .._dtype import VALID_DTYPES
 from .._window_generator import WindowGenerator
 from ..dataset import EncoderDataset, EncoderDecoderDataset
 from ..transform import (
+    BaseTransform,
     DeltaTransform,
     MaxScaler,
     StandardScaler,
