@@ -22,6 +22,10 @@ class LogTransform(BaseTransform):
 
     _transform_type = BaseTransform.TransformType.X
 
+    def __init__(self, bias: float = 0.0) -> None:
+        super().__init__()
+        self.bias = bias
+
     def fit(
         self,
         x: torch.Tensor | np.ndarray | None = None,
@@ -32,12 +36,12 @@ class LogTransform(BaseTransform):
     def transform(
         self, x: torch.Tensor | np.ndarray, y: torch.Tensor | np.ndarray | None = None
     ) -> torch.Tensor:
-        return torch.log(_as_torch(x))
+        return torch.log(_as_torch(x) + self.bias)
 
     def inverse_transform(
         self, x: torch.Tensor | np.ndarray, y: torch.Tensor | np.ndarray | None = None
     ) -> torch.Tensor:
-        return torch.exp(_as_torch(x))
+        return torch.exp(_as_torch(x)) - self.bias
 
     def __sklearn_is_fitted__(self) -> bool:  # noqa: PLW3201
         return True
