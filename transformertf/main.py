@@ -31,6 +31,17 @@ from transformertf.models.tsmixer import TSMixer  # noqa: F401
 warnings.filterwarnings("ignore", category=UserWarning)
 
 
+class NeptuneLoggerSaveConfigCallback(lightning.pytorch.cli.SaveConfigCallback):
+    def save_config(self, trainer: L.Trainer, pl_module: L.LightningModule, stage: str) -> None:
+        if isinstance(trainer.logger, L.pytorch.loggers.neptune.NeptuneLogger):
+            config = self.parser.dump(self.config, skip_none=False)
+
+            trainer.logger.experiment["model/config"] = config
+            return
+
+        super().save_config(trainer, pl_module)
+
+
 def setup_logger(logging_level: int = 0) -> None:
     log = logging.getLogger()
 
@@ -147,12 +158,6 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
         # if logger is a neptune logger, save the config to a temporary file and upload it
         # also track artifacts from datamodule
         if isinstance(self.trainer.logger, L.pytorch.loggers.neptune.NeptuneLogger):
-            config_path = ".neptune/config.yaml"
-            if not os.path.exists(config_path):
-                with open(config_path, "w", encoding="utf8") as f:
-                    yaml.dump(self.config, f)
-
-            self.trainer.logger.experiment["model/config"].upload(config_path)
             if "train_df_paths" in self.datamodule.hparams:
                 for train_df_path in self.datamodule.hparams["train_df_paths"]:
                     self.trainer.logger.experiment["train/dataset"].track_files(
@@ -181,6 +186,8 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
         for callback in self.trainer.callbacks:
             if isinstance(callback, lightning.pytorch.callbacks.LearningRateMonitor):
                 callback.logging_interval = self.config.fit.lr_step_interval
+
+        self.trainer.callbacks.append(NeptuneLoggerSaveConfigCallback(parser=self.parser, config=self.config, overwrite=True))
 
         # load checkpoint for transfer learning
         if (
