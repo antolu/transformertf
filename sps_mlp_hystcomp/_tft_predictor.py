@@ -89,6 +89,8 @@ class TFTPredictor(Predictor):
             cycles,
             use_programmed_current=use_programmed_current,
             interpolate=self.rdp_eps == 0.0,
+            add_past_target=self.hparams["known_past_covariates"] is not None
+            and len(self.hparams["known_past_covariates"]) > 0,
             rdp=self.rdp_eps,
             prog_t_phase=self._prog_t_phase,
         )
@@ -152,7 +154,8 @@ class TFTPredictor(Predictor):
 
         if save_state:
             future_covariates = future_covariates.copy()
-            future_covariates[TARGET_PAST_COLNAME] = predictions
+            if len(self.hparams["known_past_covariates"]) > 0:
+                future_covariates[TARGET_PAST_COLNAME] = predictions
             future_covariates[TARGET_COLNAME] = predictions
 
             new_state = pd.concat([self.state, future_covariates], axis=0).reset_index(
@@ -217,10 +220,11 @@ class TFTPredictor(Predictor):
                         .to(torch.float32)
                     )
 
-                dataset.append_past_covariates(
-                    pd.DataFrame({TARGET_PAST_COLNAME: target_inverse}),
-                    transform=True,
-                )
+                if len(self.hparams["known_past_covariates"]) > 0:
+                    dataset.append_past_covariates(
+                        pd.DataFrame({TARGET_PAST_COLNAME: target_inverse}),
+                        transform=True,
+                    )
 
             outputs.append(output["point_prediction"].numpy().astype(np.float64))
 

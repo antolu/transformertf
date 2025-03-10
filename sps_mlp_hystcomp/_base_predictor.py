@@ -152,6 +152,7 @@ class PredictorUtils:
         use_programmed_current: bool = True,
         interpolate: bool = True,
         add_target: bool = True,
+        add_past_target: bool = False,
         rdp: typing.Literal[False] | float = False,
         prog_t_phase: float = 0.0,
     ) -> pd.DataFrame:
@@ -218,7 +219,8 @@ class PredictorUtils:
                 b_meas = np.interp(time, time_b, b_meas)
 
                 covariates[PredictionCovariates.TARGET] = b_meas
-                covariates[PredictionCovariates.PAST_TARGET_] = b_meas
+                if add_past_target:
+                    covariates[PredictionCovariates.PAST_TARGET_] = b_meas
             else:
                 msg = "Buffer must contain field measurements to add target."
                 raise ValueError(msg)
