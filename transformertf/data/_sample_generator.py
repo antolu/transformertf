@@ -468,15 +468,35 @@ class TransformerPredictionSampleGenerator(SampleGenerator[EncoderDecoderSample[
             tgt = tgt.reset_index(drop=True)
             decoder_mask = decoder_mask.reset_index(drop=True)
 
+        encoder_lengths: T
+        if isinstance(src, pd.DataFrame):
+            encoder_lengths = pd.DataFrame({"encoder_lengths": [1.0]})  # type: ignore[assignment]
+        elif isinstance(src, torch.Tensor):
+            encoder_lengths = torch.tensor([1.0])  # type: ignore[assignment]
+        else:
+            encoder_lengths = np.array([1.0])  # type: ignore[assignment]
+
+        decoder_lengths: T
+        if isinstance(tgt, pd.DataFrame):
+            decoder_lengths = pd.DataFrame({  # type: ignore[assignment]
+                "decoder_lengths": [self._prediction_length - numel_pad]
+            })
+        elif isinstance(tgt, torch.Tensor):
+            decoder_lengths = torch.tensor(  # type: ignore[assignment]
+                [self._prediction_length - numel_pad], dtype=torch.float32
+            )
+        else:
+            decoder_lengths = np.array([self._prediction_length - numel_pad])  # type: ignore[assignment]
+
         return typing.cast(
             EncoderDecoderSample[T],
             {
                 "encoder_input": src,
                 "encoder_mask": encoder_mask,
-                "encoder_lengths": zeros_like(src) + self._context_length,
+                "encoder_lengths": encoder_lengths,
                 "decoder_input": tgt,
                 "decoder_mask": decoder_mask,
-                "decoder_lengths": zeros_like(tgt) + self._prediction_length,
+                "decoder_lengths": decoder_lengths,
             },
         )
 
