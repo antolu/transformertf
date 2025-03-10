@@ -53,6 +53,7 @@ def test_tft_predict(
         buffer[:-1],
         rdp=tft_predictor.rdp_eps,
         interpolate=False,
+        add_past_target=True,
     )
 
     tft_predictor.set_initial_state(
@@ -87,6 +88,7 @@ def test_tft_predict_rdp(
         buffer[:-1],
         rdp=tft_predictor.rdp_eps,
         interpolate=False,
+        add_past_target=True,
     )
 
     tft_predictor.set_initial_state(
@@ -101,7 +103,10 @@ def test_tft_predict_rdp(
     b_pred_future = tft_predictor.predict(future_covariates)
 
     i_prog_future = np.vstack(
-        (buffer[-1].current_prog[0] / 1e3, buffer[-1].current_prog[1])
+        (
+            buffer[-1].current_prog[0] / 1e3,
+            buffer[-1].current_prog[1],
+        )
     )
     t_prog_future = pybind11_rdp.rdp(i_prog_future.T, epsilon=tft_predictor.rdp_eps).T[
         0
