@@ -31,6 +31,9 @@ if typing.TYPE_CHECKING:
     from ..transform import BaseTransform
 
 
+T = typing.TypeVar("T", pd.DataFrame, pd.Series)
+
+
 class TransformerDataModule(DataModuleBase):
     def __init__(
         self,
@@ -205,24 +208,36 @@ class EncoderDecoderDataModule(TransformerDataModule):
         input_cols = [cov.col for cov in self.known_covariates]
         known_past_cols = [cov.col for cov in self.known_past_covariates]
 
+        def maybe_remove_last(df: T) -> T:
+            if (
+                self.hparams["time_column"] is not None
+                and self.hparams["time_format"] == "relative"
+                and len(df) > 1
+            ):
+                return df.iloc[:-1]
+
+            return df
+
         return EncoderDecoderDataset(
-            input_data=df[input_cols]
+            input_data=maybe_remove_last(df[input_cols])
             if isinstance(df, pd.DataFrame)
-            else [df[input_cols] for df in df],
+            else [maybe_remove_last(df[input_cols]) for df in df],
             known_past_data=df[known_past_cols]
             if isinstance(df, pd.DataFrame)
-            else [df[known_past_cols] for df in df]
+            else [maybe_remove_last(df[known_past_cols]) for df in df]
             if len(known_past_cols) > 0
             else None,
-            target_data=df[self.target_covariate.col]
+            target_data=maybe_remove_last(df[self.target_covariate.col])
             if isinstance(df, pd.DataFrame)
-            else [df[self.target_covariate.col] for df in df],
+            else [maybe_remove_last(df[self.target_covariate.col]) for df in df],
             ctx_seq_len=self.hparams["ctxt_seq_len"],
             tgt_seq_len=self.hparams["tgt_seq_len"],
             min_ctxt_seq_len=self.hparams["min_ctxt_seq_len"],
             min_tgt_seq_len=self.hparams["min_tgt_seq_len"],
             time_data=(
-                df[TIME] if isinstance(df, pd.DataFrame) else [df[TIME] for df in df]
+                maybe_remove_last(df[TIME])
+                if isinstance(df, pd.DataFrame)
+                else [maybe_remove_last(df[TIME]) for df in df]
             )
             if self.hparams["time_column"] is not None
             else None,
