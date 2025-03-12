@@ -37,7 +37,9 @@ class NeptuneLoggerSaveConfigCallback(lightning.pytorch.cli.SaveConfigCallback):
         if isinstance(trainer.logger, L.pytorch.loggers.neptune.NeptuneLogger):
             config = self.parser.dump(self.config, skip_none=False)
 
-            trainer.logger.experiment["model/config"] = config
+            with open(self.config_filename, "w", encoding="utf-8") as f:
+                f.write(config)
+            trainer.logger.experiment["model/config"].upload(self.config_filename)
             return
 
         super().save_config(trainer, pl_module)
