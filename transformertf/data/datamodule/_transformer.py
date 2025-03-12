@@ -142,7 +142,9 @@ class TransformerDataModule(DataModuleBase):
 
         if self.hparams["time_column"] is not None:
             if self.hparams["time_format"] == "relative":
-                self._fit_relative_time(dfs, self._transforms[TIME])
+                self._fit_relative_time(
+                    dfs, self._transforms[TIME], stride=self.hparams["stride"]
+                )
             elif self.hparams["time_format"] == "absolute":
                 self._fit_absolute_time(dfs, self._transforms[TIME])
 
