@@ -222,7 +222,7 @@ class EncoderDecoderDataModule(TransformerDataModule):
             input_data=maybe_remove_last(df[input_cols])
             if isinstance(df, pd.DataFrame)
             else [maybe_remove_last(df[input_cols]) for df in df],
-            known_past_data=df[known_past_cols]
+            known_past_data=maybe_remove_last(df[known_past_cols])
             if isinstance(df, pd.DataFrame)
             else [maybe_remove_last(df[known_past_cols]) for df in df]
             if len(known_past_cols) > 0
