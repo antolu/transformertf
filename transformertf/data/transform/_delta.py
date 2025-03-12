@@ -33,9 +33,7 @@ class DeltaTransform(BaseTransform):
         torch.Tensor
             The delta of the input data.
         """
-        diff = y[1:] - y[:-1]
-        mean = diff.mean()
-        return torch.cat([diff, mean.unsqueeze(0)], dim=0)
+        return torch.cat([torch.zeros_like(y[:1]), y[1:] - y[:-1]], dim=0)
 
     def fit(
         self, x: np.ndarray | torch.Tensor, y: np.ndarray | torch.Tensor | None = None
