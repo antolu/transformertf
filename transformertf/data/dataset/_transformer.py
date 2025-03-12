@@ -39,6 +39,7 @@ class TransformerDataset(AbstractTimeSeriesDataset):
         | None = None,
         time_format: typing.Literal["absolute", "relative"] = "relative",
         stride: int = 1,
+        noise_std: float = 0.0,
         predict: bool = False,
         apply_transforms: bool = True,
         min_ctxt_seq_len: int | None = None,
@@ -139,6 +140,10 @@ class TransformerDataset(AbstractTimeSeriesDataset):
         self._dtype = dtype
         self._time_format = time_format
         self._apply_transforms = apply_transforms
+        if noise_std < 0.0:
+            msg = "noise_std must be non-negative"
+            raise ValueError(msg)
+        self._noise_std = noise_std
 
         self._transforms = transforms or {}
 

@@ -49,6 +49,7 @@ class TransformerDataModule(DataModuleBase):
         stride: int = 1,
         downsample: int = 1,
         downsample_method: DOWNSAMPLE_METHODS = "interval",
+        noise_std: float = 0.0,
         target_depends_on: str | None = None,
         time_column: str | None = None,
         time_format: typing.Literal["relative", "absolute"] = "absolute",
@@ -77,6 +78,10 @@ class TransformerDataModule(DataModuleBase):
             to the maximum timestamp in each batch.
             Additional transforms to the temporal feature can be added to the
             ``extra_transforms`` parameter, with the `__time__` key.
+        noise_std : float
+            The standard deviation of the noise to add to the input data. This is useful
+            for adding noise to the input data to make the model more robust to noise in
+            the data.
         """
         super().__init__(
             train_df_paths=train_df_paths,
@@ -247,6 +252,7 @@ class EncoderDecoderDataModule(TransformerDataModule):
             ),
             predict=predict,
             transforms=self.transforms,
+            noise_std=self.hparams["noise_std"],
             dtype=self.hparams["dtype"],
         )
 

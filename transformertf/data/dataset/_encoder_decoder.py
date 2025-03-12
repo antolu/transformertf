@@ -65,6 +65,21 @@ class EncoderDecoderDataset(TransformerDataset):
         if TIME in sample["encoder_input"] and self._time_format == "relative":
             sample_torch["encoder_input"][0, 0] = 0.0
 
+        if self._noise_std > 0.0:
+            skip = 1 if TIME in sample["encoder_input"] else 0
+            sample_torch["encoder_input"][..., skip:] += torch.normal(
+                mean=0.0,
+                std=torch.ones_like(sample_torch["encoder_input"][..., skip:])
+                * self._noise_std,
+            )
+
+            skip = 1 if TIME in sample["decoder_input"] else 0
+            sample_torch["decoder_input"][..., skip:-1] += torch.normal(
+                mean=0.0,
+                std=torch.ones_like(sample_torch["decoder_input"][..., skip:-1])
+                * self._noise_std,
+            )
+
         # normalize lengths
         sample_torch["encoder_lengths"] = (
             2.0 * sample_torch["encoder_lengths"].view((1,)) / self.ctxt_seq_len - 1.0
