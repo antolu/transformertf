@@ -55,16 +55,7 @@ class EncoderDecoderDataset(TransformerDataset):
 
         sample_torch = convert_sample(sample, self._dtype)
 
-        # mask zeroed out data after transforms
-        sample_torch = self._apply_masks(sample_torch)
-
-        # add extra dimension to target
-        if "target" in sample_torch and sample_torch["target"].ndim == 1:
-            sample_torch["target"] = sample_torch["target"][:, None]
-
-        if TIME in sample["encoder_input"] and self._time_format == "relative":
-            sample_torch["encoder_input"][0, 0] = 0.0
-
+        # add noise
         if self._noise_std > 0.0:
             skip = 1 if TIME in sample["encoder_input"] else 0
             sample_torch["encoder_input"][..., skip:] += torch.normal(
@@ -80,9 +71,26 @@ class EncoderDecoderDataset(TransformerDataset):
                 * self._noise_std,
             )
 
+        # mask zeroed out data after transforms
+        sample_torch = self._apply_masks(sample_torch)
+
+        # add extra dimension to target
+        if "target" in sample_torch and sample_torch["target"].ndim == 1:
+            sample_torch["target"] = sample_torch["target"][:, None]
+
+        if TIME in sample["encoder_input"] and self._time_format == "relative":
+            sample_torch["encoder_input"][
+                -int(sample_torch.get("encoder_lengths", self.ctxt_seq_len)), 0
+            ] = 0.0
+
         # normalize lengths
         sample_torch["encoder_lengths"] = (
-            2.0 * sample_torch["encoder_lengths"].view((1,)) / self.ctxt_seq_len - 1.0
+            2.0
+            * sample_torch.get(
+                "encoder_lengths", torch.tensor(self.ctxt_seq_len)
+            ).view((1,))
+            / self.ctxt_seq_len
+            - 1.0
         )
         sample_torch["decoder_lengths"] /= self.tgt_seq_len
         sample_torch["decoder_lengths"] = sample_torch["decoder_lengths"].view((1,))
