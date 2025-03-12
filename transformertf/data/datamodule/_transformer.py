@@ -151,7 +151,15 @@ class TransformerDataModule(DataModuleBase):
     ) -> None:
         for df in dfs:
             for start in range(stride):
-                transform.fit(df[TIME].iloc[start::stride].to_numpy(dtype=float))
+                time = df[TIME].iloc[start::stride].to_numpy(dtype=float)
+                if isinstance(transform, TransformCollection):
+                    # apply the transforms manually
+                    for t in transform:
+                        time = t.fit_transform(time)
+                        if isinstance(t, DeltaTransform):
+                            time = time[1:]
+                else:
+                    transform.fit(time)
 
     def _fit_absolute_time(
         self, dfs: list[pd.DataFrame], transform: BaseTransform
