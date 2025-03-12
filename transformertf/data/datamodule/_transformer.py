@@ -147,9 +147,12 @@ class TransformerDataModule(DataModuleBase):
                 self._fit_absolute_time(dfs, self._transforms[TIME])
 
     @staticmethod
-    def _fit_relative_time(dfs: list[pd.DataFrame], transform: BaseTransform) -> None:
+    def _fit_relative_time(
+        dfs: list[pd.DataFrame], transform: BaseTransform, stride: int = 1
+    ) -> None:
         for df in dfs:
-            transform.fit(df[TIME].to_numpy(dtype=float))
+            for start in range(stride):
+                transform.fit(df[TIME].iloc[start::stride].to_numpy(dtype=float))
 
     def _fit_absolute_time(
         self, dfs: list[pd.DataFrame], transform: BaseTransform
@@ -169,10 +172,11 @@ class TransformerDataModule(DataModuleBase):
 
         dts = []
         for df, wg in zip(dfs, wgs, strict=False):
-            time = df[TIME].to_numpy(dtype=float)
+            for start in range(self.hparams["stride"]):
+                time = df[TIME].to_numpy(dtype=float)[start :: self.hparams["stride"]]
 
-            dt = _calc_fast_absolute_dt(time, numba.typed.List(wg))
-            dts.append(dt)
+                dt = _calc_fast_absolute_dt(time, numba.typed.List(wg))
+                dts.append(dt)
 
         transform.fit(np.concatenate(dts).flatten())
 
