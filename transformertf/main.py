@@ -13,7 +13,6 @@ import pytorch_optimizer  # noqa: F401
 import rich
 import rich.logging
 import torch
-import yaml
 from lightning import LightningModule
 from lightning.pytorch.cli import LightningArgumentParser, LRSchedulerTypeUnion
 
@@ -32,11 +31,15 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 
 class NeptuneLoggerSaveConfigCallback(lightning.pytorch.cli.SaveConfigCallback):
-    def save_config(self, trainer: L.Trainer, pl_module: L.LightningModule, stage: str) -> None:
+    def save_config(
+        self, trainer: L.Trainer, pl_module: L.LightningModule, stage: str
+    ) -> None:
         if isinstance(trainer.logger, L.pytorch.loggers.neptune.NeptuneLogger):
             config = self.parser.dump(self.config, skip_none=False)
 
-            trainer.logger.experiment["model/config"] = config
+            with open(self.config_filename, "w", encoding="utf-8") as f:
+                f.write(config)
+            trainer.logger.experiment["model/config"].upload(self.config_filename)
             return
 
         super().save_config(trainer, pl_module)
@@ -187,7 +190,11 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
             if isinstance(callback, lightning.pytorch.callbacks.LearningRateMonitor):
                 callback.logging_interval = self.config.fit.lr_step_interval
 
-        self.trainer.callbacks.append(NeptuneLoggerSaveConfigCallback(parser=self.parser, config=self.config, overwrite=True))
+        self.trainer.callbacks.append(
+            NeptuneLoggerSaveConfigCallback(
+                parser=self.parser, config=self.config, overwrite=True
+            )
+        )
 
         # load checkpoint for transfer learning
         if (

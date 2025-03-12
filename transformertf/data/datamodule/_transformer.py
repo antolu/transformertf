@@ -31,6 +31,9 @@ if typing.TYPE_CHECKING:
     from ..transform import BaseTransform
 
 
+T = typing.TypeVar("T", pd.DataFrame, pd.Series)
+
+
 class TransformerDataModule(DataModuleBase):
     def __init__(
         self,
@@ -139,14 +142,19 @@ class TransformerDataModule(DataModuleBase):
 
         if self.hparams["time_column"] is not None:
             if self.hparams["time_format"] == "relative":
-                self._fit_relative_time(dfs, self._transforms[TIME])
+                self._fit_relative_time(
+                    dfs, self._transforms[TIME], stride=self.hparams["stride"]
+                )
             elif self.hparams["time_format"] == "absolute":
                 self._fit_absolute_time(dfs, self._transforms[TIME])
 
     @staticmethod
-    def _fit_relative_time(dfs: list[pd.DataFrame], transform: BaseTransform) -> None:
+    def _fit_relative_time(
+        dfs: list[pd.DataFrame], transform: BaseTransform, stride: int = 1
+    ) -> None:
         for df in dfs:
-            transform.fit(df[TIME].to_numpy(dtype=float))
+            for start in range(stride):
+                transform.fit(df[TIME].iloc[start::stride].to_numpy(dtype=float))
 
     def _fit_absolute_time(
         self, dfs: list[pd.DataFrame], transform: BaseTransform
@@ -166,10 +174,11 @@ class TransformerDataModule(DataModuleBase):
 
         dts = []
         for df, wg in zip(dfs, wgs, strict=False):
-            time = df[TIME].to_numpy(dtype=float)
+            for start in range(self.hparams["stride"]):
+                time = df[TIME].to_numpy(dtype=float)[start :: self.hparams["stride"]]
 
-            dt = _calc_fast_absolute_dt(time, numba.typed.List(wg))
-            dts.append(dt)
+                dt = _calc_fast_absolute_dt(time, numba.typed.List(wg))
+                dts.append(dt)
 
         transform.fit(np.concatenate(dts).flatten())
 
@@ -205,24 +214,36 @@ class EncoderDecoderDataModule(TransformerDataModule):
         input_cols = [cov.col for cov in self.known_covariates]
         known_past_cols = [cov.col for cov in self.known_past_covariates]
 
+        def maybe_remove_last(df: T) -> T:
+            if (
+                self.hparams["time_column"] is not None
+                and self.hparams["time_format"] == "relative"
+                and len(df) > 1
+            ):
+                return df.iloc[:-1]
+
+            return df
+
         return EncoderDecoderDataset(
-            input_data=df[input_cols]
+            input_data=maybe_remove_last(df[input_cols])
             if isinstance(df, pd.DataFrame)
-            else [df[input_cols] for df in df],
-            known_past_data=df[known_past_cols]
+            else [maybe_remove_last(df[input_cols]) for df in df],
+            known_past_data=maybe_remove_last(df[known_past_cols])
             if isinstance(df, pd.DataFrame)
-            else [df[known_past_cols] for df in df]
+            else [maybe_remove_last(df[known_past_cols]) for df in df]
             if len(known_past_cols) > 0
             else None,
-            target_data=df[self.target_covariate.col]
+            target_data=maybe_remove_last(df[self.target_covariate.col])
             if isinstance(df, pd.DataFrame)
-            else [df[self.target_covariate.col] for df in df],
+            else [maybe_remove_last(df[self.target_covariate.col]) for df in df],
             ctx_seq_len=self.hparams["ctxt_seq_len"],
             tgt_seq_len=self.hparams["tgt_seq_len"],
             min_ctxt_seq_len=self.hparams["min_ctxt_seq_len"],
             min_tgt_seq_len=self.hparams["min_tgt_seq_len"],
             time_data=(
-                df[TIME] if isinstance(df, pd.DataFrame) else [df[TIME] for df in df]
+                maybe_remove_last(df[TIME])
+                if isinstance(df, pd.DataFrame)
+                else [maybe_remove_last(df[TIME]) for df in df]
             )
             if self.hparams["time_column"] is not None
             else None,
