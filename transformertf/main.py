@@ -35,8 +35,7 @@ class NeptuneLoggerSaveConfigCallback(lightning.pytorch.cli.SaveConfigCallback):
         self, trainer: L.Trainer, pl_module: L.LightningModule, stage: str
     ) -> None:
         if isinstance(trainer.logger, L.pytorch.loggers.neptune.NeptuneLogger):
-            cfg = self.config.fit if hasattr(self.config, "fit") else self.config
-            config = self.parser.dump(cfg, skip_none=False)
+            config = self.parser.dump(self.config, skip_none=False)
 
             with open(self.config_filename, "w", encoding="utf-8") as f:
                 f.write(config)
