@@ -35,14 +35,15 @@ class NeptuneLoggerSaveConfigCallback(lightning.pytorch.cli.SaveConfigCallback):
         self, trainer: L.Trainer, pl_module: L.LightningModule, stage: str
     ) -> None:
         if isinstance(trainer.logger, L.pytorch.loggers.neptune.NeptuneLogger):
-            config = self.parser.dump(self.config, skip_none=False)
+            cfg = self.config.fit if hasattr(self.config, "fit") else self.config
+            config = self.parser.dump(cfg, skip_none=False)
 
             with open(self.config_filename, "w", encoding="utf-8") as f:
                 f.write(config)
             trainer.logger.experiment["model/config"].upload(self.config_filename)
             return
 
-        super().save_config(trainer, pl_module)
+        super().save_config(trainer, pl_module, stage=stage)
 
 
 def setup_logger(logging_level: int = 0) -> None:
@@ -205,7 +206,9 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
             transfer_ckpt = os.fspath(
                 pathlib.Path(self.config.fit.transfer_ckpt).expanduser()
             )
-            state_dict = torch.load(transfer_ckpt, map_location="cpu")
+            state_dict = torch.load(
+                transfer_ckpt, map_location="cpu", weights_only=False
+            )
             self.model.load_state_dict(state_dict["state_dict"], strict=False)
 
     def configure_optimizers(
