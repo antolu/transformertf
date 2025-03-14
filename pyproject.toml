@@ -3,10 +3,12 @@ dependencies = [
   "matplotlib >= 3.6",
   "numpy >= 1.26, < 2.0",
   "pandas >= 2.0, < 3.0",
-  "hystcomp-utils >= 0.1.0",
+  "hystcomp-utils ~= 0.2",
   "pybind11-rdp >= 0.1.4",
-  "transformertf >= 0.3.1, < 0.4",
-  "mlp-model-api >= 0.0.11, <= 0.1.0",
+  "transformertf ~= 0.6.1",
+  "torch ~= 2.5.1",
+  "lightning ~= 2.2.2",
+  "mlp-model-api >= 1.0, < 2.0",
 ]
 name = "sps-mlp-hysteresis-compensation"
 dynamic = ["version", "readme"]
@@ -40,7 +42,7 @@ changelog = "https://gitlab.cern.ch/dsb/hysteresis/sps-mlp-hysteresis-compensati
 test = ["pytest", "pytest-cov"]
 doc = ["acc-py-sphinx", "myst-parser", "sphinx-copybutton"]
 dev = ["pre-commit", "ruff", "mypy"]
-publication = ["cern-mlp-client > 0.3.1, < 1.0"]
+publication = ["cern-mlp-client ~= 1.0"]
 
 
 [build-system]
