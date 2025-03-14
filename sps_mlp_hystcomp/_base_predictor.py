@@ -1018,8 +1018,8 @@ def filter_imeas(
     np.ndarray
         Filtered measured current.
     """
-    i_meas = signal.butter_lowpass_filter(i_meas, cutoff=80, fs=1e3, order=1)
-    return signal.mean_filter(i_meas, window_size=151, stride=1, threshold=0.06 / 2)
+    return signal.butter_lowpass_filter(i_meas, cutoff=50, fs=1e3, order=1)
+    # return signal.mean_filter(i_meas, window_size=151, stride=1, threshold=0.06 / 2)
 
 
 def filter_bmeas(
@@ -1038,8 +1038,8 @@ def filter_bmeas(
     np.ndarray
         Filtered measured field.
     """
-    b_meas = signal.butter_lowpass_filter(b_meas, cutoff=80, fs=1e3, order=1)
-    return signal.mean_filter(b_meas, window_size=151, stride=1, threshold=1.5e-5 / 2)
+    return signal.butter_lowpass_filter(b_meas, cutoff=50, fs=1e3, order=1)
+    # return signal.mean_filter(b_meas, window_size=151, stride=1, threshold=1.5e-5 / 2)
 
 
 def phase_shift_program(
