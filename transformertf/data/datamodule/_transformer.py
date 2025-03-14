@@ -16,6 +16,7 @@ from ..transform import (
     BaseTransform,
     DeltaTransform,
     MaxScaler,
+    StandardScaler,
     TransformCollection,
 )
 from ._base import TIME_PREFIX as TIME
@@ -118,7 +119,7 @@ class TransformerDataModule(DataModuleBase):
             if self.hparams["time_format"] == "relative":
                 transforms = [
                     DeltaTransform(),
-                    MaxScaler(num_features_=1),
+                    StandardScaler(num_features_=1),
                 ]
             elif self.hparams["time_format"] == "absolute":
                 transforms = [MaxScaler(num_features_=1)]
