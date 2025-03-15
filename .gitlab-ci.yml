@@ -32,12 +32,6 @@ build_wheel:
     - !reference [.acc_py_build_wheel, before_script]
     - !reference [._install_git_lfs, before_script]
 
-build_sdist:
-  extends: .acc_py_build_sdist
-
-
-build_wheel:
-  extends: .acc_py_build_wheel
 
 
 # A development installation of the package tested with pytest.
