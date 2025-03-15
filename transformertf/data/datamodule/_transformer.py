@@ -52,7 +52,9 @@ class TransformerDataModule(DataModuleBase):
         noise_std: float = 0.0,
         target_depends_on: str | None = None,
         time_column: str | None = None,
-        time_format: typing.Literal["relative", "absolute"] = "absolute",
+        time_format: typing.Literal[
+            "relative", "absolute", "relative_legacy"
+        ] = "absolute",
         extra_transforms: dict[str, list[BaseTransform]] | None = None,
         batch_size: int = 128,
         num_workers: int = 0,
@@ -119,6 +121,11 @@ class TransformerDataModule(DataModuleBase):
             if self.hparams["time_format"] == "relative":
                 transforms = [
                     DeltaTransform(),
+                    MaxScaler(num_features_=1),
+                ]
+            elif self.hparams["time_format"] == "relative_legacy":
+                transforms = [
+                    DeltaTransform(),
                     StandardScaler(num_features_=1),
                 ]
             elif self.hparams["time_format"] == "absolute":
@@ -143,7 +150,7 @@ class TransformerDataModule(DataModuleBase):
         super()._fit_transforms(dfs)
 
         if self.hparams["time_column"] is not None:
-            if self.hparams["time_format"] == "relative":
+            if self.hparams["time_format"] in ["relative", "relative_legacy"]:
                 self._fit_relative_time(
                     dfs, self._transforms[TIME], stride=self.hparams["stride"]
                 )
@@ -224,6 +231,13 @@ class EncoderDecoderDataModule(TransformerDataModule):
         input_cols = [cov.col for cov in self.known_covariates]
         known_past_cols = [cov.col for cov in self.known_past_covariates]
 
+        time_format: typing.Literal["relative", "absolute"] = (
+            "relative"
+            if self.hparams["time_format"] == "relative"
+            or self.hparams["time_format"] == "relative_legacy"
+            else "absolute"
+        )
+
         return EncoderDecoderDataset(
             input_data=df[input_cols]
             if isinstance(df, pd.DataFrame)
@@ -245,7 +259,7 @@ class EncoderDecoderDataModule(TransformerDataModule):
             )
             if self.hparams["time_column"] is not None
             else None,
-            time_format=self.hparams["time_format"],
+            time_format=time_format,
             stride=self.hparams["stride"],
             randomize_seq_len=(
                 self.hparams["randomize_seq_len"] if not predict else False
