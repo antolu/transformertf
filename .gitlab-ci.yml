@@ -45,7 +45,8 @@ test_dev:
 
 
 test_wheel:
-  extends:
+  extends: .acc_py_wheel_test
+  before_script:
     - !reference [.acc_py_wheel_test, before_script]
     - !reference [._install_git_lfs, before_script]
   needs:
