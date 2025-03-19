@@ -84,15 +84,16 @@ class EncoderDecoderDataset(TransformerDataset):
             ] = 0.0
 
         # normalize lengths
-        sample_torch["encoder_lengths"] = (
-            2.0
-            * sample_torch.get(
-                "encoder_lengths", torch.tensor(self.ctxt_seq_len)
-            ).view((1,))
-            / self.ctxt_seq_len
-            - 1.0
-        )
-        sample_torch["decoder_lengths"] /= self.tgt_seq_len
+        # sample_torch["encoder_lengths"] = (
+        #     2.0
+        #     * sample_torch.get(
+        #         "encoder_lengths", torch.tensor(self.ctxt_seq_len)
+        #     ).view((1,))
+        #     / self.ctxt_seq_len
+        #     - 1.0
+        # )
+        # sample_torch["decoder_lengths"] /= self.tgt_seq_len
+        sample_torch["encoder_lengths"] = sample_torch["encoder_lengths"].view((1,))
         sample_torch["decoder_lengths"] = sample_torch["decoder_lengths"].view((1,))
 
         return sample_torch

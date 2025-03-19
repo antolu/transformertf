@@ -204,9 +204,7 @@ def test_absolute_time_dataset_random(
     sample = dataset[0]
 
     assert sample["encoder_input"].shape[-1] == 3  # (time, current, field)
-    encoder_lengths = (
-        (sample["encoder_lengths"].item() + 1.0) * datamodule.ctxt_seq_len / 2
-    )
+    encoder_lengths = sample["encoder_lengths"].item()
     seq_start = int(datamodule.hparams["ctxt_seq_len"] - encoder_lengths)
 
     assert sample["encoder_input"][seq_start, 0] == 0.0  # time starts at 0

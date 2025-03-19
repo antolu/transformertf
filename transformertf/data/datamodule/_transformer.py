@@ -7,9 +7,11 @@ import numba
 import numba.typed
 import numpy as np
 import pandas as pd
+import torch
 
 from .._downsample import DOWNSAMPLE_METHODS
 from .._dtype import VALID_DTYPES
+from .._sample_generator import EncoderDecoderTargetSample
 from .._window_generator import WindowGenerator
 from ..dataset import EncoderDataset, EncoderDecoderDataset
 from ..transform import (
@@ -268,6 +270,49 @@ class EncoderDecoderDataModule(TransformerDataModule):
             transforms=self.transforms,
             noise_std=self.hparams["noise_std"],
             dtype=self.hparams["dtype"],
+        )
+
+    def collate_fn(
+        self, samples: list[EncoderDecoderTargetSample]
+    ) -> EncoderDecoderTargetSample:
+        if all("encoder_lengths" in sample for sample in samples):
+            max_enc_len = max(sample["encoder_lengths"] for sample in samples)
+        else:
+            max_enc_len = self.hparams["ctxt_seq_len"]
+
+        max_enc_len = int(max_enc_len)
+
+        if all("decoder_lengths" in sample for sample in samples):
+            max_tgt_len = max(sample["decoder_lengths"] for sample in samples)
+        else:
+            max_tgt_len = self.hparams["tgt_seq_len"]
+
+        assert max_tgt_len > 0
+
+        max_tgt_len = int(max_tgt_len)
+
+        cut_samples = []
+        for sample in samples:
+            cut_sample = {
+                "encoder_input": sample["encoder_input"][-max_enc_len:],
+                "decoder_input": sample["decoder_input"][-max_tgt_len:],
+                "target": sample["target"][-max_tgt_len:],
+            }
+            if "encoder_lengths" in sample:
+                cut_sample["encoder_lengths"] = sample["encoder_lengths"]
+            if "decoder_lengths" in sample:
+                cut_sample["decoder_lengths"] = sample["decoder_lengths"]
+
+            if "encoder_mask" in sample:
+                cut_sample["encoder_mask"] = sample["encoder_mask"][-max_enc_len:]
+
+            if "decoder_mask" in sample:
+                cut_sample["decoder_mask"] = sample["decoder_mask"][-max_tgt_len:]
+
+            cut_samples.append(cut_sample)
+
+        return typing.cast(
+            EncoderDecoderTargetSample[torch.Tensor], super().collate_fn(cut_samples)
         )
 
 
