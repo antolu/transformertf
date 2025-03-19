@@ -295,8 +295,8 @@ class EncoderDecoderDataModule(TransformerDataModule):
         for sample in samples:
             cut_sample = {
                 "encoder_input": sample["encoder_input"][-max_enc_len:],
-                "decoder_input": sample["decoder_input"][-max_tgt_len:],
-                "target": sample["target"][-max_tgt_len:],
+                "decoder_input": sample["decoder_input"][:max_tgt_len],
+                "target": sample["target"][:max_tgt_len],
             }
             if "encoder_lengths" in sample:
                 cut_sample["encoder_lengths"] = sample["encoder_lengths"]
@@ -307,7 +307,7 @@ class EncoderDecoderDataModule(TransformerDataModule):
                 cut_sample["encoder_mask"] = sample["encoder_mask"][-max_enc_len:]
 
             if "decoder_mask" in sample:
-                cut_sample["decoder_mask"] = sample["decoder_mask"][-max_tgt_len:]
+                cut_sample["decoder_mask"] = sample["decoder_mask"][:max_tgt_len]
 
             cut_samples.append(cut_sample)
 
