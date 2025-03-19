@@ -351,7 +351,7 @@ class EncoderDecoderDataset(TransformerDataset):
 
 
 def sample_len(min_: int, max_: int) -> int:
-    return int(np.round(RND_G.beta(1.0, 0.5) * (max_ - min_) + min_))
+    return int(RND_G.uniform(min_, max_))
 
 
 def convert_sample(
