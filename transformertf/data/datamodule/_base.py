@@ -111,6 +111,7 @@ class DataModuleBase(L.LightningDataModule):
         target_depends_on: str | None = None,
         extra_transforms: dict[str, list[BaseTransform]] | None = None,
         batch_size: int = 128,
+        val_batch_size: int = 1,
         num_workers: int = 0,
         dtype: VALID_DTYPES = "float32",
         *,
@@ -488,6 +489,7 @@ class DataModuleBase(L.LightningDataModule):
             if self.hparams["num_workers"] > 0
             else None,
             persistent_workers=self.hparams["num_workers"] > 0,
+            collate_fn=self.collate_fn,
         )
 
     @override  # type: ignore[misc]
@@ -523,7 +525,7 @@ class DataModuleBase(L.LightningDataModule):
         ) -> torch.utils.data.DataLoader:
             return torch.utils.data.DataLoader(
                 ds,
-                batch_size=1,
+                batch_size=self.hparams["val_batch_size"],
                 num_workers=self.hparams["num_workers"],
                 shuffle=False,
                 sampler=make_sampler(ds),
@@ -532,6 +534,7 @@ class DataModuleBase(L.LightningDataModule):
                 if self.hparams["num_workers"] > 0
                 else None,
                 persistent_workers=self.hparams["num_workers"] > 0,
+                collate_fn=self.collate_fn,
             )
 
         if len(self._val_df) == 1:
@@ -1085,6 +1088,24 @@ class DataModuleBase(L.LightningDataModule):
             if "distributed" in self.hparams
             else False
         )
+
+    def collate_fn(
+        self, batch: list[dict[str, torch.Tensor]]
+    ) -> dict[str, torch.Tensor]:
+        """
+        Collates a batch of samples into a single dictionary.
+
+        Parameters
+        ----------
+        batch : list[dict[str, torch.Tensor]]
+            The batch of samples.
+
+        Returns
+        -------
+        dict[str, torch.Tensor]
+            The collated batch.
+        """
+        return torch.utils.data.default_collate(batch)
 
     def _init_tmpdir(self) -> TmpDirType:
         if self.distributed_sampler:
