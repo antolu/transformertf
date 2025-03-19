@@ -69,10 +69,16 @@ def test_quantile_loss_batch(
     y_pred = torch.cat([y_pred, y_pred])
     target = torch.cat([target, target])
 
+    weights = (
+        einops.repeat(weights_or_none[:2], "... -> ... n 1", n=5)
+        if weights_or_none is not None
+        else None
+    )
+
     result = loss.loss(
         y_pred,
         target,
-        weights=weights_or_none[:2] if weights_or_none is not None else None,
+        weights=weights,
     )
 
     assert torch.isnan(result).sum() == 0
