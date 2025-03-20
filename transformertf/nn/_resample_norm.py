@@ -7,6 +7,13 @@ import torch
 def interpolate(
     x: torch.Tensor, output_size: int, mask: torch.Tensor | None = None
 ) -> torch.Tensor:
+    if x.device.type == "mps":
+        x = x.to("cpu")
+        upsampled = torch.nn.functional.interpolate(
+            x.unsqueeze(1), output_size, mode="linear", align_corners=True
+        ).squeeze(1)
+        return upsampled.to("mps")
+
     upsampled = torch.nn.functional.interpolate(
         x.unsqueeze(1), output_size, mode="linear", align_corners=True
     ).squeeze(1)
