@@ -48,6 +48,13 @@ class InterpretableMultiHeadAttention(torch.nn.Module):
 
         self.output_layer = torch.nn.Linear(self.d_v, n_dim_model)
 
+    def initialize_parameters(self) -> None:
+        for name, p in self.named_parameters():
+            if "bias" not in name:
+                torch.nn.init.xavier_uniform_(p)
+            else:
+                torch.nn.init.constant_(p, 0)
+
     @typing.overload
     def forward(
         self,
