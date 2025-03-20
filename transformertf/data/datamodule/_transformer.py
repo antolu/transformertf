@@ -272,20 +272,21 @@ class EncoderDecoderDataModule(TransformerDataModule):
             dtype=self.hparams["dtype"],
         )
 
+    @staticmethod
     def collate_fn(
-        self, samples: list[EncoderDecoderTargetSample]
+        samples: list[EncoderDecoderTargetSample],
     ) -> EncoderDecoderTargetSample:
         if all("encoder_lengths" in sample for sample in samples):
             max_enc_len = max(sample["encoder_lengths"] for sample in samples)
         else:
-            max_enc_len = self.hparams["ctxt_seq_len"]
+            max_enc_len = samples[0]["encoder_input"].size(1)
 
         max_enc_len = int(max_enc_len)
 
         if all("decoder_lengths" in sample for sample in samples):
             max_tgt_len = max(sample["decoder_lengths"] for sample in samples)
         else:
-            max_tgt_len = self.hparams["tgt_seq_len"]
+            max_tgt_len = samples[0]["decoder_input"].size(1)
 
         assert max_tgt_len > 0
 
@@ -312,7 +313,8 @@ class EncoderDecoderDataModule(TransformerDataModule):
             cut_samples.append(cut_sample)
 
         return typing.cast(
-            EncoderDecoderTargetSample[torch.Tensor], super().collate_fn(cut_samples)
+            EncoderDecoderTargetSample[torch.Tensor],
+            torch.utils.data.dataloader.default_collate(cut_samples),
         )
 
 

@@ -1002,13 +1002,13 @@ class DataModuleBase(L.LightningDataModule):
 
                 state_dict = transform.state_dict()
                 cls = transform.__class__
-                _module = cls.__module__
+                module = cls.__module__
 
                 kwargs = {k: v for k, v in state_dict.items() if k.endswith("_")}
 
                 # save where to import it from and how to instantiate it
                 transforms_patched.append({
-                    "module": _module,
+                    "module": module,
                     "name": cls.__name__,
                     "kwargs": kwargs,
                 })
@@ -1089,9 +1089,8 @@ class DataModuleBase(L.LightningDataModule):
             else False
         )
 
-    def collate_fn(
-        self, batch: list[dict[str, torch.Tensor]]
-    ) -> dict[str, torch.Tensor]:
+    @staticmethod
+    def collate_fn(batch: list[dict[str, torch.Tensor]]) -> dict[str, torch.Tensor]:
         """
         Collates a batch of samples into a single dictionary.
 
