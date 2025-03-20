@@ -81,6 +81,21 @@ class GatedResidualNetwork(torch.nn.Module):
         self.norm = torch.nn.LayerNorm(output_dim)
 
         self.activation = get_activation(activation)
+        self.initialize_parameters()
+
+    def initialize_parameters(self) -> None:
+        """
+        Initialize the parameters of the GRN module
+        """
+        for name, p in self.named_parameters():
+            if "bias" in name:
+                torch.nn.init.zeros_(p)
+            elif "fc1" in name or "fc2" in name:
+                torch.nn.init.kaiming_normal_(
+                    p, a=0, mode="fan_in", nonlinearity="leaky_relu"
+                )
+            elif "fc3" in name:
+                torch.nn.init.xavier_uniform_(p)
 
     def forward(
         self, x: torch.Tensor, context: torch.Tensor | None = None
