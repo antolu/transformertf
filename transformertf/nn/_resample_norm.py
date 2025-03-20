@@ -112,7 +112,8 @@ class ResampleNorm(torch.nn.Module):
         self.norm = torch.nn.LayerNorm(self.output_dim)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.resample(x)
+        if self.input_dim != self.output_dim:
+            x = self.resample(x)
 
         if self.trainable_add:
             x = x * torch.nn.functional.sigmoid(self.mask) * 2.0
