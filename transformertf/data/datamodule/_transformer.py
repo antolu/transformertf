@@ -249,14 +249,14 @@ class EncoderDecoderDataModule(TransformerDataModule):
             else [df[known_past_cols] for df in df]
             if len(known_past_cols) > 0
             else None,
-            target_data=df[self.target_covariate.col]
+            target_data=df[self.target_covariate.col]  # type: ignore[arg-type]
             if isinstance(df, pd.DataFrame)
             else [df[self.target_covariate.col] for df in df],
             ctx_seq_len=self.hparams["ctxt_seq_len"],
             tgt_seq_len=self.hparams["tgt_seq_len"],
             min_ctxt_seq_len=self.hparams["min_ctxt_seq_len"],
             min_tgt_seq_len=self.hparams["min_tgt_seq_len"],
-            time_data=(
+            time_data=(  # type: ignore[arg-type]
                 df[TIME] if isinstance(df, pd.DataFrame) else [df[TIME] for df in df]
             )
             if self.hparams["time_column"] is not None
@@ -273,7 +273,7 @@ class EncoderDecoderDataModule(TransformerDataModule):
         )
 
     @staticmethod
-    def collate_fn(
+    def collate_fn(  # type: ignore[override]
         samples: list[EncoderDecoderTargetSample],
     ) -> EncoderDecoderTargetSample:
         if all("encoder_lengths" in sample for sample in samples):
@@ -332,7 +332,7 @@ class EncoderDataModule(TransformerDataModule):
             input_data=df[input_cols]
             if isinstance(df, pd.DataFrame)
             else [df[input_cols] for df in df],
-            target_data=df[self.target_covariate.col]
+            target_data=df[self.target_covariate.col]  # type: ignore[arg-type]
             if isinstance(df, pd.DataFrame)
             else [df[self.target_covariate.col] for df in df],
             ctx_seq_len=self.hparams["ctxt_seq_len"],

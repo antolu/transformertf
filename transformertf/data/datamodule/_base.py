@@ -35,10 +35,10 @@ from ..transform import (
     TransformCollection,
 )
 
-if sys.version_info < (3, 12):
-    from typing_extensions import override
-else:
+if sys.version_info >= (3, 12):
     from typing import override
+else:
+    from typing_extensions import override
 
 __all__ = ["DataModuleBase"]
 
@@ -263,8 +263,8 @@ class DataModuleBase(L.LightningDataModule):
         """
         return 0
 
-    @override  # type: ignore[misc]
-    def prepare_data(self) -> None:
+    @override
+    def prepare_data(self) -> None:  # type: ignore[misc]
         """
         Loads and preprocesses data dataframes.
 
@@ -330,8 +330,8 @@ class DataModuleBase(L.LightningDataModule):
         if self.distributed_sampler:
             self._save_tmp_state()
 
-    @override  # type: ignore[misc]
-    def setup(
+    @override
+    def setup(  # type: ignore[misc]
         self,
         stage: typing.Literal["fit", "train", "val", "test", "predict"] | None = None,
     ) -> None:
@@ -455,8 +455,8 @@ class DataModuleBase(L.LightningDataModule):
 
         return datasets[0] if len(datasets) == 1 else datasets
 
-    @override  # type: ignore[misc]
-    def train_dataloader(
+    @override
+    def train_dataloader(  # type: ignore[misc]
         self,
     ) -> torch.utils.data.DataLoader:
         """
@@ -492,8 +492,8 @@ class DataModuleBase(L.LightningDataModule):
             collate_fn=self.collate_fn,
         )
 
-    @override  # type: ignore[misc]
-    def val_dataloader(
+    @override
+    def val_dataloader(  # type: ignore[misc]
         self,
     ) -> torch.utils.data.DataLoader | typing.Sequence[torch.utils.data.DataLoader]:
         """
