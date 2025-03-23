@@ -55,12 +55,12 @@ class PFTemporalFusionTransformer(TransformerModuleBase):
     def forward(self, x: EncoderDecoderTargetSample) -> torch.Tensor:
         static_covariates = x["encoder_lengths"] / max(x["encoder_lengths"].max(), 1)
 
+        encoder_inputs = x["encoder_input"]
+        decoder_inputs = x["decoder_input"][..., : self.hparams["num_future_features"]]
+
         return self.model(
-            past_covariates=x["encoder_input"],  # (B, T, F_past)
-            future_covariates=x["decoder_input"][  # (B, T, F_future)
-                ...,
-                -self.hparams["num_future_features"] :,
-            ],
+            past_covariates=encoder_inputs,  # (B, T, F_past)
+            future_covariates=decoder_inputs,
             static_covariates=static_covariates,  # type: ignore[typeddict-item]
             encoder_lengths=x["encoder_lengths"][..., 0],  # (B, T)
             decoder_lengths=x["decoder_lengths"][..., 0],  # (B, T)
@@ -69,7 +69,6 @@ class PFTemporalFusionTransformer(TransformerModuleBase):
     def training_step(
         self, batch: EncoderDecoderTargetSample, batch_idx: int
     ) -> dict[str, torch.Tensor]:
-        self._maybe_mark_dynamic_tensors(batch)
         model_output = self(batch)
 
         loss = self.calc_loss(model_output["output"], batch)
@@ -97,7 +96,6 @@ class PFTemporalFusionTransformer(TransformerModuleBase):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> dict[str, torch.Tensor]:
-        self._maybe_mark_dynamic_tensors(batch)
         model_output = self(batch)
 
         loss = self.calc_loss(model_output["output"], batch)
@@ -118,20 +116,6 @@ class PFTemporalFusionTransformer(TransformerModuleBase):
             **{k: v.detach() for k, v in model_output.items()},
             "point_prediction": point_prediction,
         }
-
-    def _maybe_mark_dynamic_tensors(self, batch: EncoderDecoderTargetSample) -> None:
-        """
-        Marks model inputs as dynamic since the sequence length can change between samples,
-        and normally this can significantly slow down a compiled model.
-
-        https://pytorch.org/docs/stable/torch.compiler_dynamic_shapes.html
-        """
-        if not self.hparams["compile_model"]:
-            return
-
-        torch._dynamo.mark_dynamic(batch["encoder_input"], index=1)  # noqa: SLF001
-        torch._dynamo.mark_dynamic(batch["decoder_input"], index=1)  # noqa: SLF001
-        torch._dynamo.mark_dynamic(batch["target"], index=1)  # noqa: SLF001
 
     def predict_step(
         self, batch: EncoderDecoderSample, batch_idx: int

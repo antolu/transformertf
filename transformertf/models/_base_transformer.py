@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 import typing
 
 import einops
@@ -8,9 +9,27 @@ import torch
 from ..data import EncoderDecoderTargetSample
 from ._base_module import LightningModuleBase
 
+if sys.version_info >= (3, 12):
+    from typing import override
+else:
+    from typing_extensions import override
+
 
 class TransformerModuleBase(LightningModuleBase):
     criterion: torch.nn.Module
+
+    @override
+    def maybe_compile_model(self) -> None:
+        """
+        Compile the model if the "compile_model" key is present in the hyperparameters
+        and is set to True. This is up to the subclass to implement. This also
+        requires the model to be set to the "model" attribute.
+        """
+        if self.hparams.get("compile_model"):
+            for name, mod in self.named_children():
+                if "loss" in name.lower():
+                    continue
+                setattr(self, name, torch.compile(mod, dynamic=True))
 
     def _make_loss_weights(self, target: torch.Tensor) -> torch.Tensor:
         """
