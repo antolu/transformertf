@@ -721,9 +721,7 @@ class ProjectedAdaptiveLogSoftmax(nn.Module):
         """
 
         if hidden.size(0) != target.size(0):
-            msg = (
-                "Input and target should have the same size " "in the batch dimension."
-            )
+            msg = "Input and target should have the same size in the batch dimension."
             raise RuntimeError(msg)
 
         if self.n_clusters == 0:

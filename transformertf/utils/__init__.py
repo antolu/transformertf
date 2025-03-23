@@ -1,7 +1,7 @@
 from .._mod_replace import replace_modname
 from . import _ops as ops
 from . import _signal as signal
-from ._compile import compile, maybe_compile, set_compile
+from ._compile import compile, maybe_compile, set_compile  # noqa: A004
 from ._configure_optimizer import (
     LrSchedulerDict,
     OptimizerDict,

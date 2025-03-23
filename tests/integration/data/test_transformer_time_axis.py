@@ -60,16 +60,16 @@ def test_relative_time_dataset(
 
     # ensure that all time values are positive and all std values are less than 1.2
     for i, sample in enumerate(dataset):
-        assert (
-            sample["encoder_input"][:, 0] >= 0.0
-        ).all(), f"Time is negative at index {i}"
+        assert (sample["encoder_input"][:, 0] >= 0.0).all(), (
+            f"Time is negative at index {i}"
+        )
         std = torch.std(sample["encoder_input"][:, 0])
         assert (std <= 1.2).all(), f"Standard deviation of time is {std}"
 
         # same for decoder input
-        assert (
-            sample["decoder_input"][:, 0] >= 0.0
-        ).all(), f"Time is negative at index {i}"
+        assert (sample["decoder_input"][:, 0] >= 0.0).all(), (
+            f"Time is negative at index {i}"
+        )
         std = torch.std(sample["decoder_input"][:, 0])
         assert (std <= 1.2).all(), f"Standard deviation of time is {std}"
 
@@ -89,16 +89,16 @@ def test_relative_time_dataset_zero_padded(
 
     # ensure that all time values are positive and all std values are less than 1.2
     for i, sample in enumerate(dataset):
-        assert (
-            sample["encoder_input"][:, 0] >= 0.0
-        ).all(), f"Time is negative at index {i}"
+        assert (sample["encoder_input"][:, 0] >= 0.0).all(), (
+            f"Time is negative at index {i}"
+        )
         std = torch.std(sample["encoder_input"][:, 0])
         assert (std <= 1.2).all(), f"Standard deviation of time is {std}"
 
         # same for decoder input
-        assert (
-            sample["decoder_input"][:, 0] >= 0.0
-        ).all(), f"Time is negative at index {i}"
+        assert (sample["decoder_input"][:, 0] >= 0.0).all(), (
+            f"Time is negative at index {i}"
+        )
         std = torch.std(sample["decoder_input"][:, 0])
         assert (std <= 1.2).all(), f"Standard deviation of time is {std}"
 

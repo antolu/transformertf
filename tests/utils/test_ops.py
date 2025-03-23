@@ -29,12 +29,12 @@ def list_of_torch_arrs() -> list[torch.Tensor]:
 
 @pytest.fixture(scope="module")
 def tuple_of_np_arrs() -> tuple[np.ndarray, ...]:
-    return tuple([np.ones(10) for _ in range(10)])
+    return tuple(np.ones(10) for _ in range(10))
 
 
 @pytest.fixture(scope="module")
 def tuple_of_torch_arrs() -> tuple[torch.Tensor, ...]:
-    return tuple([torch.ones(10) for _ in range(10)])
+    return tuple(torch.ones(10) for _ in range(10))
 
 
 @pytest.fixture(scope="module")

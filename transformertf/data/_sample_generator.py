@@ -509,7 +509,7 @@ def check_index(idx: int, length: int) -> int:
     Checks if an index for __getitem__ is valid.
     """
     if idx > length or idx < -length:
-        msg = f"Index {idx} is out of bounds for dataset with " f" {length} samples."
+        msg = f"Index {idx} is out of bounds for dataset with  {length} samples."
         raise IndexError(msg)
 
     if idx < 0:

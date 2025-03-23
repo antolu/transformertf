@@ -19,18 +19,18 @@ def masked_mse_loss(
         return torch.nn.functional.mse_loss(input, target, reduction=reduction)
 
     target = target.view_as(input)
-    _loss = torch.nn.functional.mse_loss(input, target, reduction="none")
-    _loss = (_loss * mask) if mask is not None else _loss
+    loss = torch.nn.functional.mse_loss(input, target, reduction="none")
+    loss = (loss * mask) if mask is not None else loss
 
     if weight is not None:
-        while weight.dim() < _loss.dim():
+        while weight.dim() < loss.dim():
             weight = weight.unsqueeze(-1)
-        _loss *= weight
+        loss *= weight
 
     if reduction == "mean":
         if mask is None:
-            return _loss.mean()
-        return _loss.sum() / mask.sum()
+            return loss.mean()
+        return loss.sum() / mask.sum()
     if reduction == "sum":
-        return torch.nansum(_loss)
-    return _loss
+        return torch.nansum(loss)
+    return loss
