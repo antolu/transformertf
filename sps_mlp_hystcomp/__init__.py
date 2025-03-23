@@ -4,8 +4,9 @@ from ._base_predictor import Predictor
 from ._mod_replace import replace_modname
 from ._pete_predictor import PETEPredictor
 from ._tft_predictor import TFTPredictor
+from ._pftft_predictor import PFTFTPredictor
 
-for _mod in (Predictor, PETEPredictor, TFTPredictor):
+for _mod in (Predictor, PETEPredictor, TFTPredictor, PFTFTPredictor):
     replace_modname(_mod, __name__)
 
 
