@@ -1,0 +1,332 @@
+from __future__ import annotations
+
+import sys
+import typing
+
+import numpy
+import numpy as np
+import pandas as pd
+import torch
+from hystcomp_utils.cycle_data import CycleData
+from numpy import typing as npt
+from transformertf.data import EncoderDecoderDataModule
+from transformertf.data.dataset import EncoderDecoderPredictDataset
+from transformertf.models import TransformerModuleBase
+from transformertf.utils import ops
+
+from ._base_predictor import (
+    TARGET_COLNAME,
+    TARGET_PAST_COLNAME,
+    TIME_COLNAME,
+    NoInitialStateError,
+    Predictor,
+)
+
+if sys.version_info >= (3, 12):
+    from typing import override
+else:
+    from typing_extensions import override
+
+
+class EncoderDecoderPredictor(Predictor):
+    _module: TransformerModuleBase
+    _datamodule: EncoderDecoderDataModule
+    state: pd.DataFrame | None
+
+    ALLOW_SHORTER_CONTEXT = False
+    ALLOW_LONGER_PREDICTION = False
+    ZERO_PAD_TARGETS = False
+
+    def __init__(
+        self,
+        device: typing.Literal["cpu", "cuda", "auto"] = "auto",
+        *,
+        compile: bool = False,  # noqa: A002
+    ) -> None:
+        super().__init__(device=device, compile=compile)
+
+        self.state = None
+        self._rdp_eps = 0.0
+
+    @property
+    def rdp_eps(self) -> float:
+        return self._rdp_eps
+
+    @rdp_eps.setter
+    def rdp_eps(self, value: float) -> None:
+        self._rdp_eps = value
+
+    def set_rdp_eps(self, value: float) -> None:
+        self.rdp_eps = value
+
+    def _downsample(self, df: pd.DataFrame) -> pd.DataFrame:
+        if "downsample" in self.hparams and self.hparams["downsample"] > 1:
+            df = df.iloc[:: self.hparams["downsample"]].reset_index(drop=True)
+        if "stride" in self.hparams and self.hparams["stride"] > 1:
+            df = df.iloc[:: self.hparams["stride"]].reset_index(drop=True)
+        return df
+
+    @override
+    def _set_initial_state_impl(
+        self,
+        past_covariates: pd.DataFrame,
+        past_targets: pd.DataFrame | np.ndarray | None = None,
+    ) -> None:
+        df = past_covariates
+        if past_targets is not None:
+            df = pd.concat([df, pd.DataFrame(past_targets)], axis=1)
+
+        df = self._downsample(df)
+
+        if self.hparams["time_column"] is None:
+            df = df.drop(columns=TIME_COLNAME)
+
+        if not self.ALLOW_SHORTER_CONTEXT and len(df) < self.hparams["ctxt_seq_len"]:
+            msg = (
+                f"Context sequence length is {len(df)} but must be at least "
+                f"{self.hparams['ctxt_seq_len']}."
+            )
+            raise ValueError(msg)
+
+        # keep ctxt_seq_len number of points for context
+        self.state = self._keep_ctxt(df).reset_index(drop=True)
+
+    @override
+    def set_cycled_initial_state(
+        self,
+        cycles: list[CycleData],
+        *args: typing.Any,
+        use_programmed_current: bool = True,
+        **kwargs: typing.Any,
+    ) -> None:
+        past_covariates = self.buffer_to_covariates(
+            cycles,
+            use_programmed_current=use_programmed_current,
+            interpolate=self.rdp_eps == 0.0,
+            add_past_target=self.hparams["known_past_covariates"] is not None
+            and len(self.hparams["known_past_covariates"]) > 0,
+            rdp=self.rdp_eps,
+            prog_t_phase=self._prog_t_phase,
+        )
+
+        self.set_initial_state(
+            *args,
+            past_covariates=past_covariates,
+            **kwargs,
+        )
+
+    @override
+    def _predict_impl(
+        self,
+        future_covariates: pd.DataFrame,
+        *args: typing.Any,
+        save_state: bool = True,
+        downsample: bool = True,
+        **kwargs: typing.Any,
+    ) -> npt.NDArray[np.float64]:
+        if self.state is None:
+            msg = "Initial state not set. Call set_initial_state() first."
+            raise NoInitialStateError(msg)
+
+        past_covariates = self.state.copy()
+        past_targets = past_covariates.pop(TARGET_COLNAME).to_numpy().flatten()
+
+        # shift time column if present
+        if self.hparams["time_column"] is not None:
+            future_covariates[TIME_COLNAME] += past_covariates[TIME_COLNAME].iloc[-1]
+
+        if TARGET_COLNAME in future_covariates.columns:
+            future_covariates = future_covariates.drop(columns=TARGET_COLNAME)
+
+        future_covariates = future_covariates.reset_index(drop=True)
+        if downsample:
+            future_covariates = self._downsample(future_covariates).reset_index(
+                drop=True
+            )
+
+        input_columns = [col.name for col in self._datamodule.known_covariates]
+        if self.hparams["time_column"] is not None:
+            input_columns = [TIME_COLNAME, *input_columns]
+
+        # check if all required columns are present
+        missing_cols = set(input_columns) - set(future_covariates.columns)
+        if missing_cols:
+            msg = f"Missing columns: {missing_cols}"
+            raise ValueError(msg)
+
+        if (
+            len(past_covariates) < self.hparams["ctxt_seq_len"]
+            and not self.ALLOW_SHORTER_CONTEXT
+        ):
+            msg = (
+                f"Context sequence length is {len(past_covariates)} but must be at least "
+                f"{self.hparams['ctxt_seq_len']}."
+            )
+            raise ValueError(msg)
+
+        ctxt_seq_len = len(past_covariates)
+        if (
+            len(future_covariates) > self.hparams["tgt_seq_len"]
+            and not self.ALLOW_LONGER_PREDICTION
+        ):
+            tgt_seq_len = self.hparams["tgt_seq_len"]
+        else:
+            tgt_seq_len = len(future_covariates)
+
+        dataset = EncoderDecoderPredictDataset(
+            past_covariates=past_covariates,
+            past_target=past_targets,
+            future_covariates=future_covariates,
+            context_length=ctxt_seq_len,
+            prediction_length=tgt_seq_len,
+            transforms=self._datamodule.transforms,
+            input_columns=input_columns,
+            known_past_columns=[
+                col.name for col in self._datamodule.known_past_covariates
+            ],
+            target_column=TARGET_COLNAME,
+            apply_transforms=True,
+            time_format=self.hparams["time_format"],
+        )
+
+        with torch.no_grad():
+            predictions = self._predict_dataset(dataset, future_covariates)
+
+        if save_state:
+            future_covariates = future_covariates.copy()
+            if len(self.hparams["known_past_covariates"]) > 0:
+                future_covariates[TARGET_PAST_COLNAME] = predictions
+            future_covariates[TARGET_COLNAME] = predictions
+
+            new_state = pd.concat([self.state, future_covariates], axis=0).reset_index(
+                drop=True
+            )
+            self.state = self._keep_ctxt(new_state).reset_index(drop=True)
+
+        return predictions
+
+    def _predict_dataset(
+        self, dataset: EncoderDecoderPredictDataset, future_covariates: pd.DataFrame
+    ) -> npt.NDArray[np.float64]:
+        dataloader = self._fabric.setup_dataloaders(
+            torch.utils.data.DataLoader(dataset, batch_size=1)
+        )
+
+        if not self.ALLOW_LONGER_PREDICTION:
+            input_slices = [
+                slice(start, start + self.hparams["tgt_seq_len"])
+                for start in range(
+                    0, len(future_covariates), self.hparams["tgt_seq_len"]
+                )
+            ]
+        else:
+            input_slices = []
+
+        self._module.on_predict_start()
+        self._module.on_predict_epoch_start()
+
+        outputs: list[npt.NDArray[np.float64]] = []
+        for idx, batch in enumerate(dataloader):
+            self._module.on_predict_batch_start(batch, idx)
+            output = self._module.predict_step(batch, idx)
+            output = ops.to_cpu(ops.detach(output))
+            self._module.on_predict_batch_end(output, batch, idx)
+
+            # only append if not the last batch
+            if idx < len(dataloader) - 1 and not self.ALLOW_LONGER_PREDICTION:
+                dataset.append_past_target(
+                    output["point_prediction"].squeeze().numpy(),
+                    transform=False,
+                )
+
+                if self.hparams["target_depends_on"] is not None:
+                    input_ = torch.tensor(
+                        future_covariates.iloc[input_slices[idx]][
+                            self.hparams["target_depends_on"]
+                        ].to_numpy(),
+                        dtype=torch.float32,
+                    )
+                    target_inverse = (
+                        (
+                            self._datamodule.target_transform.inverse_transform(
+                                input_, output["point_prediction"].squeeze()
+                            )
+                        )
+                        .squeeze()
+                        .to(torch.float32)
+                    )
+                else:
+                    target_inverse = (
+                        (
+                            self._datamodule.target_transform.inverse_transform(
+                                output["point_prediction"].squeeze()
+                            )
+                        )
+                        .squeeze()
+                        .to(torch.float32)
+                    )
+
+                if len(self.hparams["known_past_covariates"]) > 0:
+                    dataset.append_past_covariates(
+                        pd.DataFrame({TARGET_PAST_COLNAME: target_inverse}),
+                        transform=True,
+                    )
+
+            outputs.append(output["point_prediction"].numpy().astype(np.float64))
+
+        self._module.on_predict_epoch_end()
+        self._module.on_predict_end()
+
+        outputs_arr = np.concatenate([o.flatten() for o in outputs], axis=0)
+        outputs_arr = outputs_arr[: len(future_covariates)]
+
+        if self.hparams["target_depends_on"] is not None:
+            return self._datamodule.target_transform.inverse_transform(
+                future_covariates[self.hparams["target_depends_on"]].to_numpy(),
+                outputs_arr,
+            ).numpy()
+
+        return self._datamodule.target_transform.inverse_transform(outputs_arr).numpy()
+
+    @override
+    def _predict_cycle_impl(
+        self,
+        cycle: CycleData,
+        *args: typing.Any,
+        save_state: bool = True,
+        use_programmed_current: bool = True,
+        **kwargs: typing.Any,
+    ) -> npt.NDArray[np.float64]:
+        future_covariates = self.buffer_to_covariates(
+            [cycle],
+            use_programmed_current=use_programmed_current,
+            interpolate=self.rdp_eps == 0.0,
+            rdp=self.rdp_eps,
+            add_target=False,
+            prog_t_phase=self._prog_t_phase,
+        )
+
+        prediction = self.predict(
+            future_covariates,
+            *args,
+            save_state=save_state,
+            **kwargs,
+        )
+
+        downsample = self.hparams.get("downsample", 1)
+        downsample *= self.hparams.get("stride", 1)
+
+        if "__time__" in future_covariates.columns:
+            time = future_covariates[TIME_COLNAME].to_numpy()
+            time -= time[0]
+            time = time[::downsample]
+        else:
+            time = np.arange(0, cycle.num_samples) / 1e3
+            time = time[::downsample]
+
+        time = np.round(time, 3)  # round to ms
+
+        return numpy.vstack((time, prediction))
+
+    def _keep_ctxt(self, df: pd.DataFrame) -> pd.DataFrame:
+        return df[-self.hparams["ctxt_seq_len"] :]
