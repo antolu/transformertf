@@ -443,8 +443,14 @@ class TransformerPredictionSampleGenerator(SampleGenerator[EncoderDecoderSample[
                 0, tgt_slice.stop - tgt_slice.start
             )  # hack to get the indices
         if self._known_past_covariates is not None:
-            tgt_l.append(to_2dim(zeros_like(self._known_past_covariates[tgt_slice])))
-        tgt_l.append(to_2dim(zeros_like(self._past_target[tgt_slice])))
+            tgt_l.append(
+                to_2dim(
+                    zeros(self._known_past_covariates[tgt_slice], length=tgt_slice.stop)
+                )
+            )
+        tgt_l.append(
+            to_2dim(zeros(self._past_target[tgt_slice], length=tgt_slice.stop))
+        )
 
         src = concat(*src_l, dim=-1)
         tgt = concat(*tgt_l, dim=-1)
@@ -521,6 +527,19 @@ def check_index(idx: int, length: int) -> int:
 EXC_MSG = (
     "Unexpected type {}, expected np.ndarray, torch.Tensor, pd.DataFrame or pd.Series"
 )
+
+
+def zeros(like: T, length: int) -> T:
+    if isinstance(like, np.ndarray):
+        return np.zeros((length, *like.shape[1:]), dtype=like.dtype)
+    if isinstance(like, torch.Tensor):
+        return torch.zeros(*(length, *like.shape[1:]), dtype=like.dtype)
+    if isinstance(like, pd.DataFrame):
+        return pd.DataFrame(index=range(length), columns=like.columns, data=0.0)
+    if isinstance(like, pd.Series):
+        return pd.Series(index=range(length), data=0.0, dtype=like.dtype)
+    msg = EXC_MSG.format(type(like))
+    raise TypeError(msg)
 
 
 def zeros_like(arr: T) -> T:
