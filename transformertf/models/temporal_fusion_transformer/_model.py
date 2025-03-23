@@ -268,7 +268,12 @@ class TemporalFusionTransformerModel(torch.nn.Module):
             ),
         )
 
-        attn_mask = self.get_attention_mask(encoder_lengths, decoder_lengths)
+        attn_mask = self.get_attention_mask(
+            encoder_lengths,
+            decoder_lengths,
+            max_encoder_length=enc_seq_len,
+            max_decoder_length=dec_seq_len,
+        )
 
         # multi-head attention and post-processing
         attn_output, attn_weights = self.attn(
@@ -293,18 +298,25 @@ class TemporalFusionTransformerModel(torch.nn.Module):
         }
 
     def get_attention_mask(
-        self, encoder_lengths: torch.LongTensor, decoder_lengths: torch.LongTensor
+        self,
+        encoder_lengths: torch.LongTensor,
+        decoder_lengths: torch.LongTensor,
+        max_encoder_length: int | None = None,
+        max_decoder_length: int | None = None,
     ) -> torch.Tensor:
         """
         Returns causal mask to apply for self-attention layer.
         """
-        decoder_length = self.tgt_seq_len
+        max_encoder_length = max_encoder_length or self.ctxt_seq_len
+        max_decoder_length = max_decoder_length or self.tgt_seq_len
         if self.causal_attention:
             # indices to which is attended
-            attend_step = torch.arange(decoder_length, device=encoder_lengths.device)
+            attend_step = torch.arange(
+                max_decoder_length, device=encoder_lengths.device
+            )
             # indices for which is predicted
             predict_step = torch.arange(
-                0, decoder_length, device=encoder_lengths.device
+                0, max_decoder_length, device=encoder_lengths.device
             )[:, None]
             # do not attend to steps to self or after prediction
             decoder_mask = (
@@ -322,15 +334,15 @@ class TemporalFusionTransformerModel(torch.nn.Module):
             # allowing forward attention - i.e. only
             #  masking out non-available data and self
             decoder_mask = (
-                create_mask(decoder_length, decoder_lengths)
+                create_mask(max_decoder_length, decoder_lengths)
                 .unsqueeze(1)
-                .expand(-1, decoder_length, -1)
+                .expand(-1, max_decoder_length, -1)
             )
         # do not attend to steps where data is padded
         encoder_mask = (
-            create_mask(self.ctxt_seq_len, encoder_lengths)
+            create_mask(max_encoder_length, encoder_lengths)
             .unsqueeze(1)
-            .expand(-1, decoder_length, -1)
+            .expand(-1, max_decoder_length, -1)
         )
         # combine masks along attended time - first encoder and then decoder
         return torch.cat(
