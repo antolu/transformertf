@@ -39,6 +39,10 @@ class GatedLinearUnit(torch.nn.Module):
         self.dropout = torch.nn.Dropout(dropout)
         self.fc1 = torch.nn.Linear(input_dim, self.output_dim * 2)
 
+    def initialize_parameters(self) -> None:
+        torch.nn.init.xavier_uniform_(self.fc1.weight)
+        torch.nn.init.constant_(self.fc1.bias, 0)
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Parameters

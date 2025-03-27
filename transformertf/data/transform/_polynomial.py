@@ -135,7 +135,7 @@ class PolynomialTransform(BaseTransform):
             degree=self.degree - 1,
             num_iterations=self.num_iterations,
         )
-        transform._reset_parameters()  # noqa: SLF001
+        transform._reset_parameters()
 
         transform.bias.data = (self.weights[0] * self.p[0]).unsqueeze(0).detach()
         transform.weights.data = (self.weights[1:] * self.p[1:]).detach()

@@ -7,16 +7,14 @@ import torch
 from ...data import EncoderDecoderSample, EncoderDecoderTargetSample
 from ...nn import QuantileLoss
 from .._base_transformer import TransformerModuleBase
-from ._model import TemporalFusionTransformerModel
+from ._model import PFTemporalFusionTransformerModel
 
 
-class TemporalFusionTransformer(TransformerModuleBase):
+class PFTemporalFusionTransformer(TransformerModuleBase):
     def __init__(
         self,
         num_past_features: int,
         num_future_features: int,
-        ctxt_seq_len: int,
-        tgt_seq_len: int,
         n_dim_model: int = 300,
         hidden_continuous_dim: int = 8,
         num_heads: int = 4,
@@ -25,7 +23,7 @@ class TemporalFusionTransformer(TransformerModuleBase):
         output_dim: int = 7,
         criterion: QuantileLoss | torch.nn.Module | None = None,
         *,
-        casual_attention: bool = True,
+        causal_attention: bool = True,
         prediction_type: typing.Literal["delta", "point"] = "point",
         log_grad_norm: bool = False,
         compile_model: bool = False,
@@ -41,11 +39,9 @@ class TemporalFusionTransformer(TransformerModuleBase):
             output_dim = self.hparams["output_dim"]
         self.criterion = criterion
 
-        self.model = TemporalFusionTransformerModel(
+        self.model = PFTemporalFusionTransformerModel(
             num_past_features=num_past_features,
             num_future_features=num_future_features,
-            ctxt_seq_len=ctxt_seq_len,
-            tgt_seq_len=tgt_seq_len,
             n_dim_model=n_dim_model,
             num_static_features=1,
             hidden_continuous_dim=hidden_continuous_dim,
@@ -53,18 +49,18 @@ class TemporalFusionTransformer(TransformerModuleBase):
             num_lstm_layers=num_lstm_layers,
             dropout=dropout,
             output_dim=output_dim,
-            casual_attention=casual_attention,
+            causal_attention=causal_attention,
         )
 
     def forward(self, x: EncoderDecoderTargetSample) -> torch.Tensor:
-        static_covariates = x["encoder_lengths"] * 2 / self.hparams["ctxt_seq_len"] - 1
+        static_covariates = x["encoder_lengths"] / max(x["encoder_lengths"].max(), 1)
+
+        encoder_inputs = x["encoder_input"]
+        decoder_inputs = x["decoder_input"][..., : self.hparams["num_future_features"]]
 
         return self.model(
-            past_covariates=x["encoder_input"],  # (B, T, F_past)
-            future_covariates=x["decoder_input"][  # (B, T, F_future)
-                ...,
-                -self.hparams["num_future_features"] :,
-            ],
+            past_covariates=encoder_inputs,  # (B, T, F_past)
+            future_covariates=decoder_inputs,
             static_covariates=static_covariates,  # type: ignore[typeddict-item]
             encoder_lengths=x["encoder_lengths"][..., 0],  # (B, T)
             decoder_lengths=x["decoder_lengths"][..., 0],  # (B, T)

@@ -239,8 +239,7 @@ class BoucWenLoss(nn.Module):
         """
         if targets.ndim != 3:
             msg = (
-                "target y must have 3 dimensions. "
-                "Maybe you forgot the batch dimension?"
+                "target y must have 3 dimensions. Maybe you forgot the batch dimension?"
             )
             raise ValueError(msg)
 

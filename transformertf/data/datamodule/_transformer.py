@@ -7,9 +7,11 @@ import numba
 import numba.typed
 import numpy as np
 import pandas as pd
+import torch
 
 from .._downsample import DOWNSAMPLE_METHODS
 from .._dtype import VALID_DTYPES
+from .._sample_generator import EncoderDecoderTargetSample
 from .._window_generator import WindowGenerator
 from ..dataset import EncoderDataset, EncoderDecoderDataset
 from ..transform import (
@@ -247,14 +249,14 @@ class EncoderDecoderDataModule(TransformerDataModule):
             else [df[known_past_cols] for df in df]
             if len(known_past_cols) > 0
             else None,
-            target_data=df[self.target_covariate.col]
+            target_data=df[self.target_covariate.col]  # type: ignore[arg-type]
             if isinstance(df, pd.DataFrame)
             else [df[self.target_covariate.col] for df in df],
             ctx_seq_len=self.hparams["ctxt_seq_len"],
             tgt_seq_len=self.hparams["tgt_seq_len"],
             min_ctxt_seq_len=self.hparams["min_ctxt_seq_len"],
             min_tgt_seq_len=self.hparams["min_tgt_seq_len"],
-            time_data=(
+            time_data=(  # type: ignore[arg-type]
                 df[TIME] if isinstance(df, pd.DataFrame) else [df[TIME] for df in df]
             )
             if self.hparams["time_column"] is not None
@@ -268,6 +270,51 @@ class EncoderDecoderDataModule(TransformerDataModule):
             transforms=self.transforms,
             noise_std=self.hparams["noise_std"],
             dtype=self.hparams["dtype"],
+        )
+
+    @staticmethod
+    def collate_fn(  # type: ignore[override]
+        samples: list[EncoderDecoderTargetSample],
+    ) -> EncoderDecoderTargetSample:
+        if all("encoder_lengths" in sample for sample in samples):
+            max_enc_len = max(sample["encoder_lengths"] for sample in samples)
+        else:
+            max_enc_len = samples[0]["encoder_input"].size(1)
+
+        max_enc_len = int(max_enc_len)
+
+        if all("decoder_lengths" in sample for sample in samples):
+            max_tgt_len = max(sample["decoder_lengths"] for sample in samples)
+        else:
+            max_tgt_len = samples[0]["decoder_input"].size(1)
+
+        assert max_tgt_len > 0
+
+        max_tgt_len = int(max_tgt_len)
+
+        cut_samples = []
+        for sample in samples:
+            cut_sample = {
+                "encoder_input": sample["encoder_input"][-max_enc_len:],
+                "decoder_input": sample["decoder_input"][:max_tgt_len],
+                "target": sample["target"][:max_tgt_len],
+            }
+            if "encoder_lengths" in sample:
+                cut_sample["encoder_lengths"] = sample["encoder_lengths"]
+            if "decoder_lengths" in sample:
+                cut_sample["decoder_lengths"] = sample["decoder_lengths"]
+
+            if "encoder_mask" in sample:
+                cut_sample["encoder_mask"] = sample["encoder_mask"][-max_enc_len:]
+
+            if "decoder_mask" in sample:
+                cut_sample["decoder_mask"] = sample["decoder_mask"][:max_tgt_len]
+
+            cut_samples.append(cut_sample)
+
+        return typing.cast(
+            EncoderDecoderTargetSample[torch.Tensor],
+            torch.utils.data.dataloader.default_collate(cut_samples),
         )
 
 
@@ -285,7 +332,7 @@ class EncoderDataModule(TransformerDataModule):
             input_data=df[input_cols]
             if isinstance(df, pd.DataFrame)
             else [df[input_cols] for df in df],
-            target_data=df[self.target_covariate.col]
+            target_data=df[self.target_covariate.col]  # type: ignore[arg-type]
             if isinstance(df, pd.DataFrame)
             else [df[self.target_covariate.col] for df in df],
             ctx_seq_len=self.hparams["ctxt_seq_len"],

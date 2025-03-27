@@ -45,26 +45,18 @@ class QuantileLoss(torch.nn.Module):
         if y_pred.ndim != target.ndim and y_pred.ndim != target.ndim + 1:
             msg = f"y_pred must have shape [batch_size, ..., n_quantiles], got {y_pred.shape} and {target.shape}"
             raise ValueError(msg)
-        if (
-            weights is not None
-            and weights.ndim > 2
-            and weights.shape[0] == target.shape[0]
-        ):
-            msg = f"weights must have shape [batch_size], got {weights.shape} and {target.shape}"
-            raise ValueError(msg)
+        weights = weights if weights is not None else 1.0
 
         if target.ndim <= 2:
             target = target.unsqueeze(-1)
         if y_pred.ndim <= 2:
             y_pred = y_pred.unsqueeze(0)
-        error = einops.repeat(target, "... 1 -> ... n", n=len(self.quantiles)) - y_pred
+        error = (
+            einops.repeat(target, "... 1 -> ... n", n=len(self.quantiles)) - y_pred
+        ) * weights
 
         loss = torch.max((self.quantiles - 1) * error, self.quantiles * error)
 
-        if weights is not None:
-            if weights.ndim == 1:
-                weights = weights.unsqueeze(-1)
-            return torch.sum(loss, dim=1) * weights
         return torch.sum(loss, dim=1)
 
     def forward(

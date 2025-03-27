@@ -7,6 +7,13 @@ import torch
 def interpolate(
     x: torch.Tensor, output_size: int, mask: torch.Tensor | None = None
 ) -> torch.Tensor:
+    if x.device.type == "mps":
+        x = x.to("cpu")
+        upsampled = torch.nn.functional.interpolate(
+            x.unsqueeze(1), output_size, mode="linear", align_corners=True
+        ).squeeze(1)
+        return upsampled.to("mps")
+
     upsampled = torch.nn.functional.interpolate(
         x.unsqueeze(1), output_size, mode="linear", align_corners=True
     ).squeeze(1)
@@ -105,7 +112,8 @@ class ResampleNorm(torch.nn.Module):
         self.norm = torch.nn.LayerNorm(self.output_dim)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.resample(x)
+        if self.input_dim != self.output_dim:
+            x = self.resample(x)
 
         if self.trainable_add:
             x = x * torch.nn.functional.sigmoid(self.mask) * 2.0

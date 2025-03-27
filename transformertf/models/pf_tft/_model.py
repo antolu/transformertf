@@ -11,16 +11,14 @@ from ...nn import (
     VariableSelection,
 )
 
-__all__ = ["TemporalFusionTransformerModel"]
+__all__ = ["PFTemporalFusionTransformerModel"]
 
 
-class TemporalFusionTransformerModel(torch.nn.Module):
+class PFTemporalFusionTransformerModel(torch.nn.Module):
     def __init__(
         self,
         num_past_features: int,
         num_future_features: int,
-        ctxt_seq_len: int,
-        tgt_seq_len: int,
         num_static_features: int = 0,
         n_dim_model: int = 300,
         hidden_continuous_dim: int = 8,
@@ -29,7 +27,7 @@ class TemporalFusionTransformerModel(torch.nn.Module):
         dropout: float = 0.1,
         output_dim: int = 7,
         *,
-        casual_attention: bool = True,
+        causal_attention: bool = True,
     ):
         """
         Implementation of the Temporal Fusion Transformer architecture.
@@ -38,12 +36,6 @@ class TemporalFusionTransformerModel(torch.nn.Module):
         ----------
         num_features : int
             Number of continuous features / covariates (time series)
-        ctxt_seq_len : int
-            Length of the context sequence, in other words the encoder
-            sequence length.
-        tgt_seq_len : int
-            Length of the target sequence, in other words the decoder
-            sequence length. This is the prediction horizon.
         num_static_features : int, optional
             Number of static features, by default 0. Currently not used.
         n_dim_model : int, optional
@@ -68,8 +60,6 @@ class TemporalFusionTransformerModel(torch.nn.Module):
         super().__init__()
         self.num_past_features = num_past_features
         self.num_future_features = num_future_features
-        self.ctxt_seq_len = ctxt_seq_len
-        self.tgt_seq_len = tgt_seq_len
         self.num_static_features = num_static_features  # not used
         self.n_dim_model = n_dim_model
         self.hidden_continuous_dim = hidden_continuous_dim
@@ -77,7 +67,7 @@ class TemporalFusionTransformerModel(torch.nn.Module):
         self.num_lstm_layers = num_lstm_layers
         self.dropout = dropout
         self.output_dim = output_dim
-        self.causal_attention = casual_attention
+        self.causal_attention = causal_attention
 
         # TODO: static covariate embeddings
         self.static_vs = VariableSelection(
@@ -189,12 +179,12 @@ class TemporalFusionTransformerModel(torch.nn.Module):
         dec_seq_len = future_covariates.shape[1]
 
         encoder_lengths = (
-            encoder_lengths
+            (encoder_lengths * enc_seq_len).to(torch.long)
             if encoder_lengths is not None
             else torch.tensor([enc_seq_len] * batch_size, device=past_covariates.device)
         )
         decoder_lengths = (
-            decoder_lengths
+            (decoder_lengths * dec_seq_len).to(torch.long)
             if decoder_lengths is not None
             else torch.tensor([dec_seq_len] * batch_size, device=past_covariates.device)
         )
@@ -269,10 +259,7 @@ class TemporalFusionTransformerModel(torch.nn.Module):
         )
 
         attn_mask = self.get_attention_mask(
-            encoder_lengths,
-            decoder_lengths,
-            max_encoder_length=enc_seq_len,
-            max_decoder_length=dec_seq_len,
+            encoder_lengths, decoder_lengths, enc_seq_len, dec_seq_len
         )
 
         # multi-head attention and post-processing
@@ -301,14 +288,12 @@ class TemporalFusionTransformerModel(torch.nn.Module):
         self,
         encoder_lengths: torch.LongTensor,
         decoder_lengths: torch.LongTensor,
-        max_encoder_length: int | None = None,
-        max_decoder_length: int | None = None,
+        max_encoder_length: int,
+        max_decoder_length: int,
     ) -> torch.Tensor:
         """
         Returns causal mask to apply for self-attention layer.
         """
-        max_encoder_length = max_encoder_length or self.ctxt_seq_len
-        max_decoder_length = max_decoder_length or self.tgt_seq_len
         if self.causal_attention:
             # indices to which is attended
             attend_step = torch.arange(

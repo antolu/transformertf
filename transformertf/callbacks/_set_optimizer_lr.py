@@ -54,8 +54,7 @@ class SetOptimizerLRCallback(L.pytorch.callbacks.Callback):
                 contents = f.read().strip()
             except ValueError:
                 log.exception(
-                    f"Could not read LR from file {self.lr_file}, "
-                    f"Contents: {contents}"
+                    f"Could not read LR from file {self.lr_file}, Contents: {contents}"
                 )
                 return
 

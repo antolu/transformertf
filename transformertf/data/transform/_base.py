@@ -63,10 +63,10 @@ class BaseTransform(
     ) -> SameType: ...
 
     def fit(
-        self: SameType,
+        self,
         x: torch.Tensor | np.ndarray,
         y: torch.Tensor | np.ndarray | None = None,
-    ) -> SameType:
+    ) -> typing.Self:
         raise NotImplementedError
 
     def transform(

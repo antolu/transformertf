@@ -45,7 +45,7 @@ def configure_optimizers(
     optimizer: str
     | functools.partial
     | typing.Callable[[typing.Iterator[torch.nn.Parameter]], torch.optim.Optimizer],
-    lr: float | None | typing.Literal["auto"] = None,
+    lr: float | typing.Literal["auto"] | None = None,
     weight_decay: float | None = None,
     momentum: float | None = None,
     **optimizer_kwargs: typing.Any,
