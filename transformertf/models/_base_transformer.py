@@ -48,57 +48,12 @@ class TransformerModuleBase(LightningModuleBase):
             dataloader_idx=dataloader_idx,
         )
 
-    def _make_loss_weights(self, target: torch.Tensor) -> torch.Tensor:
-        """
-        Create loss weights for the quantile loss.
-        The weight should be higher when the derivative of the target is close to zero.
-
-        Parameters
-        ----------
-        target : torch.Tensor
-            Target tensor
-
-        Returns
-        -------
-        torch.Tensor
-            Loss weights
-        """
-        derivative = torch.abs(torch.gradient(target, dim=1)[0])
-
-        # normalize derivative
-        derivative = derivative / derivative.max()
-
-        # weight is 1 - derivative * 0.9
-        return 1 - derivative * 0.8
-
     def calc_loss(
         self,
         model_output: torch.Tensor,
         batch: EncoderDecoderTargetSample,
     ) -> torch.Tensor:
-        # weights = batch.get("decoder_lengths", None)
-        # weights = 1.0 / weights if weights is not None else None
-        #
-        # # reshape to (bs, seq_len)
-        # weights = (
-        #     einops.repeat(weights, "b 1 -> b t", t=model_output.size(1))
-        #     if weights is not None
-        #     else None
-        # )
-
-        weights_dynamic = self._make_loss_weights(batch["target"].squeeze(-1))
-        # expand to (bs, seq_len)
-
-        # weights = weights * weights_dynamic if weights is not None else weights_dynamic
-        # weights = weights.unsqueeze(-1) if weights is not None else None
-        weights = weights_dynamic.unsqueeze(-1)
-        if torch.any(torch.isnan(model_output)):
-            msg = f"Model output contains {torch.sum(torch.isnan(model_output))} NaN values."
-            raise ValueError(msg)
-
-        if torch.any(torch.isinf(model_output)):
-            msg = f"Model output contains {torch.sum(torch.isinf(model_output))} Inf values."
-            raise ValueError(msg)
+        weights = None
 
         if (
             "prediction_type" in self.hparams
