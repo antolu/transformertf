@@ -64,6 +64,7 @@ def test_tft_predict(
         [buffer[-1]],
         rdp=tft_predictor.rdp_eps,
         interpolate=False,
+        add_past_target=True,
     )
     b_pred_future = tft_predictor.predict(future_covariates)
 
