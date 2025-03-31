@@ -7,6 +7,7 @@ import sys
 import typing
 import warnings
 
+import einops._torch_specific
 import lightning as L
 import lightning.pytorch.cli
 import pytorch_optimizer  # noqa: F401
@@ -28,6 +29,8 @@ from transformertf.models.lstm import LSTM  # noqa: F401
 from transformertf.models.tsmixer import TSMixer  # noqa: F401
 
 warnings.filterwarnings("ignore", category=UserWarning)
+
+einops._torch_specific.allow_ops_in_compiled_graph()  # noqa: SLF001
 
 
 class NeptuneLoggerSaveConfigCallback(lightning.pytorch.cli.SaveConfigCallback):
