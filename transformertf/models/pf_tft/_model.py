@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import einops
 import torch
 
 from ...nn import (
@@ -208,16 +207,8 @@ class PFTemporalFusionTransformerModel(torch.nn.Module):
 
         # static variable selection
         static_ctxt_vs = self.static_ctxt_vs(static_embedding)
-        enc_static_context = einops.repeat(
-            static_ctxt_vs,
-            "b f -> b t f",
-            t=enc_seq_len,
-        )
-        dec_static_context = einops.repeat(
-            static_ctxt_vs,
-            "b f -> b t f",
-            t=dec_seq_len,
-        )
+        enc_static_context = static_ctxt_vs.unsqueeze(1).expand(-1, enc_seq_len, -1)
+        dec_static_context = static_ctxt_vs.unsqueeze(1).expand(-1, dec_seq_len, -1)
 
         # variable selection
         enc_vs, enc_weights = self.enc_vs(past_covariates, enc_static_context)
@@ -228,13 +219,13 @@ class PFTemporalFusionTransformerModel(torch.nn.Module):
 
         # initialize LSTM states with static features
         lstm_hidden = self.lstm_init_hidden(static_embedding)
-        lstm_hidden = einops.repeat(
-            lstm_hidden, "h i -> n h i", n=self.num_lstm_layers
-        ).contiguous()
+        lstm_hidden = (
+            lstm_hidden.unsqueeze(0).expand(self.num_lstm_layers, -1, -1).contiguous()
+        )
         lstm_cell = self.lstm_init_cell(static_embedding)
-        lstm_cell = einops.repeat(
-            lstm_cell, "h i -> n h i", n=self.num_lstm_layers
-        ).contiguous()
+        lstm_cell = (
+            lstm_cell.unsqueeze(0).expand(self.num_lstm_layers, -1, -1).contiguous()
+        )
 
         # encoder and decoder LSTM
         enc_input, hx = self.enc_lstm(enc_vs, (lstm_hidden, lstm_cell))
@@ -251,11 +242,7 @@ class PFTemporalFusionTransformerModel(torch.nn.Module):
         static_context = self.static_ctxt_enrichment(static_embedding)
         attn_input = self.static_enrichment(
             torch.cat([enc_output, dec_output], dim=1),
-            einops.repeat(
-                static_context,
-                "b f -> b t f",
-                t=enc_seq_len + dec_seq_len,
-            ),
+            static_context.unsqueeze(1).expand(-1, enc_seq_len + dec_seq_len, -1),
         )
 
         attn_mask = self.get_attention_mask(
