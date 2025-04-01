@@ -80,6 +80,9 @@ class SigmoidTransform(BaseTransform):
 
         return self.x0_ + torch.log(x / (1 - x)) / self.k_
 
+    def __sklearn_is_fitted__(self) -> bool:  # noqa: PLW3201
+        return True
+
 
 class AdaptiveSigmoidTransform(BaseTransform):
     """
@@ -202,3 +205,6 @@ class AdaptiveSigmoidTransform(BaseTransform):
         log.debug(f"AdaptiveSigmoidTransform converged in {i} iterations")
 
         return x_guess.to(dtype)
+
+    def __sklearn_is_fitted__(self) -> bool:  # noqa: PLW3201
+        return True
