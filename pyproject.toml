@@ -30,7 +30,7 @@ dependencies = [
     "scikit-learn >= 1.4",
     "scipy >= 1.12",
     "torch >= 2.2, < 3.0",
-    "omegaconf >= 2.1"
+    "omegaconf >= 2.1",
 ]
 
 [[project.authors]]
@@ -45,7 +45,7 @@ changelog = "https://gitlab.cern.ch/dsb/hysteresis/transformertf/-/releases"
 
 
 [project.optional-dependencies]
-test = ["pytest", "pytest-cov"]
+test = ["pytest", "pytest-cov", "pytest-xdist"]
 doc = ["acc-py-sphinx", "myst-parser", "sphinx-copybutton"]
 dev = ["pre-commit", "ruff", "mypy"]
 
@@ -71,10 +71,7 @@ transformertf = "transformertf.main:main"
 # project endpoints here
 
 [tool.coverage.run]
-omit = [
-    "transformertf/_version.py",
-    "transformertf/hysteresis/"
-]
+omit = ["transformertf/_version.py", "transformertf/hysteresis/"]
 
 [tool.black]
 target-version = ["py311"]
@@ -180,3 +177,7 @@ ignore_missing_imports = true
 # for pyright LSP
 [tool.pyright]
 reportPrivateImportUsage = "none"
+
+
+[tool.pytest.ini_options]
+addopts = "-n 4"
