@@ -20,6 +20,7 @@ The module includes the following classes:
 - :class:`PolynomialTransform`: Applies a polynomial to the input, fitted on the data.
 - :class:`RunningNormalizer`: Scales the input to zero mean and unit variance. The :class:`StandardScaler` alias is also available.
 - :class:`Sigmoid`: Applies the sigmoid function to the input.
+- :class:`AdaptiveSigmoid`: Applies the sigmoid function to the input, with slope decreasing away from the center.
 
 The module also includes the :class:`TransformCollection` class, which allows to chain
 multiple transformers together, and apply them in sequence automatically.
@@ -40,7 +41,7 @@ from ._divide_by_x import DivideByXTransform
 from ._log import Log1pTransform, LogTransform
 from ._polynomial import FixedPolynomialTransform, PolynomialTransform
 from ._scaler import MaxScaler, RunningNormalizer
-from ._sigmoid import SigmoidTransform
+from ._sigmoid import AdaptiveSigmoidTransform, SigmoidTransform
 
 StandardScaler = RunningNormalizer
 
@@ -52,6 +53,7 @@ for _mod in [
     LogTransform,
     Log1pTransform,
     MaxScaler,
+    AdaptiveSigmoidTransform,
     SigmoidTransform,
     PolynomialTransform,
     FixedPolynomialTransform,
@@ -66,6 +68,7 @@ del _mod
 
 
 __all__ = [
+    "AdaptiveSigmoidTransform",
     "BaseTransform",
     "DeltaTransform",
     "DiscreteFunctionTransform",
