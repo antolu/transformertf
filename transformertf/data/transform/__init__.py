@@ -40,7 +40,7 @@ from ._divide_by_x import DivideByXTransform
 from ._log import Log1pTransform, LogTransform
 from ._polynomial import FixedPolynomialTransform, PolynomialTransform
 from ._scaler import MaxScaler, RunningNormalizer
-from ._sigmoid import Sigmoid
+from ._sigmoid import SigmoidTransform
 
 StandardScaler = RunningNormalizer
 
@@ -52,7 +52,7 @@ for _mod in [
     LogTransform,
     Log1pTransform,
     MaxScaler,
-    Sigmoid,
+    SigmoidTransform,
     PolynomialTransform,
     FixedPolynomialTransform,
     RunningNormalizer,
@@ -76,7 +76,7 @@ __all__ = [
     "MaxScaler",
     "PolynomialTransform",
     "RunningNormalizer",
-    "Sigmoid",
+    "SigmoidTransform",
     "StandardScaler",
     "TransformCollection",
 ]

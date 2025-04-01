@@ -9,7 +9,7 @@ import torch
 from ._base import BaseTransform
 
 
-class Sigmoid(BaseTransform):
+class SigmoidTransform(BaseTransform):
     """
     Sigmoid transformation. Does not require fitting, but is controlled only by the
     parameters k and x0.
@@ -39,7 +39,7 @@ class Sigmoid(BaseTransform):
         self,
         x: torch.Tensor | None = None,
         y: torch.Tensor | None = None,
-    ) -> Sigmoid:
+    ) -> SigmoidTransform:
         if x is not None:
             msg = "Sigmoid transform does not require fitting, ignoring input data"
             raise ValueError(msg)
