@@ -101,6 +101,17 @@ class AdaptiveSigmoidTransform(BaseTransform):
         The rate at which the slope decreases as x moves away from x0.
     x0_ : float, default=0.0
         The x value at which the sigmoid function crosses 0.5.
+    atol_: float, default=1e-8
+        The absolute tolerance for the convergence of the inverse transform.
+    max_iter_: int, default=10000
+        The maximum number of iterations for the convergence of the inverse transform.
+
+    Notes
+    -----
+    The inverse transform is computed using Newton's method. The maximum number of iterations
+    is controlled by the `max_iter_` parameter. The inverse transform may not converge for
+    certain values of x, in which case a warning is raised and the last computed value is returned.
+    The default value of `atol_` is 1e-8, which should be sufficient for most applications.
     """
 
     _transform_type = BaseTransform.TransformType.X
