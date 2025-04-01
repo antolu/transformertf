@@ -4,9 +4,13 @@ Implementation of a sigmoid transformation.
 
 from __future__ import annotations
 
+import logging
+
 import torch
 
 from ._base import BaseTransform
+
+log = logging.getLogger(__name__)
 
 
 class SigmoidTransform(BaseTransform):
@@ -42,10 +46,10 @@ class SigmoidTransform(BaseTransform):
     ) -> SigmoidTransform:
         if x is not None:
             msg = "Sigmoid transform does not require fitting, ignoring input data"
-            raise ValueError(msg)
+            log.warning(msg)
         if y is not None:
             msg = "Sigmoid transform does not require fitting, ignoring target data"
-            raise ValueError(msg)
+            log.warning(msg)
 
         return self
 
