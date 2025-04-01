@@ -6,9 +6,10 @@ from __future__ import annotations
 
 import logging
 
+import numpy as np
 import torch
 
-from ._base import BaseTransform
+from ._base import BaseTransform, _as_torch
 
 log = logging.getLogger(__name__)
 
@@ -34,15 +35,15 @@ class SigmoidTransform(BaseTransform):
 
     _transform_type = BaseTransform.TransformType.X
 
-    def __init__(self, k: float = 1.0, x0: float = 0.0):
+    def __init__(self, k_: float = 1.0, x0_: float = 0.0):
         super().__init__()
-        self.k = k
-        self.x0 = x0
+        self.k_ = k_
+        self.x0_ = x0_
 
     def fit(
         self,
-        x: torch.Tensor | None = None,
-        y: torch.Tensor | None = None,
+        x: np.ndarray | torch.Tensor | None = None,
+        y: np.ndarray | torch.Tensor | None = None,
     ) -> SigmoidTransform:
         if x is not None:
             msg = "Sigmoid transform does not require fitting, ignoring input data"
@@ -55,22 +56,26 @@ class SigmoidTransform(BaseTransform):
 
     def transform(
         self,
-        x: torch.Tensor,
-        y: torch.Tensor | None = None,
+        x: np.ndarray | torch.Tensor,
+        y: np.ndarray | torch.Tensor | None = None,
     ) -> torch.Tensor:
         if y is not None:
             msg = "y must be None for Sigmoid transform"
             raise ValueError(msg)
 
-        return torch.nn.functional.sigmoid(self.k * (x - self.x0))
+        x = _as_torch(x)
+
+        return torch.nn.functional.sigmoid(self.k_ * (x - self.x0_))
 
     def inverse_transform(
         self,
-        x: torch.Tensor,
-        y: torch.Tensor | None = None,
+        x: np.ndarray | torch.Tensor,
+        y: np.ndarray | torch.Tensor | None = None,
     ) -> torch.Tensor:
         if y is not None:
             msg = "y must be None for Sigmoid transform"
             raise ValueError(msg)
 
-        return self.x0 + torch.log(x / (1 - x)) / self.k
+        x = _as_torch(x)
+
+        return self.x0_ + torch.log(x / (1 - x)) / self.k_

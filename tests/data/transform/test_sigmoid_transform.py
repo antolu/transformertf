@@ -8,15 +8,15 @@ from transformertf.data.transform import SigmoidTransform
 def test_create_sigmoid_transform_default_parameters() -> None:
     transform = SigmoidTransform()
 
-    assert transform.k == 1.0
-    assert transform.x0 == 0.0
+    assert transform.k_ == 1.0
+    assert transform.x0_ == 0.0
 
 
 def test_create_sigmoid_transform_custom_parameters() -> None:
-    transform = SigmoidTransform(k=2.0, x0=3.0)
+    transform = SigmoidTransform(k_=2.0, x0_=3.0)
 
-    assert transform.k == 2.0
-    assert transform.x0 == 3.0
+    assert transform.k_ == 2.0
+    assert transform.x0_ == 3.0
 
 
 def test_sigmoid_transform_fit() -> None:
