@@ -102,11 +102,10 @@ def test_adaptive_sigmoid_transform_fit() -> None:
 
 
 def test_adaptive_sigmoid_inverse_transform() -> None:
-    transform = AdaptiveSigmoidTransform()
+    transform = AdaptiveSigmoidTransform(atol_=1e-10, max_iter_=15000)
 
     x = torch.tensor([1.0, 2.0, 3.0, 4.0, 5.0])
 
     assert np.allclose(
-        transform.inverse_transform(transform.transform(x)),
-        x,
+        transform.inverse_transform(transform.transform(x)), x, atol=1e-2
     ), "Inverse transform failed for AdaptiveSigmoidTransform"

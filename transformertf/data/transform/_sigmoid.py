@@ -37,8 +37,9 @@ class SigmoidTransform(BaseTransform):
 
     def __init__(self, k_: float = 1.0, x0_: float = 0.0):
         super().__init__()
-        self.k_ = k_
-        self.x0_ = x0_
+
+        self.register_buffer("k_", torch.tensor(k_))
+        self.register_buffer("x0_", torch.tensor(x0_))
 
     def fit(
         self,
@@ -129,12 +130,12 @@ class AdaptiveSigmoidTransform(BaseTransform):
     ):
         super().__init__()
 
-        self.k0_ = k0_
-        self.alpha_ = alpha_
+        self.register_buffer("k0_", torch.tensor(k0_))
+        self.register_buffer("alpha_", torch.tensor(alpha_))
 
-        self.x0_ = x0_
-        self.atol_ = atol_
-        self.max_iter_ = max_iter_
+        self.register_buffer("x0_", torch.tensor(x0_))
+        self.register_buffer("atol_", torch.tensor(atol_))
+        self.register_buffer("max_iter_", torch.tensor(max_iter_))
 
     def fit(
         self,
@@ -160,10 +161,13 @@ class AdaptiveSigmoidTransform(BaseTransform):
             raise ValueError(msg)
 
         x = _as_torch(x)
+        k0 = self.k0_.to(x.dtype)
+        alpha = self.alpha_.to(x.dtype)
+        x0 = self.x0_.to(x.dtype)
 
-        k = self.k0_ * (1 - self.alpha_ * torch.abs(x - self.x0_))
+        k = k0 * (1 - alpha * torch.abs(x - x0))
 
-        return torch.nn.functional.sigmoid(k * (x - self.x0_))
+        return torch.nn.functional.sigmoid(k * (x - x0))
 
     def inverse_transform(
         self,
@@ -179,24 +183,27 @@ class AdaptiveSigmoidTransform(BaseTransform):
         x = x.to(torch.float64)
 
         logx = torch.log(x / (1 - x))
-        x_guess = logx / self.k0_ + self.x0_
+        k0 = self.k0_.to(torch.float64)
+        alpha = self.alpha_.to(torch.float64)
+        x0 = self.x0_.to(torch.float64)
+        atol = self.atol_.to(torch.float64)
+        max_iter = self.max_iter_.to(torch.float64)
+
+        x_guess = logx / k0 + x0
 
         prev_x_guess = torch.zeros_like(x_guess) - 1e6
         i = 0
-        while (
-            torch.max(torch.abs(x_guess - prev_x_guess)) > self.atol_
-            and i < self.max_iter_
-        ):
-            if i == self.max_iter_ - 1:
+        while torch.max(torch.abs(x_guess - prev_x_guess)) > atol and i < max_iter:
+            if i == max_iter - 1:
                 msg = "AdaptiveSigmoidTransform did not converge"
                 log.warning(msg)
                 break
 
             prev_x_guess = x_guess.clone()
-            k = self.k0_ * (1 - self.alpha_ * torch.abs(x_guess - self.x0_))
+            k = k0 * (1 - alpha * torch.abs(x_guess - x0))
 
             # newton iteration to find the root of the equation
-            sig = torch.nn.functional.sigmoid(k * (x_guess - self.x0_))
+            sig = torch.nn.functional.sigmoid(k * (x_guess - x0))
             f = x - sig
             f_prime = -k * sig * (1 - sig)
             x_guess = x_guess - f / f_prime
