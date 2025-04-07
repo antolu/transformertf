@@ -268,7 +268,7 @@ class EncoderDecoderDataModule(TransformerDataModule):
             ),
             predict=predict,
             transforms=self.transforms,
-            noise_std=self.hparams["noise_std"],
+            noise_std=self.hparams["noise_std"] if not predict else 0.0,
             dtype=self.hparams["dtype"],
         )
 
