@@ -421,6 +421,7 @@ class MinMaxScaler(BaseTransform):
 class MaxScaler(MinMaxScaler):
     """
     A class used to scale data based on provided maximum and minimum values.
+    The data is only scaled w.r.t. the maximum value (i.e. the scaled values can be negative).
 
     Attributes
     ----------
@@ -430,8 +431,6 @@ class MaxScaler(MinMaxScaler):
         The maximum value for scaling. Stored as a buffer.
     data_max_ : torch.Tensor or float
         The maximum value of the data. Stored as a buffer.
-    data_min_ : torch.Tensor or float
-        The minimum value of the data. Stored as a buffer.
 
     Parameters
     ----------
