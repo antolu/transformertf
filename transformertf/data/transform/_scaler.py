@@ -279,33 +279,111 @@ class RunningNormalizer(BaseTransform):
         return f"{self.__class__.__name__}()"
 
 
-class MaxScaler(BaseTransform):
+class MinMaxScaler(BaseTransform):
     _transform_type = BaseTransform.TransformType.X
+    min_: torch.Tensor
     max_: torch.Tensor
+    data_min_: torch.Tensor
+    data_max_: torch.Tensor
+    frozen_: torch.Tensor
+    num_features_: torch.Tensor
 
-    def __init__(self, num_features_: int = 1, max_: torch.Tensor | float = 0.0):
+    def __init__(
+        self,
+        num_features_: int = 1,
+        min_: torch.Tensor | float = 0.0,
+        max_: torch.Tensor | float = 1.0,
+        data_min_: torch.Tensor | float = 0.0,
+        data_max_: torch.Tensor | float = 1.0,
+        *,
+        frozen_: bool = False,
+    ):
         super().__init__()
-        self.num_features_ = num_features_
+        self.register_buffer("min_", torch.ones(num_features_) * min_)
+        self.register_buffer("max_", torch.ones(num_features_) * max_)
 
-        max_ += torch.zeros(num_features_, requires_grad=False)
-        self.register_buffer("max_", max_)
+        # add data min and max
+        self.register_buffer("data_min_", torch.ones(num_features_) * data_min_)
+        self.register_buffer("data_max_", torch.ones(num_features_) * data_max_)
 
-    def forward(self, y: torch.Tensor) -> torch.Tensor:  # type: ignore[has-type]
-        return y / self.max_
+        self.register_buffer("frozen_", torch.tensor(frozen_, requires_grad=False))
+        self.register_buffer(
+            "num_features_", torch.tensor(num_features_, requires_grad=False)
+        )
+
+    def forward(self, y: torch.Tensor) -> torch.Tensor:
+        """
+        Apply the forward transformation to the input data.
+
+        Parameters
+        ----------
+        y : torch.Tensor
+            The input data to transform.
+
+        Returns
+        -------
+        torch.Tensor
+            The transformed data.
+        """
+        return (y - self.data_min_) / (self.data_max_ - self.data_min_) * (
+            self.max_ - self.min_
+        ) + self.min_
 
     def fit(
         self, x: np.ndarray | torch.Tensor, y: np.ndarray | torch.Tensor | None = None
-    ) -> MaxScaler:
+    ) -> MinMaxScaler:
+        """
+        Fit the scaler to the data.
+
+        Parameters
+        ----------
+        x : np.ndarray or torch.Tensor
+            The data to fit the scaler to.
+        y : np.ndarray or torch.Tensor, optional
+            The data to fit the scaler to. If None, x is used.
+            Default is None.
+
+        Returns
+        -------
+        MinMaxScaler
+            The fitted scaler.
+        """
+        if self.frozen_:
+            log.warning("The scaler is frozen and cannot be fitted.")
+            return self
+
         if y is None:
             y = x
 
-        y = _as_torch(y)  # type: ignore[has-type]
-        self.max_ = torch.max(y, dim=0)[0].view_as(self.max_)
+        y = _as_torch(y)
+        self.data_max_ = torch.max(y, dim=0)[0].view_as(self.data_max_)
+        self.data_min_ = torch.min(y, dim=0)[0].view_as(self.data_min_)
+
+        if torch.allclose(self.data_max_, self.data_min_):
+            msg = "The data has no variance. The scaler will not be able to transform the data."
+            log.warning(msg)
+
         return self
 
     def transform(
         self, x: np.ndarray | torch.Tensor, y: np.ndarray | torch.Tensor | None = None
     ) -> torch.Tensor:
+        """
+        Transform the data using the fitted scaler.
+
+        Parameters
+        ----------
+        x : np.ndarray or torch.Tensor
+            The data to transform.
+        y : np.ndarray or torch.Tensor, optional
+            The data to transform. If None, x is used.
+            Default is None.
+
+        Returns
+        -------
+        torch.Tensor
+            The transformed data.
+        """
         if y is None:
             y = x
         return self.forward(_as_torch(y))
@@ -313,12 +391,156 @@ class MaxScaler(BaseTransform):
     def inverse_transform(
         self, x: np.ndarray | torch.Tensor, y: np.ndarray | torch.Tensor | None = None
     ) -> torch.Tensor:
+        """
+        Inverse transform the data using the fitted scaler.
+
+        Parameters
+        ----------
+        x : np.ndarray or torch.Tensor
+            The data to inverse transform.
+        y : np.ndarray or torch.Tensor, optional
+            The data to inverse transform. If None, x is used.
+            Default is None.
+
+        Returns
+        -------
+        torch.Tensor
+            The inverse transformed data.
+        """
         if y is None:
             y = x
-        return _as_torch(y) * self.max_
+        return _as_torch(y) * (self.data_max_ - self.data_min_) + self.data_min_
 
     def __sklearn_is_fitted__(self) -> bool:  # noqa: PLW3201
-        return torch.all(self.max_ != 0.0).item()
+        return torch.all(self.data_max_ != 0.0).item()
+
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}()"
+
+
+class MaxScaler(MinMaxScaler):
+    """
+    A class used to scale data based on provided maximum and minimum values.
+
+    Attributes
+    ----------
+    num_features_ : int
+        The number of features to scale.
+    max_ : torch.Tensor or float
+        The maximum value for scaling. Stored as a buffer.
+    data_max_ : torch.Tensor or float
+        The maximum value of the data. Stored as a buffer.
+    data_min_ : torch.Tensor or float
+        The minimum value of the data. Stored as a buffer.
+
+    Parameters
+    ----------
+    num_features_ : int, optional
+        The number of features to scale (default is 1).
+    max_ : torch.Tensor or float, optional
+        The maximum value for scaling (default is 1.0).
+    data_max_ : torch.Tensor or float, optional
+        The maximum value of the data (default is 1.0).
+    """
+
+    _transform_type = BaseTransform.TransformType.X
+    max_: torch.Tensor
+    data_max_: torch.Tensor
+    num_features_: torch.Tensor
+    frozen_: torch.Tensor
+
+    def __init__(
+        self,
+        num_features_: int = 1,
+        max_: torch.Tensor | float = 1.0,
+        data_max_: torch.Tensor | float = 1.0,
+        *,
+        frozen_: bool = False,
+    ):
+        super().__init__()
+        max_ += torch.zeros(num_features_, requires_grad=False)
+        self.register_buffer("max_", max_)
+        self.register_buffer(
+            "data_max_", data_max_ + torch.zeros(num_features_, requires_grad=False)
+        )
+        self.register_buffer("frozen_", torch.tensor(frozen_, requires_grad=False))
+        self.register_buffer(
+            "num_features_", torch.tensor(num_features_, requires_grad=False)
+        )
+
+    def forward(self, y: torch.Tensor) -> torch.Tensor:  # type: ignore[has-type]
+        return y / self.data_max_ * self.max_
+
+    def fit(
+        self, x: np.ndarray | torch.Tensor, y: np.ndarray | torch.Tensor | None = None
+    ) -> MaxScaler:
+        """
+        Fit the scaler to the data.
+
+
+
+        """
+        if self.frozen_:
+            log.warning("The scaler is frozen and cannot be fitted.")
+            return self
+
+        if y is None:
+            y = x
+
+        y = _as_torch(y)  # type: ignore[has-type]
+        self.data_max_ = torch.max(y, dim=0)[0].view_as(self.data_max_)
+        return self
+
+    def transform(
+        self, x: np.ndarray | torch.Tensor, y: np.ndarray | torch.Tensor | None = None
+    ) -> torch.Tensor:
+        """
+        Transform the data using the fitted scaler into [0, max_].
+
+        Parameters
+        ----------
+        x : np.ndarray or torch.Tensor
+            The data to transform.
+        y : np.ndarray or torch.Tensor, optional
+            The data to transform. If None, x is used.
+            Default is None.
+
+        Returns
+        -------
+        torch.Tensor
+            The transformed data in the range [0, max_].
+        """
+        if y is None:
+            y = x
+        return self.forward(_as_torch(y))
+
+    def inverse_transform(
+        self, x: np.ndarray | torch.Tensor, y: np.ndarray | torch.Tensor | None = None
+    ) -> torch.Tensor:
+        """
+        Inverse transform the data from [0, max_] to the original scale using the fitted scaler.
+
+        Parameters
+        ----------
+        x : np.ndarray or torch.Tensor
+            The data to inverse transform.
+        y : np.ndarray or torch.Tensor, optional
+            The data to inverse transform. If None, x is used.
+            Default is None.
+
+        Returns
+        -------
+        torch.Tensor
+            The inverse transformed data in the original scale.
+        """
+        if y is None:
+            y = x
+
+        y = _as_torch(y)  # type: ignore[has-type]
+        return y * self.data_max_ / self.max_
+
+    def __sklearn_is_fitted__(self) -> bool:  # noqa: PLW3201
+        return torch.all(self.data_max_ != 0.0).item()
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}()"

@@ -16,7 +16,8 @@ The module includes the following classes:
 - :class:`FixedPolynomialTransform`: Applies a fixed polynomial to the input.
 - :class:`Log1pTransform`: Applies the natural logarithm to the input (+1).
 - :class:`LogTransform`: Applies the natural logarithm to the input.
-- :class:`MaxScaler`: Scales the input to the range [0, 1].
+- :class:`MaxScaler`: Scales the input according to the maximum value of each feature.
+- :class:`MinMaxScaler`: Scales the input to the range [min_, max_].
 - :class:`PolynomialTransform`: Applies a polynomial to the input, fitted on the data.
 - :class:`RunningNormalizer`: Scales the input to zero mean and unit variance. The :class:`StandardScaler` alias is also available.
 - :class:`Sigmoid`: Applies the sigmoid function to the input.
@@ -40,7 +41,7 @@ from ._discrete_fn import DiscreteFunctionTransform
 from ._divide_by_x import DivideByXTransform
 from ._log import Log1pTransform, LogTransform
 from ._polynomial import FixedPolynomialTransform, PolynomialTransform
-from ._scaler import MaxScaler, RunningNormalizer
+from ._scaler import MaxScaler, MinMaxScaler, RunningNormalizer
 from ._sigmoid import AdaptiveSigmoidTransform, SigmoidTransform
 
 StandardScaler = RunningNormalizer
@@ -53,6 +54,7 @@ for _mod in [
     LogTransform,
     Log1pTransform,
     MaxScaler,
+    MinMaxScaler,
     AdaptiveSigmoidTransform,
     SigmoidTransform,
     PolynomialTransform,
@@ -77,6 +79,7 @@ __all__ = [
     "Log1pTransform",
     "LogTransform",
     "MaxScaler",
+    "MinMaxScaler",
     "PolynomialTransform",
     "RunningNormalizer",
     "SigmoidTransform",
