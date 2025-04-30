@@ -5,6 +5,11 @@ import torch
 from transformertf.data.transform import MaxScaler
 
 
+def test_max_scaler_not_fitted() -> None:
+    scaler = MaxScaler(num_features_=2)
+    assert not scaler.__sklearn_is_fitted__()
+
+
 def test_max_scaler_forward() -> None:
     scaler = MaxScaler(num_features_=2)
     y = torch.tensor([[1.0, 2.0], [3.0, 4.0]])

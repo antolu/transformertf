@@ -11,6 +11,10 @@ def min_max_scaler() -> MinMaxScaler:
     return MinMaxScaler(num_features_=2)
 
 
+def test_min_max_scaler_not_fitted(min_max_scaler: MinMaxScaler) -> None:
+    assert not min_max_scaler.__sklearn_is_fitted__()
+
+
 def test_min_max_scaler_forward(min_max_scaler: MinMaxScaler) -> None:
     y = torch.tensor([[1.0, 2.0], [3.0, 4.0]])
     min_max_scaler.fit(y)

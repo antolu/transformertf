@@ -412,7 +412,13 @@ class MinMaxScaler(BaseTransform):
         return _as_torch(y) * (self.data_max_ - self.data_min_) + self.data_min_
 
     def __sklearn_is_fitted__(self) -> bool:  # noqa: PLW3201
-        return torch.all(self.data_max_ != 0.0).item()
+        return (
+            not (
+                torch.all(self.data_max_ == 1.0).item()
+                and torch.all(self.data_min_ == 0.0).item()
+            )
+            or self.frozen_
+        )
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}()"
@@ -539,7 +545,7 @@ class MaxScaler(MinMaxScaler):
         return y * self.data_max_ / self.max_
 
     def __sklearn_is_fitted__(self) -> bool:  # noqa: PLW3201
-        return torch.all(self.data_max_ != 0.0).item()
+        return torch.all(self.data_max_ != 1.0).item() or self.frozen_
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}()"
