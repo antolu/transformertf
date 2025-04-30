@@ -33,6 +33,16 @@ warnings.filterwarnings("ignore", category=UserWarning)
 einops._torch_specific.allow_ops_in_compiled_graph()  # noqa: SLF001
 
 
+class _FilterCallback(logging.Filterer):
+    def filter(self, record: logging.LogRecord) -> bool:
+        return not (
+            record.name == "neptune"
+            and record.getMessage().startswith(
+                "Error occurred during asynchronous operation processing:"
+            )
+        )
+
+
 class NeptuneLoggerSaveConfigCallback(lightning.pytorch.cli.SaveConfigCallback):
     def save_config(
         self, trainer: L.Trainer, pl_module: L.LightningModule, stage: str
@@ -164,6 +174,13 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
         # if logger is a neptune logger, save the config to a temporary file and upload it
         # also track artifacts from datamodule
         if isinstance(self.trainer.logger, L.pytorch.loggers.neptune.NeptuneLogger):
+            import neptune  # noqa: PLC0415
+
+            # filter out errors caused by logging epoch more than once
+            neptune.internal.operation_processors.async_operation_processor.logger.addFilter(
+                _FilterCallback()
+            )
+
             if "train_df_paths" in self.datamodule.hparams:
                 for train_df_path in self.datamodule.hparams["train_df_paths"]:
                     self.trainer.logger.experiment["train/dataset"].track_files(
