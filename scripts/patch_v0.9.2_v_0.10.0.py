@@ -48,8 +48,8 @@ def main(argv: list[str] | None = None) -> int:
         print(msg, file=sys.stderr)
         return 1
 
-    if checkpoint["datamodule_hyper_parameters"]["time_format"] != "relative":
-        msg = f"Checkpoint {args.checkpoint} time_format is not 'relative', will not patch."
+    if checkpoint["datamodule_hyper_parameters"]["time_format"] == "relative_legacy":
+        msg = f"Checkpoint {args.checkpoint} time_format is 'relative_legacy', will not patch."
         print(msg, file=sys.stderr)
         return 1
 
@@ -58,20 +58,26 @@ def main(argv: list[str] | None = None) -> int:
         print(msg, file=sys.stderr)
         return 1
 
+    # find which transform index is used for __time__ transform
+    idx = -1
+    for key in checkpoint["EncoderDecoderDataModule"]["transforms"]["__time__"]:
+        if key.startswith("transforms.") and key.endswith(".max_"):
+            idx = key.split(".")[1]
+            break
+
     if (
-        "transforms.1.max_"
-        in checkpoint["EncoderDecoderDataModule"]["transforms"]["__time__"]
-        and "transforms.1.min_"
+        idx != -1
+        and f"transforms.{idx}.min_"
         not in checkpoint["EncoderDecoderDataModule"]["transforms"]["__time__"]
     ):
         transforms = checkpoint["EncoderDecoderDataModule"]["transforms"]["__time__"]
 
-        transforms["transforms.1.data_min_"] = torch.tensor([0.0])
-        transforms["transforms.1.data_max_"] = transforms["transforms.1.max_"]
-        transforms["transforms.1.min_"] = torch.tensor([0.0])
-        transforms["transforms.1.max_"] = torch.tensor([1.0])
-        transforms["transforms.1.frozen_"] = torch.tensor([False])
-        transforms["transforms.1.num_features_"] = torch.tensor([1])
+        transforms[f"transforms.{idx}.data_min_"] = torch.tensor([0.0])
+        transforms[f"transforms.{idx}.data_max_"] = transforms[f"transforms.{idx}.max_"]
+        transforms[f"transforms.{idx}.min_"] = torch.tensor([0.0])
+        transforms[f"transforms.{idx}.max_"] = torch.tensor([1.0])
+        transforms[f"transforms.{idx}.frozen_"] = torch.tensor([False])
+        transforms[f"transforms.{idx}.num_features_"] = torch.tensor([1])
 
         # sort the keys
         transforms = dict(sorted(transforms.items()))
