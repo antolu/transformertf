@@ -55,11 +55,6 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
             o["point_prediction"].squeeze() for o in validation_outputs[0]
         ])
 
-        if len(predictions) > val_dataset.num_points:
-            predictions = predictions[
-                : val_dataset.num_points - val_dataset.ctxt_seq_len
-            ]
-
         if isinstance(val_dataset, TimeSeriesDataset):
             indices = slice(0, len(predictions))
             sample_len = val_dataset.seq_len
