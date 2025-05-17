@@ -136,6 +136,7 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
         elif isinstance(trainer.logger, L.pytorch.loggers.neptune.NeptuneLogger):
             trainer.logger.experiment["validation/field_curve"].append(fig_field)
             trainer.logger.experiment["validation/hysteresis"].append(fig_hysteresis)
+            trainer.logger.experiment.sync()
         else:
             msg = "The PlotHysteresisCallback only supports TensorBoard and Neptune loggers."
             raise ValueError(msg)  # noqa: TRY004
