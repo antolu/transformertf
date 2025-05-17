@@ -46,7 +46,9 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
             )
             raise ValueError(msg)  # noqa: TRY004
 
-        val_dataset = typing.cast(EncoderDecoderDataset, val_dataloader.dataset)
+        val_dataset = typing.cast(
+            EncoderDecoderDataset | TimeSeriesDataset, val_dataloader.dataset
+        )
         validation_outputs = pl_module.validation_outputs
 
         predictions = torch.cat([
@@ -80,6 +82,7 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
         except KeyError:
             time = np.arange(len(predictions))
 
+        assert val_dataset._sample_gen[0]._label_data is not None  # noqa: SLF001
         targets = val_dataset._sample_gen[0]._label_data.to_numpy().flatten()  # noqa: SLF001
         targets = targets[indices]  # type: ignore[assignment]
 
@@ -125,15 +128,22 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
 
         prediction_horizons = np.arange(sample_len, len(predictions), sample_len)
 
-        fig = plot_hysteresis_phase_space(depends_on, predictions, targets)
-        trainer.logger.experiment.add_figure(
-            "hysteresis/validation", fig, global_step=trainer.global_step
-        )
+        fig_hysteresis = plot_hysteresis_phase_space(depends_on, predictions, targets)
 
-        fig = plot_field_curve(time, predictions, targets, prediction_horizons)
-        trainer.logger.experiment.add_figure(
-            "field_curve/validation", fig, global_step=trainer.global_step
-        )
+        fig_field = plot_field_curve(time, predictions, targets, prediction_horizons)
+        if isinstance(trainer.logger, L.pytorch.loggers.TensorBoardLogger):
+            trainer.logger.experiment.add_figure(
+                "field_curve/validation", fig_field, global_step=trainer.global_step
+            )
+            trainer.logger.experiment.add_figure(
+                "hysteresis/validation", fig_hysteresis, global_step=trainer.global_step
+            )
+        elif isinstance(trainer.logger, L.pytorch.loggers.neptune.NeptuneLogger):
+            trainer.logger.experiment["validation/field_curve"].append(fig_field)
+            trainer.logger.experiment["validation/hysteresis"].append(fig_hysteresis)
+        else:
+            msg = "The PlotHysteresisCallback only supports TensorBoard and Neptune loggers."
+            raise ValueError(msg)  # noqa: TRY004
 
         plt.close("all")
 
