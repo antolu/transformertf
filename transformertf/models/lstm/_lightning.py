@@ -29,6 +29,7 @@ class LSTM(LightningModuleBase):
         dropout: float = 0.2,
         criterion: torch.nn.Module | None = None,
         *,
+        compile_model: bool = False,
         log_grad_norm: bool = False,
     ):
         """
