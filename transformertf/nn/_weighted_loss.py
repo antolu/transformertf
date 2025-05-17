@@ -15,7 +15,7 @@ import typing
 
 import torch
 
-from .functional import masked_mse_loss
+from .functional import mse_loss
 
 
 class WeightedMSELoss(torch.nn.Module):
@@ -24,7 +24,10 @@ class WeightedMSELoss(torch.nn.Module):
     """
 
     def __init__(
-        self, reduction: typing.Literal["mean", "sum", "none"] | None = "mean"
+        self,
+        reduction: typing.Literal["mean", "sum", "none"] | None = "mean",
+        regularization: float | None = None,
+        regularization_dim: int = 0,
     ):
         """
         Weighted mean squared error loss.
@@ -36,6 +39,8 @@ class WeightedMSELoss(torch.nn.Module):
         """
         super().__init__()
         self.reduction_ = reduction
+        self.regularization = regularization
+        self.regularization_dim = regularization_dim
 
     def forward(
         self,
@@ -58,8 +63,14 @@ class WeightedMSELoss(torch.nn.Module):
         torch.Tensor
             Weighted mean squared error loss.
         """
-        return masked_mse_loss(
-            y_pred, target, mask=mask, weight=weights, reduction=self.reduction_
+        return mse_loss(
+            y_pred,
+            target,
+            mask=mask,
+            weight=weights,
+            reduction=self.reduction_,
+            regularization=self.regularization,
+            regularization_dim=self.regularization_dim,
         )
 
 
