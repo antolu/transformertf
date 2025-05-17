@@ -167,6 +167,8 @@ class GRU(LightningModuleBase):
         }
         if isinstance(self.criterion, QuantileLoss):
             out["point_prediction"] = self.criterion.point_prediction(model_output)
+        else:
+            out["point_prediction"] = out["output"]
 
         return typing.cast(StepOutput, out)
 
@@ -197,5 +199,7 @@ class GRU(LightningModuleBase):
             output_dict["point_prediction"] = self.criterion.point_prediction(
                 model_output
             )
+        else:
+            output_dict["point_prediction"] = output_dict["output"]
 
         return typing.cast(StepOutput, loss | output_dict)
