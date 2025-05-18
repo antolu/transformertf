@@ -27,6 +27,7 @@ class WeightedMSELoss(torch.nn.Module):
         self,
         reduction: typing.Literal["mean", "sum", "none"] | None = "mean",
         regularization: float | None = None,
+        regularization_order: typing.Literal[1, 2, 3] = 1,
         regularization_dim: int = 0,
     ):
         """
@@ -40,6 +41,7 @@ class WeightedMSELoss(torch.nn.Module):
         super().__init__()
         self.reduction_ = reduction
         self.regularization = regularization
+        self.regularization_order = regularization_order
         self.regularization_dim = regularization_dim
 
     def forward(
@@ -70,6 +72,7 @@ class WeightedMSELoss(torch.nn.Module):
             weight=weights,
             reduction=self.reduction_,
             regularization=self.regularization,
+            regularization_order=self.regularization_order,
             regularization_dim=self.regularization_dim,
         )
 

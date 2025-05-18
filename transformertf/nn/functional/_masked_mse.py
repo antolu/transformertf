@@ -15,6 +15,7 @@ def mse_loss(
     mask: torch.Tensor | None = None,
     regularization: float | None = None,
     regularization_dim: int = 0,
+    regularization_order: typing.Literal[1, 2, 3] = 1,
     reduction: typing.Literal["mean", "sum", "none"] = "mean",
 ) -> torch.Tensor:
     """
@@ -59,7 +60,11 @@ def mse_loss(
         loss *= weight
 
     if regularization is not None:
-        loss += regularization * torch.gradient(loss, dim=regularization_dim)[0]
+        loss += regularization * manual_smoothness(
+            loss,
+            order=regularization_order,
+            reduction="none",
+        ).sum(dim=regularization_dim)
 
     if reduction == "mean":
         if mask is None:
@@ -68,3 +73,29 @@ def mse_loss(
     if reduction == "sum":
         return torch.nansum(loss)
     return loss
+
+
+def manual_smoothness(
+    error: torch.Tensor,
+    order: typing.Literal[1, 2, 3],
+    reduction: typing.Literal["mean", "sum", "none"] | None = "mean",
+) -> torch.Tensor:
+    if order == 1:
+        diff = error[1:] - error[:-1]
+    elif order == 2:
+        diff = error[2:] - 2 * error[1:-1] + error[:-2]
+    elif order == 3:
+        diff = error[3:] - 3 * error[2:-1] + 3 * error[1:-2] - error[:-3]
+    else:
+        msg = f"Unsupported order: {order}. Supported orders are 1, 2, and 3."
+        raise ValueError(msg)
+
+    if reduction == "mean":
+        return torch.mean(diff**2)
+    if reduction == "sum":
+        return torch.sum(diff**2)
+    if reduction == "none" or reduction is None:
+        return diff**2
+
+    msg = f"Unsupported reduction: {reduction}. Supported reductions are 'mean', 'sum', and 'none'."
+    raise ValueError(msg)
