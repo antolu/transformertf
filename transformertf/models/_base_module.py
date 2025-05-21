@@ -71,16 +71,22 @@ class LightningModuleBase(L.LightningModule):
 
         return super().on_train_batch_end(outputs, batch, batch_idx)  # type: ignore[misc]
 
-    def on_validation_batch_end(
+    def on_validation_batch_end(  # type: ignore[override]
         self,
-        outputs: STEP_OUTPUT,  # type: ignore[override]
+        outputs: STEP_OUTPUT,
         batch: TimeSeriesSample,
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
         if dataloader_idx not in self._val_outputs:
             self._val_outputs[dataloader_idx] = []
-        self._val_outputs[dataloader_idx].append(ops.to_cpu(ops.detach(outputs)))  # type: ignore[arg-type,type-var]
+
+        if isinstance(outputs, dict):
+            data = outputs | batch  # type: ignore[operator]
+        else:
+            data = {"output": outputs} | batch
+
+        self._val_outputs[dataloader_idx].append(ops.to_cpu(ops.detach(data)))  # type: ignore[arg-type,type-var]
 
         if self.hparams.get("log_timeseries_metrics"):
             assert "target" in batch
@@ -92,32 +98,44 @@ class LightningModuleBase(L.LightningModule):
 
         super().on_test_epoch_start()
 
-    def on_test_batch_end(
+    def on_test_batch_end(  # type: ignore[override]
         self,
-        outputs: STEP_OUTPUT,  # type: ignore[override]
+        outputs: STEP_OUTPUT,
         batch: TimeSeriesSample,
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
         if dataloader_idx not in self._test_outputs:
             self._test_outputs[dataloader_idx] = []
-        self._test_outputs[dataloader_idx].append(ops.to_cpu(ops.detach(outputs)))  # type: ignore[type-var, arg-type]
+
+        if isinstance(outputs, dict):
+            data = outputs | batch  # type: ignore[operator]
+        else:
+            data = {"output": outputs} | batch
+
+        self._test_outputs[dataloader_idx].append(ops.to_cpu(ops.detach(data)))  # type: ignore[type-var, arg-type]
 
     def on_predict_epoch_start(self) -> None:
         self._inference_outputs = {}
 
         super().on_predict_epoch_start()
 
-    def on_predict_batch_end(
+    def on_predict_batch_end(  # type: ignore[override]
         self,
-        outputs: STEP_OUTPUT,  # type: ignore[override]
+        outputs: STEP_OUTPUT,
         batch: torch.Tensor,
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
         if dataloader_idx not in self._inference_outputs:
             self._inference_outputs[dataloader_idx] = []
-        self._inference_outputs[dataloader_idx].append(ops.to_cpu(ops.detach(outputs)))  # type: ignore[type-var, arg-type]
+
+        if isinstance(outputs, dict):
+            data = outputs | batch
+        else:
+            data = {"output": outputs} | batch
+
+        self._inference_outputs[dataloader_idx].append(ops.to_cpu(ops.detach(data)))  # type: ignore[type-var, arg-type]
 
     def common_log_step(
         self,
