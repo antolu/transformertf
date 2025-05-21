@@ -10,7 +10,6 @@ import numpy as np
 import torch
 
 from ..data import BaseTransform, EncoderDecoderDataset, TimeSeriesDataset
-from ..data._covariates import TIME_PREFIX as TIME
 from ..models import LightningModuleBase
 
 log = logging.getLogger(__name__)
@@ -60,8 +59,8 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
             sample_len = val_dataset.seq_len
         elif isinstance(val_dataset, EncoderDecoderDataset):
             indices = slice(
-                val_dataset.ctxt_seq_len,
-                val_dataset.ctxt_seq_len + len(predictions)
+                0,
+                len(predictions)
                 if len(predictions) < val_dataset.num_points
                 else val_dataset.num_points,
             )
@@ -70,15 +69,10 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
             msg = "Only TimeSeriesDataset and EncoderDecoderDataset are supported."
             raise ValueError(msg)  # noqa: TRY004
 
-        try:
-            time = val_dataset._sample_gen[0]._input_data[TIME].to_numpy()  # noqa: SLF001
-            time = time[indices]
-            time = time - time[0]
-        except KeyError:
-            time = np.arange(len(predictions))
+        time = np.arange(len(predictions))
 
         assert val_dataset._sample_gen[0]._label_data is not None  # noqa: SLF001
-        targets = val_dataset._sample_gen[0]._label_data.to_numpy().flatten()  # noqa: SLF001
+        targets = torch.cat([o["target"].squeeze() for o in validation_outputs[0]])
         targets = targets[indices]  # type: ignore[assignment]
 
         transforms = val_dataset.transforms
@@ -100,8 +94,26 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
                 val_dataset._sample_gen[0]._input_data.columns,  # noqa: SLF001
             )
         )
-        depends_on = val_dataset._sample_gen[0]._input_data[depends_on_key].to_numpy()  # noqa: SLF001
+        # find which df index the depends_on_key is in
+        depends_on_idx = val_dataset._sample_gen[0]._input_data.columns.get_loc(  # noqa: SLF001
+            depends_on_key
+        )
+
+        if isinstance(val_dataset, TimeSeriesDataset):
+            depends_on = torch.cat([
+                o["input"][..., depends_on_idx].squeeze() for o in validation_outputs[0]
+            ])
+        elif isinstance(val_dataset, EncoderDecoderDataset):
+            depends_on = torch.cat([
+                o["decoder_input"][..., depends_on_idx].squeeze()
+                for o in validation_outputs[0]
+            ])
+        else:
+            msg = "Only TimeSeriesDataset and EncoderDecoderDataset are supported."
+            raise RuntimeError(msg)  # noqa: TRY004
+
         depends_on = depends_on[indices]
+
         depends_on_key = depends_on_key.split("__")[-1]
         depends_on = (
             val_dataset.transforms[depends_on_key].inverse_transform(depends_on).numpy()
