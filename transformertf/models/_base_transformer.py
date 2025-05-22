@@ -5,7 +5,8 @@ import typing
 
 import torch
 
-from ..data import EncoderDecoderTargetSample
+from ..data import EncoderDecoderSample, EncoderDecoderTargetSample
+from ..nn import QuantileLoss
 from ._base_module import LightningModuleBase
 
 if sys.version_info >= (3, 12):
@@ -47,6 +48,113 @@ class TransformerModuleBase(LightningModuleBase):
             batch_idx=batch_idx,
             dataloader_idx=dataloader_idx,
         )
+
+    def training_step(
+        self, batch: EncoderDecoderTargetSample, batch_idx: int
+    ) -> dict[str, torch.Tensor]:
+        model_output = self(batch)
+
+        loss = self.calc_loss(model_output["output"], batch)
+
+        loss_dict = {"loss": loss}
+        point_prediction = model_output["output"]
+        if isinstance(self.criterion, QuantileLoss) or (
+            hasattr(self.criterion, "_orig_mod")
+            and isinstance(self.criterion._orig_mod, QuantileLoss)  # noqa: SLF001
+        ):
+            point_prediction = self.criterion.point_prediction(point_prediction)
+
+        self.common_log_step(loss_dict, "train")
+
+        return {
+            **loss_dict,
+            "output": model_output.pop("output"),
+            **{k: v.detach() for k, v in model_output.items()},
+            "point_prediction": point_prediction,
+        }
+
+    def validation_step(
+        self,
+        batch: EncoderDecoderTargetSample,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> dict[str, torch.Tensor]:
+        model_output = self(batch)
+
+        loss = self.calc_loss(model_output["output"], batch)
+
+        loss_dict = {"loss": loss}
+        point_prediction = model_output["output"]
+        if isinstance(self.criterion, QuantileLoss) or (
+            hasattr(self.criterion, "_orig_mod")
+            and isinstance(self.criterion._orig_mod, QuantileLoss)  # noqa: SLF001
+        ):
+            point_prediction = self.criterion.point_prediction(point_prediction)
+
+        self.common_log_step(loss_dict, "validation")
+
+        return {
+            **loss_dict,
+            "output": model_output.pop("output"),
+            **{k: v.detach() for k, v in model_output.items()},
+            "point_prediction": point_prediction,
+        }
+
+    def predict_step(
+        self, batch: EncoderDecoderSample, batch_idx: int
+    ) -> dict[str, torch.Tensor]:
+        model_output = self(batch)
+
+        point_prediction = model_output["output"]
+        if isinstance(self.criterion, QuantileLoss) or (
+            hasattr(self.criterion, "_orig_mod")
+            and isinstance(self.criterion._orig_mod, QuantileLoss)  # noqa: SLF001
+        ):
+            point_prediction = self.criterion.point_prediction(model_output["output"])
+
+        model_output["point_prediction"] = point_prediction
+        return model_output
+
+    def on_train_epoch_start(self) -> None:
+        """
+        Set normalizing layers not in trainable_parameters to eval mode.
+        """
+        if self.hparams["trainable_parameters"] is None:
+            return
+
+        trainable_params = set(self.hparams["trainable_parameters"])
+        for name, module in self.named_modules():
+            if not isinstance(module, torch.nn.LayerNorm):
+                continue
+
+            param_name = name.split(".")[1]  # model.[name].xxx
+            if param_name not in trainable_params:
+                module.eval()
+
+    def parameters(self, recurse: bool = True) -> typing.Iterator[torch.nn.Parameter]:  # noqa: FBT001, FBT002
+        """
+        Override the parameters method to only return the trainable parameters, for
+        use with LightningCLI where we cannot easily specify the trainable parameters.
+
+        Parameters
+        ----------
+        recurse : bool, optional
+            Whether to return parameters of this module and all submodules,
+            by default True
+
+        Returns
+        -------
+        Iterator[torch.nn.Parameter]
+        """
+        if self.hparams["trainable_parameters"] is None:
+            yield from super().parameters(recurse=recurse)
+            return
+
+        trainable_params = set(self.hparams["trainable_parameters"])
+        for name, param in self.named_parameters(recurse=recurse):
+            param_name = name.split(".")[1]  # model.[name].xxx
+            if param_name in trainable_params:
+                yield param
 
     def calc_loss(
         self,
