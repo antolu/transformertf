@@ -119,7 +119,10 @@ class TransformerModuleBase(LightningModuleBase):
         """
         Set normalizing layers not in trainable_parameters to eval mode.
         """
-        if self.hparams["trainable_parameters"] is None:
+        if (
+            "trainable_parameters" not in self.hparams
+            or self.hparams["trainable_parameters"] is None
+        ):
             return
 
         trainable_params = set(self.hparams["trainable_parameters"])
