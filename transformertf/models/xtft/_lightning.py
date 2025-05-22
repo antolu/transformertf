@@ -52,15 +52,12 @@ class xTFT(TransformerModuleBase):  # noqa: N801
         )
 
     def forward(self, x: EncoderDecoderTargetSample) -> torch.Tensor:
-        static_covariates = x["encoder_lengths"] / max(x["encoder_lengths"].max(), 1)
-
         encoder_inputs = x["encoder_input"]
         decoder_inputs = x["decoder_input"][..., : self.hparams["num_future_features"]]
 
         return self.model(
             past_covariates=encoder_inputs,  # (B, T, F_past)
             future_covariates=decoder_inputs,
-            static_covariates=static_covariates,  # type: ignore[typeddict-item]
             encoder_lengths=x["encoder_lengths"][..., 0],  # (B, T)
             decoder_lengths=x["decoder_lengths"][..., 0],  # (B, T)
         )
