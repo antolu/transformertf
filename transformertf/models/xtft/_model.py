@@ -177,12 +177,14 @@ class xTFTModel(torch.nn.Module):  # noqa: N801
             causal_attention=self.causal_attention,
         )
 
+        attn_input = torch.cat([enc_output, dec_output], dim=1)
+
         # multi-head attention and post-processing
         attn_output, attn_weights = self.attn(
-            dec_output[:, enc_seq_len:], dec_output, dec_output, mask=attn_mask
+            attn_input[:, enc_seq_len:], attn_input, attn_input, mask=attn_mask
         )
         attn_output = self.attn_gate1(attn_output)
-        attn_output = self.attn_norm1(attn_output, dec_output[:, enc_seq_len:])
+        attn_output = self.attn_norm1(attn_output, attn_input[:, enc_seq_len:])
         attn_output = self.attn_grn(attn_output)
 
         # final post-processing and output
