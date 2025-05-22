@@ -9,6 +9,7 @@ from ...nn import (
     InterpretableMultiHeadAttention,
     VariableSelection,
 )
+from .._base_transformer import get_attention_mask
 
 __all__ = ["PFTemporalFusionTransformerModel"]
 
@@ -245,8 +246,12 @@ class PFTemporalFusionTransformerModel(torch.nn.Module):
             static_context.unsqueeze(1).expand(-1, enc_seq_len + dec_seq_len, -1),
         )
 
-        attn_mask = self.get_attention_mask(
-            encoder_lengths, decoder_lengths, enc_seq_len, dec_seq_len
+        attn_mask = get_attention_mask(
+            encoder_lengths,
+            decoder_lengths,
+            enc_seq_len,
+            dec_seq_len,
+            causal_attention=self.causal_attention,
         )
 
         # multi-head attention and post-processing
@@ -270,87 +275,6 @@ class PFTemporalFusionTransformerModel(torch.nn.Module):
             "attn_weights": attn_weights,
             "static_weights": static_variable_selection,
         }
-
-    def get_attention_mask(
-        self,
-        encoder_lengths: torch.LongTensor,
-        decoder_lengths: torch.LongTensor,
-        max_encoder_length: int,
-        max_decoder_length: int,
-    ) -> torch.Tensor:
-        """
-        Returns causal mask to apply for self-attention layer.
-        """
-        if self.causal_attention:
-            # indices to which is attended
-            attend_step = torch.arange(
-                max_decoder_length, device=encoder_lengths.device
-            )
-            # indices for which is predicted
-            predict_step = torch.arange(
-                0, max_decoder_length, device=encoder_lengths.device
-            )[:, None]
-            # do not attend to steps to self or after prediction
-            decoder_mask = (
-                (attend_step >= predict_step)
-                .unsqueeze(0)
-                .expand(encoder_lengths.size(0), -1, -1)
-            )
-        else:
-            # there is value in attending to future forecasts if
-            # they are made with knowledge currently available
-            #   one possibility is here to use a second attention layer
-            # for future attention
-            # (assuming different effects matter in the future than the past)
-            #  or alternatively using the same layer but
-            # allowing forward attention - i.e. only
-            #  masking out non-available data and self
-            decoder_mask = (
-                create_mask(max_decoder_length, decoder_lengths)
-                .unsqueeze(1)
-                .expand(-1, max_decoder_length, -1)
-            )
-        # do not attend to steps where data is padded
-        encoder_mask = (
-            create_mask(max_encoder_length, encoder_lengths)
-            .unsqueeze(1)
-            .expand(-1, max_decoder_length, -1)
-        )
-        # combine masks along attended time - first encoder and then decoder
-        return torch.cat(
-            (
-                encoder_mask,
-                decoder_mask,
-            ),
-            dim=2,
-        )
-
-
-def create_mask(
-    size: int, lengths: torch.LongTensor, *, inverse: bool = False
-) -> torch.BoolTensor:
-    """
-    Create boolean masks of shape len(lenghts) x size.
-
-    An entry at (i, j) is True if lengths[i] > j.
-
-    Args:
-        size (int): size of second dimension
-        lengths (torch.LongTensor): tensor of lengths
-        inverse (bool, optional): If true, boolean mask is inverted. Defaults to False.
-
-    Returns:
-        torch.BoolTensor: mask
-    """
-
-    if inverse:  # return where values are
-        return torch.arange(size, device=lengths.device).unsqueeze(
-            0
-        ) < lengths.unsqueeze(-1)
-    # return where no values are
-    return torch.arange(size, device=lengths.device).unsqueeze(0) >= lengths.unsqueeze(
-        -1
-    )
 
 
 def basic_grn(dim: int, dropout: float) -> GatedResidualNetwork:
