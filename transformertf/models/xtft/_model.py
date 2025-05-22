@@ -150,20 +150,9 @@ class xTFTModel(torch.nn.Module):  # noqa: N801
             weights, decoder variable selection weights, and attention
             weights, respectively.
         """
-        batch_size = past_covariates.shape[0]
+        past_covariates.shape[0]
         enc_seq_len = past_covariates.shape[1]
         dec_seq_len = future_covariates.shape[1]
-
-        encoder_lengths = (
-            (encoder_lengths * enc_seq_len).to(torch.long)
-            if encoder_lengths is not None
-            else torch.tensor([enc_seq_len] * batch_size, device=past_covariates.device)
-        )
-        decoder_lengths = (
-            (decoder_lengths * dec_seq_len).to(torch.long)
-            if decoder_lengths is not None
-            else torch.tensor([dec_seq_len] * batch_size, device=past_covariates.device)
-        )
 
         # variable selection
         enc_vs, enc_weights = self.enc_vs(past_covariates)
