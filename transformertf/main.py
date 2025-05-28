@@ -290,10 +290,10 @@ def add_callback_defaults(parser: LightningArgumentParser) -> None:
     )
     parser.set_defaults({
         "fit.checkpoint_every.save_top_k": -1,
-        "fit.checkpoint_every.monitor": "loss/validation",
+        "fit.checkpoint_every.monitor": "validation/loss",
         "fit.checkpoint_every.mode": "min",
         "fit.checkpoint_every.dirpath": "checkpoints",
-        "fit.checkpoint_every.filename": "epoch={epoch}-valloss={loss/validation:.4f}",
+        "fit.checkpoint_every.filename": "epoch={epoch}-valloss={validation/loss:.4f}",
         "fit.checkpoint_every.every_n_epochs": 50,
     })
 
@@ -302,10 +302,10 @@ def add_callback_defaults(parser: LightningArgumentParser) -> None:
     )
     parser.set_defaults({
         "fit.checkpoint_best.save_top_k": 1,
-        "fit.checkpoint_best.monitor": "loss/validation",
+        "fit.checkpoint_best.monitor": "validation/loss",
         "fit.checkpoint_best.mode": "min",
         "fit.checkpoint_best.dirpath": "checkpoints",
-        "fit.checkpoint_best.filename": "epoch={epoch}-valloss={loss/validation:.4f}",
+        "fit.checkpoint_best.filename": "epoch={epoch}-valloss={validation/loss:.4f}",
         "fit.checkpoint_best.save_last": "link",
         "fit.checkpoint_best.save_weights_only": False,
         "fit.checkpoint_best.auto_insert_metric_name": False,
