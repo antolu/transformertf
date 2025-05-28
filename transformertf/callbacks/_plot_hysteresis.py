@@ -4,6 +4,10 @@ import logging
 import typing
 
 import lightning as L
+import matplotlib
+
+matplotlib.use("Agg")
+
 import matplotlib.figure
 import matplotlib.pyplot as plt
 import numpy as np
