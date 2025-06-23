@@ -5,7 +5,7 @@ import typing
 import torch
 
 from ...data import TimeSeriesSample
-from ...nn import QuantileLoss
+from ...nn import MLP, QuantileLoss
 from ...utils import ops
 from .._base_module import LightningModuleBase
 
@@ -25,6 +25,8 @@ class LSTM(LightningModuleBase):
         num_features: int = 1,
         num_layers: int = 3,
         n_dim_model: int = 350,
+        n_layers_fc: int = 1,
+        n_dim_fc: int | None = None,
         output_dim: int = 1,
         dropout: float = 0.2,
         criterion: torch.nn.Module | None = None,
@@ -58,6 +60,7 @@ class LSTM(LightningModuleBase):
             Whether to log the gradient norm.
         """
         super().__init__()
+        n_dim_fc = n_dim_fc or n_dim_model
 
         self.criterion = criterion or torch.nn.MSELoss()
         self.save_hyperparameters(ignore=["criterion"])
@@ -75,7 +78,16 @@ class LSTM(LightningModuleBase):
             dropout=dropout,
             batch_first=True,
         )
-        self.fc = torch.nn.Linear(n_dim_model, output_dim)
+        if n_layers_fc > 1:
+            self.fc = MLP(
+                input_dim=n_dim_model,
+                output_dim=output_dim,
+                hidden_dim=[n_dim_fc] * (n_layers_fc - 1),
+                activation="relu",
+                dropout=dropout,
+            )
+        else:
+            self.fc = torch.nn.Linear(n_dim_model, output_dim)
 
     @typing.overload
     def forward(
