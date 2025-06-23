@@ -179,7 +179,7 @@ class EncoderDecoderDataset(TransformerDataset):
         if encoder:
             ctxt_seq_len = ctxt_seq_len or len(sample["encoder_input"])  # type: ignore[typeddict-item]
 
-            ctxt_start = int(ctxt_seq_len - sample["encoder_lengths"].iloc[0, 0].item())  # type: ignore[typeddict-item, union-attr, operator]
+            ctxt_start = int(ctxt_seq_len - sample["encoder_lengths"].iloc[0, 0].item())  # type: ignore[typeddict-item, union-attr, operator, arg-type]
         else:
             ctxt_start = 0
 
