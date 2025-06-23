@@ -82,6 +82,9 @@ class TransformerDataModule(DataModuleBase):
             to the maximum timestamp in each batch.
             Additional transforms to the temporal feature can be added to the
             ``extra_transforms`` parameter, with the `__time__` key.
+            The "relative_legacy" format is provided for old checkpoints where the time
+            transform was using :class:`StandardScaler` for normalization instead of
+            :class:`MaxScaler`.
         noise_std : float
             The standard deviation of the noise to add to the input data. This is useful
             for adding noise to the input data to make the model more robust to noise in
@@ -163,11 +166,19 @@ class TransformerDataModule(DataModuleBase):
     def _fit_relative_time(
         dfs: list[pd.DataFrame], transform: BaseTransform, stride: int = 1
     ) -> None:
+        """
+        Stride is a form of downsamle, since samples are taken at `stride` intervals,
+        so we need to fit the scalers taking this into account. The relative time
+        uses dt (relative time difference), so we only need to find the largest
+        dt possible to fit a MaxScaler (since dt is assumed to be always positive).
+        """
         for df in dfs:
             for start in range(stride):
                 time = df[TIME].iloc[start::stride].to_numpy(dtype=float)
                 if isinstance(transform, TransformCollection):
-                    # apply the transforms manually
+                    # apply the transforms iteratively. Later transforms must be fitted
+                    # on already transformerd data. For the delta transform, we need to
+                    # shave off the first element, which is set to zero by the transform.
                     for t in transform:
                         time = t.fit_transform(time)
                         if isinstance(t, DeltaTransform):
@@ -179,7 +190,9 @@ class TransformerDataModule(DataModuleBase):
         self, dfs: list[pd.DataFrame], transform: BaseTransform
     ) -> None:
         """
-        Fits the absolute time scaler to the data.
+        Fits the absolute time scaler to the data. Since absolute time is monotonically
+        increasing, the scaling transform must be fitted on samples directly, so we
+        create sliding window samples to fit the largest time axis possible.
         """
         wgs = [
             WindowGenerator(
@@ -203,10 +216,12 @@ class TransformerDataModule(DataModuleBase):
 
     @property
     def ctxt_seq_len(self) -> int:
+        """Exposes context sequence length for LightningCLI"""
         return self.hparams["ctxt_seq_len"]
 
     @property
     def tgt_seq_len(self) -> int:
+        """Exposes context sequence length for LightningCLI"""
         return self.hparams["tgt_seq_len"]
 
 
@@ -276,6 +291,15 @@ class EncoderDecoderDataModule(TransformerDataModule):
     def collate_fn(  # type: ignore[override]
         samples: list[EncoderDecoderTargetSample],
     ) -> EncoderDecoderTargetSample:
+        """
+        Cuts samples so that the length of the sequence (dimension 1) is the shortest possible
+        if randomize_seq_len is True, which causes sequences to be randomly cut to a shorter
+        length than the maximum by the dataset classs.
+
+        Encoder sequences are cut from the beginning of the sequence, and decoder sequences
+        are cut from the end. The sequence length is determined by the longest sequence in
+        the samples.
+        """
         if all("encoder_lengths" in sample for sample in samples):
             max_enc_len = max(sample["encoder_lengths"] for sample in samples)
         else:
