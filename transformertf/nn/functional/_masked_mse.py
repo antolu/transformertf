@@ -47,10 +47,11 @@ def mse_loss(
         - "none": no reduction will be applied, and the output will have the same shape as
             the input.
     """
+    target = target.view_as(input)
+
     if mask is None and weight is None:
         return torch.nn.functional.mse_loss(input, target, reduction=reduction)
 
-    target = target.view_as(input)
     loss = torch.nn.functional.mse_loss(input, target, reduction="none")
     loss = (loss * mask) if mask is not None else loss
 
