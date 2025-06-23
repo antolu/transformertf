@@ -78,7 +78,7 @@ class PETE(SABWLSTM):
         compile_model: bool = False,
     ):
         super().__init__(
-            n_features=num_future_features - 1,
+            n_features=num_future_features,
             num_layers=num_layers,
             n_dim_model=n_dim_model,
             n_dim_fc=n_dim_fc,
@@ -192,7 +192,7 @@ class PETE(SABWLSTM):
             raise ValueError(msg) from e
 
         states = self.encoder(batch["encoder_input"])
-        x = batch["decoder_input"][..., : self.hparams["num_future_features"] - 1]
+        x = batch["decoder_input"][..., : self.hparams["num_future_features"]]
         output = self(
             x,
             hx=states["hx"],
@@ -232,7 +232,7 @@ class PETE(SABWLSTM):
         if prev_hidden is None:
             prev_hidden = self.encoder(batch["encoder_input"])
 
-        x = batch["decoder_input"][..., : self.hparams["num_future_features"] - 1]
+        x = batch["decoder_input"][..., : self.hparams["num_future_features"]]
         output, states = self(
             x,
             hx=prev_hidden["hx"],
