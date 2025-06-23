@@ -200,7 +200,6 @@ class DataModuleBase(L.LightningDataModule):
         self._patch_extra_transforms_hparams()
 
         self._train_df_pths = _or_empty(train_df_paths)
-
         self._val_df_pths = _or_empty(val_df_paths)
 
         # these will be set by prepare_data
@@ -231,7 +230,7 @@ class DataModuleBase(L.LightningDataModule):
         return (
             len(self.hparams["known_covariates"])
             + len(self.hparams["known_past_covariates"])
-            + 1  # target
+            + (1 if self.hparams.get("add_target_to_past", True) else 0)
             + (1 if self.hparams.get("time_column") else 0)
         )
 
@@ -245,10 +244,8 @@ class DataModuleBase(L.LightningDataModule):
         int
             The number of future known covariates.
         """
-        return (
-            len(self.hparams["known_covariates"])
-            + 1  # target
-            + (1 if self.hparams.get("time_column") else 0)
+        return len(self.hparams["known_covariates"]) + (
+            1 if self.hparams.get("time_column") else 0
         )
 
     @property

@@ -188,9 +188,11 @@ class TransformerSampleGenerator(SampleGenerator[EncoderDecoderTargetSample[T]])
         known_past_data: T | None = None,
         stride: int = 1,
         *,
+        add_target_to_past: bool = True,
         zero_pad: bool = False,
     ):
         self._zero_pad = zero_pad
+        self._add_target_to_past = add_target_to_past
         self._num_points = len(input_data)
         self._window_generator = WindowGenerator(
             self._num_points, src_seq_len + tgt_seq_len, stride, zero_pad=zero_pad
@@ -243,12 +245,16 @@ class TransformerSampleGenerator(SampleGenerator[EncoderDecoderTargetSample[T]])
         enc_in_l = [to_2dim(self._input_data[src_slice].copy())]
         if self._known_past_data is not None:
             enc_in_l.append(to_2dim(self._known_past_data[src_slice].copy()))
-        enc_in_l.append(to_2dim(self._label_data[src_slice].copy()))
+        if self._add_target_to_past:
+            enc_in_l.append(to_2dim(self._label_data[src_slice].copy()))
 
         dec_in_l = [to_2dim(self._input_data[tgt_slice].copy())]
         if self._known_past_data is not None:
             dec_in_l.append(to_2dim(zeros_like(self._known_past_data[tgt_slice])))
-        dec_in_l.append(to_2dim(zeros_like(self._label_data[tgt_slice])))
+        if self._add_target_to_past:
+            # add dummy target data to decoder input
+            # to ensure that the decoder input has the same shape as the encoder input
+            dec_in_l.append(to_2dim(zeros_like(self._label_data[tgt_slice])))
 
         enc_in = concat(*enc_in_l, dim=-1)
         dec_in = concat(*dec_in_l, dim=-1)

@@ -45,6 +45,7 @@ class TransformerDataset(AbstractTimeSeriesDataset):
         min_ctxt_seq_len: int | None = None,
         min_tgt_seq_len: int | None = None,
         randomize_seq_len: bool = False,
+        add_target_to_past: bool = True,
         transforms: dict[str, BaseTransform] | None = None,
         dtype: VALID_DTYPES = "float32",
     ):
@@ -137,6 +138,7 @@ class TransformerDataset(AbstractTimeSeriesDataset):
         self._predict = predict
         self._stride = stride
         self._randomize_seq_len = randomize_seq_len
+        self._add_target_to_past = add_target_to_past
         self._dtype = dtype
         self._time_format = time_format
         self._apply_transforms = apply_transforms
@@ -158,6 +160,7 @@ class TransformerDataset(AbstractTimeSeriesDataset):
                 tgt_seq_len=tgt_seq_len,
                 zero_pad=predict,
                 stride=tgt_seq_len if predict else 1,
+                add_target_to_past=add_target_to_past,
             )
             for input_, target_, known_, time_ in zip(
                 self._input_data,

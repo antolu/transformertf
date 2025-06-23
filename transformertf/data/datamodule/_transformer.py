@@ -57,6 +57,7 @@ class TransformerDataModule(DataModuleBase):
         time_format: typing.Literal[
             "relative", "absolute", "relative_legacy"
         ] = "absolute",
+        add_target_to_past: bool = True,
         extra_transforms: dict[str, list[BaseTransform]] | None = None,
         batch_size: int = 128,
         num_workers: int = 0,
@@ -205,7 +206,7 @@ class TransformerDataModule(DataModuleBase):
         ]
 
         dts = []
-        for df, wg in zip(dfs, wgs, strict=False):
+        for df, wg in zip(dfs, wgs, strict=True):
             for start in range(self.hparams["stride"]):
                 time = df[TIME].to_numpy(dtype=float)[start :: self.hparams["stride"]]
 
@@ -250,8 +251,7 @@ class EncoderDecoderDataModule(TransformerDataModule):
 
         time_format: typing.Literal["relative", "absolute"] = (
             "relative"
-            if self.hparams["time_format"] == "relative"
-            or self.hparams["time_format"] == "relative_legacy"
+            if self.hparams["time_format"] in {"relative", "relative_legacy"}
             else "absolute"
         )
 
@@ -285,6 +285,7 @@ class EncoderDecoderDataModule(TransformerDataModule):
             transforms=self.transforms,
             noise_std=self.hparams["noise_std"] if not predict else 0.0,
             dtype=self.hparams["dtype"],
+            add_target_to_past=self.hparams["add_target_to_past"],
         )
 
     @staticmethod
