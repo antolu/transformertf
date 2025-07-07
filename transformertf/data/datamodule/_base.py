@@ -244,8 +244,10 @@ class DataModuleBase(L.LightningDataModule):
         int
             The number of future known covariates.
         """
-        return len(self.hparams["known_covariates"]) + (
-            1 if self.hparams.get("time_column") else 0
+        return (
+            len(self.hparams["known_covariates"])
+            + (1 if self.hparams.get("time_column") else 0)
+            + (1 if self.hparams.get("time_format", "").endswith("legacy") else 0)
         )
 
     @property
