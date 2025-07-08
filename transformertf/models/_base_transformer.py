@@ -16,14 +16,108 @@ else:
 
 
 class TransformerModuleBase(LightningModuleBase):
+    """
+    Base class for transformer-based time series forecasting models.
+
+    This class extends :class:`LightningModuleBase` with transformer-specific functionality
+    including encoder-decoder architectures, attention mechanisms, and specialized handling
+    for quantile prediction. It provides standardized training, validation, and prediction
+    workflows for transformer models.
+
+    The class is designed to work with :class:`transformertf.data.EncoderDecoderTargetSample`
+    and :class:`transformertf.data.EncoderDecoderSample` data structures, supporting both
+    point predictions and probabilistic forecasting via quantile regression.
+
+    Attributes
+    ----------
+    criterion : torch.nn.Module
+        The loss function used for training. Supports both standard losses and
+        :class:`transformertf.nn.QuantileLoss` for probabilistic forecasting.
+    hparams : dict
+        Hyperparameters including:
+        - `compile_model`: Enable PyTorch compilation with dynamic shapes
+        - `trainable_parameters`: List of parameter names to train (for transfer learning)
+        - `prediction_type`: "point" or "delta" for different prediction modes
+
+    Examples
+    --------
+    >>> from transformertf.models import TransformerModuleBase
+    >>> from transformertf.data import EncoderDecoderDataModule
+    >>> import torch
+    >>>
+    >>> class CustomTransformer(TransformerModuleBase):
+    ...     def __init__(self, **kwargs):
+    ...         super().__init__(**kwargs)
+    ...         self.model = MyTransformerModel()
+    ...         self.criterion = torch.nn.MSELoss()
+    ...
+    ...     def forward(self, batch):
+    ...         return {"output": self.model(batch)}
+    >>>
+    >>> # Usage with encoder-decoder data
+    >>> model = CustomTransformer(compile_model=True)
+    >>> datamodule = EncoderDecoderDataModule(...)
+    >>> trainer = L.Trainer()
+    >>> trainer.fit(model, datamodule)
+
+    Notes
+    -----
+    Key features of this base class:
+
+    1. **Encoder-Decoder Architecture**: Designed for sequence-to-sequence tasks with
+       separate encoder and decoder inputs.
+
+    2. **Dynamic Compilation**: Supports PyTorch compilation with dynamic shapes,
+       allowing for variable-length sequences while maintaining performance benefits.
+
+    3. **Quantile Support**: Automatic handling of quantile losses for probabilistic
+       forecasting, extracting point predictions from quantile outputs.
+
+    4. **Transfer Learning**: Support for training only specific parameters via the
+       `trainable_parameters` hyperparameter.
+
+    5. **Prediction Types**:
+       - "point": Direct target prediction
+       - "delta": Predicts differences between consecutive time steps
+
+    The class automatically handles the complexities of transformer training including
+    attention masking, dynamic shape compilation, and quantile loss processing.
+
+    See Also
+    --------
+    LightningModuleBase : Parent base class for all models
+    transformertf.data.EncoderDecoderDataModule : Compatible data module
+    transformertf.nn.QuantileLoss : Quantile loss for probabilistic forecasting
+    get_attention_mask : Function for creating attention masks
+    """
+
     criterion: torch.nn.Module
 
     @override
     def maybe_compile_model(self) -> None:
         """
-        Compile the model if the "compile_model" key is present in the hyperparameters
-        and is set to True. This is up to the subclass to implement. This also
-        requires the model to be set to the "model" attribute.
+        Compile the model with dynamic shape support for transformer architectures.
+
+        This method overrides the base implementation to enable dynamic compilation
+        specifically for transformer models. Unlike the base class, this version
+        uses `dynamic=True` to handle variable-length sequences common in transformer
+        architectures.
+
+        The compilation applies to all child modules except those with "loss" in their
+        name, allowing for optimized execution while maintaining loss function compatibility.
+
+        Notes
+        -----
+        - Uses `dynamic=True` for handling variable sequence lengths
+        - Particularly beneficial for transformer attention mechanisms
+        - Requires PyTorch 2.0+ and compatible hardware for optimal performance
+        - Works with the `_maybe_mark_dynamic` method for dynamic shape handling
+
+        Examples
+        --------
+        >>> model = SomeTransformerModel(compile_model=True)
+        >>> # Dynamic compilation is automatically applied during fit start
+        >>> trainer.fit(model, datamodule)
         """
         if self.hparams.get("compile_model"):
             for name, mod in self.named_children():
@@ -52,6 +146,41 @@ class TransformerModuleBase(LightningModuleBase):
     def training_step(
         self, batch: EncoderDecoderTargetSample, batch_idx: int
     ) -> dict[str, torch.Tensor]:
+        """
+        Perform a single training step for transformer-based models.
+
+        This method processes a batch of encoder-decoder samples, computes the model
+        output, calculates the loss, and returns the results with proper handling
+        of quantile predictions.
+
+        Parameters
+        ----------
+        batch : EncoderDecoderTargetSample
+            A batch containing encoder inputs, decoder inputs, and target values.
+            Expected keys: "encoder_input", "decoder_input", "target".
+        batch_idx : int
+            Index of the current batch within the epoch.
+
+        Returns
+        -------
+        dict[str, torch.Tensor]
+            Dictionary containing:
+            - "loss": The computed loss value
+            - "output": The raw model output
+            - "point_prediction": Point estimate (median for quantile models)
+            - Additional model outputs (detached for memory efficiency)
+
+        Notes
+        -----
+        This method automatically handles:
+        - Quantile loss point prediction extraction
+        - Proper detachment of auxiliary outputs to prevent memory leaks
+        - Logging of training metrics via `common_log_step`
+        - Support for both compiled and non-compiled quantile losses
+
+        The method works with both standard losses and quantile losses, automatically
+        extracting point predictions from quantile outputs when applicable.
+        """
         model_output = self(batch)
 
         loss = self.calc_loss(model_output["output"], batch)
@@ -79,6 +208,43 @@ class TransformerModuleBase(LightningModuleBase):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> dict[str, torch.Tensor]:
+        """
+        Perform a single validation step for transformer-based models.
+
+        This method processes a validation batch, computes the model output and loss,
+        and returns the results. Similar to training_step but without gradient computation.
+
+        Parameters
+        ----------
+        batch : EncoderDecoderTargetSample
+            A validation batch containing encoder inputs, decoder inputs, and target values.
+            Expected keys: "encoder_input", "decoder_input", "target".
+        batch_idx : int
+            Index of the current batch within the validation epoch.
+        dataloader_idx : int, default=0
+            Index of the dataloader when multiple validation dataloaders are used.
+
+        Returns
+        -------
+        dict[str, torch.Tensor]
+            Dictionary containing:
+            - "loss": The computed validation loss value
+            - "output": The raw model output
+            - "point_prediction": Point estimate (median for quantile models)
+            - Additional model outputs (detached for memory efficiency)
+
+        Notes
+        -----
+        This method:
+        - Runs in no-grad mode (handled by Lightning)
+        - Automatically handles quantile loss point prediction extraction
+        - Logs validation metrics via `common_log_step`
+        - Supports multiple validation dataloaders
+        - Output collection is handled by the parent class for later analysis
+
+        The validation outputs are automatically collected by the base class and
+        can be accessed via the `validation_outputs` property.
+        """
         model_output = self(batch)
 
         loss = self.calc_loss(model_output["output"], batch)
@@ -103,6 +269,49 @@ class TransformerModuleBase(LightningModuleBase):
     def predict_step(
         self, batch: EncoderDecoderSample, batch_idx: int
     ) -> dict[str, torch.Tensor]:
+        """
+        Perform a single prediction step for transformer-based models.
+
+        This method processes a prediction batch (without targets) and returns the
+        model output with point predictions. Used for inference and generating
+        forecasts on new data.
+
+        Parameters
+        ----------
+        batch : EncoderDecoderSample
+            A prediction batch containing encoder inputs and decoder inputs.
+            Expected keys: "encoder_input", "decoder_input".
+            Note: No "target" key is expected during prediction.
+        batch_idx : int
+            Index of the current batch within the prediction run.
+
+        Returns
+        -------
+        dict[str, torch.Tensor]
+            Dictionary containing:
+            - "output": The raw model output
+            - "point_prediction": Point estimate (median for quantile models)
+            - Additional model outputs (e.g., attention weights, hidden states)
+
+        Notes
+        -----
+        This method:
+        - Runs in no-grad mode (handled by Lightning)
+        - Does not compute loss (no targets available)
+        - Automatically extracts point predictions from quantile outputs
+        - Returns all model outputs for comprehensive analysis
+        - Outputs are collected by the base class via `inference_outputs` property
+
+        For quantile models, the point prediction corresponds to the median
+        quantile, providing the best single-point estimate.
+
+        Examples
+        --------
+        >>> # During prediction
+        >>> predictions = trainer.predict(model, dataloader)
+        >>> # Access collected outputs
+        >>> all_outputs = model.inference_outputs
+        """
         model_output = self(batch)
 
         point_prediction = model_output["output"]
@@ -164,6 +373,54 @@ class TransformerModuleBase(LightningModuleBase):
         model_output: torch.Tensor,
         batch: EncoderDecoderTargetSample,
     ) -> torch.Tensor:
+        """
+        Calculate the loss based on model output and target values.
+
+        This method supports different prediction types and handles the transformation
+        of targets accordingly. The loss calculation depends on the `prediction_type`
+        hyperparameter.
+
+        Parameters
+        ----------
+        model_output : torch.Tensor
+            The raw output from the model, typically of shape (batch_size, seq_len, features).
+        batch : EncoderDecoderTargetSample
+            The batch containing target values and encoder inputs.
+            Expected keys: "target", "encoder_input".
+
+        Returns
+        -------
+        torch.Tensor
+            The computed loss value.
+
+        Raises
+        ------
+        ValueError
+            If an invalid prediction_type is specified in hyperparameters.
+
+        Notes
+        -----
+        Supported prediction types:
+
+        - **"point"** (default): Direct prediction of target values.
+          Loss is computed as criterion(model_output, target).
+
+        - **"delta"**: Prediction of differences between consecutive time steps.
+          Targets are transformed to deltas: delta[t] = target[t] - target[t-1].
+          The first delta is computed as target[0] - past_target (last encoder value).
+
+        The delta prediction mode can be beneficial for certain time series patterns
+        where the model should focus on changes rather than absolute values.
+
+        Examples
+        --------
+        >>> # Point prediction (default)
+        >>> loss = self.calc_loss(model_output, batch)
+        >>>
+        >>> # Delta prediction
+        >>> model = SomeModel(prediction_type="delta")
+        >>> loss = model.calc_loss(model_output, batch)
+        """
         weights = None
 
         if (
@@ -225,7 +482,65 @@ def get_attention_mask(
     causal_attention: bool = True,
 ) -> torch.Tensor:
     """
-    Returns causal mask to apply for self-attention layer.
+    Create attention masks for transformer encoder-decoder architectures.
+
+    This function generates attention masks that handle variable-length sequences
+    and implement causal masking for autoregressive generation. The mask ensures
+    that the decoder can attend to all encoder positions and appropriate decoder
+    positions based on the causality constraint.
+
+    Parameters
+    ----------
+    encoder_lengths : torch.LongTensor
+        Actual lengths of encoder sequences in the batch, shape (batch_size,).
+        Used to mask padding tokens in encoder sequences.
+    decoder_lengths : torch.LongTensor
+        Actual lengths of decoder sequences in the batch, shape (batch_size,).
+        Used to mask padding tokens in decoder sequences.
+    max_encoder_length : int
+        Maximum length of encoder sequences in the batch.
+    max_decoder_length : int
+        Maximum length of decoder sequences in the batch.
+    causal_attention : bool, default=True
+        If True, apply causal masking where each decoder position can only
+        attend to previous positions. If False, allows attention to all
+        non-padded positions.
+
+    Returns
+    -------
+    torch.Tensor
+        Attention mask of shape (batch_size, max_decoder_length, max_encoder_length + max_decoder_length).
+        True indicates positions that should be masked (not attended to).
+
+    Notes
+    -----
+    The returned mask combines:
+
+    1. **Encoder mask**: Masks padded positions in encoder sequences
+    2. **Decoder mask**: Masks padded positions and implements causal constraints
+
+    For causal attention (default):
+    - Decoder positions can attend to all encoder positions
+    - Decoder position i can only attend to decoder positions 0 to i-1
+
+    For non-causal attention:
+    - Decoder positions can attend to all encoder positions
+    - Decoder positions can attend to all non-padded decoder positions
+
+    Examples
+    --------
+    >>> encoder_lengths = torch.tensor([10, 8, 12])
+    >>> decoder_lengths = torch.tensor([5, 7, 6])
+    >>> mask = get_attention_mask(
+    ...     encoder_lengths, decoder_lengths,
+    ...     max_encoder_length=12, max_decoder_length=7,
+    ...     causal_attention=True
+    ... )
+    >>> # mask.shape = (3, 7, 19)  # batch_size=3, dec_len=7, enc_len+dec_len=19
+
+    See Also
+    --------
+    create_mask : Utility function for creating basic padding masks
     """
     if causal_attention:
         # indices to which is attended
@@ -274,17 +589,55 @@ def create_mask(
     size: int, lengths: torch.LongTensor, *, inverse: bool = False
 ) -> torch.BoolTensor:
     """
-    Create boolean masks of shape len(lenghts) x size.
+    Create boolean masks for variable-length sequences.
 
-    An entry at (i, j) is True if lengths[i] > j.
+    This utility function generates boolean masks that indicate valid positions
+    in padded sequences. It's commonly used in transformer models to mask
+    padding tokens in attention computations.
 
-    Args:
-        size (int): size of second dimension
-        lengths (torch.LongTensor): tensor of lengths
-        inverse (bool, optional): If true, boolean mask is inverted. Defaults to False.
+    Parameters
+    ----------
+    size : int
+        The maximum sequence length (size of second dimension).
+    lengths : torch.LongTensor
+        Tensor of actual sequence lengths for each item in the batch.
+        Shape: (batch_size,).
+    inverse : bool, default=False
+        If False, returns True where positions are invalid (padded).
+        If True, returns True where positions are valid (not padded).
 
-    Returns:
-        torch.BoolTensor: mask
+    Returns
+    -------
+    torch.BoolTensor
+        Boolean mask of shape (len(lengths), size).
+
+        - When inverse=False: mask[i, j] = True if lengths[i] <= j (padded position)
+        - When inverse=True: mask[i, j] = True if lengths[i] > j (valid position)
+
+    Examples
+    --------
+    >>> lengths = torch.tensor([3, 5, 2])
+    >>> mask = create_mask(size=6, lengths=lengths, inverse=False)
+    >>> # mask = [[False, False, False, True, True, True],     # len=3
+    >>> #          [False, False, False, False, False, True],  # len=5
+    >>> #          [False, False, True, True, True, True]]     # len=2
+    >>>
+    >>> # For valid positions (inverse=True)
+    >>> valid_mask = create_mask(size=6, lengths=lengths, inverse=True)
+    >>> # valid_mask = [[True, True, True, False, False, False],     # len=3
+    >>> #               [True, True, True, True, True, False],        # len=5
+    >>> #               [True, True, False, False, False, False]]     # len=2
+
+    Notes
+    -----
+    This function is commonly used in transformer attention mechanisms to:
+    - Mask padding tokens so they don't participate in attention
+    - Create causal masks for autoregressive generation
+    - Handle variable-length sequences in batched operations
+
+    See Also
+    --------
+    get_attention_mask : Higher-level function that uses this for attention masking
     """
 
     if inverse:  # return where values are

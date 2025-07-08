@@ -21,7 +21,77 @@ log = logging.getLogger(__name__)
 
 class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
     """
-    Callback to plot the hysteresis of the model on the validation set.
+    Lightning callback for plotting hysteresis curves and field predictions.
+
+    This callback generates and logs visualizations of magnetic field hysteresis
+    behavior during validation. It creates two types of plots:
+    1. Hysteresis phase space plot showing prediction errors vs. current
+    2. Time series plot comparing predicted and ground truth magnetic fields
+
+    The callback is designed for magnetic field modeling tasks where understanding
+    hysteresis behavior is crucial for model evaluation. It supports both
+    TensorBoard and Neptune loggers for experiment tracking.
+
+    Parameters
+    ----------
+    plot_every : int, default=1
+        Frequency of plot generation in epochs. For example:
+        - 1: Plot every epoch
+        - 5: Plot every 5 epochs
+        - 10: Plot every 10 epochs
+        Use higher values to reduce computational overhead during training.
+
+    Attributes
+    ----------
+    plot_every : int
+        Frequency of plot generation in epochs.
+
+    Methods
+    -------
+    on_validation_epoch_end(trainer, pl_module)
+        Called at the end of each validation epoch to generate plots.
+    plot_and_log(trainer, pl_module)
+        Main plotting logic that generates and logs hysteresis visualizations.
+
+    Notes
+    -----
+    - Requires single validation dataloader (multiple dataloaders not supported)
+    - Works with TimeSeriesDataset and EncoderDecoderDataset types
+    - Automatically applies inverse transforms to show plots in original units
+    - Supports TensorBoard and Neptune loggers only
+    - Plots are logged with global step for proper timeline tracking
+    - All matplotlib figures are properly closed to prevent memory leaks
+
+    Examples
+    --------
+    Plot every epoch during training:
+
+    >>> callback = PlotHysteresisCallback(plot_every=1)
+    >>> trainer = L.Trainer(callbacks=[callback])
+
+    Reduce plotting frequency for long training runs:
+
+    >>> callback = PlotHysteresisCallback(plot_every=10)
+    >>> trainer = L.Trainer(callbacks=[callback])
+
+    Integration with logging and model saving:
+
+    >>> callbacks = [
+    ...     PlotHysteresisCallback(plot_every=5),
+    ...     L.pytorch.callbacks.ModelCheckpoint(monitor="val_loss"),
+    ...     LogHparamsCallback(monitor="val_loss", mode="min")
+    ... ]
+    >>> trainer = L.Trainer(
+    ...     callbacks=callbacks,
+    ...     logger=L.pytorch.loggers.TensorBoardLogger("logs/")
+    ... )
+
+    See Also
+    --------
+    transformertf.data.TimeSeriesDataset : Compatible dataset type
+    transformertf.data.EncoderDecoderDataset : Compatible dataset type
+    lightning.pytorch.loggers.TensorBoardLogger : Supported logger
+    lightning.pytorch.loggers.NeptuneLogger : Supported logger
     """
 
     def __init__(self, plot_every: int = 1):
@@ -31,9 +101,58 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
     def on_validation_epoch_end(
         self, trainer: L.Trainer, pl_module: LightningModuleBase
     ) -> None:
+        """
+        Generate and log hysteresis plots at the end of validation epoch.
+
+        Called automatically by Lightning after each validation epoch.
+        Delegates to plot_and_log method for the actual plotting logic.
+
+        Parameters
+        ----------
+        trainer : L.Trainer
+            Lightning trainer instance containing validation data and logger.
+        pl_module : LightningModuleBase
+            Lightning module with validation outputs for plotting.
+        """
         self.plot_and_log(trainer, pl_module)
 
     def plot_and_log(self, trainer: L.Trainer, pl_module: LightningModuleBase) -> None:
+        """
+        Generate hysteresis plots and log them to the experiment tracker.
+
+        Creates two visualization types:
+        1. Hysteresis phase space plot showing prediction errors vs. input current
+        2. Time series plot comparing predicted and ground truth magnetic fields
+
+        The method handles data extraction from validation outputs, applies inverse
+        transforms to convert back to original units, and logs the resulting plots
+        to the configured logger (TensorBoard or Neptune).
+
+        Parameters
+        ----------
+        trainer : L.Trainer
+            Lightning trainer containing validation dataloader and logger.
+        pl_module : LightningModuleBase
+            Lightning module containing validation outputs and predictions.
+
+        Raises
+        ------
+        ValueError
+            If multiple validation dataloaders are provided (not supported).
+        ValueError
+            If dataset type is not TimeSeriesDataset or EncoderDecoderDataset.
+        ValueError
+            If logger type is not TensorBoard or Neptune.
+
+        Notes
+        -----
+        - Only executes on global rank 0 process in distributed training
+        - Respects plot_every frequency setting to control computational overhead
+        - Automatically extracts target and input data from validation outputs
+        - Applies dataset-specific inverse transforms for proper visualization
+        - Logs plots with current global step for timeline tracking
+        - Closes all matplotlib figures to prevent memory leaks
+        """
         if not trainer.is_global_zero:
             return
 
@@ -163,6 +282,34 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
 def plot_hysteresis_phase_space(
     current: np.ndarray, field_pred: np.ndarray, field_gt: np.ndarray
 ) -> matplotlib.figure.Figure:
+    """
+    Create hysteresis phase space plot showing prediction errors vs. current.
+
+    Generates a two-panel figure showing:
+    1. Top panel: Difference between ground truth and predicted magnetic field
+       plotted against input current, revealing hysteresis loop structure
+    2. Bottom panel: Histogram of absolute error distribution weighted by current
+
+    Parameters
+    ----------
+    current : np.ndarray
+        Input current values in Amperes.
+    field_pred : np.ndarray
+        Predicted magnetic field values in Tesla.
+    field_gt : np.ndarray
+        Ground truth magnetic field values in Tesla.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        Figure containing the hysteresis phase space visualization.
+
+    Notes
+    -----
+    - Error differences are scaled by 1e4 for better visualization
+    - Histogram uses logarithmic scale for error distribution
+    - Figure layout is optimized with tight_layout()
+    """
     ax1: plt.Axes
     fig, (ax1, ax2) = plt.subplots(
         2, 1, sharex="all", figsize=(8, 6), height_ratios=[4, 1]
@@ -202,7 +349,38 @@ def plot_field_curve(
     field_gt: np.ndarray,
     prediction_horizons: np.ndarray | None = None,
 ) -> matplotlib.figure.Figure:
-    """Plot the true and predicted field over time."""
+    """
+    Create time series plot comparing predicted and ground truth magnetic fields.
+
+    Generates a two-panel figure showing:
+    1. Top panel: Difference between ground truth and predicted field over time
+    2. Bottom panel: Overlay of ground truth and predicted field time series
+
+    Parameters
+    ----------
+    time : np.ndarray
+        Time values in seconds for the x-axis.
+    field_pred : np.ndarray
+        Predicted magnetic field values in Tesla.
+    field_gt : np.ndarray
+        Ground truth magnetic field values in Tesla.
+    prediction_horizons : np.ndarray, optional
+        Time indices marking prediction horizons. If provided, these points
+        are highlighted with scatter markers on the bottom panel.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        Figure containing the field curve time series visualization.
+
+    Notes
+    -----
+    - Error differences are scaled by 1e4 for better visualization
+    - Top panel includes ±1e-4 Tesla reference lines for error assessment
+    - Y-axis range for error plot is limited to ±3e-4 Tesla
+    - Legend distinguishes between ground truth (B) and prediction (z)
+    - Figure layout is optimized with tight_layout()
+    """
     s = slice(None, None)
     fig, (ax1, ax2) = plt.subplots(2, 1, sharex="all", figsize=(12, 6))
 

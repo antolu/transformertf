@@ -16,9 +16,111 @@ if typing.TYPE_CHECKING:
 
 class TimeSeriesDataModule(DataModuleBase):
     """
-    Specfic datamodule for time series data, where
-    the models map a sequence of input covariates to a target covariate,
-    i.e. I: [bs, seq_len, n_covariates] -> T: [bs, seq_len, 1].
+    Data module for sequence-to-sequence time series modeling.
+
+    This data module is designed for time series forecasting tasks where models
+    map a sequence of input covariates to a target covariate using a sliding
+    window approach. The input-output relationship is:
+
+    Input: [batch_size, seq_len, n_covariates] → Output: [batch_size, seq_len, 1]
+
+    This is suitable for models like LSTM, GRU, and basic transformer architectures
+    that perform sequence-to-sequence prediction without explicit encoder-decoder
+    separation.
+
+    Parameters
+    ----------
+    known_covariates : str or sequence of str
+        Column names for input features that are known throughout the sequence.
+        These form the input tensor with shape [batch_size, seq_len, n_covariates].
+    target_covariate : str
+        Column name for the target variable to predict. Forms the output tensor
+        with shape [batch_size, seq_len, 1].
+    train_df_paths : str or list of str, optional
+        Path(s) to training data files. See :class:`DataModuleBase` for details.
+    val_df_paths : str or list of str, optional
+        Path(s) to validation data files. See :class:`DataModuleBase` for details.
+    normalize : bool, optional
+        Whether to apply normalization. Default is True.
+    seq_len : int, optional
+        Length of each sequence sample. Default is 200.
+    min_seq_len : int, optional
+        Minimum sequence length when using randomized lengths. If None,
+        uses ``seq_len``. Default is None.
+    randomize_seq_len : bool, optional
+        Whether to randomize sequence lengths between ``min_seq_len`` and
+        ``seq_len`` during training. Disabled during validation/prediction.
+        Default is False.
+    stride : int, optional
+        Step size for sliding window when creating samples. Default is 1.
+    downsample : int, optional
+        Downsampling factor. See :class:`DataModuleBase` for details.
+    downsample_method : {"interval", "average", "convolve"}, optional
+        Downsampling method. See :class:`DataModuleBase` for details.
+    target_depends_on : str, optional
+        Column dependency for target transforms. See :class:`DataModuleBase`.
+    extra_transforms : dict, optional
+        Additional transforms. See :class:`DataModuleBase` for details.
+    batch_size : int, optional
+        Training batch size. Default is 128.
+    num_workers : int, optional
+        Number of data loading workers. Default is 0.
+    dtype : str, optional
+        Data type for tensors. Default is "float32".
+    shuffle : bool, optional
+        Whether to shuffle training data. Default is True.
+    distributed : bool or "auto", optional
+        Distributed training configuration. Default is "auto".
+
+    Attributes
+    ----------
+    seq_len : int
+        Sequence length for each sample, accessible via property.
+    num_past_known_covariates : int
+        Number of input covariates, accessible via property.
+
+    Notes
+    -----
+    This class does not support ``known_past_covariates`` as it's designed for
+    sequence-to-sequence models where all covariates are available throughout
+    the sequence.
+
+    The sliding window approach creates overlapping samples:
+    - Window size: ``seq_len``
+    - Step size: ``stride``
+    - Randomization: ``randomize_seq_len`` (training only)
+
+    Examples
+    --------
+    Basic usage for LSTM forecasting:
+
+    >>> dm = TimeSeriesDataModule(
+    ...     known_covariates=["temperature", "humidity", "pressure"],
+    ...     target_covariate="demand",
+    ...     train_df_paths="data/train.parquet",
+    ...     val_df_paths="data/val.parquet",
+    ...     seq_len=168,  # 1 week with hourly data
+    ...     stride=24,    # 1 day stride
+    ...     batch_size=32
+    ... )
+
+    With sequence length randomization:
+
+    >>> dm = TimeSeriesDataModule(
+    ...     known_covariates=["feature1", "feature2"],
+    ...     target_covariate="target",
+    ...     seq_len=100,
+    ...     min_seq_len=50,
+    ...     randomize_seq_len=True,
+    ...     train_df_paths="data/train.parquet"
+    ... )
+
+    See Also
+    --------
+    DataModuleBase : Base class with common functionality
+    TimeSeriesDataset : Underlying dataset implementation
+    EncoderDecoderDataModule : For encoder-decoder architectures
+    TransformerDataModule : For transformer-based models
     """
 
     def __init__(
@@ -44,7 +146,9 @@ class TimeSeriesDataModule(DataModuleBase):
         distributed: bool | typing.Literal["auto"] = "auto",
     ):
         """
-        For documentation of arguments see :class:`DataModuleBase`.
+        Initialize the time series data module.
+
+        See the class docstring for detailed parameter descriptions.
         """
         super().__init__(
             train_df_paths=train_df_paths,

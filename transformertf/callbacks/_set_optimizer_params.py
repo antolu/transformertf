@@ -11,10 +11,109 @@ log = logging.getLogger(__name__)
 
 class SetOptimizerParamsCallback(L.pytorch.callbacks.Callback):
     """
-    Callback to set optimizer parameters on train start. This is useful for
-    the population based training algorithm when resuming from a checkpoint, as
-    the optimizer parameters are not loaded into the lightning module or data module,
-    but only by the Trainer when a checkpoint is loaded.
+    Lightning callback for setting optimizer and scheduler parameters at training start.
+
+    This callback addresses a limitation in Lightning's checkpoint loading mechanism
+    where optimizer parameters are not automatically restored when resuming training.
+    It's particularly useful for:
+    - Population-based training algorithms that modify optimizer parameters
+    - Hyperparameter optimization workflows that need parameter restoration
+    - Resuming training with different optimizer settings than initially configured
+    - Fine-tuning scenarios where optimizer parameters need adjustment
+
+    The callback sets specified optimizer and learning rate scheduler parameters
+    at the beginning of training, ensuring consistent parameter values regardless
+    of checkpoint loading behavior.
+
+    Parameters
+    ----------
+    lr : float, optional
+        Learning rate to set for the optimizer. If None, learning rate is not modified.
+    momentum : float, optional
+        Momentum value to set for SGD-type optimizers. If None, momentum is not modified.
+        Only applies if the optimizer supports momentum.
+    weight_decay : float, optional
+        Weight decay (L2 regularization) to set for the optimizer. If None, weight decay
+        is not modified.
+    **kwargs : float
+        Additional optimizer or scheduler parameters to set. Parameter names should
+        match those used by the optimizer or scheduler classes. Only float values
+        are accepted.
+
+    Attributes
+    ----------
+    lr : float or None
+        Learning rate value to set.
+    momentum : float or None
+        Momentum value to set.
+    weight_decay : float or None
+        Weight decay value to set.
+    params : dict[str, float]
+        Additional parameters to set on optimizer and scheduler.
+
+    Methods
+    -------
+    on_train_start(trainer, pl_module)
+        Set optimizer and scheduler parameters at the start of training.
+
+    Raises
+    ------
+    ValueError
+        If unsupported parameter types are provided (non-float values).
+    ValueError
+        If multiple optimizers are configured (only single optimizer supported).
+    ValueError
+        If multiple learning rate schedulers are configured (only single scheduler supported).
+
+    Notes
+    -----
+    - Only supports single optimizer configurations
+    - Only supports single learning rate scheduler configurations
+    - Parameters are only set if they exist in the optimizer/scheduler parameter groups
+    - Gracefully handles missing parameters without raising errors
+    - Provides debug logging for all parameter updates
+
+    Examples
+    --------
+    Basic usage with common parameters:
+
+    >>> callback = SetOptimizerParamsCallback(
+    ...     lr=0.001,
+    ...     momentum=0.9,
+    ...     weight_decay=1e-4
+    ... )
+    >>> trainer = L.Trainer(callbacks=[callback])
+
+    Setting additional optimizer-specific parameters:
+
+    >>> callback = SetOptimizerParamsCallback(
+    ...     lr=0.001,
+    ...     betas=(0.9, 0.999),  # Note: this would fail as betas is not float
+    ...     eps=1e-8,
+    ...     amsgrad=True  # Note: this would fail as amsgrad is not float
+    ... )
+
+    Setting scheduler parameters:
+
+    >>> callback = SetOptimizerParamsCallback(
+    ...     lr=0.001,
+    ...     gamma=0.95,  # For ExponentialLR
+    ...     step_size=10  # For StepLR
+    ... )
+    >>> trainer = L.Trainer(callbacks=[callback])
+
+    Integration with population-based training:
+
+    >>> # In a population-based training loop:
+    >>> best_params = {"lr": 0.002, "weight_decay": 1e-3}
+    >>> callback = SetOptimizerParamsCallback(**best_params)
+    >>> trainer = L.Trainer(callbacks=[callback])
+    >>> trainer.fit(model, ckpt_path="population_member.ckpt")
+
+    See Also
+    --------
+    SetOptimizerLRCallback : For dynamic learning rate updates during training
+    lightning.pytorch.callbacks.LearningRateMonitor : For logging LR changes
     """
 
     def __init__(
@@ -41,6 +140,36 @@ class SetOptimizerParamsCallback(L.pytorch.callbacks.Callback):
     def on_train_start(
         self, trainer: L.Trainer, pl_module: LightningModuleBase
     ) -> None:
+        """
+        Set optimizer and learning rate scheduler parameters at training start.
+
+        Called automatically by Lightning at the beginning of training.
+        Updates optimizer parameter groups and scheduler attributes with
+        the specified values, ensuring consistent parameter settings
+        regardless of checkpoint loading.
+
+        Parameters
+        ----------
+        trainer : L.Trainer
+            Lightning trainer containing optimizers and schedulers to update.
+        pl_module : LightningModuleBase
+            Lightning module (not used in this callback).
+
+        Raises
+        ------
+        ValueError
+            If multiple optimizers are configured (only single optimizer supported).
+        ValueError
+            If multiple learning rate schedulers are configured (only single scheduler supported).
+
+        Notes
+        -----
+        - Updates all parameter groups in the optimizer
+        - Only sets parameters that exist in the parameter groups
+        - Provides debug logging for all parameter updates
+        - Gracefully handles missing scheduler parameters
+        - Processes both standard parameters (lr, momentum, weight_decay) and custom parameters
+        """
         optimizers = trainer.optimizers
 
         if len(optimizers) > 1:

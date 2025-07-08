@@ -1,3 +1,51 @@
+"""
+Command-line interface and training orchestration for TransformerTF.
+
+This module provides the main entry point for the TransformerTF framework through a
+Lightning CLI interface. It handles configuration parsing, logging setup, model training,
+and experiment management. The CLI supports all model types and data modules in the
+framework with extensive configuration options.
+
+Classes
+-------
+LightningCLI : lightning.pytorch.cli.LightningCLI
+    Extended Lightning CLI with TransformerTF-specific features
+NeptuneLoggerSaveConfigCallback : lightning.pytorch.cli.SaveConfigCallback
+    Custom callback for saving configurations to Neptune logger
+
+Functions
+---------
+setup_logger : Callable[[int], None]
+    Configure logging with Rich formatting
+main : Callable[[], None]
+    Main entry point for the CLI application
+add_trainer_defaults : Callable[[LightningArgumentParser], None]
+    Add default trainer configuration
+add_callback_defaults : Callable[[LightningArgumentParser], None]
+    Add default callback configuration
+add_seq_len_link : Callable[[LightningArgumentParser], None]
+    Link sequence length parameters between data and model
+add_num_features_link : Callable[[LightningArgumentParser], None]
+    Link feature count parameters between data and model
+
+Examples
+--------
+Train a Temporal Fusion Transformer:
+
+    $ transformertf fit --config sample_configs/tft_config.yml
+
+Train with custom parameters:
+
+    $ transformertf fit \\
+        --model.class_path transformertf.models.temporal_fusion_transformer.TemporalFusionTransformer \\
+        --data.class_path transformertf.data.EncoderDecoderDataModule \\
+        --data.init_args.train_df_paths='["data.parquet"]'
+
+Run prediction:
+
+    $ transformertf predict --config config.yml --ckpt_path checkpoints/best.ckpt
+"""
+
 from __future__ import annotations
 
 import logging
@@ -59,6 +107,37 @@ class NeptuneLoggerSaveConfigCallback(lightning.pytorch.cli.SaveConfigCallback):
 
 
 def setup_logger(logging_level: int = 0) -> None:
+    """
+    Configure logging with Rich formatting for enhanced output.
+
+    Sets up a root logger with Rich formatting for colored and structured console output.
+    The logging level is controlled by an integer parameter with multiple verbosity levels.
+    Also configures matplotlib logging to reduce noise.
+
+    Parameters
+    ----------
+    logging_level : int, default=0
+        Verbosity level for logging:
+        - 0: WARNING level (default, minimal output)
+        - 1: INFO level (moderate verbosity)
+        - 2+: DEBUG level (maximum verbosity)
+
+    Examples
+    --------
+    Set up basic logging:
+
+    >>> setup_logger()  # WARNING level
+
+    Enable verbose logging:
+
+    >>> setup_logger(2)  # DEBUG level
+
+    Notes
+    -----
+    This function modifies the global logging configuration. It adds a Rich handler
+    to the root logger and sets consistent formatting. The matplotlib logger is
+    always set to WARNING to reduce noise from plot generation.
+    """
     log = logging.getLogger()
 
     ch = rich.logging.RichHandler()
@@ -84,6 +163,48 @@ def setup_logger(logging_level: int = 0) -> None:
 
 
 class LightningCLI(lightning.pytorch.cli.LightningCLI):
+    """
+    Extended Lightning CLI with TransformerTF-specific features.
+
+    This class extends Lightning's CLI to provide TransformerTF-specific functionality
+    including automatic parameter linking between data modules and models, Neptune
+    logger integration, transfer learning support, and specialized callback management.
+
+    Attributes
+    ----------
+    model : LightningModuleBase
+        The TransformerTF model instance
+    datamodule : DataModuleBase
+        The TransformerTF data module instance
+
+    Parameters
+    ----------
+    *args : Any
+        Positional arguments passed to parent LightningCLI
+    **kwargs : Any
+        Keyword arguments passed to parent LightningCLI
+
+    Examples
+    --------
+    Create a CLI instance (typically called in main()):
+
+    >>> cli = LightningCLI(
+    ...     model_class=LightningModuleBase,
+    ...     datamodule_class=DataModuleBase,
+    ...     subclass_mode_model=True,
+    ...     subclass_mode_data=True
+    ... )
+
+    Notes
+    -----
+    The CLI automatically configures:
+    - OmegaConf parser mode for YAML configuration support
+    - Parameter linking between data and model components
+    - Default callbacks for checkpointing and monitoring
+    - Neptune logger integration for experiment tracking
+    - Transfer learning from checkpoint files
+    """
+
     model: LightningModuleBase
     datamodule: DataModuleBase
 
@@ -266,10 +387,49 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
 
 
 def add_trainer_defaults(parser: LightningArgumentParser) -> None:
+    """
+    Add default trainer configuration to the Lightning argument parser.
+
+    Configures trainer defaults that are specific to TransformerTF workflows,
+    including disabling distributed sampling by default.
+
+    Parameters
+    ----------
+    parser : LightningArgumentParser
+        The Lightning CLI argument parser to configure
+
+    Notes
+    -----
+    Sets trainer.use_distributed_sampler to False as the default behavior
+    for TransformerTF training workflows.
+    """
     parser.set_defaults({"trainer.use_distributed_sampler": False})
 
 
 def add_callback_defaults(parser: LightningArgumentParser) -> None:
+    """
+    Add default callback configuration to the Lightning argument parser.
+
+    Configures standard callbacks for TransformerTF training including learning rate
+    monitoring, model summary display, and checkpoint management. Sets up two
+    checkpoint callbacks: one for periodic saving and one for best model selection.
+
+    Parameters
+    ----------
+    parser : LightningArgumentParser
+        The Lightning CLI argument parser to configure
+
+    Notes
+    -----
+    Configures the following callbacks:
+    - LearningRateMonitor: Logs learning rate at epoch intervals
+    - RichModelSummary: Displays model architecture with max depth 2
+    - ModelCheckpoint (periodic): Saves all checkpoints every 50 epochs
+    - ModelCheckpoint (best): Saves only the best model based on validation loss
+
+    All checkpoints are saved to the "checkpoints" directory with descriptive filenames
+    including epoch number and validation loss.
+    """
     parser.add_lightning_class_args(
         lightning.pytorch.callbacks.LearningRateMonitor, "lr_monitor"
     )
@@ -314,6 +474,28 @@ def add_callback_defaults(parser: LightningArgumentParser) -> None:
 
 
 def add_seq_len_link(parser: LightningArgumentParser) -> None:
+    """
+    Link sequence length parameters between data module and model.
+
+    Automatically propagates sequence length settings from the data module to the model
+    to ensure consistency. This prevents configuration errors where the model expects
+    different sequence lengths than what the data module provides.
+
+    Parameters
+    ----------
+    parser : LightningArgumentParser
+        The Lightning CLI argument parser to configure
+
+    Notes
+    -----
+    Links the following parameter pairs:
+    - data.seq_len -> model.init_args.seq_len (basic sequence length)
+    - data.ctxt_seq_len -> model.init_args.ctxt_seq_len (context sequence length)
+    - data.tgt_seq_len -> model.init_args.tgt_seq_len (target sequence length)
+
+    The linking is applied at instantiation time to ensure the model receives
+    the correct sequence length parameters from the data configuration.
+    """
     parser.link_arguments(
         "data.seq_len",
         "model.init_args.seq_len",
@@ -336,6 +518,32 @@ def add_seq_len_link(parser: LightningArgumentParser) -> None:
 def add_num_features_link(
     parser: LightningArgumentParser,
 ) -> None:
+    """
+    Link feature count parameters between data module and model.
+
+    Automatically propagates feature dimensions from the data module to the model
+    to ensure the model architecture matches the data. This supports both
+    encoder-decoder and sequence-to-sequence model architectures.
+
+    Parameters
+    ----------
+    parser : LightningArgumentParser
+        The Lightning CLI argument parser to configure
+
+    Notes
+    -----
+    Links the following parameter pairs:
+
+    For encoder-decoder models:
+    - data.num_past_known_covariates -> model.init_args.num_past_features
+    - data.num_future_known_covariates -> model.init_args.num_future_features
+
+    For sequence-to-sequence models:
+    - data.num_past_known_covariates -> model.init_args.num_features
+
+    The linking ensures that models receive the correct input feature dimensions
+    based on the data configuration, preventing dimension mismatch errors.
+    """
     # encoder-decoder models
     parser.link_arguments(
         "data.num_past_known_covariates",
@@ -357,6 +565,26 @@ def add_num_features_link(
 
 
 def main() -> None:
+    """
+    Main entry point for the TransformerTF command-line interface.
+
+    Initializes the TransformerTF CLI with optimized PyTorch settings and configures
+    the Lightning CLI for subclass mode operation. This allows dynamic selection
+    of model and data module classes from the command line or configuration files.
+
+    Examples
+    --------
+    This function is typically called when running the CLI:
+
+    $ transformertf fit --config config.yml
+    $ transformertf predict --ckpt_path model.ckpt
+
+    Notes
+    -----
+    Sets PyTorch float32 matrix multiplication precision to "high" for improved
+    performance on modern hardware. Enables subclass mode for both models and
+    data modules, allowing any registered class to be used via configuration.
+    """
     torch.set_float32_matmul_precision("high")
     LightningCLI(
         model_class=LightningModuleBase,

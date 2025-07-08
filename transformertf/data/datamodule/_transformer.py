@@ -34,6 +34,157 @@ if typing.TYPE_CHECKING:
 
 
 class TransformerDataModule(DataModuleBase):
+    """
+    Base data module for transformer-based time series models.
+
+    This class provides the foundation for transformer architectures that use
+    encoder-decoder patterns with separate context and target sequences. It
+    handles temporal features, sequence length management, and noise injection
+    for robust training.
+
+    Unlike :class:`TimeSeriesDataModule`, this class supports both encoder-only
+    and encoder-decoder architectures with separate context and target sequence
+    lengths. It also provides advanced features like temporal encoding, sequence
+    length randomization, and noise injection.
+
+    Parameters
+    ----------
+    known_covariates : str or sequence of str
+        Column names for features known in both past and future contexts.
+        Used as input to both encoder and decoder in encoder-decoder models.
+    target_covariate : str
+        Column name for the target variable to predict.
+    known_past_covariates : str or sequence of str, optional
+        Column names for features known only in the past context.
+        Used only as encoder input in encoder-decoder models.
+    train_df_paths : str or list of str, optional
+        Path(s) to training data files. See :class:`DataModuleBase`.
+    val_df_paths : str or list of str, optional
+        Path(s) to validation data files. See :class:`DataModuleBase`.
+    normalize : bool, optional
+        Whether to apply normalization. Default is True.
+    ctxt_seq_len : int, optional
+        Length of the context (encoder) sequence. Default is 500.
+    tgt_seq_len : int, optional
+        Length of the target (decoder) sequence. Default is 300.
+    min_ctxt_seq_len : int, optional
+        Minimum context sequence length for randomization. If None, uses
+        ``ctxt_seq_len``. Default is None.
+    min_tgt_seq_len : int, optional
+        Minimum target sequence length for randomization. If None, uses
+        ``tgt_seq_len``. Default is None.
+    randomize_seq_len : bool, optional
+        Whether to randomize sequence lengths during training. Default is False.
+    stride : int, optional
+        Step size for sliding window sample creation. Default is 1.
+    downsample : int, optional
+        Downsampling factor. See :class:`DataModuleBase`.
+    downsample_method : str, optional
+        Downsampling method. See :class:`DataModuleBase`.
+    noise_std : float, optional
+        Standard deviation of Gaussian noise added to input data during
+        training for robustness. Default is 0.0 (no noise).
+    target_depends_on : str, optional
+        Column dependency for target transforms. See :class:`DataModuleBase`.
+    time_column : str, optional
+        Column name containing timestamps. If provided, temporal features
+        are added to the model inputs. Default is None.
+    time_format : {"relative", "absolute", "relative_legacy"}, optional
+        Format for temporal features:
+        - "relative": Time differences (Δt) normalized with MaxScaler
+        - "absolute": Absolute time normalized with MaxScaler
+        - "relative_legacy": Time differences with StandardScaler (deprecated)
+        Default is "absolute".
+    add_target_to_past : bool, optional
+        Whether to add target values to past context in encoder-decoder models.
+        Default is True.
+    extra_transforms : dict, optional
+        Additional transforms. Use "__time__" key for temporal transforms.
+        See :class:`DataModuleBase`.
+    batch_size : int, optional
+        Training batch size. Default is 128.
+    num_workers : int, optional
+        Number of data loading workers. Default is 0.
+    dtype : str, optional
+        Data type for tensors. Default is "float32".
+    shuffle : bool, optional
+        Whether to shuffle training data. Default is True.
+    distributed : bool or "auto", optional
+        Distributed training configuration. Default is "auto".
+
+    Attributes
+    ----------
+    ctxt_seq_len : int
+        Context sequence length, accessible via property.
+    tgt_seq_len : int
+        Target sequence length, accessible via property.
+
+    Notes
+    -----
+    This is a base class for transformer-based models. Concrete implementations
+    include:
+
+    - :class:`EncoderDecoderDataModule`: Full encoder-decoder architecture
+    - :class:`EncoderDataModule`: Encoder-only architecture
+
+    **Temporal Features**:
+
+    When ``time_column`` is provided, temporal features are automatically added:
+
+    - **Relative format**: Computes time differences (Δt) relative to sequence start
+    - **Absolute format**: Uses absolute timestamps normalized per batch
+    - **Legacy format**: Deprecated relative format with StandardScaler
+
+    **Sequence Length Management**:
+
+    The class supports flexible sequence length handling:
+
+    - Fixed lengths: ``ctxt_seq_len`` and ``tgt_seq_len``
+    - Randomized lengths: Between min/max values during training
+    - Validation/prediction: Always uses maximum lengths
+
+    **Noise Injection**:
+
+    Training robustness can be improved by adding Gaussian noise to inputs
+    via the ``noise_std`` parameter. Noise is disabled during validation/prediction.
+
+    Examples
+    --------
+    Basic transformer data module setup:
+
+    >>> dm = TransformerDataModule(
+    ...     known_covariates=["feature1", "feature2"],
+    ...     target_covariate="target",
+    ...     ctxt_seq_len=200,
+    ...     tgt_seq_len=50,
+    ...     time_column="timestamp",
+    ...     time_format="relative"
+    ... )
+
+    With temporal transforms and noise injection:
+
+    >>> from transformertf.data.transform import LogTransform
+    >>> dm = TransformerDataModule(
+    ...     known_covariates=["price"],
+    ...     target_covariate="demand",
+    ...     ctxt_seq_len=168,
+    ...     tgt_seq_len=24,
+    ...     time_column="datetime",
+    ...     noise_std=0.01,
+    ...     extra_transforms={"__time__": [LogTransform()]},
+    ...     randomize_seq_len=True,
+    ...     min_ctxt_seq_len=100,
+    ...     min_tgt_seq_len=12
+    ... )
+
+    See Also
+    --------
+    DataModuleBase : Base class with common functionality
+    EncoderDecoderDataModule : For full encoder-decoder models
+    EncoderDataModule : For encoder-only models
+    TimeSeriesDataModule : For sequence-to-sequence models
+    """
+
     def __init__(
         self,
         *,
@@ -66,30 +217,9 @@ class TransformerDataModule(DataModuleBase):
         distributed: bool | typing.Literal["auto"] = "auto",
     ):
         """
-        For documentation of arguments see :class:`DataModuleBase`.
+        Initialize the transformer data module.
 
-        time_column: str | None
-            The column in the data that contains the timestamps. If None, the data is
-            assumed to be evenly spaced, and no temporal features are added to the
-            samples. If a column name is provided, a temporal feature will be added to
-            the datasets. If the data type is datetime, the time is converted to
-            milliseconds since the epoch. Time is always relative to the first timestamp
-            and its magnitude does not matter, as the data is normalized prior to
-            training.
-        time_format : typing.Literal["relative", "absolute"]
-            The format of the timestamps. If "relative", the timestamps are relative to
-            the first timestamp in the data, i.e. $\\Delta$. If "absolute", the
-            timestamps are in absolute time, i.e. $t$, and then normalized with respect
-            to the maximum timestamp in each batch.
-            Additional transforms to the temporal feature can be added to the
-            ``extra_transforms`` parameter, with the `__time__` key.
-            The "relative_legacy" format is provided for old checkpoints where the time
-            transform was using :class:`StandardScaler` for normalization instead of
-            :class:`MaxScaler`.
-        noise_std : float
-            The standard deviation of the noise to add to the input data. This is useful
-            for adding noise to the input data to make the model more robust to noise in
-            the data.
+        See the class docstring for detailed parameter descriptions.
         """
         super().__init__(
             train_df_paths=train_df_paths,
@@ -239,6 +369,94 @@ def _calc_fast_absolute_dt(time: np.ndarray, slices: list[slice]) -> np.ndarray:
 
 
 class EncoderDecoderDataModule(TransformerDataModule):
+    """
+    Data module for encoder-decoder transformer architectures.
+
+    This class implements the full encoder-decoder pattern where the encoder
+    processes past context and the decoder generates future predictions. It
+    creates samples with separate encoder and decoder sequences, supporting
+    models like Temporal Fusion Transformer (TFT) and other attention-based
+    encoder-decoder architectures.
+
+    The data module creates samples with the following structure:
+    - **Encoder input**: Past context with known covariates and past-only covariates
+    - **Decoder input**: Future context with known covariates and target history
+    - **Target output**: Future target values to predict
+
+    Parameters
+    ----------
+    Inherits all parameters from :class:`TransformerDataModule`.
+
+    Attributes
+    ----------
+    Inherits all attributes from :class:`TransformerDataModule`.
+
+    Notes
+    -----
+    This class extends :class:`TransformerDataModule` to create
+    :class:`~transformertf.data.dataset.EncoderDecoderDataset` instances.
+    The key differences from the base class:
+
+    - **Encoder sequence**: Contains past context with all available features
+    - **Decoder sequence**: Contains future context with known covariates only
+    - **Target sequence**: Future target values aligned with decoder sequence
+    - **Temporal features**: Added to both encoder and decoder if time_column is provided
+    - **Noise injection**: Applied to encoder inputs only during training
+
+    **Sample Structure**:
+
+    Each sample contains:
+    - ``encoder_input``: [ctxt_seq_len, n_encoder_features]
+    - ``decoder_input``: [tgt_seq_len, n_decoder_features]
+    - ``target``: [tgt_seq_len, 1]
+    - ``encoder_lengths``: Actual encoder sequence length (if randomized)
+    - ``decoder_lengths``: Actual decoder sequence length (if randomized)
+    - ``encoder_mask``: Padding mask for encoder (if needed)
+    - ``decoder_mask``: Padding mask for decoder (if needed)
+
+    **Collate Function**:
+
+    The class provides a specialized collate function that handles variable-length
+    sequences by:
+    - Trimming encoder sequences from the beginning
+    - Trimming decoder sequences from the end
+    - Maintaining alignment between decoder input and target output
+
+    Examples
+    --------
+    Basic encoder-decoder setup:
+
+    >>> dm = EncoderDecoderDataModule(
+    ...     known_covariates=["temperature", "humidity"],
+    ...     known_past_covariates=["holiday_flag"],
+    ...     target_covariate="demand",
+    ...     ctxt_seq_len=168,  # 1 week context
+    ...     tgt_seq_len=24,    # 1 day prediction
+    ...     time_column="datetime",
+    ...     train_df_paths="data/train.parquet"
+    ... )
+
+    With sequence length randomization:
+
+    >>> dm = EncoderDecoderDataModule(
+    ...     known_covariates=["price", "volume"],
+    ...     target_covariate="returns",
+    ...     ctxt_seq_len=100,
+    ...     tgt_seq_len=20,
+    ...     min_ctxt_seq_len=50,
+    ...     min_tgt_seq_len=10,
+    ...     randomize_seq_len=True,
+    ...     noise_std=0.001,
+    ...     train_df_paths="data/financial.parquet"
+    ... )
+
+    See Also
+    --------
+    TransformerDataModule : Base class for transformer data modules
+    EncoderDecoderDataset : Underlying dataset implementation
+    EncoderDataModule : For encoder-only architectures
+    """
+
     @override
     def _make_dataset_from_df(
         self,
@@ -293,13 +511,33 @@ class EncoderDecoderDataModule(TransformerDataModule):
         samples: list[EncoderDecoderTargetSample],
     ) -> EncoderDecoderTargetSample:
         """
-        Cuts samples so that the length of the sequence (dimension 1) is the shortest possible
-        if randomize_seq_len is True, which causes sequences to be randomly cut to a shorter
-        length than the maximum by the dataset classs.
+        Collate function for encoder-decoder samples with variable lengths.
 
-        Encoder sequences are cut from the beginning of the sequence, and decoder sequences
-        are cut from the end. The sequence length is determined by the longest sequence in
-        the samples.
+        This function handles batching of encoder-decoder samples that may have
+        different sequence lengths due to randomization. It trims sequences to
+        the maximum length in the batch and maintains proper alignment between
+        encoder and decoder components.
+
+        Parameters
+        ----------
+        samples : list of EncoderDecoderTargetSample
+            List of samples to collate into a batch. Each sample is a dictionary
+            containing encoder_input, decoder_input, target, and optional length/mask info.
+
+        Returns
+        -------
+        EncoderDecoderTargetSample
+            Collated batch with all samples padded/trimmed to consistent lengths.
+            Contains batched tensors for encoder_input, decoder_input, target,
+            and optional encoder_lengths, decoder_lengths, encoder_mask, decoder_mask.
+
+        Notes
+        -----
+        The collation strategy:
+        - Encoder sequences are trimmed from the beginning (keeping recent context)
+        - Decoder sequences are trimmed from the end (keeping early predictions)
+        - Maximum lengths are determined by the longest sequences in the batch
+        - Proper alignment is maintained between decoder input and target output
         """
         if all("encoder_lengths" in sample for sample in samples):
             max_enc_len = max(sample["encoder_lengths"] for sample in samples)
@@ -344,6 +582,75 @@ class EncoderDecoderDataModule(TransformerDataModule):
 
 
 class EncoderDataModule(TransformerDataModule):
+    """
+    Data module for encoder-only transformer architectures.
+
+    This class implements encoder-only models where a single transformer encoder
+    processes the input sequence and produces predictions directly. Unlike the
+    encoder-decoder pattern, this approach uses only context sequences without
+    separate target sequence generation.
+
+    This is suitable for models that perform direct sequence classification,
+    regression, or forecasting without autoregressive generation.
+
+    Parameters
+    ----------
+    Inherits all parameters from :class:`TransformerDataModule`.
+
+    Notes
+    -----
+    Key differences from :class:`EncoderDecoderDataModule`:
+
+    - Uses only encoder sequences (no separate decoder)
+    - Context length determines the input sequence length
+    - Target length determines the prediction horizon
+    - Simpler architecture suitable for direct prediction tasks
+
+    The class creates :class:`~transformertf.data.dataset.EncoderDataset` instances
+    with the following sample structure:
+
+    - **Input**: [ctxt_seq_len, n_features] - The encoder input sequence
+    - **Target**: [tgt_seq_len, 1] - The target values to predict
+    - **Lengths**: Actual sequence lengths if randomization is enabled
+
+    **Use Cases**:
+
+    - Direct time series forecasting without autoregressive generation
+    - Sequence classification tasks
+    - Models that map fixed-length context to fixed-length predictions
+    - Transformer encoders with prediction heads
+
+    Examples
+    --------
+    Basic encoder-only setup:
+
+    >>> dm = EncoderDataModule(
+    ...     known_covariates=["temperature", "pressure", "humidity"],
+    ...     target_covariate="energy_demand",
+    ...     ctxt_seq_len=168,  # 1 week of hourly data
+    ...     tgt_seq_len=24,    # 1 day prediction horizon
+    ...     train_df_paths="data/energy.parquet"
+    ... )
+
+    For sequence classification:
+
+    >>> dm = EncoderDataModule(
+    ...     known_covariates=["sensor1", "sensor2", "sensor3"],
+    ...     target_covariate="anomaly_score",
+    ...     ctxt_seq_len=100,
+    ...     tgt_seq_len=1,  # Single prediction
+    ...     randomize_seq_len=True,
+    ...     min_ctxt_seq_len=50,
+    ...     train_df_paths="data/anomaly.parquet"
+    ... )
+
+    See Also
+    --------
+    TransformerDataModule : Base class for transformer data modules
+    EncoderDataset : Underlying dataset implementation
+    EncoderDecoderDataModule : For encoder-decoder architectures
+    """
+
     @override
     def _make_dataset_from_df(
         self,

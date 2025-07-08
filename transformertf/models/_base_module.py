@@ -21,6 +21,90 @@ log = logging.getLogger(__name__)
 
 
 class LightningModuleBase(L.LightningModule):
+    """
+    Base class for all time series forecasting models in the transformertf library.
+
+    This class provides common functionality for PyTorch Lightning modules used in time series
+    forecasting tasks. It handles output collection, metric calculation, model compilation,
+    and provides a standardized interface for training, validation, and testing procedures.
+
+    The class is designed to work with :class:`transformertf.data.DataModuleBase` and its
+    subclasses, providing seamless integration with the data processing pipeline.
+
+    Parameters
+    ----------
+    log_timeseries_metrics : bool, default=True
+        Whether to automatically calculate and log time series metrics (MSE, MAE, MAPE,
+        SMAPE, RMSE) during training, validation, and testing. If False, only the loss
+        from the criterion will be logged.
+
+    Attributes
+    ----------
+    model : torch.nn.Module
+        The main neural network model. Must be set by subclasses.
+    criterion : torch.nn.Module
+        The loss function used for training. Must be set by subclasses.
+    hparams : dict
+        Hyperparameters dictionary automatically managed by Lightning.
+    validation_outputs : dict[int, list[MODEL_OUTPUT]]
+        Collected outputs from validation steps, indexed by dataloader index.
+    test_outputs : dict[int, list[MODEL_OUTPUT]]
+        Collected outputs from test steps, indexed by dataloader index.
+    inference_outputs : dict[int, list[MODEL_OUTPUT]]
+        Collected outputs from inference/prediction steps, indexed by dataloader index.
+
+    Examples
+    --------
+    >>> from transformertf.models import LightningModuleBase
+    >>> from transformertf.data import TimeSeriesDataModule
+    >>> import torch
+    >>>
+    >>> class CustomModel(LightningModuleBase):
+    ...     def __init__(self, **kwargs):
+    ...         super().__init__(**kwargs)
+    ...         self.model = torch.nn.Linear(10, 1)
+    ...         self.criterion = torch.nn.MSELoss()
+    ...
+    ...     def forward(self, x):
+    ...         return self.model(x)
+    ...
+    ...     def training_step(self, batch, batch_idx):
+    ...         # Implementation here
+    ...         pass
+    >>>
+    >>> # Usage with data module
+    >>> model = CustomModel(log_timeseries_metrics=True)
+    >>> datamodule = TimeSeriesDataModule(...)
+    >>> trainer = L.Trainer()
+    >>> trainer.fit(model, datamodule)
+
+    Notes
+    -----
+    This base class provides several key features:
+
+    1. **Output Collection**: Automatically collects outputs from validation, test, and
+       inference steps for later analysis or visualization.
+
+    2. **Metric Calculation**: Automatically calculates standard time series metrics
+       (MSE, MAE, MAPE, SMAPE, RMSE) when `log_timeseries_metrics=True`.
+
+    3. **Model Compilation**: Supports PyTorch 2.0 model compilation via the
+       `compile_model` hyperparameter for improved performance.
+
+    4. **Gradient Logging**: Optional gradient norm logging via the `log_grad_norm`
+       hyperparameter for debugging and monitoring.
+
+    The class expects the model outputs to be either tensors or dictionaries containing
+    at least an "output" key. For probabilistic models, a "point_prediction" key can
+    be provided to specify the point estimate used for metric calculation.
+
+    See Also
+    --------
+    TransformerModuleBase : Base class for transformer-based models
+    transformertf.data.DataModuleBase : Base class for data modules
+    transformertf.nn.functional : Functional utilities for loss calculation
+    """
+
     model: torch.nn.Module
     criterion: torch.nn.Module
 
@@ -38,9 +122,29 @@ class LightningModuleBase(L.LightningModule):
 
     def maybe_compile_model(self) -> None:
         """
-        Compile the model if the "compile_model" key is present in the hyperparameters
-        and is set to True. This is up to the subclass to implement. This also
-        requires the model to be set to the "model" attribute.
+        Compile the model using PyTorch 2.0 compilation if enabled in hyperparameters.
+
+        This method checks if the "compile_model" hyperparameter is set to True and,
+        if so, applies `torch.compile()` to all child modules except those with "loss"
+        in their name. Model compilation can significantly improve performance for
+        compatible models and hardware.
+
+        The compilation is applied to all child modules (stored as attributes) that
+        don't contain "loss" in their name, allowing loss functions to remain
+        uncompiled for compatibility.
+
+        Notes
+        -----
+        - Requires PyTorch 2.0+ for compilation support
+        - Only compiles modules that don't have "loss" in their attribute name
+        - Compilation state is handled automatically in `state_dict()` method
+        - Best performance gains are typically seen with newer hardware (A100, H100)
+
+        Examples
+        --------
+        >>> model = SomeModel(compile_model=True)
+        >>> # Compilation happens automatically during fit start
+        >>> trainer.fit(model, datamodule)
         """
         if self.hparams.get("compile_model"):
             for name, mod in self.named_children():
@@ -142,6 +246,41 @@ class LightningModuleBase(L.LightningModule):
         loss: dict[str, torch.Tensor],
         stage: typing.Literal["train", "validation", "test", "predict"],
     ) -> dict[str, torch.Tensor]:
+        """
+        Log metrics for a given training stage with consistent formatting.
+
+        This method standardizes the logging of metrics across different training stages
+        (train, validation, test, predict) by prefixing metric names with the stage name
+        and configuring appropriate logging behavior for each stage.
+
+        Parameters
+        ----------
+        loss : dict[str, torch.Tensor]
+            Dictionary of metric names and their corresponding tensor values.
+            Common keys include "loss", "MSE", "MAE", "MAPE", "SMAPE", "RMSE".
+        stage : {"train", "validation", "test", "predict"}
+            The current training stage, used to prefix metric names and configure
+            logging behavior.
+
+        Returns
+        -------
+        dict[str, torch.Tensor]
+            Dictionary of formatted metric names (prefixed with stage) and their
+            detached tensor values.
+
+        Examples
+        --------
+        >>> metrics = {"loss": loss_tensor, "MSE": mse_tensor}
+        >>> logged_metrics = self.common_log_step(metrics, "train")
+        >>> # Results in {"train/loss": loss_tensor, "train/MSE": mse_tensor}
+
+        Notes
+        -----
+        The logging behavior varies by stage:
+        - **train**: Logged on every step and shown in progress bar
+        - **validation/test/predict**: Logged only at epoch end
+        - All stages use distributed synchronization (`sync_dist=True`)
+        """
         log_dict = {f"{stage}/{k}": v.detach() for k, v in loss.items()}
 
         if self.logger is not None:
@@ -198,6 +337,31 @@ class LightningModuleBase(L.LightningModule):
         return loss_dict
 
     def on_before_optimizer_step(self, optimizer: torch.optim.Optimizer) -> None:
+        """
+        Log gradient norms before optimizer step if enabled in hyperparameters.
+
+        This method calculates and logs the L2 norm of gradients for all model parameters
+        when the "log_grad_norm" hyperparameter is set to True. This is useful for
+        monitoring gradient flow and detecting issues like vanishing or exploding gradients.
+
+        Parameters
+        ----------
+        optimizer : torch.optim.Optimizer
+            The optimizer that will be used to update the model parameters.
+
+        Notes
+        -----
+        - Only logs on global rank 0 to avoid duplicate logging in distributed training
+        - Uses L2 norm (norm_type=2) for gradient norm calculation
+        - Requires "log_grad_norm" hyperparameter to be set to True
+        - Helpful for debugging training instability and gradient flow issues
+
+        Examples
+        --------
+        >>> model = SomeModel(log_grad_norm=True)
+        >>> # Gradient norms will be automatically logged during training
+        >>> trainer.fit(model, datamodule)
+        """
         if self.hparams.get("log_grad_norm") and self.global_rank == 0:
             self.log_dict(lightning.pytorch.utilities.grad_norm(self, norm_type=2))
 
@@ -248,6 +412,45 @@ class LightningModuleBase(L.LightningModule):
         prefix: str = "",
         keep_vars: bool = False,
     ) -> dict[str, torch.Tensor]:
+        """
+        Return the state dictionary with proper handling of compiled models.
+
+        This method extends the standard PyTorch state_dict to handle models that have
+        been compiled with `torch.compile()`. When a model is compiled, PyTorch adds
+        "_orig_mod" to parameter names, which this method removes to maintain
+        compatibility with non-compiled model loading.
+
+        Parameters
+        ----------
+        *args : Any
+            Additional positional arguments passed to the parent state_dict method.
+        destination : dict[str, torch.Tensor] or None, default=None
+            If provided, the state dict will be copied into this dictionary.
+        prefix : str, default=""
+            Prefix to add to parameter names in the state dict.
+        keep_vars : bool, default=False
+            If True, returns Variables instead of Tensors.
+
+        Returns
+        -------
+        dict[str, torch.Tensor]
+            The state dictionary with "_orig_mod" removed from parameter names
+            if the model was compiled.
+
+        Notes
+        -----
+        This method ensures that models saved after compilation can be loaded
+        into non-compiled models and vice versa. The "_orig_mod" prefix is
+        automatically added by PyTorch when using `torch.compile()`.
+
+        Examples
+        --------
+        >>> model = SomeModel(compile_model=True)
+        >>> trainer.fit(model, datamodule)
+        >>> state_dict = model.state_dict()
+        >>> # state_dict keys are normalized (no "_orig_mod" prefix)
+        >>> torch.save(state_dict, "model.pth")
+        """
         state_dict = super().state_dict(
             *args, destination=destination, prefix=prefix, keep_vars=keep_vars
         )

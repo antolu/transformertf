@@ -54,13 +54,45 @@ TIME = "time_ms"
 @dataclasses.dataclass
 class TmpDir:
     """
-    Utility class to handle temporary directories for when distributed
-    training is used, and a datamodule is created on each worker.
+    Temporary directory manager for distributed training.
+
+    This class handles temporary directories that are created during
+    distributed training when a datamodule is instantiated on each worker.
+    It provides safe cleanup that suppresses common filesystem errors
+    that can occur in multi-process environments.
+
+    Parameters
+    ----------
+    name : str
+        Path to the temporary directory.
+
+    Methods
+    -------
+    cleanup()
+        Remove the temporary directory and all its contents.
+
+    Notes
+    -----
+    The cleanup method suppresses FileNotFoundError, PermissionError,
+    and OSError exceptions that commonly occur when multiple processes
+    attempt to clean up the same directory simultaneously.
+
+    Examples
+    --------
+    >>> tmpdir = TmpDir("/tmp/datamodule_worker_1/")
+    >>> # ... use the directory ...
+    >>> tmpdir.cleanup()  # Safe cleanup
     """
 
     name: str
 
     def cleanup(self) -> None:
+        """
+        Remove the temporary directory and all its contents.
+
+        Safely handles common filesystem errors that occur during
+        distributed cleanup operations.
+        """
         with contextlib.suppress(FileNotFoundError, PermissionError, OSError):
             shutil.rmtree(self.name)
 
@@ -85,11 +117,143 @@ class ExtraTransformsHparams(typing.TypedDict):
 
 class DataModuleBase(L.LightningDataModule):
     """
-    Abstract base class for all data modules, handles the bulk transformations
-    of data, but does not construct the datasets
+    Abstract base class for all data modules in transformertf.
 
-    Don't forget to call :meth:`save_hyperparameters` in your
-    subclass constructor.
+    This class handles the bulk transformations of time series data, including
+    normalization, downsampling, and custom transforms, but does not construct
+    the actual datasets (which is left to concrete subclasses). It provides
+    a standardized interface for data preprocessing, loading, and management
+    across different time series modeling architectures.
+
+    The class integrates with PyTorch Lightning's data module system and
+    supports distributed training with automatic temporary directory management.
+
+    Parameters
+    ----------
+    known_covariates : str or sequence of str
+        Column names in the data that are known in both past and future.
+        These columns are used as input features to the model. For
+        encoder-decoder architectures, these serve as both encoder and
+        decoder inputs.
+    target_covariate : str
+        Column name for the target variable that the model should predict.
+        For encoder-decoder architectures, this also serves as decoder input.
+    known_past_covariates : str or sequence of str, optional
+        Column names that are known only in the past (not future).
+        These are used only as encoder inputs in encoder-decoder models.
+        Default is None.
+    train_df_paths : str or list of str, optional
+        Path(s) to training data files. Multiple paths are concatenated.
+        If None, training data is not loaded (useful for checkpoint loading).
+        Default is None.
+    val_df_paths : str or list of str, optional
+        Path(s) to validation data files. Multiple paths create separate
+        validation datasets. If None, validation data is not loaded.
+        Default is None.
+    normalize : bool, optional
+        Whether to apply standard normalization to the data using
+        :class:`~transformertf.data.transform.StandardScaler`.
+        Default is True.
+    downsample : int, optional
+        Factor by which to downsample the data. A value of 1 means no
+        downsampling. Default is 1.
+    downsample_method : {"interval", "average", "convolve"}, optional
+        Method for downsampling. "interval" takes every nth sample,
+        "average" computes moving averages, "convolve" applies convolution.
+        Default is "interval".
+    target_depends_on : str, optional
+        Column name that the target depends on when using XY-type transforms
+        where the target transformation requires another input column.
+        Default is None.
+    extra_transforms : dict of {str: list of BaseTransform}, optional
+        Additional transforms to apply to specific columns. Keys are column
+        names, values are lists of :class:`~transformertf.data.transform.BaseTransform`
+        instances. Applied before normalization. Default is None.
+    batch_size : int, optional
+        Batch size for training dataloaders. Default is 128.
+    val_batch_size : int, optional
+        Batch size for validation dataloaders. Default is 1.
+    num_workers : int, optional
+        Number of worker processes for data loading. Default is 0.
+    dtype : {"float32", "float64", "int32", "int64"}, optional
+        Data type for tensors created by datasets. Default is "float32".
+    shuffle : bool, optional
+        Whether to shuffle training data. Validation data is never shuffled.
+        Default is True.
+    distributed : bool or "auto", optional
+        Whether to use distributed sampling for multi-GPU training.
+        "auto" enables distributed sampling if multiple GPUs are available.
+        Default is "auto".
+
+    Attributes
+    ----------
+    hparams : dict
+        Hyperparameters saved by Lightning's save_hyperparameters().
+    _transforms : torch.nn.ModuleDict
+        Dictionary mapping column names to their transform collections.
+    _tmp_dir : TmpDirType
+        Temporary directory for storing preprocessed data during distributed training.
+    _train_df : list of pd.DataFrame
+        Preprocessed training dataframes.
+    _val_df : list of pd.DataFrame
+        Preprocessed validation dataframes.
+    _raw_train_df : list of pd.DataFrame
+        Raw training dataframes before preprocessing.
+    _raw_val_df : list of pd.DataFrame
+        Raw validation dataframes before preprocessing.
+
+    Notes
+    -----
+    This is an abstract base class. Concrete subclasses must implement:
+
+    - :meth:`_make_dataset_from_df`: Creates dataset instances from dataframes
+
+    The class follows this data processing pipeline:
+
+    1. **Loading**: Read data from files (parquet, CSV, Excel, etc.)
+    2. **Parsing**: Extract and rename columns according to covariate types
+    3. **Preprocessing**: Apply downsampling and other preprocessing steps
+    4. **Transformation**: Apply normalization and custom transforms
+    5. **Dataset Creation**: Convert to PyTorch datasets (subclass-specific)
+    6. **DataLoader Creation**: Wrap datasets in PyTorch dataloaders
+
+    The class automatically handles:
+
+    - Multiple file formats (parquet, CSV, Excel, JSON)
+    - Distributed training with temporary directory management
+    - Transform serialization for checkpointing
+    - Automatic GPU detection for distributed sampling
+
+    Examples
+    --------
+    Subclasses typically follow this pattern:
+
+    >>> class MyDataModule(DataModuleBase):
+    ...     def __init__(self, **kwargs):
+    ...         super().__init__(**kwargs)
+    ...         self.save_hyperparameters()
+    ...
+    ...     def _make_dataset_from_df(self, df, predict=False):
+    ...         return MyDataset(df, predict=predict)
+
+    Usage with custom transforms:
+
+    >>> from transformertf.data.transform import LogTransform
+    >>> extra_transforms = {
+    ...     "price": [LogTransform()],
+    ...     "volume": [LogTransform()]
+    ... }
+    >>> dm = MyDataModule(
+    ...     known_covariates=["price", "volume"],
+    ...     target_covariate="target",
+    ...     extra_transforms=extra_transforms
+    ... )
+
+    See Also
+    --------
+    TimeSeriesDataModule : For basic time series forecasting
+    EncoderDecoderDataModule : For encoder-decoder architectures
+    TransformerDataModule : For transformer-based models
     """
 
     _transforms: torch.nn.ModuleDict[str, TransformCollection]
@@ -119,67 +283,16 @@ class DataModuleBase(L.LightningDataModule):
         distributed: bool | typing.Literal["auto"] = "auto",
     ):
         """
-        Initializes the datamodule.
+        Initialize the data module.
 
-        Parameters
-        ----------
-        known_covariates : str | typing.Sequence[str]
-            The columns in the data that are known in the past and future. These
-            columns are used as input to the model. If the input to the model
-            follows encoder-decoder architecture, these columns are used as the
-            encoder *and* decoder input.
-        target_covariate : str
-            The column in the data that is the target of the model. This column
-            is used as the target in the model, and if the input to the model
-            follows encoder-decoder architecture, this column is used as the
-            decoder input.
-        known_past_covariates : str | typing.Sequence[str] | None
-            The columns in the data that are known in the past. These columns
-            are used as input to the model, but only as the encoder input. This
-            column should not be used for normal sequence-to-sequence models.
-        train_df_paths : str | list[str] | None
-            The path to the training data. If a list is provided, the dataframes
-            are concatenated. If None, the training data is not loaded, which is
-            useful for when loading the datamodule from a checkpoint.
-        val_df_paths : str | list[str] | None
-            The path to the validation data. If a list is provided, multiple validation
-            datasets are created, and the :meth:`val_dataloader` method returns a list
-            of dataloaders. If None, the validation data is not loaded, which is useful
-            for when loading the datamodule from a checkpoint.
-        normalize : bool
-            Whether to normalize the data. If True, the data is normalized using
-            a standard scaler. If False, the data is not normalized.
-        downsample : int
-            The factor to downsample the data by. If 1, the data is not downsampled.
-        downsample_method : typing.Literal["interval", "average", "convolve"]
-            The method to use for downsampling the data. The options are "interval",
-            "median", and "convolve".
-        target_depends_on : str | None
-            The column that the target depends on if additional transforms are provided in the
-            ``extra_transforms`` parameter, and are of type
-            :class:`BaseTransform.TransformType.XY`, where the target depends on
-            another column. If None, the target does not depend on any other column.
-        extra_transforms : dict[str, list[BaseTransform]] | None
-            Additional transforms to apply to the data. The dictionary should have the column
-            name as the key, and a list of transforms as the value. If None, no additional
-            transforms are applied. By default, the data is normalized using a standard scaler.
-            If additional transforms are provided, the data is normalized after the additional
-            transforms are applied.
-        batch_size : int
-            The batch size to use for the dataloaders.
-        num_workers : int
-             Number of workers to use for the dataloaders.
-        dtype : str
-            The data type to use for the data. This is passed to the datasets which convert
-            the data to this type when samples are created.
-        shuffle : bool
-            Whether to shuffle the data. If True, the data is shuffled before creating the
-            training dataloader. If False, the data is not shuffled.
-            Validation / test dataloaders are never shuffled.
-        distributed : bool
-            Whether to use a distributed sampler for the dataloaders. If True, the dataloader
-            is wrapped in a :class:`torch.utils.data.distributed.DistributedSampler`, which must
-            be used by distributed training strategies.
+        See the class docstring for detailed parameter descriptions.
+        All parameters are stored as hyperparameters and can be accessed
+        via ``self.hparams``.
+
+        Note
+        ----
+        Concrete subclasses must call :meth:`save_hyperparameters` in their
+        constructor to ensure proper serialization.
         """
         super().__init__()
         self.save_hyperparameters(ignore=["extra_transforms"])
@@ -1141,20 +1254,43 @@ EXT2READER: dict[str, typing.Callable[[typing.Any], pd.DataFrame]] = {
 
 def read_dataframe(pth: pathlib.Path) -> pd.DataFrame:
     """
-    Reads a dataframe in different formats.
+    Read a dataframe from various file formats.
 
-    The function will automatically determine the format of the file
-    based on the file extension.
+    Automatically determines the file format based on the file extension
+    and uses the appropriate pandas reader function. Supports common data
+    formats used in time series analysis.
 
     Parameters
     ----------
     pth : pathlib.Path
-        The path to the parquet file.
+        Path to the data file. Supported extensions: .parquet, .csv, .tsv,
+        .xlsx, .xls, .json.
 
     Returns
     -------
     pd.DataFrame
-        The dataframe.
+        The loaded dataframe.
+
+    Raises
+    ------
+    ValueError
+        If the file extension is not supported.
+
+    Examples
+    --------
+    >>> import pathlib
+    >>> df = read_dataframe(pathlib.Path("data/timeseries.parquet"))
+    >>> df = read_dataframe(pathlib.Path("data/features.csv"))
+
+    Notes
+    -----
+    Supported file formats and their corresponding pandas readers:
+
+    - .parquet → pd.read_parquet
+    - .csv → pd.read_csv
+    - .tsv → pd.read_csv
+    - .xlsx/.xls → pd.read_excel
+    - .json → pd.read_json
     """
     extension = pth.suffix
     if extension not in EXT2READER:
