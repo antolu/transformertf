@@ -256,7 +256,11 @@ class PFTemporalFusionTransformerModel(torch.nn.Module):
 
         # multi-head attention and post-processing
         attn_output, attn_weights = self.attn(
-            attn_input[:, enc_seq_len:], attn_input, attn_input, mask=attn_mask
+            attn_input[:, enc_seq_len:],
+            attn_input,
+            attn_input,
+            mask=attn_mask,
+            return_attn=True,
         )
         attn_output = self.attn_gate1(attn_output)
         attn_output = self.attn_norm1(attn_output, attn_input[:, enc_seq_len:])
