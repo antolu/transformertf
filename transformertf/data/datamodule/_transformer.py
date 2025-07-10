@@ -12,13 +12,12 @@ import torch
 from .._downsample import DOWNSAMPLE_METHODS
 from .._dtype import VALID_DTYPES
 from .._sample_generator import EncoderDecoderTargetSample
+from .._transform_builder import TransformBuilder
 from .._window_generator import WindowGenerator
 from ..dataset import EncoderDataset, EncoderDecoderDataset
 from ..transform import (
     BaseTransform,
     DeltaTransform,
-    MaxScaler,
-    StandardScaler,
     TransformCollection,
 )
 from ._base import TIME_PREFIX as TIME
@@ -249,38 +248,40 @@ class TransformerDataModule(DataModuleBase):
         )
 
     def _create_transforms(self) -> None:
-        super()._create_transforms()
-        if self.hparams["time_column"] is None:
-            return
+        """
+        Create transforms using TransformBuilder, including time transforms.
+        """
+        builder = TransformBuilder()
 
-        if self.hparams["normalize"]:
-            if self.hparams["time_format"] == "relative":
-                transforms = [
-                    DeltaTransform(),
-                    MaxScaler(num_features_=1),
-                ]
-            elif self.hparams["time_format"] == "relative_legacy":
-                transforms = [
-                    DeltaTransform(),
-                    StandardScaler(num_features_=1),
-                ]
-            elif self.hparams["time_format"] == "absolute":
-                transforms = [MaxScaler(num_features_=1)]
-            else:
-                msg = (
-                    f"Unknown time format {self.hparams['time_format']}. "
-                    "Expected 'relative' or 'absolute'."
-                )
-                raise ValueError(msg)
-        else:
-            transforms = []
-
-        if TIME in self._extra_transforms_source:
-            transforms += typing.cast(
-                list[BaseTransform], self._extra_transforms_source[TIME]
+        # Add covariate transforms
+        covariate_names = [
+            cov.name for cov in self.known_covariates + self.known_past_covariates
+        ]
+        if covariate_names:
+            builder.add_covariate_transforms(
+                covariate_names=covariate_names,
+                extra_transforms=self._extra_transforms_source,
+                normalize=self.hparams["normalize"],
             )
 
-        self._transforms[TIME] = TransformCollection(*transforms)
+        # Add target transforms
+        builder.add_target_transforms(
+            target_name=self.target_covariate.name,
+            extra_transforms=self._extra_transforms_source,
+            normalize=self.hparams["normalize"],
+            depends_on=self.hparams.get("target_depends_on"),
+        )
+
+        # Add time transforms if time column is specified
+        if self.hparams["time_column"] is not None:
+            builder.add_time_transforms(
+                time_format=self.hparams["time_format"],
+                time_column=TIME,
+                extra_transforms=self._extra_transforms_source.get(TIME),
+            )
+
+        # Build transforms with validation
+        self._transforms = builder.build()
 
     def _fit_transforms(self, dfs: list[pd.DataFrame]) -> None:
         super()._fit_transforms(dfs)
@@ -464,36 +465,42 @@ class EncoderDecoderDataModule(TransformerDataModule):
         *,
         predict: bool = False,
     ) -> EncoderDecoderDataset:
-        input_cols = [cov.col for cov in self.known_covariates]
-        known_past_cols = [cov.col for cov in self.known_past_covariates]
-
+        """Create encoder-decoder dataset using simplified parameter passing."""
         time_format: typing.Literal["relative", "absolute"] = (
             "relative"
             if self.hparams["time_format"] in {"relative", "relative_legacy"}
             else "absolute"
         )
 
+        # Extract data based on column structure
+        if isinstance(df, pd.DataFrame):
+            input_data = df[[cov.col for cov in self.known_covariates]]
+            known_past_data = (
+                df[[cov.col for cov in self.known_past_covariates]]
+                if self.known_past_covariates
+                else None
+            )
+            target_data = df[self.target_covariate.col]
+            time_data = df[TIME] if self.hparams["time_column"] else None
+        else:
+            input_data = [d[[cov.col for cov in self.known_covariates]] for d in df]
+            known_past_data = (
+                [d[[cov.col for cov in self.known_past_covariates]] for d in df]
+                if self.known_past_covariates
+                else None
+            )
+            target_data = [d[self.target_covariate.col] for d in df]
+            time_data = [d[TIME] for d in df] if self.hparams["time_column"] else None
+
         return EncoderDecoderDataset(
-            input_data=df[input_cols]
-            if isinstance(df, pd.DataFrame)
-            else [df[input_cols] for df in df],
-            known_past_data=df[known_past_cols]
-            if isinstance(df, pd.DataFrame)
-            else [df[known_past_cols] for df in df]
-            if len(known_past_cols) > 0
-            else None,
-            target_data=df[self.target_covariate.col]  # type: ignore[arg-type]
-            if isinstance(df, pd.DataFrame)
-            else [df[self.target_covariate.col] for df in df],
+            input_data=input_data,
+            known_past_data=known_past_data,
+            target_data=target_data,
+            time_data=time_data,
             ctx_seq_len=self.hparams["ctxt_seq_len"],
             tgt_seq_len=self.hparams["tgt_seq_len"],
             min_ctxt_seq_len=self.hparams["min_ctxt_seq_len"],
             min_tgt_seq_len=self.hparams["min_tgt_seq_len"],
-            time_data=(  # type: ignore[arg-type]
-                df[TIME] if isinstance(df, pd.DataFrame) else [df[TIME] for df in df]
-            )
-            if self.hparams["time_column"] is not None
-            else None,
             time_format=time_format,
             stride=self.hparams["stride"],
             randomize_seq_len=(
@@ -658,15 +665,18 @@ class EncoderDataModule(TransformerDataModule):
         *,
         predict: bool = False,
     ) -> EncoderDataset:
-        input_cols = [cov.col for cov in self.known_covariates]
+        """Create encoder dataset using simplified parameter passing."""
+        # Extract data based on column structure
+        if isinstance(df, pd.DataFrame):
+            input_data = df[[cov.col for cov in self.known_covariates]]
+            target_data = df[self.target_covariate.col]
+        else:
+            input_data = [d[[cov.col for cov in self.known_covariates]] for d in df]
+            target_data = [d[self.target_covariate.col] for d in df]
 
         return EncoderDataset(
-            input_data=df[input_cols]
-            if isinstance(df, pd.DataFrame)
-            else [df[input_cols] for df in df],
-            target_data=df[self.target_covariate.col]  # type: ignore[arg-type]
-            if isinstance(df, pd.DataFrame)
-            else [df[self.target_covariate.col] for df in df],
+            input_data=input_data,
+            target_data=target_data,
             ctx_seq_len=self.hparams["ctxt_seq_len"],
             min_ctxt_seq_len=self.hparams["min_ctxt_seq_len"],
             tgt_seq_len=self.hparams["tgt_seq_len"],

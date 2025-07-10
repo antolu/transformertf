@@ -28,10 +28,10 @@ from .._covariates import (
 )
 from .._downsample import DOWNSAMPLE_METHODS, downsample
 from .._dtype import VALID_DTYPES
+from .._transform_builder import TransformBuilder
 from ..dataset import AbstractTimeSeriesDataset
 from ..transform import (
     BaseTransform,
-    StandardScaler,
     TransformCollection,
 )
 
@@ -297,14 +297,37 @@ class DataModuleBase(L.LightningDataModule):
         super().__init__()
         self.save_hyperparameters(ignore=["extra_transforms"])
 
-        known_covariates = _to_list(known_covariates)
-        known_past_covariates = (
+        # Initialize components in organized way
+        self._init_covariates(known_covariates, known_past_covariates)
+        self._init_file_paths(train_df_paths, val_df_paths)
+        self._init_transforms(extra_transforms)
+        self._init_data_containers()
+        self._init_tmpdir()
+
+    def _init_covariates(
+        self,
+        known_covariates: str | typing.Sequence[str],
+        known_past_covariates: str | typing.Sequence[str] | None,
+    ) -> None:
+        """Initialize covariate configuration."""
+        self.hparams["known_covariates"] = _to_list(known_covariates)
+        self.hparams["known_past_covariates"] = (
             _to_list(known_past_covariates) if known_past_covariates else []
         )
 
-        self.hparams["known_covariates"] = known_covariates
-        self.hparams["known_past_covariates"] = known_past_covariates
+    def _init_file_paths(
+        self,
+        train_df_paths: str | list[str] | None,
+        val_df_paths: str | list[str] | None,
+    ) -> None:
+        """Initialize file paths for data loading."""
+        self._train_df_pths = _or_empty(train_df_paths)
+        self._val_df_pths = _or_empty(val_df_paths)
 
+    def _init_transforms(
+        self, extra_transforms: dict[str, list[BaseTransform]] | None
+    ) -> None:
+        """Initialize transform system."""
         self._extra_transforms_source: typing.Mapping[
             str, list[BaseTransform] | list[ExtraTransformsHparams]
         ] = extra_transforms or {}
@@ -312,14 +335,10 @@ class DataModuleBase(L.LightningDataModule):
         self._create_transforms()
         self._patch_extra_transforms_hparams()
 
-        self._train_df_pths = _or_empty(train_df_paths)
-        self._val_df_pths = _or_empty(val_df_paths)
-
-        # these will be set by prepare_data
+    def _init_data_containers(self) -> None:
+        """Initialize data containers that will be populated by prepare_data."""
         self._train_df: list[pd.DataFrame] = []
         self._val_df: list[pd.DataFrame] = []
-
-        self._init_tmpdir()
 
     """ Override the following in subclasses """
 
@@ -388,22 +407,39 @@ class DataModuleBase(L.LightningDataModule):
         distinct data from different sources separate.
         The data will be concatenated in subclasses of :class:`AbstractTimeSeriesDataset`
         after data has been split and samples created using the sliding window technique.
-
-        Parameters
-        ----------
-        save : bool
-            Whether to save the dataframes to parquet files.
-
         """
         super().prepare_data()
-        # load all data into memory and then apply transforms
-        train_pths = [Path(pth).expanduser() for pth in self._train_df_pths]
-        val_pths = [Path(pth).expanduser() for pth in self._val_df_pths]
 
-        train_df = list(map(read_dataframe, train_pths))
-        val_df = list(map(read_dataframe, val_pths))
+        # Load data
+        train_df, val_df = self._load_raw_data()
 
-        parse_dataframe = functools.partial(
+        # Parse and preprocess
+        train_df = self._parse_and_preprocess_data(train_df)
+        val_df = self._parse_and_preprocess_data(val_df)
+
+        # Store raw data for reference
+        self._raw_train_df = train_df
+        self._raw_val_df = val_df
+
+        # Fit and apply transforms
+        self._fit_and_apply_transforms(train_df, val_df)
+
+        # Save processed data
+        self._save_processed_data()
+
+    def _load_raw_data(self) -> tuple[list[pd.DataFrame], list[pd.DataFrame]]:
+        """Load raw data from file paths."""
+        train_paths = [Path(p).expanduser() for p in self._train_df_pths]
+        val_paths = [Path(p).expanduser() for p in self._val_df_pths]
+
+        return (
+            list(map(read_dataframe, train_paths)),
+            list(map(read_dataframe, val_paths)),
+        )
+
+    def _parse_and_preprocess_data(self, dfs: list[pd.DataFrame]) -> list[pd.DataFrame]:
+        """Parse and preprocess data frames."""
+        parse_fn = functools.partial(
             self.parse_dataframe,
             input_columns=self.hparams["known_covariates"],
             past_known_columns=self.hparams.get("known_past_covariates"),
@@ -411,31 +447,21 @@ class DataModuleBase(L.LightningDataModule):
             timestamp=self.hparams.get("time_column"),
         )
 
-        train_df = list(
-            map(
-                parse_dataframe,
-                train_df,
-            )
-        )
-        val_df = list(
-            map(
-                parse_dataframe,
-                val_df,
-            )
-        )
+        parsed_dfs = list(map(parse_fn, dfs))
+        return list(map(self.preprocess_dataframe, parsed_dfs))
 
-        self._raw_train_df = train_df
-        self._raw_val_df = val_df
-
-        train_df = list(map(self.preprocess_dataframe, train_df))
-        val_df = list(map(self.preprocess_dataframe, val_df))
-
+    def _fit_and_apply_transforms(
+        self, train_df: list[pd.DataFrame], val_df: list[pd.DataFrame]
+    ) -> None:
+        """Fit transforms on training data and apply to both sets."""
         if not self._scalers_fitted():
             self._fit_transforms(train_df)
 
         self._train_df = list(map(self.apply_transforms, train_df))
         self._val_df = list(map(self.apply_transforms, val_df))
 
+    def _save_processed_data(self) -> None:
+        """Save processed data to temporary directory."""
         save_data(self._train_df, "train", self._tmp_dir.name)
         save_data(self._val_df, "val", self._tmp_dir.name)
 
@@ -1020,66 +1046,31 @@ class DataModuleBase(L.LightningDataModule):
 
     def _create_transforms(self) -> None:
         """
-        Instantiates the transforms to be used by the datamodule.
+        Instantiates the transforms to be used by the datamodule using TransformBuilder.
         """
-        # input transforms
-        transforms: dict[str, list[BaseTransform]]
-        transforms = {
-            cov.name: [] for cov in self.known_covariates + self.known_past_covariates
-        }
+        builder = TransformBuilder()
 
-        for col, extra_transforms in self._extra_transforms_source.items():
-            extra_transforms = typing.cast(list[BaseTransform], extra_transforms)
-            if col == self.hparams["target_covariate"] or col == TIME_PREFIX:
-                continue
-            if col not in transforms:
-                msg = f"Unknown column {col} in extra_transforms."
-                raise ValueError(msg)
-            transforms[col].extend(extra_transforms)
-
-        if self.hparams["normalize"]:
-            for cov in self.known_covariates + self.known_past_covariates:
-                transforms[cov.name].append(StandardScaler(num_features_=1))
-
-        target_transform = []
-        if self.hparams["target_covariate"] in self._extra_transforms_source:
-            target_transform.extend(
-                typing.cast(
-                    list[BaseTransform],
-                    self._extra_transforms_source[self.hparams["target_covariate"]],
-                )
+        # Add covariate transforms
+        covariate_names = [
+            cov.name for cov in self.known_covariates + self.known_past_covariates
+        ]
+        if covariate_names:
+            builder.add_covariate_transforms(
+                covariate_names=covariate_names,
+                extra_transforms=self._extra_transforms_source,
+                normalize=self.hparams["normalize"],
             )
-        if self.hparams["normalize"]:
-            target_transform.append(StandardScaler(num_features_=1))
 
-        target_transform_ = TransformCollection(target_transform)
+        # Add target transforms
+        builder.add_target_transforms(
+            target_name=self.target_covariate.name,
+            extra_transforms=self._extra_transforms_source,
+            normalize=self.hparams["normalize"],
+            depends_on=self.hparams.get("target_depends_on"),
+        )
 
-        if (
-            self.target_depends_on is not None
-            and target_transform_.transform_type != BaseTransform.TransformType.XY
-        ):
-            msg = (
-                "The target depends on another column, but the target transform "
-                f"does not support this. Got {target_transform_.transform_type}."
-            )
-            raise ValueError(msg)
-        if (
-            self.target_depends_on is None
-            and target_transform_.transform_type == BaseTransform.TransformType.XY
-        ):
-            msg = (
-                "The target does not depend on another column, but the target transform "
-                f"does. Got {target_transform_.transform_type}."
-            )
-            raise ValueError(msg)
-
-        transforms[self.target_covariate.name] = target_transform_
-        self._transforms = torch.nn.ModuleDict({
-            col: TransformCollection(transforms)
-            if isinstance(transforms, list)
-            else transforms
-            for col, transforms in transforms.items()
-        })
+        # Build transforms with validation
+        self._transforms = builder.build()
 
     def _patch_extra_transforms_load(self) -> None:
         extra_transforms_loaded: dict[str, list[BaseTransform]] = {}

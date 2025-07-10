@@ -179,6 +179,7 @@ class TimeSeriesDataModule(DataModuleBase):
             msg = "known_past_covariates is not used in this class."
             raise NotImplementedError(msg)
 
+        # Extract input and target data directly (maintain original logic)
         input_cols = [cov.col for cov in self.known_covariates]
         target_data: pd.Series | list[pd.Series] | None
         if isinstance(df, pd.DataFrame):
@@ -195,7 +196,7 @@ class TimeSeriesDataModule(DataModuleBase):
         return TimeSeriesDataset(
             input_data=df[input_cols]
             if isinstance(df, pd.DataFrame)
-            else [df[input_cols] for df in df],
+            else [d[input_cols] for d in df],
             target_data=target_data,
             stride=self.hparams["stride"],
             seq_len=self.hparams["seq_len"],
