@@ -9,7 +9,6 @@ import torch
 from .._covariates import TIME_PREFIX as TIME
 from .._dtype import VALID_DTYPES, convert_data
 from .._sample_generator import (
-    DecoderSample,
     EncoderDecoderSample,
     EncoderDecoderTargetSample,
     EncoderSample,
@@ -146,20 +145,19 @@ class EncoderDecoderDataset(TransformerDataset):
     @staticmethod
     @typing.overload
     def _format_time_data(
-        sample: DecoderSample[pd.DataFrame],
+        sample: EncoderDecoderSample[pd.DataFrame],
         time_format: typing.Literal["absolute", "relative"] = "relative",
         ctxt_seq_len: int | None = None,
         *,
         encoder: bool = False,
         decoder: bool = True,
-    ) -> DecoderSample[pd.DataFrame]: ...
+    ) -> EncoderDecoderSample[pd.DataFrame]: ...
 
     @staticmethod
     def _format_time_data(  # type: ignore
         sample: EncoderSample[pd.DataFrame]
         | EncoderDecoderSample[pd.DataFrame]
-        | EncoderDecoderTargetSample[pd.DataFrame]
-        | DecoderSample[pd.DataFrame],
+        | EncoderDecoderTargetSample[pd.DataFrame],
         time_format: typing.Literal["absolute", "relative"] = "relative",
         ctxt_seq_len: int | None = None,
         *,
@@ -169,7 +167,6 @@ class EncoderDecoderDataset(TransformerDataset):
         EncoderSample[pd.DataFrame]
         | EncoderDecoderSample[pd.DataFrame]
         | EncoderDecoderTargetSample[pd.DataFrame]
-        | DecoderSample[pd.DataFrame]
     ):
         if (encoder and TIME not in sample["encoder_input"]) or (  # type: ignore[typeddict-item]
             decoder and TIME not in sample["decoder_input"]  # type: ignore[typeddict-item]
@@ -301,7 +298,7 @@ class EncoderDecoderDataset(TransformerDataset):
         time_format: typing.Literal["absolute", "relative"] = "relative",
         transforms: dict[str, BaseTransform] | None = None,
         dtype: VALID_DTYPES = "float32",
-    ) -> DecoderSample[torch.Tensor]:
+    ) -> EncoderDecoderSample[torch.Tensor]:
         """
         Make the decoder input from the DataFrame. The whole DataFrame is used.
 
@@ -332,7 +329,7 @@ class EncoderDecoderDataset(TransformerDataset):
 
         df = df.reset_index(drop=True)
 
-        sample: DecoderSample[pd.DataFrame] = {
+        sample: EncoderDecoderSample[pd.DataFrame] = {
             "decoder_input": df,
             "decoder_mask": pd.DataFrame(np.ones((len(df), 1))),
             "decoder_lengths": pd.DataFrame({"decoder_lengths": [len(df)]}),

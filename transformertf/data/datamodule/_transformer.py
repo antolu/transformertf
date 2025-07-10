@@ -14,7 +14,7 @@ from .._dtype import VALID_DTYPES
 from .._sample_generator import EncoderDecoderTargetSample
 from .._transform_builder import TransformBuilder
 from .._window_generator import WindowGenerator
-from ..dataset import EncoderDataset, EncoderDecoderDataset
+from ..dataset import EncoderDecoderDataset
 from ..transform import (
     BaseTransform,
     DeltaTransform,
@@ -585,107 +585,4 @@ class EncoderDecoderDataModule(TransformerDataModule):
         return typing.cast(
             EncoderDecoderTargetSample[torch.Tensor],
             torch.utils.data.dataloader.default_collate(cut_samples),
-        )
-
-
-class EncoderDataModule(TransformerDataModule):
-    """
-    Data module for encoder-only transformer architectures.
-
-    This class implements encoder-only models where a single transformer encoder
-    processes the input sequence and produces predictions directly. Unlike the
-    encoder-decoder pattern, this approach uses only context sequences without
-    separate target sequence generation.
-
-    This is suitable for models that perform direct sequence classification,
-    regression, or forecasting without autoregressive generation.
-
-    Parameters
-    ----------
-    Inherits all parameters from :class:`TransformerDataModule`.
-
-    Notes
-    -----
-    Key differences from :class:`EncoderDecoderDataModule`:
-
-    - Uses only encoder sequences (no separate decoder)
-    - Context length determines the input sequence length
-    - Target length determines the prediction horizon
-    - Simpler architecture suitable for direct prediction tasks
-
-    The class creates :class:`~transformertf.data.dataset.EncoderDataset` instances
-    with the following sample structure:
-
-    - **Input**: [ctxt_seq_len, n_features] - The encoder input sequence
-    - **Target**: [tgt_seq_len, 1] - The target values to predict
-    - **Lengths**: Actual sequence lengths if randomization is enabled
-
-    **Use Cases**:
-
-    - Direct time series forecasting without autoregressive generation
-    - Sequence classification tasks
-    - Models that map fixed-length context to fixed-length predictions
-    - Transformer encoders with prediction heads
-
-    Examples
-    --------
-    Basic encoder-only setup:
-
-    >>> dm = EncoderDataModule(
-    ...     known_covariates=["temperature", "pressure", "humidity"],
-    ...     target_covariate="energy_demand",
-    ...     ctxt_seq_len=168,  # 1 week of hourly data
-    ...     tgt_seq_len=24,    # 1 day prediction horizon
-    ...     train_df_paths="data/energy.parquet"
-    ... )
-
-    For sequence classification:
-
-    >>> dm = EncoderDataModule(
-    ...     known_covariates=["sensor1", "sensor2", "sensor3"],
-    ...     target_covariate="anomaly_score",
-    ...     ctxt_seq_len=100,
-    ...     tgt_seq_len=1,  # Single prediction
-    ...     randomize_seq_len=True,
-    ...     min_ctxt_seq_len=50,
-    ...     train_df_paths="data/anomaly.parquet"
-    ... )
-
-    See Also
-    --------
-    TransformerDataModule : Base class for transformer data modules
-    EncoderDataset : Underlying dataset implementation
-    EncoderDecoderDataModule : For encoder-decoder architectures
-    """
-
-    @override
-    def _make_dataset_from_df(
-        self,
-        df: pd.DataFrame | list[pd.DataFrame],
-        *,
-        predict: bool = False,
-    ) -> EncoderDataset:
-        """Create encoder dataset using simplified parameter passing."""
-        # Extract data based on column structure
-        if isinstance(df, pd.DataFrame):
-            input_data = df[[cov.col for cov in self.known_covariates]]
-            target_data = df[self.target_covariate.col]
-        else:
-            input_data = [d[[cov.col for cov in self.known_covariates]] for d in df]
-            target_data = [d[self.target_covariate.col] for d in df]
-
-        return EncoderDataset(
-            input_data=input_data,
-            target_data=target_data,
-            ctx_seq_len=self.hparams["ctxt_seq_len"],
-            min_ctxt_seq_len=self.hparams["min_ctxt_seq_len"],
-            tgt_seq_len=self.hparams["tgt_seq_len"],
-            min_tgt_seq_len=self.hparams["min_tgt_seq_len"],
-            stride=self.hparams["stride"],
-            randomize_seq_len=(
-                self.hparams["randomize_seq_len"] if not predict else False
-            ),
-            predict=predict,
-            transforms=self.transforms,
-            dtype=self.hparams["dtype"],
         )

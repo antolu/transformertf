@@ -67,7 +67,6 @@ from lightning.pytorch.cli import LightningArgumentParser, LRSchedulerTypeUnion
 
 from transformertf.data import (
     DataModuleBase,
-    EncoderDataModule,  # noqa: F401
     EncoderDecoderDataModule,  # noqa: F401
     TimeSeriesDataModule,  # noqa: F401
 )

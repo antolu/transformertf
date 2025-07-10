@@ -15,7 +15,6 @@ import pandas as pd
 
 from ._dtype import VALID_DTYPES
 from .dataset import (
-    EncoderDataset,
     EncoderDecoderDataset,
     TimeSeriesDataset,
 )
@@ -205,75 +204,6 @@ class DatasetFactory:
             time_format=time_format,
             noise_std=noise_std,
             add_target_to_past=add_target_to_past,
-        )
-
-    @staticmethod
-    def create_encoder_dataset(
-        data: pd.DataFrame | list[pd.DataFrame],
-        *,
-        ctx_seq_len: int,
-        tgt_seq_len: int,
-        min_ctx_seq_len: int | None = None,
-        min_tgt_seq_len: int | None = None,
-        randomize_seq_len: bool = False,
-        stride: int = 1,
-        predict: bool = False,
-        transforms: dict[str, BaseTransform] | None = None,
-        dtype: VALID_DTYPES = "float32",
-    ) -> EncoderDataset:
-        """
-        Create EncoderDataset with explicit parameters.
-
-        Parameters
-        ----------
-        data : pd.DataFrame | list[pd.DataFrame]
-            Input data for the dataset.
-        ctx_seq_len : int
-            Context sequence length.
-        tgt_seq_len : int
-            Target sequence length.
-        min_ctx_seq_len : int | None, optional
-            Minimum context sequence length for randomization.
-        min_tgt_seq_len : int | None, optional
-            Minimum target sequence length for randomization.
-        randomize_seq_len : bool, optional
-            Whether to randomize sequence lengths.
-        stride : int, optional
-            Step size for sliding window. Default is 1.
-        predict : bool, optional
-            Whether dataset is used for prediction. Default is False.
-        transforms : dict[str, BaseTransform] | None, optional
-            Transforms to apply to data.
-        dtype : VALID_DTYPES, optional
-            Data type for tensors. Default is "float32".
-
-        Returns
-        -------
-        EncoderDataset
-            Configured encoder dataset.
-        """
-        # Extract input and target data
-        if isinstance(data, list):
-            input_data = [
-                _extract_columns(df, "__future_known_continuous_") for df in data
-            ]
-            target_data = [_extract_columns(df, "__target") for df in data]
-        else:
-            input_data = _extract_columns(data, "__future_known_continuous_")
-            target_data = _extract_columns(data, "__target")
-
-        return EncoderDataset(
-            input_data=input_data,
-            target_data=target_data,
-            ctx_seq_len=ctx_seq_len,
-            tgt_seq_len=tgt_seq_len,
-            min_ctxt_seq_len=min_ctx_seq_len,
-            min_tgt_seq_len=min_tgt_seq_len,
-            randomize_seq_len=randomize_seq_len,
-            stride=stride,
-            predict=predict,
-            transforms=transforms,
-            dtype=dtype,
         )
 
 

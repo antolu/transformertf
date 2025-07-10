@@ -13,7 +13,6 @@ import torch
 
 from transformertf.data._dataset_factory import DatasetFactory
 from transformertf.data.dataset import (
-    EncoderDataset,
     EncoderDecoderDataset,
     TimeSeriesDataset,
 )
@@ -342,109 +341,6 @@ class TestDatasetFactory:
         assert isinstance(dataset, EncoderDecoderDataset)
         assert dataset._add_target_to_past is False
 
-    def test_create_encoder_dataset_basic(self, sample_dataframe: pd.DataFrame) -> None:
-        """Test creating basic encoder dataset."""
-        dataset = DatasetFactory.create_encoder_dataset(
-            data=sample_dataframe,
-            ctx_seq_len=3,
-            tgt_seq_len=2,
-            stride=1,
-            predict=False,
-        )
-
-        assert isinstance(dataset, EncoderDataset)
-        assert dataset.ctxt_seq_len == 3
-        assert dataset.tgt_seq_len == 2
-        assert len(dataset) > 0
-
-    def test_create_encoder_dataset_with_list(
-        self, sample_dataframe: pd.DataFrame
-    ) -> None:
-        """Test creating encoder dataset with list of DataFrames."""
-        data_list = [sample_dataframe, sample_dataframe]
-
-        dataset = DatasetFactory.create_encoder_dataset(
-            data=data_list,
-            ctx_seq_len=3,
-            tgt_seq_len=2,
-            stride=1,
-            predict=False,
-        )
-
-        assert isinstance(dataset, EncoderDataset)
-        assert len(dataset) > 0
-
-    def test_create_encoder_dataset_predict_mode(
-        self, sample_dataframe: pd.DataFrame
-    ) -> None:
-        """Test creating encoder dataset in predict mode."""
-        dataset = DatasetFactory.create_encoder_dataset(
-            data=sample_dataframe,
-            ctx_seq_len=3,
-            tgt_seq_len=2,
-            stride=1,
-            predict=True,
-        )
-
-        assert isinstance(dataset, EncoderDataset)
-        assert dataset._predict is True
-
-    def test_create_encoder_dataset_with_transforms(
-        self,
-        sample_dataframe: pd.DataFrame,
-        sample_transforms: dict[str, torch.nn.Module],
-    ) -> None:
-        """Test creating encoder dataset with transforms."""
-        dataset = DatasetFactory.create_encoder_dataset(
-            data=sample_dataframe,
-            ctx_seq_len=3,
-            tgt_seq_len=2,
-            stride=1,
-            predict=False,
-            transforms=sample_transforms,
-        )
-
-        assert isinstance(dataset, EncoderDataset)
-        assert dataset._transforms == sample_transforms
-
-    def test_create_encoder_dataset_randomized_length(
-        self, sample_dataframe: pd.DataFrame
-    ) -> None:
-        """Test creating encoder dataset with randomized lengths."""
-        dataset = DatasetFactory.create_encoder_dataset(
-            data=sample_dataframe,
-            ctx_seq_len=4,
-            tgt_seq_len=3,
-            min_ctx_seq_len=2,
-            min_tgt_seq_len=1,
-            randomize_seq_len=True,
-            stride=1,
-            predict=False,
-        )
-
-        assert isinstance(dataset, EncoderDataset)
-        assert dataset.ctxt_seq_len == 4
-        assert dataset.tgt_seq_len == 3
-        assert dataset._min_ctxt_seq_len == 2
-        assert dataset._min_tgt_seq_len == 1
-        assert dataset._randomize_seq_len is True
-
-    def test_create_encoder_dataset_custom_dtype(
-        self, sample_dataframe: pd.DataFrame
-    ) -> None:
-        """Test creating encoder dataset with custom dtype."""
-        dataset = DatasetFactory.create_encoder_dataset(
-            data=sample_dataframe,
-            ctx_seq_len=3,
-            tgt_seq_len=2,
-            stride=1,
-            predict=False,
-            dtype="float64",
-        )
-
-        assert isinstance(dataset, EncoderDataset)
-        assert dataset._dtype == "float64"
-
 
 class TestDatasetFactoryExtractColumns:
     """Test cases for column extraction utility."""
@@ -517,22 +413,11 @@ class TestDatasetFactoryIntegration:
             predict=False,
         )
 
-        encoder_dataset = DatasetFactory.create_encoder_dataset(
-            data=sample_dataframe,
-            ctx_seq_len=3,
-            tgt_seq_len=2,
-            stride=1,
-            predict=False,
-        )
-
         assert isinstance(timeseries_dataset, TimeSeriesDataset)
         assert isinstance(encoder_decoder_dataset, EncoderDecoderDataset)
-        assert isinstance(encoder_dataset, EncoderDataset)
 
         # Ensure they're different types
         assert type(timeseries_dataset) != type(encoder_decoder_dataset)
-        assert type(encoder_decoder_dataset) != type(encoder_dataset)
-        assert type(encoder_dataset) != type(timeseries_dataset)
 
     def test_factory_parameter_passing(self, sample_dataframe: pd.DataFrame) -> None:
         """Test that factory methods properly pass parameters to datasets."""
