@@ -89,10 +89,6 @@ Data Module Types
 - Input: Sliding windows of equal length
 - Models: LSTM, GRU
 
-**EncoderDataModule**
-- For: Classification or single-step prediction
-- Input: Historical context → Single output
-- Models: TransformerEncoder, modified architectures
 
 Common Workflows
 ----------------
