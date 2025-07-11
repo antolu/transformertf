@@ -127,3 +127,14 @@ Sample configurations in `sample_configs/` demonstrate:
 - Transform configurations for physics applications
 
 The CLI system automatically validates configurations and provides helpful error messages for parameter mismatches.
+
+## PyTorch Lightning Design Patterns
+
+- **Hyperparameter Management**:
+  - There is no need to pass init arguments in the model LightningModules, nor in the data DataModules, because the init arguments are saved automatically by the `save_hyperparameters` call after `super().__init__()`, and since subclasses call `super().__init__()` first, the subsequent `self.save_hyperparameters()` complements whatever the superclass saved. The init arguments can then be retrieved from the `self.hparams` attribute.
+  - All model parameters and data processing parameters must be explicitly in the __init__, and not encapsulated in dataclasses to enable them to be captured by the LightningModule.save_hyperparameters() call.
+
+## Development Best Practices
+
+- Run pre-commit before committing
+- Run pytests after each major edit
