@@ -62,7 +62,7 @@ def test_window_generator_correct_slices(
     num_points: int,
     window_size: int,
     stride: int,
-    zero_pad: bool,  # noqa: FBT001
+    zero_pad: bool,
     expected: list[slice],
 ) -> None:
     wg = WindowGenerator(num_points, window_size, stride, zero_pad=zero_pad)

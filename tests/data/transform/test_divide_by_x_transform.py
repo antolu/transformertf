@@ -39,7 +39,7 @@ def test_divide_by_x_transform_fitted() -> None:
     transform = DivideByXTransform()
 
     # verify with sklearn
-    import sklearn.utils.validation  # noqa: PLC0415
+    import sklearn.utils.validation
 
     sklearn.utils.validation.check_is_fitted(transform)
 

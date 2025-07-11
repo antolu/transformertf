@@ -43,7 +43,7 @@ def test_log_transform_fitted() -> None:
     transform = LogTransform()
 
     # verify with sklearn
-    import sklearn.utils.validation  # noqa: PLC0415
+    import sklearn.utils.validation
 
     sklearn.utils.validation.check_is_fitted(transform)
 
@@ -89,7 +89,7 @@ def test_log1p_transform_fitted() -> None:
     transform = Log1pTransform()
 
     # verify with sklearn
-    import sklearn.utils.validation  # noqa: PLC0415
+    import sklearn.utils.validation
 
     sklearn.utils.validation.check_is_fitted(transform)
 

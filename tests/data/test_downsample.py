@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 import torch
 
-from transformertf.data import _downsample  # noqa: PLC2701
+from transformertf.data import _downsample
 
 
 @pytest.fixture

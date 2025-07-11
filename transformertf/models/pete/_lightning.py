@@ -71,7 +71,7 @@ class PETE(SABWLSTM):
         sa_max_epochs: int | None = None,
         sa_reduce_on_plateau_patience: int | None = None,
         sa_lr_scheduler_kwargs: dict[str, typing.Any] | None = None,
-        lbfgs_start: typing.Literal[False] | int = False,  # noqa: FBT002
+        lbfgs_start: typing.Literal[False] | int = False,
         lbfgs_lr: float = 1.0,
         lbfgs_max_iter: int = 20,
         lbfgs_history_size: int = 5,

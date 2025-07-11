@@ -28,7 +28,7 @@ def test_num_samples(
     arr: pd.Series,
     win_size: int,
     stride: int,
-    zero_pad: bool,  # noqa: FBT001
+    zero_pad: bool,
     expected: int,
     sample_shape: tuple[int, ...],
 ) -> None:

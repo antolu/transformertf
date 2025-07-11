@@ -7,8 +7,8 @@ import pytest
 import torch
 
 from transformertf.data.datamodule._base import (
-    known_cov_col,  # noqa: PLC2701
-    target_col,  # noqa: PLC2701
+    known_cov_col,
+    target_col,
 )
 
 

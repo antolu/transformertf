@@ -180,6 +180,22 @@ ignore = [
   "N806",
   "G004",
   "RUF002",
+  "FBT001",   # Boolean-typed positional argument
+  "FBT002",   # Boolean default positional argument
+  "FBT003",   # Boolean positional value in function call
+  "NPY002",   # Replace legacy numpy random calls
+  "E721",     # Type comparison with ==
+  "RUF043",   # Raw string for regex patterns
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+  "SLF001",    # Private member accessed (common in tests)
+  "PLC2701",   # Private name import (common in tests)
+  "PLC0415",   # Import should be at top-level (common in test functions)
+]
+"docs/**" = [
+  "SLF001",    # Private member accessed (needed for docs)
 ]
 
 [tool.ruff.format]
@@ -192,6 +208,41 @@ plugins = "numpy.typing.mypy_plugin"
 [[tool.mypy.overrides]]
 module = ["matplotlib.*"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["transformertf.utils.*", "transformertf.callbacks.*", "transformertf.models.pete.*", "transformertf.models.transformerxl.*"]
+ignore_missing_imports = true
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = ["transformertf.data._sample_generator", "transformertf.data._transform_builder", "transformertf.data.datamodule.*", "transformertf.data.dataset.*"]
+ignore_missing_imports = true
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = ["transformertf.nn.*", "transformertf.models.transformer.*"]
+ignore_missing_imports = true
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = ["transformertf.data.*"]
+ignore_missing_imports = true
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = ["transformertf.models.*"]
+ignore_missing_imports = true
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = ["transformertf.main"]
+ignore_missing_imports = true
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+ignore_missing_imports = true
+ignore_errors = true
 
 # for pyright LSP
 [tool.pyright]

@@ -13,7 +13,7 @@ _should_compile = False
 _compile_kwargs = {}
 
 
-def set_compile(value: bool, **kwargs: typing.Any) -> None:  # noqa: FBT001
+def set_compile(value: bool, **kwargs: typing.Any) -> None:
     """
     Configure global compilation settings for PyTorch model optimization.
 

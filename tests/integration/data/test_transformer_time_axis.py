@@ -4,7 +4,7 @@ import pytest
 import torch
 
 from transformertf.data import EncoderDecoderDataModule, TransformerDataModule
-from transformertf.data.datamodule._base import TIME_PREFIX  # noqa: PLC2701
+from transformertf.data.datamodule._base import TIME_PREFIX
 
 
 def test_transformer_datamodule_create_with_time_axis(

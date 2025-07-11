@@ -15,7 +15,7 @@ def x() -> torch.Tensor:
 
 def test_polynomial_transform_zero_degree(x: torch.Tensor) -> None:
     transform = PolynomialTransform(degree=0, num_iterations=10)
-    transform._reset_parameters()  # noqa: SLF001
+    transform._reset_parameters()
 
     transform.bias.data = torch.ones(1)
 
@@ -27,7 +27,7 @@ def test_polynomial_transform_zero_degree(x: torch.Tensor) -> None:
 
 def test_polynomial_transform_one_degree(x: torch.Tensor) -> None:
     transform = PolynomialTransform(degree=1, num_iterations=10)
-    transform._reset_parameters()  # noqa: SLF001
+    transform._reset_parameters()
 
     transform.bias.data -= 2.0
     transform.weights.data = torch.ones(1) * 3.0
@@ -40,7 +40,7 @@ def test_polynomial_transform_one_degree(x: torch.Tensor) -> None:
 
 def test_polynomial_transform_two_degree(x: torch.Tensor) -> None:
     transform = PolynomialTransform(degree=2, num_iterations=10)
-    transform._reset_parameters()  # noqa: SLF001
+    transform._reset_parameters()
 
     transform.bias.data -= 2.0
     transform.weights.data = torch.ones(2) * 3.0
@@ -53,7 +53,7 @@ def test_polynomial_transform_two_degree(x: torch.Tensor) -> None:
 
 def test_polynomial_transform_zero_degree_derivative() -> None:
     transform = PolynomialTransform(degree=0, num_iterations=10)
-    transform._reset_parameters()  # noqa: SLF001
+    transform._reset_parameters()
 
     transform.bias.data = torch.ones(1)
 
@@ -63,7 +63,7 @@ def test_polynomial_transform_zero_degree_derivative() -> None:
 
 def test_polynomial_transform_one_degree_derivative() -> None:
     transform = PolynomialTransform(degree=1, num_iterations=10)
-    transform._reset_parameters()  # noqa: SLF001
+    transform._reset_parameters()
 
     transform.bias.data -= 2.0
     transform.weights.data = torch.ones(1) * 3.0
@@ -78,7 +78,7 @@ def test_polynomial_transform_one_degree_derivative() -> None:
 
 def test_polynomial_transform_two_degree_derivative() -> None:
     transform = PolynomialTransform(degree=2, num_iterations=10)
-    transform._reset_parameters()  # noqa: SLF001
+    transform._reset_parameters()
 
     transform.bias.data -= 2.0
     transform.weights.data = torch.ones(2) * 3.0
@@ -94,7 +94,7 @@ def test_polynomial_transform_two_degree_derivative() -> None:
 
 def test_polynomial_transform_three_degree_derivative() -> None:
     transform = PolynomialTransform(degree=3, num_iterations=10)
-    transform._reset_parameters()  # noqa: SLF001
+    transform._reset_parameters()
 
     transform.bias.data -= 2.0
     transform.weights.data = torch.ones(3) * 3.0

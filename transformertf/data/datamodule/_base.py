@@ -269,7 +269,7 @@ class DataModuleBase(L.LightningDataModule):
         known_past_covariates: str | typing.Sequence[str] | None = None,
         train_df_paths: str | list[str] | None = None,
         val_df_paths: str | list[str] | None = None,
-        normalize: bool = True,  # noqa: FBT001, FBT002
+        normalize: bool = True,
         downsample: int = 1,
         downsample_method: DOWNSAMPLE_METHODS = "interval",
         target_depends_on: str | None = None,

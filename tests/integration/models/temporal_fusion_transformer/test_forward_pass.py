@@ -50,7 +50,7 @@ def test_tft_forward_pass(
     encoder_decoder_datamodule.hparams["min_ctxt_seq_len"] = 50
     encoder_decoder_datamodule.hparams["min_tgt_seq_len"] = 25
     encoder_decoder_datamodule.hparams["randomize_seq_len"] = True
-    encoder_decoder_datamodule._val_df[0] = encoder_decoder_datamodule._val_df[0].iloc[  # noqa: SLF001
+    encoder_decoder_datamodule._val_df[0] = encoder_decoder_datamodule._val_df[0].iloc[
         :-10
     ]
 

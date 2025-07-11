@@ -485,7 +485,7 @@ class TransformerModuleBase(LightningModuleBase):
             if param_name not in trainable_params:
                 module.eval()
 
-    def parameters(self, recurse: bool = True) -> typing.Iterator[torch.nn.Parameter]:  # noqa: FBT001, FBT002
+    def parameters(self, recurse: bool = True) -> typing.Iterator[torch.nn.Parameter]:
         """
         Override the parameters method to only return the trainable parameters, for
         use with LightningCLI where we cannot easily specify the trainable parameters.
