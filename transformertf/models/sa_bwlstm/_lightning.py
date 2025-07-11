@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import collections.abc
 import functools
 import itertools
 import typing
@@ -9,6 +10,7 @@ from lightning.pytorch.utilities.types import OptimizerLRScheduler
 
 from ...data import TimeSeriesSample
 from ...utils import configure_lr_scheduler, configure_optimizers
+from .._base_module import DEFAULT_LOGGING_METRICS, MetricLiteral
 from ..bwlstm import BWLSTM3, BoucWenLoss
 
 
@@ -66,6 +68,9 @@ class SABWLSTM(BWLSTM3):
         *,
         log_grad_norm: bool = False,
         compile_model: bool = False,
+        logging_metrics: collections.abc.Container[
+            MetricLiteral
+        ] = DEFAULT_LOGGING_METRICS,
     ):
         super().__init__(
             n_features=n_features,
@@ -76,6 +81,7 @@ class SABWLSTM(BWLSTM3):
             loss_weights=loss_weights,
             log_grad_norm=log_grad_norm,
             compile_model=compile_model,
+            logging_metrics=logging_metrics,
         )
         self.save_hyperparameters()
 

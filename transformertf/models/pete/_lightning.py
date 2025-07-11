@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import collections.abc
 import functools
 import sys
 import typing
@@ -7,6 +8,7 @@ import typing
 import torch
 
 from ...data import EncoderDecoderTargetSample
+from .._base_module import DEFAULT_LOGGING_METRICS, MetricLiteral
 from ..bwlstm import BoucWenLoss, StepOutput
 from ..bwlstm.typing import BWState3
 from ..sa_bwlstm import SABWLSTM
@@ -76,6 +78,9 @@ class PETE(SABWLSTM):
         *,
         log_grad_norm: bool = False,
         compile_model: bool = False,
+        logging_metrics: collections.abc.Container[
+            MetricLiteral
+        ] = DEFAULT_LOGGING_METRICS,
     ):
         super().__init__(
             n_features=num_future_features,
@@ -112,6 +117,7 @@ class PETE(SABWLSTM):
             lbfgs_history_size=lbfgs_history_size,
             log_grad_norm=log_grad_norm,
             compile_model=compile_model,
+            logging_metrics=logging_metrics,
         )
 
         self.encoder = PETEModel(
