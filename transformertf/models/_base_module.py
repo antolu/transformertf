@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import collections
+import collections.abc
 import logging
 import typing
 
@@ -20,6 +21,17 @@ if typing.TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
+# Define available metrics as literals for type safety
+MetricLiteral = typing.Literal["MSE", "MAE", "MAPE", "SMAPE", "RMSE"]
+DEFAULT_LOGGING_METRICS: tuple[MetricLiteral, ...] = (
+    "MSE",
+    "MAE",
+    "MAPE",
+    "SMAPE",
+    "RMSE",
+)
+
+
 class LightningModuleBase(L.LightningModule):
     """
     Base class for all time series forecasting models in the transformertf library.
@@ -33,10 +45,10 @@ class LightningModuleBase(L.LightningModule):
 
     Parameters
     ----------
-    log_timeseries_metrics : bool, default=True
-        Whether to automatically calculate and log time series metrics (MSE, MAE, MAPE,
-        SMAPE, RMSE) during training, validation, and testing. If False, only the loss
-        from the criterion will be logged.
+    logging_metrics : collections.abc.Container[MetricLiteral], default=DEFAULT_LOGGING_METRICS
+        Container of metric names to compute and log during training, validation, and testing.
+        If empty, no additional metrics will be logged (only the loss from the criterion).
+        Available metrics: "MSE", "MAE", "MAPE", "SMAPE", "RMSE".
 
     Attributes
     ----------
@@ -72,11 +84,17 @@ class LightningModuleBase(L.LightningModule):
     ...         # Implementation here
     ...         pass
     >>>
-    >>> # Usage with data module
-    >>> model = CustomModel(log_timeseries_metrics=True)
+    >>> # Usage with default metrics
+    >>> model = CustomModel()
     >>> datamodule = TimeSeriesDataModule(...)
     >>> trainer = L.Trainer()
     >>> trainer.fit(model, datamodule)
+    >>>
+    >>> # Custom metrics selection
+    >>> model = CustomModel(logging_metrics=["MSE", "MAE"])
+    >>>
+    >>> # No additional metrics (only loss)
+    >>> model = CustomModel(logging_metrics=[])
 
     Notes
     -----
@@ -85,8 +103,9 @@ class LightningModuleBase(L.LightningModule):
     1. **Output Collection**: Automatically collects outputs from validation, test, and
        inference steps for later analysis or visualization.
 
-    2. **Metric Calculation**: Automatically calculates standard time series metrics
-       (MSE, MAE, MAPE, SMAPE, RMSE) when `log_timeseries_metrics=True`.
+    2. **Metric Calculation**: Automatically calculates configurable time series metrics
+       based on the `logging_metrics` parameter. Default metrics include MSE, MAE, MAPE,
+       SMAPE, and RMSE.
 
     3. **Model Compilation**: Supports PyTorch 2.0 model compilation via the
        `compile_model` hyperparameter for improved performance.
@@ -108,9 +127,20 @@ class LightningModuleBase(L.LightningModule):
     model: torch.nn.Module
     criterion: torch.nn.Module
 
-    def __init__(self, *, log_timeseries_metrics: bool = True) -> None:
+    def __init__(
+        self,
+        *,
+        logging_metrics: collections.abc.Container[
+            MetricLiteral
+        ] = DEFAULT_LOGGING_METRICS,
+    ) -> None:
         super().__init__()
         self.save_hyperparameters()
+
+        # Store metrics configuration - use from hparams if available, fallback to parameter
+        self._logging_metrics = getattr(
+            self.hparams, "logging_metrics", logging_metrics
+        )
 
         self._train_outputs: dict[int, list[MODEL_OUTPUT]] = {}
         self._val_outputs: dict[int, list[MODEL_OUTPUT]] = {}
@@ -118,6 +148,7 @@ class LightningModuleBase(L.LightningModule):
         self._inference_outputs: dict[int, list[MODEL_OUTPUT]] = {}
 
     def on_fit_start(self) -> None:
+        self._validate_hyperparameters()
         self.maybe_compile_model()
 
     def maybe_compile_model(self) -> None:
@@ -166,10 +197,22 @@ class LightningModuleBase(L.LightningModule):
         batch: TimeSeriesSample | EncoderDecoderTargetSample,
         batch_idx: int,
     ) -> None:
-        assert outputs is not None
-        assert "target" in batch
-        assert isinstance(outputs, dict)
-        if self.hparams.get("log_timeseries_metrics"):
+        if outputs is None:
+            msg = "Expected outputs to be provided in training batch end, got None"
+            raise ValueError(msg)
+
+        # Validate batch structure
+        self._validate_batch_structure(batch, "training")
+
+        if "target" not in batch:
+            msg = "Expected 'target' key in batch during training"
+            raise ValueError(msg)
+
+        if not isinstance(outputs, dict):
+            msg = f"Expected outputs to be dict during training, got {type(outputs)}"
+            raise TypeError(msg)
+
+        if self._logging_metrics:
             other_metrics = self.calc_other_metrics(outputs, batch["target"])
             self.common_log_step(other_metrics, "train")  # type: ignore[attr-defined]
 
@@ -182,6 +225,9 @@ class LightningModuleBase(L.LightningModule):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
+        # Validate batch structure
+        self._validate_batch_structure(batch, "validation")
+
         if dataloader_idx not in self._val_outputs:
             self._val_outputs[dataloader_idx] = []
 
@@ -192,8 +238,10 @@ class LightningModuleBase(L.LightningModule):
 
         self._val_outputs[dataloader_idx].append(ops.to_cpu(ops.detach(data)))  # type: ignore[arg-type,type-var]
 
-        if self.hparams.get("log_timeseries_metrics"):
-            assert "target" in batch
+        if self._logging_metrics:
+            if "target" not in batch:
+                msg = "Expected 'target' key in batch during validation"
+                raise ValueError(msg)
             other_metrics = self.calc_other_metrics(outputs, batch["target"])
             self.common_log_step(other_metrics, "validation")  # type: ignore[attr-defined]
 
@@ -299,7 +347,7 @@ class LightningModuleBase(L.LightningModule):
         target: torch.Tensor,  # type: ignore[override]
     ) -> dict[str, torch.Tensor]:
         """
-        Calculate other metrics from the outputs of the model.
+        Calculate configurable metrics from the outputs of the model.
 
         Parameters
         ----------
@@ -313,28 +361,179 @@ class LightningModuleBase(L.LightningModule):
         Returns
         -------
         dict[str, torch.Tensor]
-            A dictionary containing the calculated metrics.
+            A dictionary containing the calculated metrics based on metrics_config.
+
+        Raises
+        ------
+        TypeError
+            If outputs or target have invalid types.
+        ValueError
+            If tensor shapes are incompatible.
         """
+        # Validate inputs with helpful error messages
+        self._validate_tensor_shapes(outputs, target, "metric calculation")
+
         loss_dict: dict[str, torch.Tensor] = {}
 
-        assert isinstance(outputs, dict)
+        # Extract prediction tensor (validation ensures this is safe)
         if "point_prediction" in outputs:
             prediction = outputs["point_prediction"]
         else:
             prediction = outputs["output"]
 
-        assert isinstance(prediction, torch.Tensor)
-
         target = target.squeeze()
         prediction = prediction.squeeze()
 
-        loss_dict["MSE"] = torch.nn.functional.mse_loss(prediction, target)
-        loss_dict["MAE"] = torch.nn.functional.l1_loss(prediction, target)
-        loss_dict["MAPE"] = F.mape_loss(prediction, target)
-        loss_dict["SMAPE"] = F.smape_loss(prediction, target)
-        loss_dict["RMSE"] = torch.sqrt(loss_dict["MSE"])
+        # Calculate only the metrics specified in configuration
+        for metric_name in self._logging_metrics:
+            if metric_name == "MSE":
+                loss_dict["MSE"] = torch.nn.functional.mse_loss(prediction, target)
+            elif metric_name == "MAE":
+                loss_dict["MAE"] = torch.nn.functional.l1_loss(prediction, target)
+            elif metric_name == "MAPE":
+                loss_dict["MAPE"] = F.mape_loss(prediction, target)
+            elif metric_name == "SMAPE":
+                loss_dict["SMAPE"] = F.smape_loss(prediction, target)
+            elif metric_name == "RMSE":
+                # Calculate MSE first if needed for RMSE
+                if "MSE" not in loss_dict:
+                    mse_value = torch.nn.functional.mse_loss(prediction, target)
+                    loss_dict["RMSE"] = torch.sqrt(mse_value)
+                else:
+                    loss_dict["RMSE"] = torch.sqrt(loss_dict["MSE"])
 
         return loss_dict
+
+    def _validate_hyperparameters(self) -> None:
+        """
+        Validate hyperparameter configuration for common issues.
+
+        This method checks for common configuration mistakes and provides
+        helpful error messages with suggestions for fixes.
+
+        Raises
+        ------
+        ValueError
+            If hyperparameter configuration is invalid.
+        """
+        # Check metrics configuration
+        if hasattr(self, "_logging_metrics"):
+            valid_metrics = {"MSE", "MAE", "MAPE", "SMAPE", "RMSE"}
+            invalid_metrics = set(self._logging_metrics) - valid_metrics
+            if invalid_metrics:
+                msg = (
+                    f"Invalid metric names in logging_metrics: {invalid_metrics}. "
+                    f"Valid metrics are: {valid_metrics}"
+                )
+                raise ValueError(msg)
+
+        # Check compilation compatibility
+        if self.hparams.get("compile_model") and self.hparams.get("log_grad_norm"):
+            log.warning(
+                "Model compilation with gradient norm logging may cause performance issues. "
+                "Consider disabling log_grad_norm for better compilation performance."
+            )
+
+    def _validate_batch_structure(
+        self,
+        batch: TimeSeriesSample | EncoderDecoderTargetSample,
+        stage: str = "training",
+    ) -> None:
+        """
+        Validate the structure and types of input batch.
+
+        Parameters
+        ----------
+        batch : TimeSeriesSample or EncoderDecoderTargetSample
+            The input batch to validate.
+        stage : str, default="training"
+            The current stage (training, validation, test, predict) for error messages.
+
+        Raises
+        ------
+        TypeError
+            If batch is not a dictionary or contains invalid types.
+        ValueError
+            If required keys are missing or tensor shapes are invalid.
+        """
+        if not isinstance(batch, dict):
+            msg = (
+                f"Expected batch to be a dictionary in {stage} stage, got {type(batch)}"
+            )
+            raise TypeError(msg)
+
+        # Check required keys
+        if "target" in batch:
+            # Training/validation batch should have target
+            target = batch["target"]
+            if not isinstance(target, torch.Tensor):
+                msg = f"Expected 'target' to be torch.Tensor in {stage} stage, got {type(target)}"
+                raise TypeError(msg)
+
+            if target.dim() < 2:
+                msg = (
+                    f"Expected 'target' to have at least 2 dimensions in {stage} stage "
+                    f"(batch_size, seq_len), got shape {target.shape}"
+                )
+                raise ValueError(msg)
+
+    def _validate_tensor_shapes(
+        self, outputs: typing.Any, target: torch.Tensor, stage: str = "training"
+    ) -> None:
+        """
+        Validate tensor shapes for metric calculation.
+
+        Parameters
+        ----------
+        outputs : Any
+            Model outputs to validate.
+        target : torch.Tensor
+            Target tensor to validate against.
+        stage : str, default="training"
+            Current stage for error messages.
+
+        Raises
+        ------
+        TypeError
+            If outputs or target have invalid types.
+        ValueError
+            If tensor shapes are incompatible.
+        """
+        if not isinstance(outputs, dict):
+            msg = f"Expected outputs to be dict in {stage} stage, got {type(outputs)}"
+            raise TypeError(msg)
+
+        if "output" not in outputs and "point_prediction" not in outputs:
+            msg = (
+                f"Expected outputs to contain 'output' or 'point_prediction' key in {stage} stage. "
+                f"Got keys: {list(outputs.keys())}"
+            )
+            raise ValueError(msg)
+
+        # Get prediction tensor
+        if "point_prediction" in outputs:
+            prediction = outputs["point_prediction"]
+        else:
+            prediction = outputs["output"]
+
+        if not isinstance(prediction, torch.Tensor):
+            msg = f"Expected prediction to be torch.Tensor in {stage} stage, got {type(prediction)}"
+            raise TypeError(msg)
+
+        if not isinstance(target, torch.Tensor):
+            msg = f"Expected target to be torch.Tensor in {stage} stage, got {type(target)}"
+            raise TypeError(msg)
+
+        # After squeezing, shapes should be compatible
+        pred_squeezed = prediction.squeeze()
+        target_squeezed = target.squeeze()
+
+        if pred_squeezed.shape != target_squeezed.shape:
+            msg = (
+                f"Shape mismatch in {stage} stage: prediction {pred_squeezed.shape} "
+                f"vs target {target_squeezed.shape} (after squeezing)"
+            )
+            raise ValueError(msg)
 
     def on_before_optimizer_step(self, optimizer: torch.optim.Optimizer) -> None:
         """
