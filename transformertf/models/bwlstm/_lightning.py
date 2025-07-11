@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import collections.abc
 import logging
 import typing
 from typing import NotRequired
@@ -8,7 +9,7 @@ import torch
 
 from ...data import TimeSeriesSample
 from ...utils import ops
-from .._base_module import LightningModuleBase
+from .._base_module import DEFAULT_LOGGING_METRICS, LightningModuleBase, MetricLiteral
 from . import typing as bwt
 from ._loss import BoucWenLoss
 from ._model import BWLSTM1Model, BWLSTM2Model, BWLSTM3Model
@@ -53,7 +54,13 @@ class BWLSTMBase(LightningModuleBase):
     and prediction steps, as well as handling hidden states and logging.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        logging_metrics: collections.abc.Container[
+            MetricLiteral
+        ] = DEFAULT_LOGGING_METRICS,
+    ) -> None:
         super().__init__()
 
         # default assume we have one dataloader only
@@ -358,6 +365,9 @@ class BWLSTM1(BWLSTMBase):
         loss_weights: BoucWenLoss.LossWeights | None = None,
         *,
         log_grad_norm: bool = False,
+        logging_metrics: collections.abc.Container[
+            MetricLiteral
+        ] = DEFAULT_LOGGING_METRICS,
     ):
         """
         This module implements a PyTorch Lightning module for hysteresis
@@ -447,6 +457,9 @@ class BWLSTM2(BWLSTMBase):
         loss_weights: BoucWenLoss.LossWeights | None = None,
         *,
         log_grad_norm: bool = False,
+        logging_metrics: collections.abc.Container[
+            MetricLiteral
+        ] = DEFAULT_LOGGING_METRICS,
     ):
         """
         This module implements a PyTorch Lightning module for hysteresis
@@ -474,6 +487,10 @@ class BWLSTM2(BWLSTMBase):
             If `None`, the default loss weights are used from the loss function.
         log_grad_norm : bool
             Whether to log the gradient norm at each step.
+        logging_metrics : collections.abc.Container[MetricLiteral], default=DEFAULT_LOGGING_METRICS
+            Container of metric names to compute and log during training, validation, and testing.
+            If empty, no additional metrics will be logged (only the loss from the criterion).
+            Available metrics: "MSE", "MAE", "MAPE", "SMAPE", "RMSE".
         """
         super().__init__()
         self.criterion = BoucWenLoss(loss_weights=loss_weights)
@@ -573,6 +590,9 @@ class BWLSTM3(BWLSTMBase):
         *,
         log_grad_norm: bool = False,
         compile_model: bool = False,
+        logging_metrics: collections.abc.Container[
+            MetricLiteral
+        ] = DEFAULT_LOGGING_METRICS,
     ):
         """
         This module implements a PyTorch Lightning module for hysteresis
@@ -588,6 +608,7 @@ class BWLSTM3(BWLSTMBase):
         :param lr: The optimizer learning rate. This may be set to "auto"
                    for use with the Lightning Learning Rate Finder.
         :param loss_weights: The loss function to be used.
+        :param logging_metrics: Container of metric names to compute and log during training, validation, and testing.
         """
         super().__init__()
         self.criterion: BoucWenLoss = BoucWenLoss(loss_weights=loss_weights)
