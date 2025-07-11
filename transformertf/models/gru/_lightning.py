@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import collections.abc
 import typing
 
 import torch
@@ -7,7 +8,7 @@ import torch
 from ...data import TimeSeriesSample
 from ...nn import QuantileLoss
 from ...utils import ops
-from .._base_module import LightningModuleBase
+from .._base_module import DEFAULT_LOGGING_METRICS, LightningModuleBase, MetricLiteral
 
 HIDDEN_STATE = tuple[torch.Tensor, torch.Tensor]
 
@@ -31,6 +32,9 @@ class GRU(LightningModuleBase):
         *,
         compile_model: bool = False,
         log_grad_norm: bool = False,
+        logging_metrics: collections.abc.Container[
+            MetricLiteral
+        ] = DEFAULT_LOGGING_METRICS,
     ):
         """
         This module implements a PyTorch Lightning module for hysteresis
@@ -56,6 +60,10 @@ class GRU(LightningModuleBase):
             The dropout probability.
         log_grad_norm: bool
             Whether to log the gradient norm.
+        logging_metrics : collections.abc.Container[MetricLiteral], default=DEFAULT_LOGGING_METRICS
+            Container of metric names to compute and log during training, validation, and testing.
+            If empty, no additional metrics will be logged (only the loss from the criterion).
+            Available metrics: "MSE", "MAE", "MAPE", "SMAPE", "RMSE".
         """
         super().__init__()
 

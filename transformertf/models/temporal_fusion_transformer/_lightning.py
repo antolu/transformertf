@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import collections.abc
 import typing
 
 import torch
 
 from ...data import EncoderDecoderTargetSample
 from ...nn import QuantileLoss
+from .._base_module import DEFAULT_LOGGING_METRICS, MetricLiteral
 from .._base_transformer import TransformerModuleBase
 from ._model import TemporalFusionTransformerModel
 
@@ -68,6 +70,10 @@ class TemporalFusionTransformer(TransformerModuleBase):
     trainable_parameters : list[str] or None, default=None
         List of parameter names to train. If None, all parameters are trainable.
         Useful for transfer learning scenarios.
+    logging_metrics : collections.abc.Container[MetricLiteral], default=DEFAULT_LOGGING_METRICS
+        Container of metric names to compute and log during training, validation, and testing.
+        If empty, no additional metrics will be logged (only the loss from the criterion).
+        Available metrics: "MSE", "MAE", "MAPE", "SMAPE", "RMSE".
 
     Attributes
     ----------
@@ -170,9 +176,12 @@ class TemporalFusionTransformer(TransformerModuleBase):
         log_grad_norm: bool = False,
         compile_model: bool = False,
         trainable_parameters: list[str] | None = None,
+        logging_metrics: collections.abc.Container[
+            MetricLiteral
+        ] = DEFAULT_LOGGING_METRICS,
     ):
-        super().__init__()
-        self.save_hyperparameters(ignore=["lr_scheduler", "criterion"])
+        super().__init__(logging_metrics=logging_metrics)
+        self.save_hyperparameters(ignore=["criterion"])
 
         if criterion is None:
             criterion = QuantileLoss()

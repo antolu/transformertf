@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import collections.abc
 import typing
 
 import torch
@@ -7,7 +8,7 @@ import torch
 from ...data import TimeSeriesSample
 from ...nn import MLP, QuantileLoss
 from ...utils import ops
-from .._base_module import LightningModuleBase
+from .._base_module import DEFAULT_LOGGING_METRICS, LightningModuleBase, MetricLiteral
 
 HIDDEN_STATE = tuple[torch.Tensor, torch.Tensor]
 
@@ -161,8 +162,11 @@ class LSTM(LightningModuleBase):
         *,
         compile_model: bool = False,
         log_grad_norm: bool = False,
+        logging_metrics: collections.abc.Container[
+            MetricLiteral
+        ] = DEFAULT_LOGGING_METRICS,
     ):
-        super().__init__()
+        super().__init__(logging_metrics=logging_metrics)
         n_dim_fc = n_dim_fc or n_dim_model
 
         self.criterion = criterion or torch.nn.MSELoss()
