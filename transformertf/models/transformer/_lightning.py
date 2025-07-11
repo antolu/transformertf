@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import collections.abc
 import typing
 
 import torch
 
 from ...data import EncoderDecoderTargetSample
 from ...nn import QuantileLoss
+from .._base_module import DEFAULT_LOGGING_METRICS, MetricLiteral
 from .._base_transformer import TransformerModuleBase
 from ._model import VanillaTransformerModel
 
@@ -64,6 +66,10 @@ class VanillaTransformer(TransformerModuleBase):
         Whether to log gradient norms during training for debugging.
     compile_model : bool, default=False
         Whether to compile the model using PyTorch 2.0 with dynamic shapes.
+    logging_metrics : collections.abc.Container[MetricLiteral], default=DEFAULT_LOGGING_METRICS
+        Container of metric names to compute and log during training, validation, and testing.
+        If empty, no additional metrics will be logged (only the loss from the criterion).
+        Available metrics: "MSE", "MAE", "MAPE", "SMAPE", "RMSE".
 
     Attributes
     ----------
@@ -178,6 +184,9 @@ class VanillaTransformer(TransformerModuleBase):
         *,
         log_grad_norm: bool = False,
         compile_model: bool = False,
+        logging_metrics: collections.abc.Container[
+            MetricLiteral
+        ] = DEFAULT_LOGGING_METRICS,
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["criterion"])

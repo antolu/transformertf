@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import collections.abc
 import typing
 
 import torch
 
 from ...data import EncoderTargetSample
 from ...nn import VALID_ACTIVATIONS, QuantileLoss
-from .._base_module import LightningModuleBase
+from .._base_module import DEFAULT_LOGGING_METRICS, LightningModuleBase, MetricLiteral
 from ._model import TransformerEncoder
 
 if typing.TYPE_CHECKING:
@@ -26,6 +27,10 @@ class TransformerEncoderModule(LightningModuleBase):
         fc_dim: int | tuple[int, ...] = 1024,
         output_dim: int = 7,
         criterion: (QuantileLoss | torch.nn.MSELoss | torch.nn.HuberLoss | None) = None,
+        *,
+        logging_metrics: collections.abc.Container[
+            MetricLiteral
+        ] = DEFAULT_LOGGING_METRICS,
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["criterion"])

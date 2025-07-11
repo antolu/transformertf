@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import collections.abc
 import typing
 
 import torch
 
 from ...data import EncoderDecoderTargetSample
 from ...nn import QuantileLoss
+from .._base_module import DEFAULT_LOGGING_METRICS, MetricLiteral
 from .._base_transformer import TransformerModuleBase
 from ._model import TransformerV2Model
 
@@ -28,6 +30,9 @@ class VanillaTransformerV2(TransformerModuleBase):
         criterion: QuantileLoss | torch.nn.Module | None = None,
         *,
         log_grad_norm: bool = False,
+        logging_metrics: collections.abc.Container[
+            MetricLiteral
+        ] = DEFAULT_LOGGING_METRICS,
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["criterion"])
