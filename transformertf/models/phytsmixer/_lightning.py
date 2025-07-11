@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import collections.abc
 import typing
 
 import torch
 
 from ...data import EncoderDecoderTargetSample
-from .._base_module import LightningModuleBase
+from .._base_module import DEFAULT_LOGGING_METRICS, LightningModuleBase, MetricLiteral
 from ..bwlstm import BoucWenLoss
 from ..bwlstm.typing import BWOutput3
 from ._model import PhyTSMixerModel
@@ -28,6 +29,9 @@ class PhyTSMixer(LightningModuleBase):
         *,
         log_grad_norm: bool = False,
         compile_model: bool = False,
+        logging_metrics: collections.abc.Container[
+            MetricLiteral
+        ] = DEFAULT_LOGGING_METRICS,
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["criterion"])

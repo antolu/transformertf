@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import collections.abc
 import typing
 
 import torch
 
 from ...data import EncoderDecoderTargetSample
 from ...nn import QuantileLoss
-from .._base_module import LightningModuleBase
+from .._base_module import DEFAULT_LOGGING_METRICS, LightningModuleBase, MetricLiteral
 from ._model import TSMixerModel
 
 
@@ -54,6 +55,10 @@ class TSMixer(LightningModuleBase):
         Whether to log gradient norms during training.
     compile_model : bool, default=False
         Whether to compile the model using PyTorch 2.0.
+    logging_metrics : collections.abc.Container[MetricLiteral], default=DEFAULT_LOGGING_METRICS
+        Container of metric names to compute and log during training, validation, and testing.
+        If empty, no additional metrics will be logged (only the loss from the criterion).
+        Available metrics: "MSE", "MAE", "MAPE", "SMAPE", "RMSE".
 
     Attributes
     ----------
@@ -157,6 +162,9 @@ class TSMixer(LightningModuleBase):
         *,
         log_grad_norm: bool = False,
         compile_model: bool = False,
+        logging_metrics: collections.abc.Container[
+            MetricLiteral
+        ] = DEFAULT_LOGGING_METRICS,
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["lr_scheduler", "criterion"])
