@@ -125,6 +125,126 @@ class TransformerModuleBase(LightningModuleBase):
                     continue
                 setattr(self, name, torch.compile(mod, dynamic=True))
 
+    @override
+    def on_fit_start(self) -> None:
+        """
+        Initialize transformer model for training with validation.
+        """
+        self._validate_transformer_hyperparameters()
+        super().on_fit_start()
+
+    def _validate_encoder_decoder_batch(
+        self, batch: EncoderDecoderTargetSample, stage: str = "training"
+    ) -> None:
+        """
+        Validate encoder-decoder batch structure and tensor shapes.
+
+        Parameters
+        ----------
+        batch : EncoderDecoderTargetSample
+            The encoder-decoder batch to validate.
+        stage : str, default="training"
+            Current stage for error messages.
+
+        Raises
+        ------
+        ValueError
+            If required keys are missing or tensor shapes are invalid.
+        TypeError
+            If batch contains invalid types.
+        """
+        # Validate basic structure first
+        self._validate_batch_structure(batch, stage)
+
+        # Check encoder-decoder specific keys
+        required_keys = ["encoder_input", "decoder_input"]
+        for key in required_keys:
+            if key not in batch:
+                msg = f"Expected '{key}' key in batch during {stage}, got keys: {list(batch.keys())}"
+                raise ValueError(msg)
+
+            tensor = batch[key]
+            if not isinstance(tensor, torch.Tensor):
+                msg = f"Expected '{key}' to be torch.Tensor in {stage}, got {type(tensor)}"
+                raise TypeError(msg)
+
+            if tensor.dim() != 3:
+                msg = (
+                    f"Expected '{key}' to have 3 dimensions (batch_size, seq_len, features) "
+                    f"in {stage}, got shape {tensor.shape}"
+                )
+                raise ValueError(msg)
+
+        # Check sequence length keys if present
+        for length_key in ["encoder_lengths", "decoder_lengths"]:
+            if length_key in batch:
+                lengths = batch[length_key]
+                if not isinstance(lengths, torch.Tensor):
+                    msg = f"Expected '{length_key}' to be torch.Tensor in {stage}, got {type(lengths)}"
+                    raise TypeError(msg)
+
+                if lengths.dim() != 2 or lengths.shape[1] != 1:
+                    msg = (
+                        f"Expected '{length_key}' to have shape (batch_size, 1) in {stage}, "
+                        f"got shape {lengths.shape}"
+                    )
+                    raise ValueError(msg)
+
+    def _extract_point_prediction(self, model_output: torch.Tensor) -> torch.Tensor:
+        """
+        Extract point prediction from model output, handling quantile models.
+
+        For quantile models, this extracts the median (point prediction).
+        For regular models, returns the output as-is.
+
+        Parameters
+        ----------
+        model_output : torch.Tensor
+            Raw model output tensor.
+
+        Returns
+        -------
+        torch.Tensor
+            Point prediction tensor.
+        """
+        if isinstance(self.criterion, QuantileLoss) or (
+            hasattr(self.criterion, "_orig_mod")
+            and isinstance(self.criterion._orig_mod, QuantileLoss)  # noqa: SLF001
+        ):
+            return self.criterion.point_prediction(model_output)
+        return model_output
+
+    def _prepare_step_output(
+        self, model_output: dict[str, torch.Tensor], loss: torch.Tensor
+    ) -> dict[str, torch.Tensor]:
+        """
+        Prepare the output dictionary for training/validation steps.
+
+        This method handles point prediction extraction, output detachment,
+        and result dictionary construction.
+
+        Parameters
+        ----------
+        model_output : dict[str, torch.Tensor]
+            Model output dictionary containing "output" and other keys.
+        loss : torch.Tensor
+            Computed loss value.
+
+        Returns
+        -------
+        dict[str, torch.Tensor]
+            Dictionary containing loss, output, point_prediction, and other outputs.
+        """
+        loss_dict = {"loss": loss}
+        point_prediction = self._extract_point_prediction(model_output["output"])
+
+        return {
+            **loss_dict,
+            "output": model_output.pop("output"),
+            **{k: v.detach() for k, v in model_output.items()},
+            "point_prediction": point_prediction,
+        }
+
     def on_train_batch_start(
         self, batch: EncoderDecoderTargetSample, batch_idx: int
     ) -> None:
@@ -170,9 +290,17 @@ class TransformerModuleBase(LightningModuleBase):
             - "point_prediction": Point estimate (median for quantile models)
             - Additional model outputs (detached for memory efficiency)
 
+        Raises
+        ------
+        ValueError
+            If required keys are missing or tensor shapes are invalid.
+        TypeError
+            If batch contains invalid types.
+
         Notes
         -----
         This method automatically handles:
+        - Input validation with helpful error messages
         - Quantile loss point prediction extraction
         - Proper detachment of auxiliary outputs to prevent memory leaks
         - Logging of training metrics via `common_log_step`
@@ -181,26 +309,17 @@ class TransformerModuleBase(LightningModuleBase):
         The method works with both standard losses and quantile losses, automatically
         extracting point predictions from quantile outputs when applicable.
         """
-        model_output = self(batch)
+        # Validate encoder-decoder batch structure
+        self._validate_encoder_decoder_batch(batch, "training")
 
+        model_output = self(batch)
         loss = self.calc_loss(model_output["output"], batch)
 
-        loss_dict = {"loss": loss}
-        point_prediction = model_output["output"]
-        if isinstance(self.criterion, QuantileLoss) or (
-            hasattr(self.criterion, "_orig_mod")
-            and isinstance(self.criterion._orig_mod, QuantileLoss)  # noqa: SLF001
-        ):
-            point_prediction = self.criterion.point_prediction(point_prediction)
+        # Log training metrics
+        self.common_log_step({"loss": loss}, "train")
 
-        self.common_log_step(loss_dict, "train")
-
-        return {
-            **loss_dict,
-            "output": model_output.pop("output"),
-            **{k: v.detach() for k, v in model_output.items()},
-            "point_prediction": point_prediction,
-        }
+        # Prepare and return step output
+        return self._prepare_step_output(model_output, loss)
 
     def validation_step(
         self,
@@ -233,9 +352,17 @@ class TransformerModuleBase(LightningModuleBase):
             - "point_prediction": Point estimate (median for quantile models)
             - Additional model outputs (detached for memory efficiency)
 
+        Raises
+        ------
+        ValueError
+            If required keys are missing or tensor shapes are invalid.
+        TypeError
+            If batch contains invalid types.
+
         Notes
         -----
         This method:
+        - Validates input batch structure with helpful error messages
         - Runs in no-grad mode (handled by Lightning)
         - Automatically handles quantile loss point prediction extraction
         - Logs validation metrics via `common_log_step`
@@ -245,26 +372,17 @@ class TransformerModuleBase(LightningModuleBase):
         The validation outputs are automatically collected by the base class and
         can be accessed via the `validation_outputs` property.
         """
-        model_output = self(batch)
+        # Validate encoder-decoder batch structure
+        self._validate_encoder_decoder_batch(batch, "validation")
 
+        model_output = self(batch)
         loss = self.calc_loss(model_output["output"], batch)
 
-        loss_dict = {"loss": loss}
-        point_prediction = model_output["output"]
-        if isinstance(self.criterion, QuantileLoss) or (
-            hasattr(self.criterion, "_orig_mod")
-            and isinstance(self.criterion._orig_mod, QuantileLoss)  # noqa: SLF001
-        ):
-            point_prediction = self.criterion.point_prediction(point_prediction)
+        # Log validation metrics
+        self.common_log_step({"loss": loss}, "validation")
 
-        self.common_log_step(loss_dict, "validation")
-
-        return {
-            **loss_dict,
-            "output": model_output.pop("output"),
-            **{k: v.detach() for k, v in model_output.items()},
-            "point_prediction": point_prediction,
-        }
+        # Prepare and return step output
+        return self._prepare_step_output(model_output, loss)
 
     def predict_step(
         self, batch: EncoderDecoderSample, batch_idx: int
@@ -314,15 +432,39 @@ class TransformerModuleBase(LightningModuleBase):
         """
         model_output = self(batch)
 
-        point_prediction = model_output["output"]
-        if isinstance(self.criterion, QuantileLoss) or (
-            hasattr(self.criterion, "_orig_mod")
-            and isinstance(self.criterion._orig_mod, QuantileLoss)  # noqa: SLF001
-        ):
-            point_prediction = self.criterion.point_prediction(model_output["output"])
-
+        # Add point prediction to model output
+        point_prediction = self._extract_point_prediction(model_output["output"])
         model_output["point_prediction"] = point_prediction
+
         return model_output
+
+    def _validate_transformer_hyperparameters(self) -> None:
+        """
+        Validate transformer-specific hyperparameter configuration.
+
+        Raises
+        ------
+        ValueError
+            If transformer hyperparameter configuration is invalid.
+        """
+        # Validate prediction type
+        prediction_type = self.hparams.get("prediction_type", "point")
+        if prediction_type not in {"point", "delta"}:
+            msg = (
+                f"Invalid prediction_type '{prediction_type}'. "
+                f"Must be 'point' or 'delta'."
+            )
+            raise ValueError(msg)
+
+        # Validate trainable parameters
+        trainable_params = self.hparams.get("trainable_parameters")
+        if trainable_params is not None:
+            if not isinstance(trainable_params, list):
+                msg = f"trainable_parameters must be a list or None, got {type(trainable_params)}"
+                raise ValueError(msg)
+            if not all(isinstance(param, str) for param in trainable_params):
+                msg = "All items in trainable_parameters must be strings"
+                raise ValueError(msg)
 
     def on_train_epoch_start(self) -> None:
         """
