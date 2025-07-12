@@ -7,7 +7,11 @@ import torch
 
 from ...data import EncoderDecoderTargetSample
 from ...nn import QuantileLoss
-from .._base_module import DEFAULT_LOGGING_METRICS, MetricLiteral
+from .._base_module import (
+    DEFAULT_LOGGING_METRICS,
+    MetricLiteral,
+    setup_criterion_and_output_dim,
+)
 from .._base_transformer import TransformerModuleBase
 from ._model import TemporalFusionTransformerModel
 
@@ -183,12 +187,14 @@ class TemporalFusionTransformer(TransformerModuleBase):
         super().__init__(logging_metrics=logging_metrics)
         self.save_hyperparameters(ignore=["criterion"])
 
-        if criterion is None:
-            criterion = QuantileLoss()
-        if isinstance(criterion, QuantileLoss):
-            self.hparams["output_dim"] = len(criterion.quantiles)
-            output_dim = self.hparams["output_dim"]
-        self.criterion = criterion
+        # Set up criterion and adjust output_dim using shared logic
+        self.criterion, output_dim = setup_criterion_and_output_dim(
+            criterion,
+            output_dim,
+            default_quantiles=None,  # Use QuantileLoss default
+        )
+        if isinstance(self.criterion, QuantileLoss):
+            self.hparams["output_dim"] = output_dim
 
         self.model = TemporalFusionTransformerModel(
             num_past_features=num_past_features,

@@ -10,6 +10,7 @@ import lightning.pytorch.utilities
 import torch
 
 from ..data import EncoderDecoderTargetSample, TimeSeriesSample
+from ..nn import QuantileLoss
 from ..nn import functional as F
 from ..utils import ops
 
@@ -30,6 +31,62 @@ DEFAULT_LOGGING_METRICS: tuple[MetricLiteral, ...] = (
     "SMAPE",
     "RMSE",
 )
+
+
+def setup_criterion_and_output_dim(
+    criterion: torch.nn.Module | None,
+    output_dim: int,
+    default_quantiles: list[float] | None = None,
+) -> tuple[torch.nn.Module, int]:
+    """
+    Set up criterion and adjust output_dim for QuantileLoss compatibility.
+
+    This function provides shared logic for criterion setup across different models,
+    ensuring consistent behavior when using QuantileLoss with automatic output_dim
+    adjustment.
+
+    Parameters
+    ----------
+    criterion : torch.nn.Module or None
+        The loss function to use. If None, defaults to QuantileLoss for output_dim > 1
+        or MSELoss for output_dim = 1.
+    output_dim : int
+        Desired output dimension. Will be adjusted to match QuantileLoss quantiles.
+    default_quantiles : list[float] or None, default=None
+        Default quantiles to use when creating QuantileLoss. If None, uses [0.1, 0.5, 0.9].
+
+    Returns
+    -------
+    tuple[torch.nn.Module, int]
+        Tuple of (criterion, adjusted_output_dim)
+
+    Examples
+    --------
+    >>> criterion, output_dim = setup_criterion_and_output_dim(None, 7)
+    >>> isinstance(criterion, QuantileLoss)
+    True
+    >>> output_dim
+    3
+
+    >>> criterion, output_dim = setup_criterion_and_output_dim(None, 1)
+    >>> isinstance(criterion, torch.nn.MSELoss)
+    True
+    >>> output_dim
+    1
+    """
+    if criterion is None:
+        if output_dim > 1:
+            if default_quantiles is None:
+                criterion = QuantileLoss()  # Use QuantileLoss default quantiles
+            else:
+                criterion = QuantileLoss(quantiles=default_quantiles)
+        else:
+            criterion = torch.nn.MSELoss()
+
+    if isinstance(criterion, QuantileLoss):
+        output_dim = len(criterion.quantiles)
+
+    return criterion, output_dim
 
 
 class LightningModuleBase(L.LightningModule):

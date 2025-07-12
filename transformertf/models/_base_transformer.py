@@ -570,25 +570,45 @@ class TransformerModuleBase(LightningModuleBase):
             and self.hparams["prediction_type"] == "delta"
         ):
             with torch.no_grad():
-                target = batch["target"].squeeze(-1)
+                target = batch["target"]
+                # Squeeze target only if model output has been squeezed (for compatibility)
+                if model_output.dim() == target.dim() - 1:
+                    target = target.squeeze(-1)
                 delta = torch.zeros_like(target)
                 delta[:, 1:] = target[:, 1:] - target[:, :-1]
 
                 past_target = batch["encoder_input"][:, -1, -1]
+                if delta.dim() == 3:  # [batch, seq, 1]
+                    past_target = past_target.unsqueeze(-1)
                 delta[:, 0] = target[:, 0] - past_target
 
-            return typing.cast(
-                torch.Tensor, self.criterion(model_output, delta, weights=weights)
-            )
+            # Pass weights only if criterion supports it (e.g., QuantileLoss)
+            if (
+                hasattr(self.criterion, "forward")
+                and "weights" in self.criterion.forward.__code__.co_varnames
+            ):
+                return typing.cast(
+                    torch.Tensor, self.criterion(model_output, delta, weights=weights)
+                )
+            return typing.cast(torch.Tensor, self.criterion(model_output, delta))
 
         if (
             "prediction_type" not in self.hparams
             or self.hparams["prediction_type"] == "point"
         ):
-            target = batch["target"].squeeze(-1)
-            return typing.cast(
-                torch.Tensor, self.criterion(model_output, target, weights=weights)
-            )
+            target = batch["target"]
+            # Squeeze target only if model output has been squeezed (for compatibility)
+            if model_output.dim() == target.dim() - 1:
+                target = target.squeeze(-1)
+            # Pass weights only if criterion supports it (e.g., QuantileLoss)
+            if (
+                hasattr(self.criterion, "forward")
+                and "weights" in self.criterion.forward.__code__.co_varnames
+            ):
+                return typing.cast(
+                    torch.Tensor, self.criterion(model_output, target, weights=weights)
+                )
+            return typing.cast(torch.Tensor, self.criterion(model_output, target))
 
         # This should never happen
         msg = f"Invalid prediction_type: {self.hparams['prediction_type']}"

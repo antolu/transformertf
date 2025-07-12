@@ -9,6 +9,9 @@ from ._interpretable_multi_head_attn import InterpretableMultiHeadAttention
 from ._mlp import MLP
 from ._quantile_loss import QuantileLoss
 from ._resample_norm import ResampleNorm
+from ._temporal_conv_block import TemporalConvBlock
+from ._temporal_decoder import TemporalDecoder
+from ._temporal_encoder import TemporalEncoder
 from ._transformer_encoder import (
     SimplePositionalEncoding,
     TransformerEncoder,
@@ -27,6 +30,9 @@ for _mod in (
     InterpretableMultiHeadAttention,
     QuantileLoss,
     ResampleNorm,
+    TemporalConvBlock,
+    TemporalDecoder,
+    TemporalEncoder,
     VariableSelection,
     MLP,
     VALID_ACTIVATIONS,
@@ -55,6 +61,9 @@ __all__ = [
     "QuantileLoss",
     "ResampleNorm",
     "SimplePositionalEncoding",
+    "TemporalConvBlock",
+    "TemporalDecoder",
+    "TemporalEncoder",
     "TransformerEncoder",
     "VariableSelection",
     "WeightedHuberLoss",

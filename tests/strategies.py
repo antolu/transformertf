@@ -216,6 +216,105 @@ def optimizer_config_strategy(draw):
     return optimizer_type, config
 
 
+# TCT (Temporal Convolutional Transformer) strategies
+@st.composite
+def tct_config_strategy(draw):
+    """Strategy for generating TCT model configurations."""
+    # Ensure sufficient sequence lengths for compression
+    compression_factor = draw(st.sampled_from([2, 4, 8]))
+    max_dilation = draw(st.sampled_from([4, 8, 16]))
+
+    # Calculate minimum sequence lengths based on compression requirements
+    min_encoder_len = compression_factor * max_dilation * 12
+    min_decoder_len = compression_factor * 8
+
+    return {
+        "num_past_features": draw(st.integers(min_value=2, max_value=8)),
+        "num_future_features": draw(st.integers(min_value=1, max_value=6)),
+        "output_dim": draw(st.sampled_from([1, 3, 5])),
+        "hidden_dim": draw(st.sampled_from([32, 64, 128])),
+        "num_attention_heads": draw(st.sampled_from([2, 4, 8])),
+        "compression_factor": compression_factor,
+        "num_encoder_layers": draw(st.integers(min_value=2, max_value=6)),
+        "num_decoder_layers": draw(st.integers(min_value=2, max_value=6)),
+        "dropout": draw(st.floats(min_value=0.0, max_value=0.3)),
+        "max_dilation": max_dilation,
+        "min_encoder_len": min_encoder_len,
+        "min_decoder_len": min_decoder_len,
+    }
+
+
+@st.composite
+def tct_batch_strategy(draw):
+    """Strategy for generating TCT-compatible encoder-decoder batches."""
+    batch_size = draw(st.integers(min_value=1, max_value=8))
+
+    # Get TCT config to ensure sufficient sequence lengths
+    tct_config = draw(tct_config_strategy())
+
+    # Use minimum lengths plus some buffer
+    encoder_len = draw(
+        st.integers(
+            min_value=tct_config["min_encoder_len"],
+            max_value=tct_config["min_encoder_len"] + 200,
+        )
+    )
+    decoder_len = draw(
+        st.integers(
+            min_value=tct_config["min_decoder_len"],
+            max_value=tct_config["min_decoder_len"] + 100,
+        )
+    )
+
+    num_past_features = tct_config["num_past_features"]
+    num_future_features = tct_config["num_future_features"]
+
+    encoder_input = draw(
+        tensor_strategy(shape=(batch_size, encoder_len, num_past_features))
+    )
+    decoder_input = draw(
+        tensor_strategy(shape=(batch_size, decoder_len, num_future_features))
+    )
+    target = draw(tensor_strategy(shape=(batch_size, decoder_len, 1)))
+
+    return {
+        "encoder_input": encoder_input,
+        "decoder_input": decoder_input,
+        "target": target,
+        "encoder_lengths": torch.full((batch_size, 1), encoder_len),
+        "decoder_lengths": torch.full((batch_size, 1), decoder_len),
+        "config": tct_config,
+    }
+
+
+@st.composite
+def long_sequence_strategy(draw, min_compression_factor=2):
+    """Strategy for generating sequences that meet TCT compression requirements."""
+    compression_factor = draw(
+        st.integers(min_value=min_compression_factor, max_value=8)
+    )
+    max_dilation = draw(st.integers(min_value=4, max_value=16))
+
+    # Calculate minimum lengths
+    min_encoder_len = compression_factor * max_dilation * 12
+    min_decoder_len = compression_factor * 8
+
+    # Generate lengths with buffer above minimum
+    encoder_len = draw(
+        st.integers(min_value=min_encoder_len, max_value=min_encoder_len + 400)
+    )
+    decoder_len = draw(
+        st.integers(min_value=min_decoder_len, max_value=min_decoder_len + 200)
+    )
+
+    return {
+        "encoder_len": encoder_len,
+        "decoder_len": decoder_len,
+        "compression_factor": compression_factor,
+        "max_dilation": max_dilation,
+    }
+
+
 # Composite strategies for full model testing
 @st.composite
 def full_model_setup_strategy(draw):
@@ -229,6 +328,29 @@ def full_model_setup_strategy(draw):
 
     return {
         "model_config": model_config,
+        "datamodule_config": datamodule_config,
+        "optimizer_config": draw(optimizer_config_strategy()),
+    }
+
+
+@st.composite
+def full_tct_setup_strategy(draw):
+    """Strategy for generating complete TCT model setup."""
+    tct_config = draw(tct_config_strategy())
+
+    # Create datamodule config compatible with TCT requirements
+    datamodule_config = {
+        "ctxt_seq_len": tct_config["min_encoder_len"],
+        "tgt_seq_len": tct_config["min_decoder_len"],
+        "batch_size": draw(st.integers(min_value=2, max_value=16)),
+        "stride": draw(st.integers(min_value=1, max_value=5)),
+        "downsample": 1,  # No downsampling for TCT tests
+        "normalize": draw(st.booleans()),
+        "num_workers": 0,
+    }
+
+    return {
+        "tct_config": tct_config,
         "datamodule_config": datamodule_config,
         "optimizer_config": draw(optimizer_config_strategy()),
     }
