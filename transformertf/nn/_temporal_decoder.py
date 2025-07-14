@@ -23,8 +23,6 @@ class TemporalDecoder(torch.nn.Module):
         Input dimension from compressed representation (typically from attention)
     output_dim : int
         Output dimension for final predictions
-    target_length : int
-        Target sequence length to reconstruct
     hidden_dim : int, default=256
         Hidden dimension for convolution blocks
     num_layers : int, default=4
@@ -60,29 +58,26 @@ class TemporalDecoder(torch.nn.Module):
     >>> # Basic decoder for sequence reconstruction
     >>> decoder = TemporalDecoder(
     ...     input_dim=128,
-    ...     output_dim=1,
-    ...     target_length=200
+    ...     output_dim=1
     ... )
     >>> compressed = torch.randn(32, 50, 128)  # Compressed from encoder
-    >>> reconstructed = decoder(compressed)  # [32, 200, 1]
+    >>> reconstructed = decoder(compressed, tgt_len=200)  # [32, 200, 1]
 
     >>> # Custom expansion settings
     >>> decoder = TemporalDecoder(
     ...     input_dim=256,
     ...     output_dim=10,
-    ...     target_length=400,
     ...     expansion_factor=8,
     ...     num_layers=6
     ... )
     >>> compressed = torch.randn(16, 50, 256)
-    >>> reconstructed = decoder(compressed)  # [16, 400, 10]
+    >>> reconstructed = decoder(compressed, tgt_len=400)  # [16, 400, 10]
     """
 
     def __init__(
         self,
         input_dim: int,
         output_dim: int,
-        target_length: int,
         hidden_dim: int = 256,
         num_layers: int = 4,
         kernel_size: int = 3,
@@ -95,7 +90,6 @@ class TemporalDecoder(torch.nn.Module):
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.hidden_dim = hidden_dim
-        self.target_length = target_length
         self.expansion_factor = expansion_factor
         self.num_layers = num_layers
 
@@ -138,10 +132,13 @@ class TemporalDecoder(torch.nn.Module):
         # Output projection
         self.output_proj = torch.nn.Linear(hidden_dim, output_dim)
 
-        # Final normalization
-        self.output_norm = torch.nn.LayerNorm(output_dim)
+        # Final normalization (only if output_dim > 1)
+        if output_dim > 1:
+            self.output_norm = torch.nn.LayerNorm(output_dim)
+        else:
+            self.output_norm = None
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, tgt_len: int) -> torch.Tensor:
         """
         Forward pass through the temporal decoder.
 
@@ -149,11 +146,13 @@ class TemporalDecoder(torch.nn.Module):
         ----------
         x : torch.Tensor
             Compressed input tensor of shape [batch_size, compressed_len, input_dim]
+        tgt_len : int
+            Target sequence length for the reconstructed output
 
         Returns
         -------
         torch.Tensor
-            Reconstructed tensor of shape [batch_size, target_length, output_dim]
+            Reconstructed tensor of shape [batch_size, tgt_len, output_dim]
         """
         _batch_size, _compressed_len, _ = x.shape
 
@@ -174,16 +173,19 @@ class TemporalDecoder(torch.nn.Module):
 
         # Adjust to exact target length if needed
         current_length = x.shape[1]
-        if current_length != self.target_length:
+        if current_length != tgt_len:
             # Use interpolation to get exact target length
             x = x.transpose(1, 2)  # [batch, channels, seq_len]
             x = torch.nn.functional.interpolate(
-                x, size=self.target_length, mode="linear", align_corners=False
+                x, size=tgt_len, mode="linear", align_corners=False
             )
             x = x.transpose(1, 2)  # [batch, seq_len, channels]
 
         # Project to output dimension
         x = self.output_proj(x)
 
-        # Final normalization
-        return self.output_norm(x)
+        # Final normalization (only if available)
+        if self.output_norm is not None:
+            x = self.output_norm(x)
+
+        return x

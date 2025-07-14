@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import typing
-import warnings
 
 import torch
 
@@ -54,9 +53,13 @@ def test_tct_forward_pass_with_datamodule(
     encoder_decoder_datamodule.setup()
 
     # Adjust hyperparameters for TCT requirements
+    encoder_decoder_datamodule.hparams["ctxt_seq_len"] = (
+        800  # Long enough for compression
+    )
     encoder_decoder_datamodule.hparams["min_ctxt_seq_len"] = (
         400  # Long enough for compression
     )
+    encoder_decoder_datamodule.hparams["tgt_seq_len"] = 200
     encoder_decoder_datamodule.hparams["min_tgt_seq_len"] = (
         100  # Long enough for compression
     )
@@ -252,7 +255,7 @@ def test_tct_attention_weights_analysis():
     }
 
     with torch.no_grad():
-        output = model(batch)
+        output = model(**batch)
 
     attention_weights = output["attention_weights"]
 
@@ -428,44 +431,3 @@ def test_tct_alias_integration():
 
     model.on_validation_epoch_end()
     model.on_validation_end()
-
-
-def test_tct_sequence_length_warning_integration():
-    """Test sequence length warning integration with real data pipeline."""
-    # Create model with high compression that will trigger warnings
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-
-        model = TemporalConvTransformer(
-            num_past_features=8,
-            num_future_features=4,
-            compression_factor=8,
-            max_dilation=16,
-            hidden_dim=32,
-        )
-
-        # Should warn during creation
-        assert len(w) >= 1
-        assert any("Sequence Requirements" in str(warning.message) for warning in w)
-
-    # Test with short sequences that will trigger runtime warnings
-    short_batch = {
-        "encoder_input": torch.randn(2, 100, 8),  # Too short for compression_factor=8
-        "decoder_input": torch.randn(2, 25, 4),  # Too short
-        "target": torch.randn(2, 25, 1),
-    }
-
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-
-        output = model.training_step(short_batch, 0)
-
-        # Should warn during forward pass
-        runtime_warnings = [
-            warning for warning in w if issubclass(warning.category, RuntimeWarning)
-        ]
-        assert len(runtime_warnings) >= 1
-
-    # Should still produce valid output despite warnings
-    assert torch.isfinite(output["loss"])
-    assert output["output"].shape == (2, 25, 1)

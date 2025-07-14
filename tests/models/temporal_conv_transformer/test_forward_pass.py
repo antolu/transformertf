@@ -611,8 +611,8 @@ class TestTemporalConvTransformerForwardPass:
         with patch(
             "transformertf.models.temporal_conv_transformer._model.InterpretableMultiHeadAttention"
         ) as mock_attention:
-            # Configure mock to return expected shapes
-            mock_attention.return_value.forward.return_value = (
+            # Configure mock to return expected shapes when called
+            mock_attention.return_value.return_value = (
                 torch.randn(2, 25, 32),  # attended_output
                 torch.randn(2, 25, 4, 125),  # attention_weights
             )

@@ -22,14 +22,12 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=64,
             output_dim=1,
-            target_length=100,
             hidden_dim=32,
             expansion_factor=4,
         )
         assert decoder is not None
         assert decoder.input_dim == 64
         assert decoder.output_dim == 1
-        assert decoder.target_length == 100
         assert decoder.hidden_dim == 32
         assert decoder.expansion_factor == 4
 
@@ -39,12 +37,11 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=64,
             output_dim=1,
-            target_length=target_length,
             hidden_dim=32,
             expansion_factor=4,
         )
 
-        output = decoder(sample_compressed_input)
+        output = decoder(sample_compressed_input, tgt_len=target_length)
 
         # Should expand to target length
         assert output.shape == (4, target_length, 1)
@@ -60,12 +57,11 @@ class TestTemporalDecoder:
             decoder = TemporalDecoder(
                 input_dim=32,
                 output_dim=1,
-                target_length=target_length,
                 hidden_dim=16,
                 expansion_factor=expansion_factor,
             )
 
-            output = decoder(compressed_input)
+            output = decoder(compressed_input, tgt_len=target_length)
 
             assert output.shape == (2, target_length, 1)
             assert torch.isfinite(output).all()
@@ -77,12 +73,11 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=32,
             output_dim=2,
-            target_length=50,  # Same as input length
             hidden_dim=16,
             expansion_factor=1,
         )
 
-        output = decoder(compressed_input)
+        output = decoder(compressed_input, tgt_len=50)  # Same as input length
 
         assert output.shape == (2, 50, 2)
         assert torch.isfinite(output).all()
@@ -95,12 +90,11 @@ class TestTemporalDecoder:
             decoder = TemporalDecoder(
                 input_dim=32,
                 output_dim=1,
-                target_length=target_length,
                 hidden_dim=16,
                 expansion_factor=4,
             )
 
-            output = decoder(compressed_input)
+            output = decoder(compressed_input, tgt_len=target_length)
 
             assert output.shape == (2, target_length, 1)
             assert torch.isfinite(output).all()
@@ -113,12 +107,11 @@ class TestTemporalDecoder:
             decoder = TemporalDecoder(
                 input_dim=32,
                 output_dim=output_dim,
-                target_length=120,
                 hidden_dim=16,
                 expansion_factor=4,
             )
 
-            output = decoder(compressed_input)
+            output = decoder(compressed_input, tgt_len=120)
 
             assert output.shape == (2, 120, output_dim)
             assert torch.isfinite(output).all()
@@ -131,12 +124,11 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=32,
             output_dim=1,
-            target_length=target_length,
             hidden_dim=16,
             expansion_factor=4,
         )
 
-        output = decoder(compressed_input)
+        output = decoder(compressed_input, tgt_len=target_length)
 
         # Should be exactly the target length despite odd input/target sizes
         assert output.shape == (2, target_length, 1)
@@ -149,12 +141,11 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=32,
             output_dim=1,
-            target_length=100,
             hidden_dim=16,
             expansion_factor=4,
         )
 
-        output = decoder(compressed_input)
+        output = decoder(compressed_input, tgt_len=100)
         loss = output.sum()
         loss.backward()
 
@@ -172,7 +163,6 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=32,
             output_dim=1,
-            target_length=100,
             hidden_dim=16,
             expansion_factor=4,
             dropout=0.0,
@@ -182,8 +172,8 @@ class TestTemporalDecoder:
         compressed_input = torch.randn(2, 25, 32)
 
         with torch.no_grad():
-            output1 = decoder(compressed_input)
-            output2 = decoder(compressed_input)
+            output1 = decoder(compressed_input, tgt_len=100)
+            output2 = decoder(compressed_input, tgt_len=100)
 
         assert torch.allclose(output1, output2, atol=1e-6)
 
@@ -195,13 +185,12 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=32,
             output_dim=1,
-            target_length=100,
             hidden_dim=16,
             activation=activation,
             expansion_factor=4,
         )
 
-        output = decoder(compressed_input)
+        output = decoder(compressed_input, tgt_len=100)
 
         assert output.shape == (2, 100, 1)
         assert torch.isfinite(output).all()
@@ -214,13 +203,12 @@ class TestTemporalDecoder:
             decoder = TemporalDecoder(
                 input_dim=32,
                 output_dim=1,
-                target_length=100,
                 hidden_dim=16,
                 num_layers=num_layers,
                 expansion_factor=4,
             )
 
-            output = decoder(compressed_input)
+            output = decoder(compressed_input, tgt_len=100)
 
             assert output.shape == (2, 100, 1)
             assert torch.isfinite(output).all()
@@ -236,7 +224,6 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=16,
             output_dim=1,
-            target_length=80,
             hidden_dim=8,
             expansion_factor=4,
             dropout=0.0,
@@ -244,7 +231,7 @@ class TestTemporalDecoder:
         decoder.eval()
 
         with torch.no_grad():
-            output = decoder(compressed_input)
+            output = decoder(compressed_input, tgt_len=80)
 
         # Outputs for different batch elements should be different
         assert not torch.allclose(output[0], output[1], atol=1e-3)
@@ -273,14 +260,13 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=input_dim,
             output_dim=output_dim,
-            target_length=target_length,
             hidden_dim=16,
             expansion_factor=expansion_factor,
             dropout=0.0,
         )
 
         compressed_input = torch.randn(batch_size, compressed_len, input_dim)
-        output = decoder(compressed_input)
+        output = decoder(compressed_input, tgt_len=target_length)
 
         # Property: output should have exact target shape
         assert output.shape == (batch_size, target_length, output_dim)
@@ -299,12 +285,11 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=32,
             output_dim=1,
-            target_length=50,
             hidden_dim=16,
             expansion_factor=4,
         )
 
-        output = decoder(compressed_input)
+        output = decoder(compressed_input, tgt_len=50)
 
         assert output.shape == (2, 50, 1)
         assert torch.isfinite(output).all()
@@ -317,12 +302,11 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=32,
             output_dim=1,
-            target_length=20,
             hidden_dim=16,
             expansion_factor=4,
         )
 
-        output = decoder(compressed_input)
+        output = decoder(compressed_input, tgt_len=20)
 
         assert output.shape == (2, 20, 1)
         assert torch.isfinite(output).all()
@@ -336,12 +320,11 @@ class TestTemporalDecoder:
             decoder = TemporalDecoder(
                 input_dim=32,
                 output_dim=1,
-                target_length=100,
                 hidden_dim=16,
                 expansion_factor=4,
             ).to(device)
 
-            output = decoder(compressed_input)
+            output = decoder(compressed_input, tgt_len=100)
 
             assert output.device == device
             assert torch.isfinite(output).all()
@@ -356,12 +339,11 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=32,
             output_dim=1,
-            target_length=target_length,
             hidden_dim=16,
             expansion_factor=16,  # Large expansion
         )
 
-        output = decoder(compressed_input)
+        output = decoder(compressed_input, tgt_len=target_length)
 
         assert output.shape == (2, target_length, 1)
         assert torch.isfinite(output).all()
@@ -371,7 +353,6 @@ class TestTemporalDecoder:
         decoder_small = TemporalDecoder(
             input_dim=16,
             output_dim=1,
-            target_length=50,
             hidden_dim=8,
             num_layers=2,
         )
@@ -379,7 +360,6 @@ class TestTemporalDecoder:
         decoder_large = TemporalDecoder(
             input_dim=64,
             output_dim=3,
-            target_length=200,
             hidden_dim=32,
             num_layers=4,
         )
@@ -399,12 +379,11 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=32,
             output_dim=1,
-            target_length=100,
             hidden_dim=16,
             expansion_factor=4,
         )
 
-        output = decoder(compressed_input)
+        output = decoder(compressed_input, tgt_len=100)
 
         # Output should be finite and not have extreme values
         # (due to layer normalization)
@@ -419,12 +398,11 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=32,
             output_dim=1,
-            target_length=target_length,
             hidden_dim=16,
             expansion_factor=4,
         )
 
-        output = decoder(compressed_input)
+        output = decoder(compressed_input, tgt_len=target_length)
 
         # Should handle odd input/target lengths gracefully
         assert output.shape == (2, target_length, 1)
@@ -439,7 +417,6 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=16,
             output_dim=1,
-            target_length=40,
             hidden_dim=8,
             expansion_factor=4,
             dropout=0.0,
@@ -447,7 +424,7 @@ class TestTemporalDecoder:
         decoder.eval()
 
         with torch.no_grad():
-            output = decoder(compressed_input)
+            output = decoder(compressed_input, tgt_len=40)
 
         assert output.shape == (1, 40, 1)
         assert torch.isfinite(output).all()
@@ -461,12 +438,11 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=32,
             output_dim=1,
-            target_length=2000,  # Very long target
             hidden_dim=16,
             expansion_factor=8,
         )
 
-        output = decoder(compressed_input)
+        output = decoder(compressed_input, tgt_len=2000)
 
         assert output.shape == (2, 2000, 1)
         assert torch.isfinite(output).all()
@@ -479,13 +455,12 @@ class TestTemporalDecoder:
             decoder = TemporalDecoder(
                 input_dim=32,
                 output_dim=1,
-                target_length=100,
                 hidden_dim=16,
                 kernel_size=kernel_size,
                 expansion_factor=4,
             )
 
-            output = decoder(compressed_input)
+            output = decoder(compressed_input, tgt_len=100)
 
             assert output.shape == (2, 100, 1)
             assert torch.isfinite(output).all()

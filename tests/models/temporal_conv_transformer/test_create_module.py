@@ -191,7 +191,7 @@ class TestTemporalConvTransformerCreation:
         assert hasattr(model.model, "past_encoder")
         assert hasattr(model.model, "future_encoder")
         assert hasattr(model.model, "attention")
-        assert hasattr(model.model, "_decoder_params")
+        assert hasattr(model.model, "decoder")
 
     def test_model_parameter_consistency(self):
         """Test that parameters are consistent between Lightning and core model."""

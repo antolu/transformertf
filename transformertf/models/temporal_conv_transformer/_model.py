@@ -129,6 +129,18 @@ class TemporalConvTransformerModel(torch.nn.Module):
     ):
         super().__init__()
 
+        # Parameter validation
+        if compression_factor <= 0:
+            msg = f"compression_factor must be positive, got {compression_factor}"
+            raise ValueError(msg)
+
+        if hidden_dim % num_attention_heads != 0:
+            msg = (
+                f"hidden_dim ({hidden_dim}) must be divisible by "
+                f"num_attention_heads ({num_attention_heads})"
+            )
+            raise ValueError(msg)
+
         self.num_past_features = num_past_features
         self.num_future_features = num_future_features
         self.output_dim = output_dim
@@ -166,40 +178,15 @@ class TemporalConvTransformerModel(torch.nn.Module):
         )
 
         # Temporal decoder for reconstructing predictions
-        # Note: target_length will be set dynamically based on decoder input
-        self.decoder = None  # Will be created dynamically
-
-        # Store decoder parameters for dynamic creation
-        self._decoder_params = {
-            "input_dim": hidden_dim,
-            "output_dim": output_dim,
-            "hidden_dim": hidden_dim,
-            "num_layers": num_decoder_layers,
-            "dropout": dropout,
-            "activation": activation,
-            "expansion_factor": compression_factor,
-        }
-
-    def _get_or_create_decoder(self, target_length: int) -> TemporalDecoder:
-        """Get or create decoder with the specified target length."""
-        if (
-            self.decoder is None
-            or getattr(self.decoder, "target_length", None) != target_length
-        ):
-            self.decoder = TemporalDecoder(
-                input_dim=self._decoder_params["input_dim"],
-                output_dim=self._decoder_params["output_dim"],
-                target_length=target_length,
-                hidden_dim=self._decoder_params["hidden_dim"],
-                num_layers=self._decoder_params["num_layers"],
-                dropout=self._decoder_params["dropout"],
-                activation=self._decoder_params["activation"],
-                expansion_factor=self._decoder_params["expansion_factor"],
-            )
-            # Move to same device as model
-            if next(self.parameters(), None) is not None:
-                self.decoder = self.decoder.to(next(self.parameters()).device)
-        return self.decoder
+        self.decoder = TemporalDecoder(
+            input_dim=hidden_dim,
+            output_dim=output_dim,
+            hidden_dim=hidden_dim,
+            num_layers=num_decoder_layers,
+            dropout=dropout,
+            activation=activation,
+            expansion_factor=compression_factor,
+        )
 
     def forward(
         self,
@@ -290,11 +277,10 @@ class TemporalConvTransformerModel(torch.nn.Module):
             return_attn=True,
         )
 
-        # Get or create decoder with correct target length
-        decoder = self._get_or_create_decoder(decoder_seq_len)
-
         # Reconstruct full-length predictions
-        output = decoder(attended_output)  # [batch, decoder_seq_len, output_dim]
+        output = self.decoder(
+            attended_output, tgt_len=decoder_seq_len
+        )  # [batch, decoder_seq_len, output_dim]
 
         return {
             "output": output,

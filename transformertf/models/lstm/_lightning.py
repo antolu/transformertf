@@ -177,6 +177,8 @@ class LSTM(LightningModuleBase):
             self.hparams["output_dim"] = output_dim
 
         self._val_hidden: list[HIDDEN_STATE | None] = []
+        self._test_hidden: list[HIDDEN_STATE | None] = []
+        self._predict_hidden: list[HIDDEN_STATE | None] = []
 
         self.model = torch.nn.LSTM(
             input_size=num_features,
@@ -286,6 +288,18 @@ class LSTM(LightningModuleBase):
 
         super().on_validation_epoch_start()
 
+    def on_test_epoch_start(self) -> None:
+        """Reset the test hidden states"""
+        self._test_hidden = [None]
+
+        super().on_test_epoch_start()
+
+    def on_predict_epoch_start(self) -> None:
+        """Reset the predict hidden states"""
+        self._predict_hidden = [None]
+
+        super().on_predict_epoch_start()
+
     def common_test_step(
         self,
         batch: TimeSeriesSample,
@@ -293,7 +307,6 @@ class LSTM(LightningModuleBase):
         hx: HIDDEN_STATE | None = None,
     ) -> tuple[dict[str, torch.Tensor], torch.Tensor, HIDDEN_STATE]:
         target = batch.get("target")
-        assert target is not None
 
         hidden: HIDDEN_STATE
         output, hidden = self.forward(
@@ -304,11 +317,10 @@ class LSTM(LightningModuleBase):
 
         hidden = ops.detach(hidden)  # type: ignore[assignment]
 
-        loss = self.criterion(output, target)
-
-        loss_dict = {
-            "loss": loss,
-        }
+        loss_dict = {}
+        if target is not None:
+            loss = self.criterion(output, target)
+            loss_dict["loss"] = loss
 
         return loss_dict, output, hidden
 
@@ -407,3 +419,111 @@ class LSTM(LightningModuleBase):
             output_dict["point_prediction"] = output_dict["output"]
 
         return typing.cast(StepOutput, loss | output_dict)
+
+    def test_step(
+        self,
+        batch: TimeSeriesSample,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> StepOutput:
+        """
+        Perform a single test step for the LSTM model.
+
+        This method processes a test batch, computes the model output and loss,
+        maintaining hidden states across batches within the same test epoch.
+
+        Parameters
+        ----------
+        batch : TimeSeriesSample
+            Test batch containing input sequences and target values.
+            Expected keys: "input", "target".
+        batch_idx : int
+            Index of the current batch within the test epoch.
+        dataloader_idx : int, default=0
+            Index of the dataloader (for multiple test dataloaders).
+
+        Returns
+        -------
+        StepOutput
+            Dictionary containing:
+            - "loss": The computed test loss
+            - "output": Model output (detached)
+            - "state": Final hidden states (detached)
+            - "point_prediction": Point estimate for metrics calculation
+        """
+        if dataloader_idx >= len(self._test_hidden):
+            self._test_hidden.append(None)
+
+        prev_hidden = self._test_hidden[dataloader_idx]
+
+        loss_dict, model_output, hidden = self.common_test_step(
+            batch, batch_idx, prev_hidden
+        )
+
+        self._test_hidden[dataloader_idx] = hidden
+
+        if loss_dict:
+            self.common_log_step(loss_dict, "test")
+
+        output_dict = {
+            "state": ops.detach(hidden),
+            "output": ops.detach(model_output),
+        }
+        if isinstance(self.criterion, QuantileLoss):
+            output_dict["point_prediction"] = self.criterion.point_prediction(
+                model_output
+            )
+        else:
+            output_dict["point_prediction"] = output_dict["output"]
+
+        return typing.cast(StepOutput, loss_dict | output_dict)
+
+    def predict_step(
+        self,
+        batch: TimeSeriesSample,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> dict[str, torch.Tensor]:
+        """
+        Perform a single prediction step for the LSTM model.
+
+        This method processes a prediction batch and returns model outputs
+        without requiring targets in the batch, maintaining hidden states across batches.
+
+        Parameters
+        ----------
+        batch : TimeSeriesSample
+            Prediction batch containing input sequences.
+            Expected keys: "input". "target" is optional.
+        batch_idx : int
+            Index of the current batch within the prediction.
+        dataloader_idx : int, default=0
+            Index of the dataloader (for multiple prediction dataloaders).
+
+        Returns
+        -------
+        dict[str, torch.Tensor]
+            Dictionary containing:
+            - "output": Model output (detached)
+            - "point_prediction": Point predictions for metrics
+            - "state": Final hidden states (detached)
+        """
+        if dataloader_idx >= len(self._predict_hidden):
+            self._predict_hidden.append(None)
+
+        prev_hidden = self._predict_hidden[dataloader_idx]
+
+        _, model_output, hidden = self.common_test_step(batch, batch_idx, prev_hidden)
+
+        self._predict_hidden[dataloader_idx] = hidden
+
+        output = {
+            "output": ops.detach(model_output),
+            "point_prediction": ops.detach(model_output),
+            "state": ops.detach(hidden),
+        }
+
+        if isinstance(self.criterion, QuantileLoss):
+            output["point_prediction"] = self.criterion.point_prediction(model_output)
+
+        return output

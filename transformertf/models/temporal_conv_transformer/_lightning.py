@@ -210,11 +210,26 @@ class TemporalConvTransformer(TransformerModuleBase):
             causal_attention=causal_attention,
         )
 
-    def forward(self, batch):
+    def forward(
+        self,
+        batch=None,
+        encoder_input=None,
+        decoder_input=None,
+        encoder_lengths=None,
+        decoder_lengths=None,
+    ):
         """Forward pass through the TCT model."""
+        # Support both batch dict and individual arguments
+        if batch is not None:
+            return self.model(
+                encoder_input=batch["encoder_input"],
+                decoder_input=batch["decoder_input"],
+                encoder_lengths=batch.get("encoder_lengths"),
+                decoder_lengths=batch.get("decoder_lengths"),
+            )
         return self.model(
-            encoder_input=batch["encoder_input"],
-            decoder_input=batch["decoder_input"],
-            encoder_lengths=batch.get("encoder_lengths"),
-            decoder_lengths=batch.get("decoder_lengths"),
+            encoder_input=encoder_input,
+            decoder_input=decoder_input,
+            encoder_lengths=encoder_lengths,
+            decoder_lengths=decoder_lengths,
         )
