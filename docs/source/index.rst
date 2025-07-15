@@ -113,6 +113,7 @@ Documentation Contents
     usage
     tutorials/index
     examples
+    extending_api
     configuration
     evaluation
 
