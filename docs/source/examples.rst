@@ -6,10 +6,10 @@ This gallery showcases practical examples for common time series forecasting sce
 Quick Examples
 --------------
 
-Simple Univariate Forecasting
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Simple Sinusoidal Signal Prediction
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Forecast a single time series using LSTM:
+Predict sinusoidal magnetic field response using LSTM:
 
 .. code-block:: python
 
@@ -19,14 +19,16 @@ Forecast a single time series using LSTM:
    from transformertf.models.lstm import LSTM
    import lightning as L
 
-   # Generate sample data
-   dates = pd.date_range('2022-01-01', periods=1000, freq='D')
-   values = np.cumsum(np.random.randn(1000)) + 100
-   df = pd.DataFrame({'timestamp': dates, 'value': values})
+   # Generate sinusoidal sensor data
+   timestamps = pd.date_range('2022-01-01', periods=10000, freq='100ms')  # 10 Hz sampling
+   time_vals = np.arange(len(timestamps)) / 10.0  # Convert to seconds
+   voltage_input = 5 * np.sin(2 * np.pi * 0.1 * time_vals)  # 0.1 Hz sine wave
+   magnetic_field = 0.8 * voltage_input + 0.2 * np.sin(voltage_input) + np.random.normal(0, 0.1, len(timestamps))
+   df = pd.DataFrame({'timestamp': timestamps, 'voltage_input': voltage_input, 'magnetic_field': magnetic_field})
 
    # Save train/val splits
-   train_df = df.iloc[:800]
-   val_df = df.iloc[800:]
+   train_df = df.iloc[:8000]
+   val_df = df.iloc[8000:]
    train_df.to_parquet('train.parquet', index=False)
    val_df.to_parquet('val.parquet', index=False)
 
@@ -34,8 +36,8 @@ Forecast a single time series using LSTM:
    data_module = TimeSeriesDataModule(
        train_df_paths=['train.parquet'],
        val_df_paths=['val.parquet'],
-       target_covariate='value',
-       seq_len=30,
+       target_covariate='magnetic_field',
+       seq_len=100,  # 10 seconds at 10 Hz
        batch_size=16
    )
 
@@ -65,8 +67,8 @@ Forecast a single time series using LSTM:
      init_args:
        train_df_paths: ['train.parquet']
        val_df_paths: ['val.parquet']
-       target_covariate: 'value'
-       seq_len: 30
+       target_covariate: 'magnetic_field'
+       seq_len: 100  # 10 seconds at 10 Hz
        batch_size: 16
 
 **Usage:** ``transformertf fit --config simple_lstm.yml``
@@ -98,63 +100,66 @@ Predict multiple steps ahead with uncertainty:
    data:
      class_path: transformertf.data.EncoderDecoderDataModule
      init_args:
-       train_df_paths: ['sales_train.parquet']
-       val_df_paths: ['sales_val.parquet']
-       target_covariate: 'sales'
-       known_covariates: ['day_of_week', 'month', 'is_holiday']
-       ctxt_seq_len: 84    # 12 weeks context
-       tgt_seq_len: 14     # 2 weeks prediction
+       train_df_paths: ['sensor_train.parquet']
+       val_df_paths: ['sensor_val.parquet']
+       target_covariate: 'magnetic_field'
+       known_covariates: ['voltage_input', 'temperature', 'frequency']
+       ctxt_seq_len: 1000   # 100 seconds context at 10 Hz
+       tgt_seq_len: 100     # 10 seconds prediction
        batch_size: 32
 
 Real-World Scenarios
 --------------------
 
-Retail Sales Forecasting
-~~~~~~~~~~~~~~~~~~~~~~~~
+Sensor Calibration and Drift Compensation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Multi-location retail sales with seasonal patterns:
+Multi-sensor calibration with temperature compensation:
 
 .. code-block:: python
 
-   # Data preparation for retail scenario
+   # Data preparation for sensor calibration
    import pandas as pd
    import numpy as np
 
-   # Generate multi-store sales data
+   # Generate multi-sensor calibration data
    np.random.seed(42)
-   stores = ['store_A', 'store_B', 'store_C']
-   dates = pd.date_range('2020-01-01', '2023-12-31', freq='D')
+   sensors = ['sensor_A', 'sensor_B', 'sensor_C']
+   timestamps = pd.date_range('2020-01-01', '2023-12-31', freq='100ms')
 
    data = []
-   for store in stores:
-       # Store-specific base sales
-       base_sales = {'store_A': 1000, 'store_B': 1500, 'store_C': 800}[store]
+   for sensor in sensors:
+       # Sensor-specific characteristics
+       sensitivity = {'sensor_A': 1.0, 'sensor_B': 0.95, 'sensor_C': 1.05}[sensor]
+       offset = {'sensor_A': 0.0, 'sensor_B': 0.02, 'sensor_C': -0.01}[sensor]
 
-       for date in dates:
-           # Seasonal patterns
-           day_of_year = date.timetuple().tm_yday
-           seasonal = 200 * np.sin(2 * np.pi * day_of_year / 365.25)
+       for i, timestamp in enumerate(timestamps):
+           # True physical signal (sinusoidal input)
+           time_sec = i * 0.1  # 10 Hz sampling
+           true_signal = 5 * np.sin(2 * np.pi * 0.01 * time_sec)  # 0.01 Hz sine wave
 
-           # Weekly pattern
-           weekly = 150 * np.sin(2 * np.pi * date.weekday() / 7)
+           # Temperature variations
+           temp_variation = 20 + 10 * np.sin(2 * np.pi * time_sec / 86400)  # Daily temperature cycle
 
-           # Holiday boost (simplified)
-           holiday_boost = 300 if date.month == 12 else 0
+           # Sensor response with temperature drift
+           temp_coefficient = 0.001  # 0.1% per degree
+           temp_drift = temp_coefficient * (temp_variation - 20)
 
-           # Random noise
-           noise = np.random.normal(0, 50)
+           # Measured signal with sensor characteristics
+           measured_signal = sensitivity * (1 + temp_drift) * true_signal + offset
 
-           sales = base_sales + seasonal + weekly + holiday_boost + noise
+           # Add measurement noise
+           noise = np.random.normal(0, 0.05)
+           measured_signal += noise
 
            data.append({
-               'timestamp': date,
-               'store_id': store,
-               'sales': max(0, sales),  # No negative sales
-               'day_of_week': date.weekday(),
-               'month': date.month,
-               'day_of_month': date.day,
-               'is_weekend': date.weekday() >= 5,
-               'is_holiday': date.month == 12 and date.day >= 20
+               'timestamp': timestamp,
+               'sensor_id': sensor,
+               'measured_signal': measured_signal,
+               'true_signal': true_signal,
+               'temperature': temp_variation,
+               'voltage_input': true_signal * 0.2,  # Input voltage proportional to signal
+               'frequency': 0.01 if i % 1000 < 500 else 0.02  # Step change in frequency
            })
 
    df = pd.DataFrame(data)
@@ -168,15 +173,15 @@ Multi-location retail sales with seasonal patterns:
    test_df = df[df.timestamp > val_end]
 
    # Save datasets
-   train_df.to_parquet('retail_train.parquet', index=False)
-   val_df.to_parquet('retail_val.parquet', index=False)
-   test_df.to_parquet('retail_test.parquet', index=False)
+   train_df.to_parquet('sensor_train.parquet', index=False)
+   val_df.to_parquet('sensor_val.parquet', index=False)
+   test_df.to_parquet('sensor_test.parquet', index=False)
 
 **Configuration:**
 
 .. code-block:: yaml
 
-   # retail_forecasting.yml
+   # sensor_calibration.yml
    seed_everything: 42
 
    trainer:
@@ -199,18 +204,17 @@ Multi-location retail sales with seasonal patterns:
    data:
      class_path: transformertf.data.EncoderDecoderDataModule
      init_args:
-       train_df_paths: ['retail_train.parquet']
-       val_df_paths: ['retail_val.parquet']
-       target_covariate: 'sales'
+       train_df_paths: ['sensor_train.parquet']
+       val_df_paths: ['sensor_val.parquet']
+       target_covariate: 'true_signal'
        known_covariates:
-         - 'day_of_week'
-         - 'month'
-         - 'day_of_month'
-         - 'is_weekend'
-         - 'is_holiday'
-       static_categorical_variables: ['store_id']
-       ctxt_seq_len: 90     # 3 months context
-       tgt_seq_len: 30      # 1 month prediction
+         - 'measured_signal'
+         - 'temperature'
+         - 'voltage_input'
+         - 'frequency'
+       static_categorical_variables: ['sensor_id']
+       ctxt_seq_len: 1000   # 100 seconds context at 10 Hz
+       tgt_seq_len: 100     # 10 seconds prediction
        batch_size: 32
        normalize: true
 
@@ -227,14 +231,14 @@ Multi-location retail sales with seasonal patterns:
        factor: 0.5
        patience: 10
 
-Energy Consumption Forecasting
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Temperature Sensor Modeling
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Hourly energy demand with weather features:
+High-frequency temperature measurement with environmental factors:
 
 .. code-block:: yaml
 
-   # energy_forecasting.yml
+   # temperature_sensor.yml
    seed_everything: 42
 
    trainer:
@@ -254,30 +258,29 @@ Hourly energy demand with weather features:
    data:
      class_path: transformertf.data.EncoderDecoderDataModule
      init_args:
-       train_df_paths: ['energy_train.parquet']
-       val_df_paths: ['energy_val.parquet']
-       target_covariate: 'energy_demand'
+       train_df_paths: ['temperature_train.parquet']
+       val_df_paths: ['temperature_val.parquet']
+       target_covariate: 'temperature'
        known_covariates:
-         - 'temperature'
+         - 'voltage_input'
+         - 'ambient_temperature'
          - 'humidity'
-         - 'hour_of_day'
-         - 'day_of_week'
-         - 'month'
-         - 'is_business_day'
-       ctxt_seq_len: 168    # 1 week (hourly data)
-       tgt_seq_len: 24      # 1 day ahead
+         - 'pressure'
+         - 'heating_power'
+       ctxt_seq_len: 1000   # 100 seconds at 10 Hz
+       tgt_seq_len: 100     # 10 seconds prediction
        batch_size: 64
        normalize: true
        num_workers: 4
 
-Stock Price Prediction
-~~~~~~~~~~~~~~~~~~~~~
+Vibration Analysis
+~~~~~~~~~~~~~~~~~~
 
-Financial time series with technical indicators:
+Accelerometer data processing with frequency analysis:
 
 .. code-block:: yaml
 
-   # stock_prediction.yml
+   # vibration_analysis.yml
    seed_everything: 42
 
    trainer:
@@ -298,18 +301,18 @@ Financial time series with technical indicators:
    data:
      class_path: transformertf.data.EncoderDecoderDataModule
      init_args:
-       train_df_paths: ['stock_train.parquet']
-       val_df_paths: ['stock_val.parquet']
-       target_covariate: 'close_price'
+       train_df_paths: ['vibration_train.parquet']
+       val_df_paths: ['vibration_val.parquet']
+       target_covariate: 'displacement'
        known_covariates:
-         - 'volume'
-         - 'rsi_14'
-         - 'macd'
-         - 'moving_avg_50'
-         - 'volatility'
-       static_categorical_variables: ['sector', 'market_cap_category']
-       ctxt_seq_len: 60     # 60 days context
-       tgt_seq_len: 5       # 5 days prediction
+         - 'acceleration_x'
+         - 'acceleration_y'
+         - 'acceleration_z'
+         - 'frequency'
+         - 'amplitude'
+       static_categorical_variables: ['sensor_location', 'measurement_axis']
+       ctxt_seq_len: 1000   # 100 seconds at 10 Hz
+       tgt_seq_len: 100     # 10 seconds prediction
        batch_size: 16
        normalize: true
 
@@ -319,26 +322,23 @@ Specialized Applications
 Physics-Informed Modeling
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Magnetic field hysteresis modeling for particle accelerators:
+Magnetic field modeling with physics constraints:
 
 .. code-block:: yaml
 
-   # physics_hysteresis.yml
+   # physics_magnetic_field.yml
    seed_everything: 42
 
    trainer:
      max_epochs: 100
      accelerator: auto
      gradient_clip_val: 1.0
-     callbacks:
-       - class_path: transformertf.callbacks.PlotHysteresisCallback
-         init_args:
-           plot_every: 10
 
    model:
-     class_path: transformertf.models.bwlstm.BWLSTM1
+     class_path: transformertf.models.pete.PETE
      init_args:
-       hidden_size: 128
+       n_dim_model: 128
+       num_heads: 8
        num_layers: 3
        dropout: 0.1
 
@@ -347,12 +347,12 @@ Magnetic field hysteresis modeling for particle accelerators:
      init_args:
        train_df_paths: ['magnetic_field_train.parquet']
        val_df_paths: ['magnetic_field_val.parquet']
-       target_covariate: 'B_field'
-       known_covariates: ['I_current']
-       seq_len: 200
+       target_covariate: 'magnetic_field'
+       known_covariates: ['voltage_input', 'current', 'temperature']
+       seq_len: 500  # 50 seconds at 10 Hz
        batch_size: 32
        extra_transforms:
-         B_field:
+         magnetic_field:
            - class_path: transformertf.data.transform.DiscreteFunctionTransform
              init_args:
                x: 'calibration_function.csv'

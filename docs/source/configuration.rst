@@ -150,21 +150,21 @@ Data Module Configurations
        test_df_paths: ["test.parquet"]          # Test data files (optional)
 
        # Column specifications
-       target_covariate: "target"               # Target variable name
+       target_covariate: "magnetic_field"      # Target variable name
        known_covariates:                        # Known future features
+         - "voltage_input"
          - "temperature"
-         - "day_of_week"
-         - "hour_of_day"
+         - "frequency"
        static_categorical_variables:            # Entity-level categories
-         - "location"
          - "sensor_type"
+         - "measurement_location"
        static_real_variables:                   # Entity-level numerics
-         - "capacity"
-         - "latitude"
+         - "calibration_factor"
+         - "sensor_sensitivity"
 
        # Sequence configuration
-       ctxt_seq_len: 168                       # Context length (hours/days)
-       tgt_seq_len: 24                         # Prediction horizon
+       ctxt_seq_len: 1000                      # Context length (100 seconds at 10 Hz)
+       tgt_seq_len: 100                        # Prediction horizon (10 seconds)
        randomize_seq_len: false                # Random sequence lengths
        stride: 1                               # Sampling stride
 
@@ -185,11 +185,11 @@ Data Module Configurations
    data:
      class_path: transformertf.data.TimeSeriesDataModule
      init_args:
-       train_df_paths: ["train.parquet"]
-       val_df_paths: ["val.parquet"]
-       target_covariate: "value"
-       known_covariates: ["feature1", "feature2"]
-       seq_len: 100                            # Fixed sequence length
+       train_df_paths: ["sensor_train.parquet"]
+       val_df_paths: ["sensor_val.parquet"]
+       target_covariate: "magnetic_field"
+       known_covariates: ["voltage_input", "temperature"]
+       seq_len: 500                            # Fixed sequence length (50 seconds at 10 Hz)
        batch_size: 32
        normalize: true
 

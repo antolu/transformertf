@@ -1,26 +1,26 @@
-Basic Time Series Forecasting
-==============================
+Basic Physics Signal Forecasting
+=================================
 
-This tutorial demonstrates end-to-end time series forecasting using the Temporal Fusion Transformer (TFT). We'll generate synthetic data, train a model, and make predictions with uncertainty quantification.
+This tutorial demonstrates end-to-end physics signal forecasting using the Temporal Fusion Transformer (TFT). We'll generate synthetic sinusoidal sensor data, train a model, and make predictions with uncertainty quantification.
 
 Overview
 --------
 
 **What you'll learn:**
-- How to structure time series data for TransformerTF
-- How to configure and train a TFT model
+- How to structure high-frequency sensor data for TransformerTF
+- How to configure and train a TFT model for physics applications
 - How to generate predictions with confidence intervals
 - How to visualize and interpret results
 
 **Prerequisites:**
 - TransformerTF installed (``pip install transformertf``)
-- Basic familiarity with time series concepts
+- Basic familiarity with signal processing concepts
 - Python data science environment (pandas, numpy, matplotlib)
 
 Step 1: Generate Synthetic Data
 -------------------------------
 
-First, let's create realistic synthetic time series data with multiple features and seasonal patterns:
+First, let's create realistic synthetic sensor data with sinusoidal patterns and physics-based relationships:
 
 .. code-block:: python
 
@@ -32,72 +32,83 @@ First, let's create realistic synthetic time series data with multiple features 
    # Set random seed for reproducibility
    np.random.seed(42)
 
-   # Generate 2 years of hourly data
+   # Generate high-frequency sensor data (10 Hz for 1 hour)
    start_date = datetime(2022, 1, 1)
-   end_date = datetime(2023, 12, 31, 23)
-   timestamps = pd.date_range(start_date, end_date, freq='H')
+   end_date = datetime(2022, 1, 1, 1)  # 1 hour of data
+   timestamps = pd.date_range(start_date, end_date, freq='100ms')  # 10 Hz sampling
    n_points = len(timestamps)
 
-   # Create time-based features
-   hours = timestamps.hour
-   days = timestamps.dayofyear
-   months = timestamps.month
+   # Time in seconds for signal generation
+   time_seconds = np.arange(n_points) / 10.0  # 10 Hz = 0.1 second intervals
 
-   # Generate synthetic target with multiple patterns
-   # 1. Daily cycle
-   daily_pattern = 10 * np.sin(2 * np.pi * hours / 24)
+   # Generate synthetic voltage input (sinusoidal with multiple frequency components)
+   # 1. Primary sinusoidal component
+   voltage_primary = 5 * np.sin(2 * np.pi * 0.1 * time_seconds)  # 0.1 Hz sine wave
 
-   # 2. Weekly cycle
-   weekly_pattern = 5 * np.sin(2 * np.pi * days / 7)
+   # 2. Secondary harmonic
+   voltage_secondary = 1.5 * np.sin(2 * np.pi * 0.3 * time_seconds)  # 0.3 Hz component
 
-   # 3. Annual trend
-   annual_trend = 0.01 * days
+   # 3. High-frequency noise
+   voltage_noise = 0.2 * np.random.normal(0, 1, n_points)
 
-   # 4. Random noise
-   noise = np.random.normal(0, 2, n_points)
+   # Combine voltage components
+   voltage_input = voltage_primary + voltage_secondary + voltage_noise
 
-   # 5. External feature influence
-   temperature = 20 + 10 * np.sin(2 * np.pi * days / 365) + np.random.normal(0, 3, n_points)
-   demand_influence = 0.3 * temperature
+   # Generate temperature variations (slow thermal response)
+   temperature = 20 + 5 * np.sin(2 * np.pi * 0.01 * time_seconds) + np.random.normal(0, 0.5, n_points)
 
-   # Combine all components
-   target = 100 + daily_pattern + weekly_pattern + annual_trend + demand_influence + noise
+   # Generate magnetic field response (nonlinear relationship with voltage)
+   magnetic_field_linear = 0.8 * voltage_input  # Linear component
+   magnetic_field_nonlinear = 0.2 * np.sin(voltage_input)  # Nonlinear component
+   temperature_coupling = 0.1 * (temperature - 20) * voltage_input  # Temperature coupling
+   measurement_noise = np.random.normal(0, 0.1, n_points)
+
+   # Combine all components for target
+   magnetic_field = magnetic_field_linear + magnetic_field_nonlinear + temperature_coupling + measurement_noise
 
    # Create feature columns
    df = pd.DataFrame({
        'timestamp': timestamps,
-       'target': target,
+       'magnetic_field': magnetic_field,
+       'voltage_input': voltage_input,
        'temperature': temperature,
-       'hour_of_day': hours,
-       'day_of_week': timestamps.dayofweek,
-       'month': months,
-       'is_weekend': (timestamps.dayofweek >= 5).astype(int),
-       'entity_id': 'location_1'  # Required for multi-entity support
+       'frequency': 0.1,  # Primary frequency component
+       'amplitude': 5.0,  # Primary amplitude
+       'sensor_id': 'sensor_1'  # Required for multi-entity support
    })
 
    print(f"Generated {len(df)} data points")
    print(f"Date range: {df.timestamp.min()} to {df.timestamp.max()}")
-   print(f"Target statistics: mean={df.target.mean():.2f}, std={df.target.std():.2f}")
+   print(f"Magnetic field statistics: mean={df.magnetic_field.mean():.2f}, std={df.magnetic_field.std():.2f}")
+   print(f"Voltage input statistics: mean={df.voltage_input.mean():.2f}, std={df.voltage_input.std():.2f}")
 
 **Visualize the generated data:**
 
 .. code-block:: python
 
-   # Plot first week of data to see patterns
-   week_data = df.iloc[:168]  # First 168 hours (1 week)
+   # Plot first 100 seconds of data to see patterns
+   sample_data = df.iloc[:1000]  # First 1000 points (100 seconds at 10 Hz)
 
-   fig, axes = plt.subplots(2, 1, figsize=(12, 8))
+   fig, axes = plt.subplots(3, 1, figsize=(12, 10))
 
-   # Target variable
-   axes[0].plot(week_data.timestamp, week_data.target)
-   axes[0].set_title('Target Variable (First Week)')
-   axes[0].set_ylabel('Target Value')
+   # Magnetic field (target)
+   axes[0].plot(sample_data.timestamp, sample_data.magnetic_field, 'b-', linewidth=1)
+   axes[0].set_title('Magnetic Field Response (Target)')
+   axes[0].set_ylabel('Magnetic Field (mT)')
+   axes[0].grid(True, alpha=0.3)
 
-   # Temperature feature
-   axes[1].plot(week_data.timestamp, week_data.temperature, color='orange')
-   axes[1].set_title('Temperature Feature (First Week)')
-   axes[1].set_ylabel('Temperature')
-   axes[1].set_xlabel('Time')
+   # Voltage input
+   axes[1].plot(sample_data.timestamp, sample_data.voltage_input, 'r-', linewidth=1)
+   axes[1].set_title('Voltage Input Signal')
+   axes[1].set_ylabel('Voltage (V)')
+   axes[1].grid(True, alpha=0.3)
+
+   # Temperature
+   axes[2].plot(sample_data.timestamp, sample_data.temperature, 'g-', linewidth=1)
+   axes[2].set_title('Temperature Variation')
+   axes[2].set_ylabel('Temperature (°C)')
+   axes[2].set_xlabel('Time')
+   axes[2].grid(True, alpha=0.3)
 
    plt.tight_layout()
    plt.show()
@@ -114,7 +125,7 @@ Split the data chronologically and save in Parquet format:
    train_end = int(0.8 * n_total)
    val_end = int(0.9 * n_total)
 
-   # Split data chronologically (important for time series!)
+   # Split data chronologically (important for sensor data!)
    train_df = df.iloc[:train_end].copy()
    val_df = df.iloc[train_end:val_end].copy()
    test_df = df.iloc[val_end:].copy()
@@ -124,11 +135,11 @@ Split the data chronologically and save in Parquet format:
    print(f"Test: {len(test_df)} samples ({test_df.timestamp.min()} to {test_df.timestamp.max()})")
 
    # Save to Parquet files
-   train_df.to_parquet('train_data.parquet', index=False)
-   val_df.to_parquet('val_data.parquet', index=False)
-   test_df.to_parquet('test_data.parquet', index=False)
+   train_df.to_parquet('sensor_train.parquet', index=False)
+   val_df.to_parquet('sensor_val.parquet', index=False)
+   test_df.to_parquet('sensor_test.parquet', index=False)
 
-   print("Data saved to Parquet files")
+   print("Sensor data saved to Parquet files")
 
 Step 3: Create Configuration File
 ---------------------------------
@@ -138,7 +149,7 @@ Create a YAML configuration for the TFT model with quantile regression:
 .. code-block:: python
 
    config_yaml = """
-   # TFT Configuration for Basic Forecasting
+   # TFT Configuration for Physics Signal Forecasting
    seed_everything: 42
 
    trainer:
@@ -163,13 +174,13 @@ Create a YAML configuration for the TFT model with quantile regression:
    data:
      class_path: transformertf.data.EncoderDecoderDataModule
      init_args:
-       train_df_paths: ["train_data.parquet"]
-       val_df_paths: ["val_data.parquet"]
-       target_covariate: "target"
-       known_covariates: ["temperature", "hour_of_day", "day_of_week", "month", "is_weekend"]
-       static_categorical_variables: ["entity_id"]
-       ctxt_seq_len: 168   # 1 week of context (168 hours)
-       tgt_seq_len: 24     # Predict 24 hours ahead
+       train_df_paths: ["sensor_train.parquet"]
+       val_df_paths: ["sensor_val.parquet"]
+       target_covariate: "magnetic_field"
+       known_covariates: ["voltage_input", "temperature", "frequency", "amplitude"]
+       static_categorical_variables: ["sensor_id"]
+       ctxt_seq_len: 500   # 50 seconds of context at 10 Hz
+       tgt_seq_len: 100    # Predict 10 seconds ahead
        batch_size: 32
        normalize: true
        num_workers: 0      # Use 0 for tutorial compatibility
@@ -216,13 +227,13 @@ Train the TFT model using the Lightning CLI:
 
    # Initialize data module
    data_module = EncoderDecoderDataModule(
-       train_df_paths=["train_data.parquet"],
-       val_df_paths=["val_data.parquet"],
-       target_covariate="target",
-       known_covariates=["temperature", "hour_of_day", "day_of_week", "month", "is_weekend"],
-       static_categorical_variables=["entity_id"],
-       ctxt_seq_len=168,
-       tgt_seq_len=24,
+       train_df_paths=["sensor_train.parquet"],
+       val_df_paths=["sensor_val.parquet"],
+       target_covariate="magnetic_field",
+       known_covariates=["voltage_input", "temperature", "frequency", "amplitude"],
+       static_categorical_variables=["sensor_id"],
+       ctxt_seq_len=500,  # 50 seconds at 10 Hz
+       tgt_seq_len=100,   # 10 seconds prediction
        batch_size=32,
        normalize=True
    )
@@ -278,12 +289,12 @@ Use the trained model to generate predictions on test data:
 
    # Create test data module (exclude target from known covariates for prediction)
    test_data_module = EncoderDecoderDataModule(
-       train_df_paths=["test_data.parquet"],  # Use test data as "train" for prediction
-       target_covariate="target",
-       known_covariates=["temperature", "hour_of_day", "day_of_week", "month", "is_weekend"],
-       static_categorical_variables=["entity_id"],
-       ctxt_seq_len=168,
-       tgt_seq_len=24,
+       train_df_paths=["sensor_test.parquet"],  # Use test data as "train" for prediction
+       target_covariate="magnetic_field",
+       known_covariates=["voltage_input", "temperature", "frequency", "amplitude"],
+       static_categorical_variables=["sensor_id"],
+       ctxt_seq_len=500,  # 50 seconds at 10 Hz
+       tgt_seq_len=100,   # 10 seconds prediction
        batch_size=32,
        normalize=True
    )
@@ -360,9 +371,9 @@ Create visualizations to evaluate model performance:
        ax.fill_between(time_steps, pred_lower, pred_upper,
                       alpha=0.3, color='red', label='80% Confidence Interval')
 
-       ax.set_title(f'Sample {idx + 1}: 24-hour Forecast')
-       ax.set_xlabel('Hours')
-       ax.set_ylabel('Target Value')
+       ax.set_title(f'Sample {idx + 1}: 10-second Magnetic Field Forecast')
+       ax.set_xlabel('Time Steps (0.1s intervals)')
+       ax.set_ylabel('Magnetic Field (mT)')
        ax.legend()
        ax.grid(True, alpha=0.3)
 

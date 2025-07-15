@@ -34,8 +34,8 @@ Train a Temporal Fusion Transformer:
    transformertf fit \
      --model.class_path transformertf.models.temporal_fusion_transformer.TemporalFusionTransformer \
      --data.class_path transformertf.data.EncoderDecoderDataModule \
-     --data.init_args.train_df_paths='["your_data.parquet"]' \
-     --data.init_args.target_covariate="target_column"
+     --data.init_args.train_df_paths='["sensor_data.parquet"]' \
+     --data.init_args.target_covariate="magnetic_field"
 
 Python API usage:
 
@@ -47,8 +47,8 @@ Python API usage:
 
    # Setup data and model
    data_module = EncoderDecoderDataModule(
-       train_df_paths=["train.parquet"],
-       target_covariate="target",
+       train_df_paths=["sensor_data.parquet"],
+       target_covariate="magnetic_field",
        ctxt_seq_len=200,
        tgt_seq_len=100,
        batch_size=32
@@ -67,7 +67,7 @@ Python API usage:
 Core Workflow
 -------------
 
-1. **Prepare Data**: Load time series data in Parquet format with temporal and static features
+1. **Prepare Data**: Load high-frequency sensor data in Parquet format with physical measurements
 2. **Configure Model**: Choose architecture (TFT for complex multivariate, LSTM for simple univariate)
 3. **Train**: Use Lightning CLI or Python API with automatic hyperparameter linking
 4. **Evaluate**: Built-in metrics and visualization callbacks
@@ -114,6 +114,7 @@ Documentation Contents
     tutorials/index
     examples
     configuration
+    evaluation
 
 .. toctree::
     :caption: Reference

@@ -22,33 +22,34 @@ TransformerTF requires Python 3.11+ and PyTorch 2.2+. For best results, use a co
 Data Requirements
 ~~~~~~~~~~~~~~~~~
 
-TransformerTF expects time series data in Parquet format with specific column structures:
+TransformerTF expects high-frequency sensor data in Parquet format with specific column structures:
 
 **Required Columns:**
 - **Timestamp column**: datetime index for temporal ordering
-- **Target variable**: the value you want to predict
-- **Known covariates**: features available at prediction time (e.g., day of week, holidays)
+- **Target variable**: the physical quantity you want to predict
+- **Known covariates**: features available at prediction time (e.g., voltage, frequency, temperature)
 
 **Optional Columns:**
-- **Static categorical**: entity-level features (e.g., store ID, product category)
-- **Static real**: entity-level numerical features (e.g., store size, location)
+- **Static categorical**: sensor-level features (e.g., sensor_type, measurement_location)
+- **Static real**: sensor-level numerical features (e.g., calibration_factor, sensor_sensitivity)
 
 **Example Data Structure:**
 
 .. code-block:: python
 
    import pandas as pd
+   import numpy as np
 
-   # Example multivariate time series
+   # Example high-frequency sensor data
    df = pd.DataFrame({
-       'timestamp': pd.date_range('2020-01-01', periods=1000, freq='H'),
-       'target': np.random.randn(1000).cumsum(),
-       'feature_1': np.random.randn(1000),
-       'feature_2': np.sin(np.arange(1000) * 2 * np.pi / 24),  # Daily pattern
-       'entity_id': 'store_1'
+       'timestamp': pd.date_range('2020-01-01', periods=1000, freq='100ms'),  # 10 Hz sampling
+       'magnetic_field': np.random.randn(1000).cumsum(),
+       'voltage_input': 5 * np.sin(np.arange(1000) * 2 * np.pi / 100),  # 1 Hz sine wave
+       'temperature': 20 + 0.1 * np.random.randn(1000),  # Temperature fluctuations
+       'sensor_id': 'sensor_1'
    })
 
-   df.to_parquet('time_series_data.parquet')
+   df.to_parquet('sensor_data.parquet')
 
 Core Concepts
 -------------
@@ -149,13 +150,13 @@ For forecasting multiple time steps into the future:
    from transformertf.data import EncoderDecoderDataModule
    from transformertf.models.temporal_fusion_transformer import TemporalFusionTransformer
 
-   # Configure for 7-day prediction horizon
+   # Configure for multi-step magnetic field prediction
    data_module = EncoderDecoderDataModule(
-       train_df_paths=["weekly_data.parquet"],
-       target_covariate="sales",
-       known_covariates=["day_of_week", "is_holiday"],
-       ctxt_seq_len=30,   # Use 30 days of context
-       tgt_seq_len=7,     # Predict 7 days ahead
+       train_df_paths=["sensor_data.parquet"],
+       target_covariate="magnetic_field",
+       known_covariates=["voltage_input", "temperature"],
+       ctxt_seq_len=1000,  # Use 100 seconds of context (10 Hz)
+       tgt_seq_len=100,    # Predict 10 seconds ahead
        batch_size=16
    )
 
@@ -163,7 +164,7 @@ For forecasting multiple time steps into the future:
        n_dim_model=128,
        hidden_continuous_dim=32,
        num_heads=8,
-       output_dim=7       # Match target sequence length
+       output_dim=100     # Match target sequence length
    )
 
 Quantile Regression
@@ -245,10 +246,10 @@ For programmatic control:
    data_module = EncoderDecoderDataModule(
        train_df_paths=["data/train.parquet"],
        val_df_paths=["data/val.parquet"],
-       target_covariate="value",
-       known_covariates=["feature1", "feature2"],
-       ctxt_seq_len=100,
-       tgt_seq_len=20
+       target_covariate="magnetic_field",
+       known_covariates=["voltage_input", "temperature"],
+       ctxt_seq_len=500,  # 50 seconds at 10 Hz
+       tgt_seq_len=50     # 5 seconds prediction
    )
 
    model = TemporalFusionTransformer(
@@ -327,7 +328,7 @@ Common Configuration Patterns
      class_path: transformertf.data.TimeSeriesDataModule
      init_args:
        seq_len: 50
-       target_covariate: "value"
+       target_covariate: "magnetic_field"
 
 **For complex multivariate forecasting:**
 
@@ -338,10 +339,10 @@ Common Configuration Patterns
    data:
      class_path: transformertf.data.EncoderDecoderDataModule
      init_args:
-       ctxt_seq_len: 168
-       tgt_seq_len: 24
-       known_covariates: ["temperature", "humidity", "day_of_week"]
-       static_categorical_variables: ["location", "sensor_type"]
+       ctxt_seq_len: 1000   # 100 seconds at 10 Hz
+       tgt_seq_len: 100     # 10 seconds prediction
+       known_covariates: ["voltage_input", "temperature", "frequency"]
+       static_categorical_variables: ["sensor_type", "measurement_location"]
 
 Best Practices
 --------------

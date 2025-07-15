@@ -1,10 +1,10 @@
 # TransformerTF
 
-A PyTorch Lightning framework for time series modeling with transformer architectures, designed for physics applications at CERN.
+A PyTorch Lightning framework for high-frequency physics signal modeling with transformer architectures, designed for sensor data analysis at CERN.
 
 ## Overview
 
-TransformerTF provides a comprehensive toolkit for time series forecasting using state-of-the-art transformer models. Originally developed for modeling hysteresis in magnetic field transfer functions for particle accelerators, the framework supports various time series prediction tasks with configurable data pipelines and multiple model architectures.
+TransformerTF provides a comprehensive toolkit for high-frequency physics signal modeling using state-of-the-art transformer models. Originally developed for magnetic field transfer functions in particle accelerators, the framework supports various sensor data analysis tasks with configurable data pipelines and multiple model architectures.
 
 ### Key Features
 
@@ -81,11 +81,11 @@ model:
 data:
   class_path: transformertf.data.EncoderDecoderDataModule
   init_args:
-    train_df_paths: ["path/to/train.parquet"]
-    val_df_paths: ["path/to/val.parquet"]
-    target_covariate: "target_column"
-    ctxt_seq_len: 200
-    tgt_seq_len: 100
+    train_df_paths: ["path/to/sensor_data.parquet"]
+    val_df_paths: ["path/to/sensor_val.parquet"]
+    target_covariate: "magnetic_field"
+    ctxt_seq_len: 1000  # 100 seconds at 10 Hz
+    tgt_seq_len: 100    # 10 seconds prediction
     batch_size: 16
 
 trainer:
