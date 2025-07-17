@@ -194,11 +194,6 @@ class LightningModuleBase(L.LightningModule):
         super().__init__()
         self.save_hyperparameters()
 
-        # Store metrics configuration - use from hparams if available, fallback to parameter
-        self._logging_metrics = getattr(
-            self.hparams, "logging_metrics", logging_metrics
-        )
-
         self._train_outputs: dict[int, list[MODEL_OUTPUT]] = {}
         self._val_outputs: dict[int, list[MODEL_OUTPUT]] = {}
         self._test_outputs: dict[int, list[MODEL_OUTPUT]] = {}
@@ -269,7 +264,7 @@ class LightningModuleBase(L.LightningModule):
             msg = f"Expected outputs to be dict during training, got {type(outputs)}"
             raise TypeError(msg)
 
-        if self._logging_metrics:
+        if self.hparams.logging_metrics:
             other_metrics = self.calc_other_metrics(outputs, batch["target"])
             self.common_log_step(other_metrics, "train")  # type: ignore[attr-defined]
 
@@ -295,7 +290,7 @@ class LightningModuleBase(L.LightningModule):
 
         self._val_outputs[dataloader_idx].append(ops.to_cpu(ops.detach(data)))  # type: ignore[arg-type,type-var]
 
-        if self._logging_metrics:
+        if self.hparams.logging_metrics:
             if "target" not in batch:
                 msg = "Expected 'target' key in batch during validation"
                 raise ValueError(msg)
@@ -442,7 +437,7 @@ class LightningModuleBase(L.LightningModule):
         prediction = prediction.squeeze()
 
         # Calculate only the metrics specified in configuration
-        for metric_name in self._logging_metrics:
+        for metric_name in self.hparams.logging_metrics:
             if metric_name == "MSE":
                 loss_dict["MSE"] = torch.nn.functional.mse_loss(prediction, target)
             elif metric_name == "MAE":
@@ -474,9 +469,9 @@ class LightningModuleBase(L.LightningModule):
             If hyperparameter configuration is invalid.
         """
         # Check metrics configuration
-        if hasattr(self, "_logging_metrics"):
+        if hasattr(self.hparams, "logging_metrics"):
             valid_metrics = {"MSE", "MAE", "MAPE", "SMAPE", "RMSE"}
-            invalid_metrics = set(self._logging_metrics) - valid_metrics
+            invalid_metrics = set(self.hparams.logging_metrics) - valid_metrics
             if invalid_metrics:
                 msg = (
                     f"Invalid metric names in logging_metrics: {invalid_metrics}. "
