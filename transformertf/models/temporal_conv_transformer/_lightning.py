@@ -184,7 +184,7 @@ class TemporalConvTransformer(TransformerModuleBase):
             MetricLiteral
         ] = DEFAULT_LOGGING_METRICS,
     ):
-        super().__init__(logging_metrics=logging_metrics)
+        super().__init__()
         self.save_hyperparameters(ignore=["criterion"])
 
         # Set up criterion and adjust output_dim using shared logic

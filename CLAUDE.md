@@ -161,3 +161,7 @@ The CLI system automatically validates configurations and provides helpful error
 ## Naming Conventions
 
 - The lightning module of each model should not be appended with model, but rather the torch.nn.Module that the module wraps should be appended with Model. So for an LSTM model, the LightningModule should be named LSTM, and the wrapped model should be named LSTMModel
+
+## Initialization Patterns
+
+- `__init__` arguments that are supposed to be passed to a parent module do not need to be explicitly passed by calling the super init, unless explicitly stated in the parent class or if they are torch.nn.Modules, since the save_hyperparameters call will save them to hparams immediately. In short, any `__init__` argument that is not in `save_hyperparameters(ignore=...)` do not need to be passed to super init.

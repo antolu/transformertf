@@ -166,7 +166,7 @@ class LSTM(LightningModuleBase):
             MetricLiteral
         ] = DEFAULT_LOGGING_METRICS,
     ):
-        super().__init__(logging_metrics=logging_metrics)
+        super().__init__()
         n_dim_fc = n_dim_fc or n_dim_model
 
         self.criterion = criterion or torch.nn.MSELoss()
