@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import fnmatch
 import sys
 import typing
 
@@ -459,16 +460,44 @@ class TransformerModuleBase(LightningModuleBase):
         # Validate trainable parameters
         trainable_params = self.hparams.get("trainable_parameters")
         if trainable_params is not None:
-            if not isinstance(trainable_params, list):
-                msg = f"trainable_parameters must be a list or None, got {type(trainable_params)}"
-                raise ValueError(msg)
-            if not all(isinstance(param, str) for param in trainable_params):
-                msg = "All items in trainable_parameters must be strings"
+            if isinstance(trainable_params, list):
+                # Validate list format (backward compatible)
+                if not all(isinstance(param, str) for param in trainable_params):
+                    msg = "All items in trainable_parameters list must be strings"
+                    raise ValueError(msg)
+            elif isinstance(trainable_params, dict):
+                # Validate dict format (enhanced)
+                valid_keys = {"include", "exclude"}
+                if not set(trainable_params.keys()).issubset(valid_keys):
+                    invalid_keys = set(trainable_params.keys()) - valid_keys
+                    msg = f"Invalid keys in trainable_parameters dict: {invalid_keys}. Valid keys: {valid_keys}"
+                    raise ValueError(msg)
+
+                # Validate include patterns
+                include_patterns = trainable_params.get("include", ["*"])
+                if not isinstance(include_patterns, list) or not all(
+                    isinstance(p, str) for p in include_patterns
+                ):
+                    msg = "trainable_parameters['include'] must be a list of strings"
+                    raise ValueError(msg)
+
+                # Validate exclude patterns
+                exclude_patterns = trainable_params.get("exclude", [])
+                if not isinstance(exclude_patterns, list) or not all(
+                    isinstance(p, str) for p in exclude_patterns
+                ):
+                    msg = "trainable_parameters['exclude'] must be a list of strings"
+                    raise ValueError(msg)
+            else:
+                msg = f"trainable_parameters must be a list, dict, or None, got {type(trainable_params)}"
                 raise ValueError(msg)
 
     def on_train_epoch_start(self) -> None:
         """
         Set normalizing layers not in trainable_parameters to eval mode.
+
+        This ensures that LayerNorm layers that are not being trained maintain
+        their statistics from pretraining, which is important for transfer learning.
         """
         if (
             "trainable_parameters" not in self.hparams
@@ -476,19 +505,47 @@ class TransformerModuleBase(LightningModuleBase):
         ):
             return
 
-        trainable_params = set(self.hparams["trainable_parameters"])
+        config = self.hparams["trainable_parameters"]
+
+        # Handle both list and dict formats
+        if isinstance(config, list):
+            include_patterns = config
+            exclude_patterns = []
+        else:
+            include_patterns = config.get("include", ["*"])
+            exclude_patterns = config.get("exclude", [])
+
         for name, module in self.named_modules():
             if not isinstance(module, torch.nn.LayerNorm):
                 continue
 
-            param_name = name.split(".")[1]  # model.[name].xxx
-            if param_name not in trainable_params:
+            # Remove "model." prefix if present to get clean component path
+            clean_name = name[6:] if name.startswith("model.") else name
+
+            # Check if this module should be trainable using same logic as parameters()
+            included = any(
+                self._matches_pattern(clean_name, pattern)
+                for pattern in include_patterns
+            )
+            excluded = any(
+                self._matches_pattern(clean_name, pattern)
+                for pattern in exclude_patterns
+            )
+
+            # Set to eval mode if not trainable
+            if not (included and not excluded):
                 module.eval()
 
     def parameters(self, recurse: bool = True) -> typing.Iterator[torch.nn.Parameter]:
         """
-        Override the parameters method to only return the trainable parameters, for
-        use with LightningCLI where we cannot easily specify the trainable parameters.
+        Override the parameters method to only return the trainable parameters.
+
+        This method uses parameter filtering rather than requires_grad=False because
+        transformer fine-tuning often requires freezing output/head layers. Setting
+        requires_grad=False on final layers would break gradient flow to all upstream
+        parameters, preventing training of earlier layers. Parameter filtering allows
+        selective optimization while maintaining full gradient computation throughout
+        the network.
 
         Parameters
         ----------
@@ -499,16 +556,121 @@ class TransformerModuleBase(LightningModuleBase):
         Returns
         -------
         Iterator[torch.nn.Parameter]
+            Iterator over trainable parameters based on trainable_parameters configuration
+
+        Notes
+        -----
+        The trainable_parameters configuration supports two formats:
+
+        1. **Simple list format** (backward compatible):
+           trainable_parameters = ["encoder", "decoder.attention"]
+
+        2. **Include/exclude dict format** (enhanced):
+           trainable_parameters = {
+               "include": ["encoder.*", "decoder.attention.*"],
+               "exclude": ["encoder.layer.0.*", "*.bias"]
+           }
+
+        Pattern matching uses glob syntax:
+        - "*" matches any sequence of characters
+        - "?" matches any single character
+        - "[seq]" matches any character in seq
+        - "encoder.*" matches all parameters in encoder module
+        - "*.weight" matches all weight parameters
+        - "encoder.layer.[0-2].*" matches first 3 encoder layers
+
+        Examples
+        --------
+        >>> # Freeze embeddings and first encoder layer, train rest
+        >>> trainable_parameters = {
+        ...     "include": ["*"],
+        ...     "exclude": ["embeddings.*", "encoder.layer.0.*"]
+        ... }
+        >>>
+        >>> # Train only attention and output layers
+        >>> trainable_parameters = ["encoder.attention", "decoder.attention", "head"]
+        >>>
+        >>> # Fine-tune only the last few transformer layers
+        >>> trainable_parameters = {
+        ...     "include": ["encoder.layer.[6-11].*", "head.*"]
+        ... }
         """
         if self.hparams["trainable_parameters"] is None:
             yield from super().parameters(recurse=recurse)
             return
 
-        trainable_params = set(self.hparams["trainable_parameters"])
+        config = self.hparams["trainable_parameters"]
+
+        # Handle both list and dict formats for backward compatibility
+        if isinstance(config, list):
+            include_patterns = config
+            exclude_patterns = []
+        else:
+            include_patterns = config.get("include", ["*"])
+            exclude_patterns = config.get("exclude", [])
+
         for name, param in self.named_parameters(recurse=recurse):
-            param_name = name.split(".")[1]  # model.[name].xxx
-            if param_name in trainable_params:
+            # Remove "model." prefix if present to get clean component path
+            clean_name = name[6:] if name.startswith("model.") else name
+
+            # Check inclusion patterns
+            included = any(
+                self._matches_pattern(clean_name, pattern)
+                for pattern in include_patterns
+            )
+
+            # Check exclusion patterns
+            excluded = any(
+                self._matches_pattern(clean_name, pattern)
+                for pattern in exclude_patterns
+            )
+
+            if included and not excluded:
                 yield param
+
+    def _matches_pattern(self, param_name: str, pattern: str) -> bool:
+        """
+        Check if a parameter name matches a glob pattern.
+
+        Supports both full path matching and legacy component matching for
+        backward compatibility with existing trainable_parameters configurations.
+
+        Parameters
+        ----------
+        param_name : str
+            The parameter name to check (e.g., "encoder.layer.0.weight")
+        pattern : str
+            The glob pattern to match against (e.g., "encoder.layer.*")
+
+        Returns
+        -------
+        bool
+            True if the parameter name matches the pattern
+
+        Examples
+        --------
+        >>> self._matches_pattern("encoder.layer.0.weight", "encoder.*")
+        True
+        >>> self._matches_pattern("decoder.attention.weight", "encoder.*")
+        False
+        >>> self._matches_pattern("head.classifier.bias", "*.bias")
+        True
+        >>> # Legacy compatibility - matches component name
+        >>> self._matches_pattern("enc_vs.single_grn.0.weight", "enc_vs")
+        True
+        """
+        # First try full path matching (new enhanced format)
+        if fnmatch.fnmatch(param_name, pattern):
+            return True
+
+        # For backward compatibility, also try matching against the top-level component
+        # This maintains compatibility with old trainable_parameters lists
+        if "." in param_name:
+            component_name = param_name.split(".")[0]
+            if component_name == pattern or fnmatch.fnmatch(component_name, pattern):
+                return True
+
+        return False
 
     def calc_loss(
         self,
