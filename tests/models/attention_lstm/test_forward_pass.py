@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 import torch
 
-from transformertf.models.attention_lstm import AttentionLSTM
+from transformertf.models.attention_lstm import AttentionLSTMModel
 
 BATCH_SIZE = 4
 PAST_SEQ_LEN = 50
@@ -43,7 +43,7 @@ def test_attention_lstm_forward_pass(
     decoder_lengths: torch.Tensor,
 ) -> None:
     """Test basic forward pass of AttentionLSTM model."""
-    model = AttentionLSTM(
+    model = AttentionLSTMModel(
         num_past_features=NUM_PAST_FEATURES,
         num_future_features=NUM_FUTURE_FEATURES,
         hidden_size=64,
@@ -66,7 +66,7 @@ def test_attention_lstm_without_gating(
     decoder_lengths: torch.Tensor,
 ) -> None:
     """Test AttentionLSTM model without gating mechanism."""
-    model = AttentionLSTM(
+    model = AttentionLSTMModel(
         num_past_features=NUM_PAST_FEATURES,
         num_future_features=NUM_FUTURE_FEATURES,
         hidden_size=32,
@@ -84,7 +84,7 @@ def test_attention_lstm_without_gating(
 
 def test_attention_lstm_different_batch_sizes() -> None:
     """Test AttentionLSTM model with different batch sizes."""
-    model = AttentionLSTM(
+    model = AttentionLSTMModel(
         num_past_features=3,
         num_future_features=2,
         hidden_size=32,
@@ -109,7 +109,7 @@ def test_attention_lstm_different_batch_sizes() -> None:
 
 def test_attention_lstm_deterministic() -> None:
     """Test that AttentionLSTM model is deterministic in eval mode."""
-    model = AttentionLSTM(
+    model = AttentionLSTMModel(
         num_past_features=3,
         num_future_features=2,
         hidden_size=32,
@@ -136,7 +136,7 @@ def test_attention_lstm_deterministic() -> None:
 
 def test_attention_lstm_gradient_flow() -> None:
     """Test that gradients flow through AttentionLSTM model."""
-    model = AttentionLSTM(
+    model = AttentionLSTMModel(
         num_past_features=3,
         num_future_features=2,
         hidden_size=32,
@@ -164,7 +164,7 @@ def test_attention_lstm_gradient_flow() -> None:
 
 def test_attention_lstm_variable_sequence_lengths() -> None:
     """Test AttentionLSTM with variable sequence lengths."""
-    model = AttentionLSTM(
+    model = AttentionLSTMModel(
         num_past_features=2,
         num_future_features=2,
         hidden_size=32,
@@ -201,7 +201,7 @@ def test_attention_lstm_variable_sequence_lengths() -> None:
 def test_attention_lstm_edge_cases(edge_case: str) -> None:
     """Test AttentionLSTM model behavior with edge cases."""
     if edge_case == "single_element":
-        model = AttentionLSTM(
+        model = AttentionLSTMModel(
             num_past_features=2,
             num_future_features=2,
             hidden_size=16,
@@ -219,7 +219,7 @@ def test_attention_lstm_edge_cases(edge_case: str) -> None:
         assert torch.isfinite(output).all()
 
     elif edge_case == "large_batch":
-        model = AttentionLSTM(
+        model = AttentionLSTMModel(
             num_past_features=2,
             num_future_features=2,
             hidden_size=16,
@@ -238,7 +238,7 @@ def test_attention_lstm_edge_cases(edge_case: str) -> None:
         assert torch.isfinite(output).all()
 
     elif edge_case == "minimal_heads":
-        model = AttentionLSTM(
+        model = AttentionLSTMModel(
             num_past_features=2,
             num_future_features=2,
             hidden_size=16,

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from transformertf.models.attention_lstm import AttentionLSTM, AttentionLSTMModule
+from transformertf.models.attention_lstm import AttentionLSTM, AttentionLSTMModel
 
 
 def test_create_attention_lstm() -> None:
     """Test basic instantiation of AttentionLSTM model."""
-    model = AttentionLSTM(
+    model = AttentionLSTMModel(
         num_past_features=5,
         num_future_features=3,
         hidden_size=64,
@@ -26,8 +26,8 @@ def test_create_attention_lstm() -> None:
 
 
 def test_create_attention_lstm_module() -> None:
-    """Test basic instantiation of AttentionLSTMModule Lightning wrapper."""
-    model = AttentionLSTMModule(
+    """Test basic instantiation of AttentionLSTM Lightning wrapper."""
+    model = AttentionLSTM(
         num_past_features=5,
         num_future_features=3,
         hidden_size=64,
@@ -49,7 +49,7 @@ def test_create_attention_lstm_module() -> None:
 
 def test_create_attention_lstm_without_gating() -> None:
     """Test AttentionLSTM model without gating mechanism."""
-    model = AttentionLSTM(
+    model = AttentionLSTMModel(
         num_past_features=4,
         num_future_features=2,
         hidden_size=32,

@@ -2,16 +2,16 @@ from __future__ import annotations
 
 import torch
 
-from transformertf.models.attention_lstm import AttentionLSTMModule
+from transformertf.models.attention_lstm import AttentionLSTM
 from transformertf.nn import QuantileLoss
 
 
 def test_attention_lstm_module_quantile_loss_basic() -> None:
-    """Test AttentionLSTMModule with QuantileLoss for probabilistic forecasting."""
+    """Test AttentionLSTM with QuantileLoss for probabilistic forecasting."""
     quantiles = [0.1, 0.25, 0.5, 0.75, 0.9]
     criterion = QuantileLoss(quantiles=quantiles)
 
-    module = AttentionLSTMModule(
+    module = AttentionLSTM(
         num_past_features=5,
         num_future_features=3,
         hidden_size=32,
@@ -45,7 +45,7 @@ def test_attention_lstm_module_quantile_training_step() -> None:
     quantiles = [0.1, 0.5, 0.9]
     criterion = QuantileLoss(quantiles=quantiles)
 
-    module = AttentionLSTMModule(
+    module = AttentionLSTM(
         num_past_features=3,
         num_future_features=2,
         hidden_size=16,
@@ -83,7 +83,7 @@ def test_attention_lstm_module_quantile_point_prediction() -> None:
     quantiles = [0.1, 0.25, 0.5, 0.75, 0.9]
     criterion = QuantileLoss(quantiles=quantiles)
 
-    module = AttentionLSTMModule(
+    module = AttentionLSTM(
         num_past_features=4,
         num_future_features=2,
         hidden_size=20,
@@ -119,7 +119,7 @@ def test_attention_lstm_module_quantile_vs_mse() -> None:
     quantiles = [0.1, 0.5, 0.9]
 
     # Create two identical modules with different losses
-    quantile_module = AttentionLSTMModule(
+    quantile_module = AttentionLSTM(
         num_past_features=3,
         num_future_features=2,
         hidden_size=16,
@@ -128,7 +128,7 @@ def test_attention_lstm_module_quantile_vs_mse() -> None:
         criterion=QuantileLoss(quantiles=quantiles),
     )
 
-    mse_module = AttentionLSTMModule(
+    mse_module = AttentionLSTM(
         num_past_features=3,
         num_future_features=2,
         hidden_size=16,
@@ -162,7 +162,7 @@ def test_attention_lstm_module_quantile_loss_computation() -> None:
     quantiles = [0.25, 0.5, 0.75]
     criterion = QuantileLoss(quantiles=quantiles)
 
-    module = AttentionLSTMModule(
+    module = AttentionLSTM(
         num_past_features=2,
         num_future_features=1,
         hidden_size=12,
@@ -204,7 +204,7 @@ def test_attention_lstm_module_quantile_different_sizes() -> None:
     for quantiles in test_cases:
         criterion = QuantileLoss(quantiles=quantiles)
 
-        module = AttentionLSTMModule(
+        module = AttentionLSTM(
             num_past_features=2,
             num_future_features=1,
             hidden_size=8,
@@ -235,7 +235,7 @@ def test_attention_lstm_module_quantile_variable_lengths() -> None:
     quantiles = [0.1, 0.5, 0.9]
     criterion = QuantileLoss(quantiles=quantiles)
 
-    module = AttentionLSTMModule(
+    module = AttentionLSTM(
         num_past_features=3,
         num_future_features=2,
         hidden_size=16,

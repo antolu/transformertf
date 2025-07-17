@@ -6,12 +6,12 @@ import torch
 
 from ...nn import GateAddNorm, InterpretableMultiHeadAttention
 
-__all__ = ["AttentionLSTM"]
+__all__ = ["AttentionLSTMModel"]
 
 HIDDEN_STATE = tuple[torch.Tensor, torch.Tensor]
 
 
-class AttentionLSTM(torch.nn.Module):
+class AttentionLSTMModel(torch.nn.Module):
     """
     Attention-enhanced LSTM for sequence-to-sequence time series forecasting.
 

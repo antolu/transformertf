@@ -8,7 +8,7 @@ import pytest
 import torch
 
 from transformertf.data import EncoderDecoderDataModule
-from transformertf.models.attention_lstm import AttentionLSTMModule
+from transformertf.models.attention_lstm import AttentionLSTM
 
 
 @pytest.fixture
@@ -46,7 +46,7 @@ def temp_data_file(sample_data: pd.DataFrame) -> Path:
     reason="Complex data module integration requires proper data format and group configuration"
 )
 def test_attention_lstm_with_data_module(temp_data_file: Path) -> None:
-    """Test AttentionLSTMModule integration with EncoderDecoderDataModule."""
+    """Test AttentionLSTM integration with EncoderDecoderDataModule."""
     # Create data module
     datamodule = EncoderDecoderDataModule(
         train_df_paths=[str(temp_data_file)],
@@ -68,7 +68,7 @@ def test_attention_lstm_with_data_module(temp_data_file: Path) -> None:
     num_future_features = datamodule.num_future_known_covariates
 
     # Create model
-    model = AttentionLSTMModule(
+    model = AttentionLSTM(
         num_past_features=num_past_features,
         num_future_features=num_future_features,
         hidden_size=32,
@@ -106,7 +106,7 @@ def test_attention_lstm_with_data_module(temp_data_file: Path) -> None:
 
 
 def test_attention_lstm_parameter_compatibility() -> None:
-    """Test that AttentionLSTMModule parameters are compatible with CLI linking."""
+    """Test that AttentionLSTM parameters are compatible with CLI linking."""
     # This test verifies that the model can be instantiated with parameters
     # that would be linked from the data module in the CLI
 
@@ -119,7 +119,7 @@ def test_attention_lstm_parameter_compatibility() -> None:
     }
 
     # Create model with these parameters
-    model = AttentionLSTMModule(
+    model = AttentionLSTM(
         num_past_features=data_params["num_past_features"],
         num_future_features=data_params["num_future_features"],
         hidden_size=64,
@@ -159,7 +159,7 @@ def test_attention_lstm_parameter_compatibility() -> None:
 def test_attention_lstm_minimal_integration() -> None:
     """Test minimal integration scenario with smallest possible configuration."""
     # Create minimal model
-    model = AttentionLSTMModule(
+    model = AttentionLSTM(
         num_past_features=2,
         num_future_features=1,
         hidden_size=16,
@@ -199,8 +199,8 @@ def test_attention_lstm_minimal_integration() -> None:
 
 @pytest.mark.parametrize("compile_model", [True, False])
 def test_attention_lstm_compile_option(compile_model: bool) -> None:
-    """Test AttentionLSTMModule with compile option."""
-    model = AttentionLSTMModule(
+    """Test AttentionLSTM with compile option."""
+    model = AttentionLSTM(
         num_past_features=3,
         num_future_features=2,
         hidden_size=32,

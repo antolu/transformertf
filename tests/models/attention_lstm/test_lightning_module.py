@@ -3,12 +3,12 @@ from __future__ import annotations
 import pytest
 import torch
 
-from transformertf.models.attention_lstm import AttentionLSTMModule
+from transformertf.models.attention_lstm import AttentionLSTM
 
 
 def test_attention_lstm_module_training_step() -> None:
-    """Test training step of AttentionLSTMModule."""
-    model = AttentionLSTMModule(
+    """Test training step of AttentionLSTM."""
+    model = AttentionLSTM(
         num_past_features=3,
         num_future_features=2,
         hidden_size=32,
@@ -43,8 +43,8 @@ def test_attention_lstm_module_training_step() -> None:
 
 
 def test_attention_lstm_module_validation_step() -> None:
-    """Test validation step of AttentionLSTMModule."""
-    model = AttentionLSTMModule(
+    """Test validation step of AttentionLSTM."""
+    model = AttentionLSTM(
         num_past_features=3,
         num_future_features=2,
         hidden_size=32,
@@ -77,8 +77,8 @@ def test_attention_lstm_module_validation_step() -> None:
 
 
 def test_attention_lstm_module_test_step() -> None:
-    """Test test step of AttentionLSTMModule."""
-    model = AttentionLSTMModule(
+    """Test test step of AttentionLSTM."""
+    model = AttentionLSTM(
         num_past_features=3,
         num_future_features=2,
         hidden_size=32,
@@ -111,8 +111,8 @@ def test_attention_lstm_module_test_step() -> None:
 
 
 def test_attention_lstm_module_predict_step() -> None:
-    """Test predict step of AttentionLSTMModule."""
-    model = AttentionLSTMModule(
+    """Test predict step of AttentionLSTM."""
+    model = AttentionLSTM(
         num_past_features=3,
         num_future_features=2,
         hidden_size=32,
@@ -151,8 +151,8 @@ def test_attention_lstm_module_predict_step() -> None:
     reason="configure_optimizers is handled by LightningCLI, not implemented in modules"
 )
 def test_attention_lstm_module_configure_optimizers() -> None:
-    """Test optimizer configuration of AttentionLSTMModule."""
-    model = AttentionLSTMModule(
+    """Test optimizer configuration of AttentionLSTM."""
+    model = AttentionLSTM(
         num_past_features=3,
         num_future_features=2,
         hidden_size=32,
@@ -168,8 +168,8 @@ def test_attention_lstm_module_configure_optimizers() -> None:
 
 
 def test_attention_lstm_module_hyperparameter_storage() -> None:
-    """Test that hyperparameters are properly stored in AttentionLSTMModule."""
-    model = AttentionLSTMModule(
+    """Test that hyperparameters are properly stored in AttentionLSTM."""
+    model = AttentionLSTM(
         num_past_features=5,
         num_future_features=3,
         hidden_size=64,
@@ -192,7 +192,7 @@ def test_attention_lstm_module_hyperparameter_storage() -> None:
 
 def test_attention_lstm_module_model_instantiation() -> None:
     """Test that the underlying model is properly instantiated."""
-    lightning_module = AttentionLSTMModule(
+    lightning_module = AttentionLSTM(
         num_past_features=3,
         num_future_features=2,
         hidden_size=32,
@@ -218,8 +218,8 @@ def test_attention_lstm_module_model_instantiation() -> None:
 
 @pytest.mark.parametrize("use_gating", [True, False])
 def test_attention_lstm_module_gating_options(use_gating: bool) -> None:
-    """Test AttentionLSTMModule with different gating options."""
-    model = AttentionLSTMModule(
+    """Test AttentionLSTM with different gating options."""
+    model = AttentionLSTM(
         num_past_features=3,
         num_future_features=2,
         hidden_size=32,

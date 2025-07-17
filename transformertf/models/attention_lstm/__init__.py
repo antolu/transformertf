@@ -8,9 +8,9 @@ long-range dependencies.
 
 Classes
 -------
-AttentionLSTM : torch.nn.Module
+AttentionLSTMModel : torch.nn.Module
     Core model implementation with attention-enhanced LSTM architecture.
-AttentionLSTMModule : LightningModuleBase
+AttentionLSTM : LightningModuleBase
     PyTorch Lightning wrapper for training and inference.
 
 Key Features
@@ -24,12 +24,12 @@ Key Features
 
 Examples
 --------
->>> from transformertf.models.attention_lstm import AttentionLSTMModule
+>>> from transformertf.models.attention_lstm import AttentionLSTM
 >>> from transformertf.data import EncoderDecoderDataModule
 >>> import lightning as L
 >>>
 >>> # Create model with shared LSTM parameters
->>> model = AttentionLSTMModule(
+>>> model = AttentionLSTM(
 ...     num_past_features=10,
 ...     num_future_features=5,
 ...     hidden_size=128,
@@ -57,10 +57,10 @@ The shared parameter design (same hidden_size and num_layers for both encoder
 and decoder) reduces configuration complexity while maintaining model effectiveness.
 """
 
-from ._lightning import AttentionLSTMModule
-from ._model import AttentionLSTM
+from ._lightning import AttentionLSTM
+from ._model import AttentionLSTMModel
 
 __all__ = [
     "AttentionLSTM",
-    "AttentionLSTMModule",
+    "AttentionLSTMModel",
 ]

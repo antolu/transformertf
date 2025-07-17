@@ -3,14 +3,14 @@ from __future__ import annotations
 import pytest
 import torch
 
-from transformertf.models.attention_lstm import AttentionLSTM, AttentionLSTMModule
+from transformertf.models.attention_lstm import AttentionLSTM, AttentionLSTMModel
 
 
 def test_attention_lstm_invalid_parameters() -> None:
     """Test AttentionLSTM with invalid parameters."""
     # Test with invalid hidden_size (not divisible by n_heads)
     with pytest.raises(AssertionError):
-        AttentionLSTM(
+        AttentionLSTMModel(
             num_past_features=3,
             num_future_features=2,
             hidden_size=30,  # Not divisible by 4
@@ -21,7 +21,7 @@ def test_attention_lstm_invalid_parameters() -> None:
         )
 
     # Test that model can be created with valid parameters
-    model = AttentionLSTM(
+    model = AttentionLSTMModel(
         num_past_features=3,
         num_future_features=2,
         hidden_size=32,
@@ -35,7 +35,7 @@ def test_attention_lstm_invalid_parameters() -> None:
 
 def test_attention_lstm_mismatched_input_shapes() -> None:
     """Test AttentionLSTM with mismatched input shapes."""
-    model = AttentionLSTM(
+    model = AttentionLSTMModel(
         num_past_features=3,
         num_future_features=2,
         hidden_size=32,
@@ -75,7 +75,7 @@ def test_attention_lstm_mismatched_input_shapes() -> None:
 
 def test_attention_lstm_invalid_sequence_lengths() -> None:
     """Test AttentionLSTM with invalid sequence lengths."""
-    model = AttentionLSTM(
+    model = AttentionLSTMModel(
         num_past_features=3,
         num_future_features=2,
         hidden_size=32,
@@ -104,9 +104,9 @@ def test_attention_lstm_invalid_sequence_lengths() -> None:
 
 
 def test_attention_lstm_module_invalid_hyperparameters() -> None:
-    """Test AttentionLSTMModule with valid hyperparameters."""
+    """Test AttentionLSTM with valid hyperparameters."""
     # Test that module can be created with valid parameters
-    module = AttentionLSTMModule(
+    module = AttentionLSTM(
         num_past_features=3,
         num_future_features=2,
         hidden_size=32,
@@ -125,7 +125,7 @@ def test_attention_lstm_module_invalid_hyperparameters() -> None:
 
 def test_attention_lstm_empty_batch() -> None:
     """Test AttentionLSTM with minimal batch."""
-    model = AttentionLSTM(
+    model = AttentionLSTMModel(
         num_past_features=3,
         num_future_features=2,
         hidden_size=32,
@@ -147,7 +147,7 @@ def test_attention_lstm_empty_batch() -> None:
 
 def test_attention_lstm_nan_inputs() -> None:
     """Test AttentionLSTM behavior with NaN inputs."""
-    model = AttentionLSTM(
+    model = AttentionLSTMModel(
         num_past_features=3,
         num_future_features=2,
         hidden_size=32,
@@ -175,7 +175,7 @@ def test_attention_lstm_nan_inputs() -> None:
 
 def test_attention_lstm_inf_inputs() -> None:
     """Test AttentionLSTM behavior with infinite inputs."""
-    model = AttentionLSTM(
+    model = AttentionLSTMModel(
         num_past_features=3,
         num_future_features=2,
         hidden_size=32,
@@ -204,8 +204,8 @@ def test_attention_lstm_inf_inputs() -> None:
 
 
 def test_attention_lstm_module_missing_batch_keys() -> None:
-    """Test AttentionLSTMModule with missing batch keys."""
-    model = AttentionLSTMModule(
+    """Test AttentionLSTM with missing batch keys."""
+    model = AttentionLSTM(
         num_past_features=3,
         num_future_features=2,
         hidden_size=32,

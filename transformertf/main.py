@@ -72,6 +72,9 @@ from transformertf.data import (
     TimeSeriesDataModule,  # noqa: F401
 )
 from transformertf.models import LightningModuleBase
+from transformertf.models.attention_lstm import (  # noqa: F401
+    AttentionLSTM,
+)
 from transformertf.models.bwlstm import BWLSTM1, BWLSTM2, BWLSTM3  # noqa: F401
 from transformertf.models.lstm import LSTM  # noqa: F401
 from transformertf.models.tsmixer import TSMixer  # noqa: F401

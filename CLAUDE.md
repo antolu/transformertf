@@ -153,3 +153,11 @@ The CLI system automatically validates configurations and provides helpful error
 
 - Run pre-commit before committing
 - Run pytests after each major edit
+
+## Lightning Module Patterns
+
+- Lightning module implementations do not need to implement configure_optimizers, as this is overridden by the LightningCLI
+
+## Naming Conventions
+
+- The lightning module of each model should not be appended with model, but rather the torch.nn.Module that the module wraps should be appended with Model. So for an LSTM model, the LightningModule should be named LSTM, and the wrapped model should be named LSTMModel

@@ -9,10 +9,10 @@ from ...data import EncoderDecoderTargetSample
 from ...nn import QuantileLoss
 from ...utils import ops
 from .._base_module import DEFAULT_LOGGING_METRICS, LightningModuleBase, MetricLiteral
-from ._model import HIDDEN_STATE, AttentionLSTM
+from ._model import HIDDEN_STATE, AttentionLSTMModel
 
 if typing.TYPE_CHECKING:
-    SameType = typing.TypeVar("SameType", bound="AttentionLSTMModule")
+    SameType = typing.TypeVar("SameType", bound="AttentionLSTM")
 
 
 class StepOutput(typing.TypedDict):
@@ -22,11 +22,11 @@ class StepOutput(typing.TypedDict):
     point_prediction: typing.NotRequired[torch.Tensor]
 
 
-class AttentionLSTMModule(LightningModuleBase):
+class AttentionLSTM(LightningModuleBase):
     """
-    Lightning module for AttentionLSTM model for sequence-to-sequence forecasting.
+    Lightning module for AttentionLSTMModel for sequence-to-sequence forecasting.
 
-    This Lightning module wraps the AttentionLSTM model and provides the training,
+    This Lightning module wraps the AttentionLSTMModel and provides the training,
     validation, and testing interfaces required by PyTorch Lightning. It supports both point
     predictions and probabilistic forecasting via quantile regression, with enhanced capabilities
     through self-attention mechanisms.
@@ -181,7 +181,7 @@ class AttentionLSTMModule(LightningModuleBase):
             self.hparams["output_dim"] = output_dim
 
         # Create the model
-        self.model = AttentionLSTM(
+        self.model = AttentionLSTMModel(
             num_past_features=num_past_features,
             num_future_features=num_future_features,
             hidden_size=hidden_size,
