@@ -105,7 +105,7 @@ def remove__init__from_docs(
     what: str,
     name: str,
     obj: object,
-    skip: bool,  # noqa: FBT001
+    skip: bool,
     options: dict,
 ) -> bool | None:
     # Skip the __init__ methods of all classes.

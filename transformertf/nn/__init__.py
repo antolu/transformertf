@@ -9,6 +9,11 @@ from ._interpretable_multi_head_attn import InterpretableMultiHeadAttention
 from ._mlp import MLP
 from ._quantile_loss import QuantileLoss
 from ._resample_norm import ResampleNorm
+from ._transformer_encoder import (
+    SimplePositionalEncoding,
+    TransformerEncoder,
+    generate_mask,
+)
 from ._variable_selection import VariableSelection
 from ._weighted_loss import WeightedHuberLoss, WeightedMAELoss, WeightedMSELoss
 
@@ -29,6 +34,9 @@ for _mod in (
     WeightedMAELoss,
     WeightedMSELoss,
     WeightedHuberLoss,
+    TransformerEncoder,
+    SimplePositionalEncoding,
+    generate_mask,
 ):
     replace_modname(_mod, __name__)
 
@@ -46,10 +54,13 @@ __all__ = [
     "InterpretableMultiHeadAttention",
     "QuantileLoss",
     "ResampleNorm",
+    "SimplePositionalEncoding",
+    "TransformerEncoder",
     "VariableSelection",
     "WeightedHuberLoss",
     "WeightedMAELoss",
     "WeightedMSELoss",
+    "generate_mask",
     "get_activation",
     "get_loss",
 ]
