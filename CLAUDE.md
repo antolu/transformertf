@@ -6,6 +6,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 TransformerTF is a PyTorch Lightning-based framework for time series modeling with transformer architectures. The project focuses on physics applications at CERN, specifically modeling hysteresis in magnetic field transfer functions for particle accelerators.
 
+## Scope and Data Characteristics
+
+- The package is designed to develop transformers for transfer functions
+- Does NOT deal with conventional time series with:
+  - Seasonality
+  - Periodicity
+  - Categorical variables like holidays
+- Variables are almost always continuous data
+- Data is sampled at high rates (1 kHz or more)
+- Typically downsampled in the datamodule
+- Neither code, tests, nor documentation need to address conventional time series scenarios
+- Focuses on sampled data such as:
+  - Voltage readings from Hall sensors
+  - Measured temperature at sub-second sampling rates
+
 ## Common Commands
 
 ### Development Environment

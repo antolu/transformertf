@@ -143,6 +143,8 @@ class GatedLinearUnit(torch.nn.Module):
         self.dropout = torch.nn.Dropout(dropout)
         self.fc1 = torch.nn.Linear(input_dim, self.output_dim * 2)
 
+        self.initialize_parameters()
+
     def initialize_parameters(self) -> None:
         """
         Initialize layer parameters using Xavier uniform initialization.

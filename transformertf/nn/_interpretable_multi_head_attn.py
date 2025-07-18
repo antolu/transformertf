@@ -197,6 +197,8 @@ class InterpretableMultiHeadAttention(torch.nn.Module):
 
         self.output_layer = torch.nn.Linear(self.d_v, n_dim_model)
 
+        self.initialize_parameters()
+
     def initialize_parameters(self) -> None:
         """
         Initialize attention parameters using Xavier uniform initialization.
