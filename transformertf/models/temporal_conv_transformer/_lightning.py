@@ -223,7 +223,9 @@ class TemporalConvTransformer(TransformerModuleBase):
         if batch is not None:
             return self.model(
                 encoder_input=batch["encoder_input"],
-                decoder_input=batch["decoder_input"],
+                decoder_input=batch["decoder_input"][
+                    ..., : self.hparams["num_future_features"]
+                ],
                 encoder_lengths=batch.get("encoder_lengths"),
                 decoder_lengths=batch.get("decoder_lengths"),
             )

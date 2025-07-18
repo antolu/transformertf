@@ -4,15 +4,18 @@ import typing
 
 import pytest
 
+from transformertf.data import EncoderDecoderDataModule
 from transformertf.models.temporal_conv_transformer import TemporalConvTransformer
 
 
 @pytest.fixture
-def tct_module_config() -> dict[str, typing.Any]:
+def tct_module_config(
+    encoder_decoder_datamodule: EncoderDecoderDataModule,
+) -> dict[str, typing.Any]:
     """Configuration for TCT module testing."""
     return {
-        "num_past_features": 8,
-        "num_future_features": 4,
+        "num_past_features": encoder_decoder_datamodule.num_past_known_covariates,
+        "num_future_features": encoder_decoder_datamodule.num_future_known_covariates,
         "output_dim": 1,
         "hidden_dim": 64,
         "num_attention_heads": 4,
