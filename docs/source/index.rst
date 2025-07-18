@@ -1,19 +1,103 @@
 ===================================================
-TransformerFT - Transformers for Transfer Functions
+TransformerTF - Transformers for Time Series
 ===================================================
 
-This contains the package documentation for transformertf.
+TransformerTF is a PyTorch Lightning framework for time series forecasting using transformer architectures and other neural networks. Originally developed for physics applications at CERN, it provides production-ready tools for multi-horizon forecasting with uncertainty quantification.
 
-Installation
+Key Features
 ------------
-Using the `acc-py Python package index
-<https://wikis.cern.ch/display/ACCPY/Getting+started+with+acc-python#Gettingstartedwithacc-python-OurPythonPackageRepositoryrepo>`_
-, ``transformertf`` can be pip installed with::
+
+- **Multiple Architectures**: Temporal Fusion Transformer (TFT), LSTM variants, TSMixer, standard Transformers
+- **Physics-Informed Models**: Specialized models for structural dynamics and magnetic field modeling
+- **Flexible Data Pipeline**: Automated preprocessing, windowing, and feature engineering
+- **Lightning Integration**: Scalable training with automatic logging, checkpointing, and distributed support
+- **Configuration-Driven**: YAML-based workflows for reproducible experiments
+- **Uncertainty Quantification**: Built-in quantile regression for prediction intervals
+
+Quick Start
+-----------
+
+Install TransformerTF:
+
+.. code-block:: bash
 
    pip install transformertf
 
+Train a Temporal Fusion Transformer:
 
-Documentation contents
+.. code-block:: bash
+
+   # Using a sample configuration
+   transformertf fit --config sample_configs/tft_config.yml
+
+   # Or with custom data
+   transformertf fit \
+     --model.class_path transformertf.models.temporal_fusion_transformer.TemporalFusionTransformer \
+     --data.class_path transformertf.data.EncoderDecoderDataModule \
+     --data.init_args.train_df_paths='["your_data.parquet"]' \
+     --data.init_args.target_covariate="target_column"
+
+Python API usage:
+
+.. code-block:: python
+
+   from transformertf.data import EncoderDecoderDataModule
+   from transformertf.models.temporal_fusion_transformer import TemporalFusionTransformer
+   import lightning as L
+
+   # Setup data and model
+   data_module = EncoderDecoderDataModule(
+       train_df_paths=["train.parquet"],
+       target_covariate="target",
+       ctxt_seq_len=200,
+       tgt_seq_len=100,
+       batch_size=32
+   )
+
+   model = TemporalFusionTransformer(
+       n_dim_model=64,
+       num_heads=4,
+       dropout=0.1
+   )
+
+   # Train
+   trainer = L.Trainer(max_epochs=100, accelerator="auto")
+   trainer.fit(model, data_module)
+
+Core Workflow
+-------------
+
+1. **Prepare Data**: Load time series data in Parquet format with temporal and static features
+2. **Configure Model**: Choose architecture (TFT for complex multivariate, LSTM for simple univariate)
+3. **Train**: Use Lightning CLI or Python API with automatic hyperparameter linking
+4. **Evaluate**: Built-in metrics and visualization callbacks
+5. **Deploy**: Export models for inference with prediction utilities
+
+Installation Options
+--------------------
+
+**Basic Installation**:
+
+.. code-block:: bash
+
+   pip install transformertf
+
+**Development Installation**:
+
+.. code-block:: bash
+
+   git clone https://gitlab.cern.ch/dsb/hysteresis/transformertf.git
+   cd transformertf
+   pip install -e ".[dev,test]"
+
+**With Optional Dependencies**:
+
+.. code-block:: bash
+
+   pip install "transformertf[doc]"  # Documentation tools
+   pip install "transformertf[dev]"  # Development tools
+
+Documentation Contents
 ----------------------
 
 .. toctree::
@@ -23,14 +107,23 @@ Documentation contents
     self
 
 .. toctree::
-    :caption: transformertf
-    :maxdepth: 1
+    :caption: User Guide
+    :maxdepth: 2
 
     usage
+    tutorials/index
+    examples
+    configuration
 
 .. toctree::
-    :caption: Reference docs
+    :caption: Reference
     :maxdepth: 1
 
     api
+    faq
+
+.. toctree::
+    :caption: Index
+    :maxdepth: 1
+
     genindex

@@ -1,36 +1,80 @@
 .. _API_docs:
 
-TransformerTF API documentation
-===========================
+TransformerTF API Documentation
+===============================
 
-.. rubric:: Modules
+This documentation provides comprehensive API reference for all public classes and functions in the TransformerTF package. All components are fully documented with Numpydoc style docstrings including parameters, examples, and cross-references.
+
+Most Important Classes
+======================
+
+Start here for the core components you'll use most frequently:
+
+**Data Modules** - Data loading and preprocessing
+
+- :class:`transformertf.data.EncoderDecoderDataModule` - Multi-step forecasting (most common)
+- :class:`transformertf.data.TimeSeriesDataModule` - Sequence-to-sequence modeling
+- :class:`transformertf.data.DataModuleBase` - Base class for all data modules
+
+**Models** - Neural network architectures
+
+- :class:`transformertf.models.temporal_fusion_transformer.TemporalFusionTransformer` - Complex multivariate forecasting
+- :class:`transformertf.models.lstm.LSTM` - Simple and efficient time series modeling
+- :class:`transformertf.models.tsmixer.TSMixer` - Fast MLP-based forecasting
+- :class:`transformertf.models.LightningModuleBase` - Base class for all models
+
+**Command Line Interface**
+
+- :func:`transformertf.main.main` - Main CLI entry point
+- :class:`transformertf.main.LightningCLI` - Extended Lightning CLI
+
+**Utilities** - Helper functions for common tasks
+
+- :func:`transformertf.utils.predict.predict` - Generate predictions from trained models
+- :func:`transformertf.utils.tune.tune` - Hyperparameter optimization with Ray Tune
+- :func:`transformertf.utils.configure_optimizers` - Optimizer configuration
+
+Quick Start Example
+===================
+
+.. code-block:: python
+
+   from transformertf.data import EncoderDecoderDataModule
+   from transformertf.models.temporal_fusion_transformer import TemporalFusionTransformer
+   import lightning as L
+
+   # Setup data
+   data_module = EncoderDecoderDataModule(
+       train_df_paths=["train.parquet"],
+       target_covariate="target",
+       ctxt_seq_len=168,
+       tgt_seq_len=24
+   )
+
+   # Setup model
+   model = TemporalFusionTransformer(
+       n_dim_model=64,
+       num_heads=4
+   )
+
+   # Train
+   trainer = L.Trainer(max_epochs=100)
+   trainer.fit(model, data_module)
+
+Complete API Reference
+======================
+
+Main Package
+============
 
 .. autosummary::
    :toctree: api
 
-   .. Add the sub-packages that you wish to document below
+   transformertf
+   transformertf.main
 
-    transformertf
-    transformertf.data
-    transformertf.data.dataset
-    transformertf.data.transform
-    transformertf.models
-    transformertf.models.bwlstm
-    transformertf.models.bwlstm.typing
-    transformertf.models.lstm
-    transformertf.models.phytsmixer
-    transformertf.models.temporal_fusion_transformer
-    transformertf.models.transformer
-    transformertf.models.transformer_v2
-    transformertf.models.transformerencoder
-    transformertf.models.tsmixer
-    transformertf.models.tft
-    transformertf.nn
-    transformertf.nn.functional
-    transformertf.utils
-    transformertf.utils.chain_schedulers
-    transformertf.utils.predict
-    transformertf.main
+Data Module
+===========
 
 Data loading, preprocessing, and transformation utilities for time series modeling.
 
@@ -55,6 +99,7 @@ Neural network model implementations including base classes and specific archite
    transformertf.models.temporal_fusion_transformer
    transformertf.models.transformer
    transformertf.models.transformer_v2
+   transformertf.models.transformerencoder
    transformertf.models.tsmixer
    transformertf.models.bwlstm
    transformertf.models.phytsmixer
