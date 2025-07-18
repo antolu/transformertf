@@ -60,3 +60,6 @@ class DivideByXTransform(BaseTransform):
 
     def __sklearn_is_fitted__(self) -> bool:  # noqa: PLW3201
         return True
+
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}()"

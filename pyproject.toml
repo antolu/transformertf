@@ -4,33 +4,33 @@ dynamic = ["version", "readme"]
 description = "Transformers for Time Series"
 license = { text = "Other/Proprietary License" }
 classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Science/Research",
-    "License :: Other/Proprietary License",
-    "Natural Language :: English",
-    "Operating System :: POSIX :: Linux",
-    "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
-    "Topic :: Scientific/Engineering :: Physics",
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "License :: Other/Proprietary License",
+  "Natural Language :: English",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Scientific/Engineering :: Physics",
 ]
 requires-python = "~=3.11"
 dependencies = [
-    "einops >= 0.7",
-    "jsonargparse >= 4.30.0",
-    "lightning[pytorch-extra] >= 2.2, < 3.0",
-    "matplotlib >= 3.8",
-    "numba >= 0.59, < 1.0",
-    "numpy >= 1.26, < 2.0",
-    "pandas >= 2.2, < 3.0",
-    "pyarrow >= 15.0",
-    "pytorch-optimizer >= 2.12.0",
-    "rich >= 13.7.0",
-    "scikit-learn >= 1.4",
-    "scipy >= 1.12",
-    "torch >= 2.2, < 3.0",
-    "omegaconf >= 2.1",
+  "einops >= 0.7",
+  "jsonargparse >= 4.30.0",
+  "lightning[pytorch-extra] >= 2.2, < 3.0",
+  "matplotlib >= 3.8",
+  "numba >= 0.59, < 1.0",
+  "numpy >= 1.26, < 2.0",
+  "pandas >= 2.2, < 3.0",
+  "pyarrow >= 15.0",
+  "pytorch-optimizer >= 2.12.0",
+  "rich >= 13.7.0",
+  "scikit-learn >= 1.4",
+  "scipy >= 1.12",
+  "torch >= 2.2, < 3.0",
+  "omegaconf >= 2.1",
 ]
 
 [[project.authors]]
@@ -45,7 +45,16 @@ changelog = "https://gitlab.cern.ch/dsb/hysteresis/transformertf/-/releases"
 
 
 [project.optional-dependencies]
-test = ["pytest", "pytest-cov", "pytest-xdist"]
+test = [
+  "pytest",
+  "pytest-cov",
+  "pytest-xdist",
+  "pytest-benchmark",
+  "pytest-mock",
+  "pytest-timeout",
+  "hypothesis",
+  "factory-boy",
+]
 doc = ["acc-py-sphinx", "myst-parser", "sphinx-copybutton"]
 dev = ["pre-commit", "ruff", "mypy"]
 
@@ -95,27 +104,27 @@ exclude = '''
 [tool.ruff]
 
 exclude = [
-    ".bzr",
-    ".direnv",
-    ".eggs",
-    ".git",
-    ".hg",
-    ".mypy_cache",
-    ".nox",
-    ".pants.d",
-    ".pytype",
-    ".ruff_cache",
-    ".svn",
-    ".tox",
-    ".venv",
-    "__pypackages__",
-    "_build",
-    "buck-out",
-    "build",
-    "dist",
-    "node_modules",
-    "venv",
-    ".venv",
+  ".bzr",
+  ".direnv",
+  ".eggs",
+  ".git",
+  ".hg",
+  ".mypy_cache",
+  ".nox",
+  ".pants.d",
+  ".pytype",
+  ".ruff_cache",
+  ".svn",
+  ".tox",
+  ".venv",
+  "__pypackages__",
+  "_build",
+  "buck-out",
+  "build",
+  "dist",
+  "node_modules",
+  "venv",
+  ".venv",
 ]
 
 line-length = 88
@@ -127,41 +136,51 @@ unsafe-fixes = true
 [tool.ruff.lint]
 # All rules can be found here: https://docs.astral.sh/ruff/rules/
 select = [
-    "F",   # pyflakes
-    "E",   # error  (pycodestyle)
-    "W",   # warning (pycodestyle)
-    "I",   # isort
-    "N",   # naming  (pep8)
-    "UP",  # pyupgrade
-    "PLC", # convention  (pylint)
-    "PLE", # error  (pylint)
-    "PLW", # warning  (pylint)
-    # "D",  # docstring (pydocstyle),  # not enabled by default
-    "PD",   # pandas
-    "TRY",  # tryceratops
-    "NPY",  # numpy
-    "PERF", # perflint
-    "RUF",  # ruff
-    # v flake8 v
-    "B",
-    "C4",
-    "FBT",
-    "A",
-    "EM",
-    "ISC",
-    "FA",
-    "G",
-    "PIE",
-    "PYI",
-    "PT",
-    "Q",
-    "RSE",
-    "RET",
-    "SLF",
-    "SIM",
+  "F",   # pyflakes
+  "E",   # error  (pycodestyle)
+  "W",   # warning (pycodestyle)
+  "I",   # isort
+  "N",   # naming  (pep8)
+  "UP",  # pyupgrade
+  "PLC", # convention  (pylint)
+  "PLE", # error  (pylint)
+  "PLW", # warning  (pylint)
+  # "D",  # docstring (pydocstyle),  # not enabled by default
+  "PD",   # pandas
+  "TRY",  # tryceratops
+  "NPY",  # numpy
+  "PERF", # perflint
+  "RUF",  # ruff
+  # v flake8 v
+  "B",
+  "C4",
+  "FBT",
+  "A",
+  "EM",
+  "ISC",
+  "FA",
+  "G",
+  "PIE",
+  "PYI",
+  "PT",
+  "Q",
+  "RSE",
+  "RET",
+  "SLF",
+  "SIM",
 ]
 fixable = ["ALL"]
-ignore = ["E501", "W505", "ISC001", "PD901", "PLW2901", "N812", "N806", "G004", "RUF002"]
+ignore = [
+  "E501",
+  "W505",
+  "ISC001",
+  "PD901",
+  "PLW2901",
+  "N812",
+  "N806",
+  "G004",
+  "RUF002",
+]
 
 [tool.ruff.format]
 preview = true
@@ -180,4 +199,37 @@ reportPrivateImportUsage = "none"
 
 
 [tool.pytest.ini_options]
-addopts = "-n 4"
+minversion = "6.0"
+addopts = [
+  "-ra",
+  "--strict-markers",
+  "--strict-config",
+  "--cov=transformertf",
+  "--cov-report=term-missing:skip-covered",
+  "--cov-report=html:htmlcov",
+  "--cov-report=xml",
+  "--tb=short",
+  "-n 4",
+  "-p no:warnings",
+]
+markers = [
+  "unit: marks tests as unit tests (isolated component testing)",
+  "integration: marks tests as integration tests (component interaction testing)",
+  "slow: marks tests as slow (may take >1s to run)",
+  "gpu: marks tests that require GPU",
+  "property: marks property-based tests",
+  "parametrize: marks parametrized tests",
+  "smoke: marks smoke tests (quick validation)",
+  "regression: marks regression tests",
+  "edge_case: marks edge case tests",
+  "benchmark: marks benchmark tests",
+]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+filterwarnings = [
+  "ignore::UserWarning",
+  "ignore::DeprecationWarning",
+  "ignore::PendingDeprecationWarning",
+]

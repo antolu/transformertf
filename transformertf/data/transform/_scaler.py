@@ -276,7 +276,12 @@ class RunningNormalizer(BaseTransform):
         return torch.all(self.n_samples_seen_ > 0).item() or self.frozen_
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}()"
+        params = {
+            k: v
+            for k, v in self.__dict__.items()
+            if not k.startswith("_") and k.endswith("_")
+        }
+        return f"{self.__class__.__name__}({', '.join(f'{k}={v}' for k, v in params.items())})"
 
 
 class MinMaxScaler(BaseTransform):
@@ -421,7 +426,12 @@ class MinMaxScaler(BaseTransform):
         )
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}()"
+        params = {
+            k: v
+            for k, v in self.__dict__.items()
+            if not k.startswith("_") and k.endswith("_")
+        }
+        return f"{self.__class__.__name__}({', '.join(f'{k}={v}' for k, v in params.items())})"
 
 
 class MaxScaler(MinMaxScaler):
@@ -548,4 +558,9 @@ class MaxScaler(MinMaxScaler):
         return torch.all(self.data_max_ != 1.0).item() or self.frozen_
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}()"
+        params = {
+            k: v
+            for k, v in self.__dict__.items()
+            if not k.startswith("_") and k.endswith("_")
+        }
+        return f"{self.__class__.__name__}({', '.join(f'{k}={v}' for k, v in params.items())})"

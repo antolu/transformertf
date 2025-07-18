@@ -47,6 +47,14 @@ class LogTransform(BaseTransform):
     def __sklearn_is_fitted__(self) -> bool:  # noqa: PLW3201
         return True
 
+    def __str__(self) -> str:
+        params = {
+            k: v
+            for k, v in self.__dict__.items()
+            if not k.startswith("_") and k.endswith("_")
+        }
+        return f"{self.__class__.__name__}({', '.join(f'{k}={v}' for k, v in params.items())})"
+
 
 class Log1pTransform(BaseTransform):
     """
@@ -75,3 +83,6 @@ class Log1pTransform(BaseTransform):
 
     def __sklearn_is_fitted__(self) -> bool:  # noqa: PLW3201
         return True
+
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}()"
