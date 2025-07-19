@@ -99,7 +99,6 @@ Neural network model implementations including base classes and specific archite
    transformertf.models.temporal_fusion_transformer
    transformertf.models.transformer
    transformertf.models.transformer_v2
-   transformertf.models.transformerencoder
    transformertf.models.tsmixer
    transformertf.models.bwlstm
    transformertf.models.phytsmixer
