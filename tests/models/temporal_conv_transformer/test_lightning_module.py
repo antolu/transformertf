@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import shutil
+
 import pytest
 import torch
 
@@ -276,6 +278,8 @@ class TestTemporalConvTransformerLightning:
 
     def test_compile_model_functionality(self, sample_batch):
         """Test model compilation functionality."""
+        if shutil.which("g++") is None:
+            pytest.skip("g++ compiler not found, skipping model compilation test")
         model = TemporalConvTransformer(
             num_past_features=8,
             num_future_features=4,
