@@ -23,7 +23,7 @@ from transformertf.data.transform import StandardScaler
 def sample_dataframe() -> pd.DataFrame:
     """Create a sample DataFrame for testing."""
     return pd.DataFrame({
-        "__future_known_continuous_feature1": [
+        "__known_continuous__feature1": [
             1.0,
             2.0,
             3.0,
@@ -37,7 +37,7 @@ def sample_dataframe() -> pd.DataFrame:
             11.0,
             12.0,
         ],
-        "__future_known_continuous_feature2": [
+        "__known_continuous__feature2": [
             2.0,
             3.0,
             4.0,
@@ -51,7 +51,7 @@ def sample_dataframe() -> pd.DataFrame:
             12.0,
             13.0,
         ],
-        "__past_known_continuous_feature3": [
+        "__past_known_continuous__feature3": [
             0.5,
             1.5,
             2.5,
@@ -65,7 +65,7 @@ def sample_dataframe() -> pd.DataFrame:
             10.5,
             11.5,
         ],
-        "__target": [
+        "__target__": [
             10.0,
             20.0,
             30.0,
@@ -92,7 +92,7 @@ class TestDatasetFactory:
         return pd.DataFrame({
             "feature1": [1.0, 2.0, 3.0, 4.0, 5.0],
             "feature2": [2.0, 3.0, 4.0, 5.0, 6.0],
-            "__target": [10.0, 20.0, 30.0, 40.0, 50.0],
+            "__target__": [10.0, 20.0, 30.0, 40.0, 50.0],
         })
 
     @pytest.fixture
@@ -101,7 +101,7 @@ class TestDatasetFactory:
         return {
             "feature1": StandardScaler(num_features_=1),
             "feature2": StandardScaler(num_features_=1),
-            "__target": StandardScaler(num_features_=1),
+            "__target__": StandardScaler(num_features_=1),
         }
 
     def test_create_timeseries_dataset_basic(
@@ -141,7 +141,7 @@ class TestDatasetFactory:
     ) -> None:
         """Test creating time series dataset in predict mode."""
         # Remove target column for prediction
-        predict_df = timeseries_dataframe.drop(columns=["__target"])
+        predict_df = timeseries_dataframe.drop(columns=["__target__"])
 
         dataset = DatasetFactory.create_timeseries_dataset(
             data=predict_df,
