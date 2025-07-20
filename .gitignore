@@ -4,6 +4,7 @@ venv/
 logs/
 
 .idea/
+.vscode/launch.json
 
 transformertf/_version.py
 
