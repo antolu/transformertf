@@ -278,13 +278,26 @@ class TemporalFusionTransformerModel(torch.nn.Module):
         )
 
         # multi-head attention and post-processing
-        attn_output, attn_weights = self.attn(
-            attn_input[:, enc_seq_len:],
-            attn_input,
-            attn_input,
-            mask=attn_mask,
-            return_attn=True,
-        )
+        if self.training:
+            attn_output = self.attn(
+                attn_input[:, :enc_seq_len],
+                attn_input,
+                attn_input,
+                mask=attn_mask,
+            )
+            attn_weights = None
+        else:
+            # during inference, we return attention weights for interpretability
+            # but we don't use them in the output
+            # this is useful for debugging and understanding the model
+            # but not used in the final predictions
+            attn_output, attn_weights = self.attn(
+                attn_input[:, enc_seq_len:],
+                attn_input,
+                attn_input,
+                mask=attn_mask,
+                return_attn=True,
+            )
         attn_output = self.attn_gate1(attn_output)
         attn_output = self.attn_norm1(attn_output, attn_input[:, enc_seq_len:])
         attn_output = self.attn_grn(attn_output)
