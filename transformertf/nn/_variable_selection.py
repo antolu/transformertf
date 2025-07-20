@@ -190,7 +190,6 @@ class VariableSelection(torch.nn.Module):
         self.hidden_dim = hidden_dim
         self.n_dim_model = n_dim_model
         self.context_size = context_size
-        self.dropout = torch.nn.Dropout(dropout)
 
         self.prescalers = torch.nn.ModuleList([
             torch.nn.Linear(1, hidden_dim) for _ in range(n_features)

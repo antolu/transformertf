@@ -141,7 +141,7 @@ class SimplePositionalEncoding(torch.nn.Module):
     def __init__(self, dim_model: int, dropout: float = 0.1, max_len: int = 5000):
         super().__init__()
 
-        self.dropout = torch.nn.Dropout(p=dropout)
+        self.dropout = torch.nn.Dropout(p=dropout) if dropout > 0 else None
         pe = torch.zeros(max_len, dim_model)
         position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
         div_term = torch.exp(
@@ -157,7 +157,7 @@ class SimplePositionalEncoding(torch.nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Creates a basic positional encoding"""
         x += self.pe[: x.size(0), :]
-        return self.dropout(x)
+        return self.dropout(x) if self.dropout is not None else x
 
 
 def generate_mask(size: int) -> torch.Tensor:

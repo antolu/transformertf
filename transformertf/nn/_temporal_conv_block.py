@@ -116,7 +116,7 @@ class TemporalConvBlock(torch.nn.Module):
         # Normalization and activation
         self.norm = torch.nn.LayerNorm(out_channels)
         self.activation = get_activation(activation)
-        self.dropout = torch.nn.Dropout(dropout)
+        self.dropout = torch.nn.Dropout(dropout) if dropout > 0 else None
 
         # Residual connection (only if dimensions match)
         self.use_residual = in_channels == out_channels
@@ -159,7 +159,7 @@ class TemporalConvBlock(torch.nn.Module):
         # Apply normalization, activation, and dropout
         x = self.norm(x)
         x = self.activation(x)
-        x = self.dropout(x)
+        x = self.dropout(x) if self.dropout is not None else x
 
         # Add residual connection
         if self.use_residual:

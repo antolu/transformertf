@@ -140,7 +140,7 @@ class GatedLinearUnit(torch.nn.Module):
         super().__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim or input_dim
-        self.dropout = torch.nn.Dropout(dropout)
+        self.dropout = torch.nn.Dropout(dropout) if dropout > 0 else None
         self.fc1 = torch.nn.Linear(input_dim, self.output_dim * 2)
 
         self.initialize_parameters()
@@ -223,6 +223,6 @@ class GatedLinearUnit(torch.nn.Module):
         >>> # output = linear_part * sigmoid(gate_part)
         >>> # where both parts come from the same linear transformation
         """
-        x = self.dropout(x)
+        x = self.dropout(x) if self.dropout is not None else x
         x = self.fc1(x)
         return torch.nn.functional.glu(x, dim=-1)

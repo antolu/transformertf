@@ -215,7 +215,7 @@ class GatedResidualNetwork(torch.nn.Module):
 
         self.fc1 = torch.nn.Linear(input_dim, hidden_dim)
         self.fc2 = torch.nn.Linear(hidden_dim, output_dim)
-        self.dropout = torch.nn.Dropout(dropout)
+        self.dropout = torch.nn.Dropout(dropout) if dropout > 0 else None
         self.fc3 = (
             torch.nn.Linear(context_dim, hidden_dim, bias=False)
             if context_dim
@@ -363,7 +363,7 @@ class GatedResidualNetwork(torch.nn.Module):
 
         x = self.activation(x)
         x = self.fc2(x)
-        x = self.dropout(x)
+        x = self.dropout(x) if self.dropout is not None else x
         x = self.glu1(x)
 
         return self.norm(x + residual)
