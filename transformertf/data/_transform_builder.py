@@ -165,6 +165,8 @@ class TransformBuilder:
         time_format: Literal["relative", "absolute", "relative_legacy"],
         time_column: str = TIME_PREFIX,
         extra_transforms: list[BaseTransform] | None = None,
+        *,
+        normalize: bool = True,
     ) -> TransformBuilder:
         """
         Add time-specific transforms.
@@ -189,18 +191,19 @@ class TransformBuilder:
         transforms = []
 
         # Add format-specific transforms
-        if time_format == "relative":
-            transforms.extend([DeltaTransform(), MaxScaler(num_features_=1)])
-        elif time_format == "relative_legacy":
-            transforms.extend([DeltaTransform(), StandardScaler(num_features_=1)])
-        elif time_format == "absolute":
-            transforms.append(MaxScaler(num_features_=1))
-        else:
-            msg = (
-                f"Unknown time format '{time_format}'. "
-                "Expected 'relative', 'absolute', or 'relative_legacy'."
-            )
-            raise ValueError(msg)
+        if normalize:
+            if time_format == "relative":
+                transforms.extend([DeltaTransform(), MaxScaler(num_features_=1)])
+            elif time_format == "relative_legacy":
+                transforms.extend([DeltaTransform(), StandardScaler(num_features_=1)])
+            elif time_format == "absolute":
+                transforms.append(MaxScaler(num_features_=1))
+            else:
+                msg = (
+                    f"Unknown time format '{time_format}'. "
+                    "Expected 'relative', 'absolute', or 'relative_legacy'."
+                )
+                raise ValueError(msg)
 
         # Add extra time transforms
         if extra_transforms:

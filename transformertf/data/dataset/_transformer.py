@@ -7,9 +7,7 @@ import numpy as np
 import pandas as pd
 
 from .._dtype import VALID_DTYPES
-from .._sample_generator import (
-    TransformerSampleGenerator,
-)
+from .._window_strategy import TransformerWindowStrategy
 from ..transform import BaseTransform
 from ._base import (
     AbstractTimeSeriesDataset,
@@ -109,27 +107,16 @@ class TransformerDataset(AbstractTimeSeriesDataset):
 
             randomize_seq_len = False
 
-        if stride > 1:
-            self._input_data = [
-                df.iloc[start::stride]
-                for df in self._input_data
-                for start in range(stride)
-            ]
-            self._target_data = [
-                df.iloc[start::stride]
-                for df in self._target_data
-                for start in range(stride)
-            ]
-            self._known_past_data = [  # type: ignore[assignment]
-                df.iloc[start::stride] if df is not None else None
-                for df in self._known_past_data
-                for start in range(stride)
-            ]
-            self._time_data = [  # type: ignore[assignment]
-                df.iloc[start::stride] if df is not None else None
-                for df in self._time_data
-                for start in range(stride)
-            ]
+        # Create window strategy to handle sample generator creation
+        window_strategy = TransformerWindowStrategy(
+            ctx_seq_len=ctx_seq_len,
+            tgt_seq_len=tgt_seq_len,
+            stride=stride,
+            min_ctx_seq_len=min_ctxt_seq_len,
+            min_tgt_seq_len=min_tgt_seq_len,
+            randomize_seq_len=randomize_seq_len,
+            predict=predict,
+        )
 
         self._ctxt_seq_len = ctx_seq_len
         self._min_ctxt_seq_len = min_ctxt_seq_len
@@ -149,27 +136,13 @@ class TransformerDataset(AbstractTimeSeriesDataset):
 
         self._transforms = transforms or {}
 
-        self._sample_gen = [
-            TransformerSampleGenerator(
-                input_data=pd.concat([time_, input_], axis=1)
-                if time_ is not None
-                else input_,
-                target_data=target_,
-                known_past_data=known_,
-                src_seq_len=ctx_seq_len,
-                tgt_seq_len=tgt_seq_len,
-                zero_pad=predict,
-                stride=tgt_seq_len if predict else 1,
-                add_target_to_past=add_target_to_past,
-            )
-            for input_, target_, known_, time_ in zip(
-                self._input_data,
-                self._target_data,
-                self._known_past_data,
-                self._time_data,
-                strict=False,
-            )
-        ]
+        self._sample_gen = window_strategy.create_sample_generators(
+            input_data=self._input_data,
+            target_data=self._target_data,
+            known_past_data=self._known_past_data,
+            time_data=self._time_data,
+            add_target_to_past=add_target_to_past,
+        )
 
         self._cum_num_samples = np.cumsum([len(gen) for gen in self._sample_gen])
         self._dtype = dtype

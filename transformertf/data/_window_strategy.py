@@ -276,6 +276,7 @@ class TransformerWindowStrategy(WindowStrategy):
         target_data: list[pd.DataFrame] | list[None],
         known_past_data: list[pd.DataFrame] | None = None,
         time_data: list[pd.DataFrame] | None = None,
+        add_target_to_past: bool = True,
         **kwargs: Any,
     ) -> list[TransformerSampleGenerator]:
         """Create transformer sample generators."""
@@ -287,17 +288,57 @@ class TransformerWindowStrategy(WindowStrategy):
         if time_data is None:
             time_data = [None] * len(input_data)
 
-        for input_df, target_df, past_df, _time_df in zip(
-            input_data, target_data, known_past_data, time_data, strict=False
+        # Apply stride by creating multiple generators with different offsets
+        if self.stride > 1:
+            # Create strided versions of all data
+            strided_input_data = [
+                df.iloc[start :: self.stride]
+                for df in input_data
+                for start in range(self.stride)
+            ]
+            strided_target_data = [
+                df.iloc[start :: self.stride]
+                for df in target_data
+                for start in range(self.stride)
+            ]
+            strided_known_past_data = [
+                df.iloc[start :: self.stride] if df is not None else None
+                for df in known_past_data
+                for start in range(self.stride)
+            ]
+            strided_time_data = [
+                df.iloc[start :: self.stride] if df is not None else None
+                for df in time_data
+                for start in range(self.stride)
+            ]
+        else:
+            strided_input_data = input_data
+            strided_target_data = target_data
+            strided_known_past_data = known_past_data
+            strided_time_data = time_data
+
+        for input_df, target_df, past_df, time_df in zip(
+            strided_input_data,
+            strided_target_data,
+            strided_known_past_data,
+            strided_time_data,
+            strict=True,
         ):
+            # Concatenate time data with input data if time data exists
+            if time_df is not None:
+                input_with_time = pd.concat([time_df, input_df], axis=1)
+            else:
+                input_with_time = input_df
+
             generator = TransformerSampleGenerator(
-                input_data=input_df,
+                input_data=input_with_time,
                 target_data=target_df,
                 src_seq_len=self.ctx_seq_len,
                 tgt_seq_len=self.tgt_seq_len,
                 known_past_data=past_df,
-                stride=self.stride,
-                **kwargs,
+                stride=self.tgt_seq_len if self.predict else 1,
+                zero_pad=self.predict,
+                add_target_to_past=add_target_to_past,
             )
             generators.append(generator)
 

@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import torch
 
+from .._dataset_factory import DatasetFactory
 from .._downsample import DOWNSAMPLE_METHODS
 from .._dtype import VALID_DTYPES
 from .._sample_generator import EncoderDecoderTargetSample
@@ -278,6 +279,7 @@ class TransformerDataModule(DataModuleBase):
                 time_format=self.hparams["time_format"],
                 time_column=TIME,
                 extra_transforms=self._extra_transforms_source.get(TIME),
+                normalize=self.hparams["normalize"],
             )
 
         # Build transforms with validation
@@ -465,51 +467,54 @@ class EncoderDecoderDataModule(TransformerDataModule):
         *,
         predict: bool = False,
     ) -> EncoderDecoderDataset:
-        """Create encoder-decoder dataset using simplified parameter passing."""
+        """Create encoder-decoder dataset using DatasetFactory with standardized column prefixes."""
         time_format: typing.Literal["relative", "absolute"] = (
             "relative"
             if self.hparams["time_format"] in {"relative", "relative_legacy"}
             else "absolute"
         )
 
-        # Extract data based on column structure
-        if isinstance(df, pd.DataFrame):
-            input_data = df[[cov.col for cov in self.known_covariates]]
-            known_past_data = (
-                df[[cov.col for cov in self.known_past_covariates]]
-                if self.known_past_covariates
-                else None
-            )
-            target_data = df[self.target_covariate.col]
-            time_data = df[TIME] if self.hparams["time_column"] else None
-        else:
-            input_data = [d[[cov.col for cov in self.known_covariates]] for d in df]
-            known_past_data = (
-                [d[[cov.col for cov in self.known_past_covariates]] for d in df]
-                if self.known_past_covariates
-                else None
-            )
-            target_data = [d[self.target_covariate.col] for d in df]
-            time_data = [d[TIME] for d in df] if self.hparams["time_column"] else None
+        # Prepare data with correct column prefixes for the factory
+        def _prepare_dataframe(data_df: pd.DataFrame) -> pd.DataFrame:
+            cols = [
+                cov.col
+                for cov in self.known_covariates
+                + self.known_past_covariates
+                + [self.target_covariate]
+            ]
+            try:
+                prepared_df = data_df[cols].copy()
+            except KeyError as e:
+                missing_cols = set(cols) - set(data_df.columns)
+                msg = f"Missing required columns in the DataFrame: {missing_cols}"
+                raise KeyError(msg) from e
 
-        return EncoderDecoderDataset(
-            input_data=input_data,
-            known_past_data=known_past_data,
-            target_data=target_data,
-            time_data=time_data,
+            # Add time data with __time__ prefix if configured
+            if self.hparams["time_column"] and TIME in data_df.columns:
+                prepared_df[TIME] = data_df[TIME]
+
+            return prepared_df
+
+        if isinstance(df, pd.DataFrame):
+            prepared_data = _prepare_dataframe(df)
+        else:
+            prepared_data = [_prepare_dataframe(d) for d in df]
+
+        return DatasetFactory.create_encoder_decoder_dataset(
+            data=prepared_data,
             ctx_seq_len=self.hparams["ctxt_seq_len"],
             tgt_seq_len=self.hparams["tgt_seq_len"],
-            min_ctxt_seq_len=self.hparams["min_ctxt_seq_len"],
+            min_ctx_seq_len=self.hparams["min_ctxt_seq_len"],
             min_tgt_seq_len=self.hparams["min_tgt_seq_len"],
-            time_format=time_format,
-            stride=self.hparams["stride"],
             randomize_seq_len=(
                 self.hparams["randomize_seq_len"] if not predict else False
             ),
+            stride=self.hparams["stride"],
             predict=predict,
             transforms=self.transforms,
-            noise_std=self.hparams["noise_std"] if not predict else 0.0,
             dtype=self.hparams["dtype"],
+            time_format=time_format,
+            noise_std=self.hparams["noise_std"] if not predict else 0.0,
             add_target_to_past=self.hparams["add_target_to_past"],
         )
 

@@ -6,6 +6,8 @@ import pandas as pd
 
 from transformertf.data.dataset import TimeSeriesDataset
 
+from .._covariates import TARGET_PREFIX
+from .._dataset_factory import DatasetFactory
 from .._dtype import VALID_DTYPES
 from ._base import DataModuleBase, _to_list
 
@@ -179,31 +181,33 @@ class TimeSeriesDataModule(DataModuleBase):
             msg = "known_past_covariates is not used in this class."
             raise NotImplementedError(msg)
 
-        # Extract input and target data directly (maintain original logic)
-        input_cols = [cov.col for cov in self.known_covariates]
-        target_data: pd.Series | list[pd.Series] | None
-        if isinstance(df, pd.DataFrame):
-            if self.target_covariate.col in df.columns:
-                target_data = df[self.target_covariate.col]
-            else:
-                target_data = None
-        else:
-            if self.target_covariate.col in df[0].columns:
-                target_data = [d[self.target_covariate.col] for d in df]
-            else:
-                target_data = None
+        # Prepare data with correct column prefixes for the factory
+        def _prepare_data(data_df: pd.DataFrame) -> pd.DataFrame:
+            # Create a copy to avoid modifying original data
+            prepared_df = data_df.copy()
 
-        return TimeSeriesDataset(
-            input_data=df[input_cols]
-            if isinstance(df, pd.DataFrame)
-            else [d[input_cols] for d in df],
-            target_data=target_data,
-            stride=self.hparams["stride"],
+            # Keep only known covariates and target columns
+            input_cols = [cov.col for cov in self.known_covariates]
+            target_cols = [
+                col for col in prepared_df.columns if col.startswith(TARGET_PREFIX)
+            ]
+            all_cols = input_cols + target_cols
+
+            return prepared_df[all_cols]
+
+        if isinstance(df, pd.DataFrame):
+            prepared_data = _prepare_data(df)
+        else:
+            prepared_data = [_prepare_data(d) for d in df]
+
+        return DatasetFactory.create_timeseries_dataset(
+            data=prepared_data,
             seq_len=self.hparams["seq_len"],
             min_seq_len=self.hparams["min_seq_len"] if not predict else None,
             randomize_seq_len=(
                 self.hparams["randomize_seq_len"] if not predict else False
             ),
+            stride=self.hparams["stride"],
             predict=predict,
             transforms=self.transforms,
             dtype=self.hparams["dtype"],

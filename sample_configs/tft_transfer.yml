@@ -1,0 +1,113 @@
+seed_everything: false
+trainer:
+  enable_progress_bar: true
+  max_epochs: 50
+  min_epochs: 50
+  val_check_interval: 0.1
+  callbacks:
+    - class_path: transformertf.callbacks.PlotHysteresisCallback
+# lr_scheduler:
+#   class_path: torch.optim.lr_scheduler.OneCycleLR
+#   init_args:
+#     epochs: ${trainer.max_epochs}
+#     steps_per_epoch: 17333
+#     # steps_per_epoch: 25696
+#     pct_start: 0.2
+#     max_lr: 1e-4
+# lr_step_interval: step
+optimizer:
+  class_path: torch.optim.AdamW
+  init_args:
+    lr: 5e-5
+    weight_decay: 1e-4
+model:
+  class_path: transformertf.models.temporal_fusion_transformer.TemporalFusionTransformer
+  init_args:
+    n_dim_model: 300
+    num_heads: 4
+    hidden_continuous_dim: 64
+    num_lstm_layers: 2
+    dropout: 0.0
+    log_grad_norm: false
+    compile_model: true
+    criterion:
+      class_path: transformertf.nn.QuantileLoss
+      init_args:
+        quantiles: [0.02, 0.1, 0.25, 0.5, 0.75, 0.9, 0.98]
+data:
+  class_path: transformertf.data.EncoderDecoderDataModule
+  init_args:
+    known_covariates:
+      - "I_meas_A_filtered"
+      - "I_meas_A_filtered_dot"
+    target_covariate: B_meas_T_filtered_eddy_corrected
+    time_column: time_ms
+    time_format: relative
+    ctxt_seq_len: 1020
+    tgt_seq_len: 540
+    min_ctxt_seq_len: 180
+    min_tgt_seq_len: 180
+    randomize_seq_len: true
+    batch_size: 64
+    num_workers: 6
+    downsample: 5
+    normalize: false
+    stride: 4
+    target_depends_on: I_meas_A_filtered
+    extra_transforms:
+      I_meas_A_filtered:
+        - class_path: transformertf.data.RunningNormalizer
+          init_args:
+            num_features_: 1
+            center_: 2300.0
+            scale_: 2040.0
+            n_samples_seen_: 0.0
+            frozen_: true
+        - class_path: transformertf.data.RunningNormalizer
+          init_args:
+            center_: -0.1225
+            scale_: 0.9536
+            frozen_: true
+      I_meas_A_filtered_dot:
+        - class_path: transformertf.data.RunningNormalizer
+          init_args:
+            num_features_: 1
+            center_: 0.0
+            scale_: 1500.0
+            n_samples_seen_: 0.0
+            frozen_: true
+        - class_path: transformertf.data.RunningNormalizer
+          init_args:
+            center_: -8.0368e-8
+            scale_: 0.9753
+            frozen_: true
+      B_meas_T_filtered_eddy_corrected:
+        - class_path: transformertf.data.DiscreteFunctionTransform
+          init_args:
+            xs_: ~/cernbox/hysteresis/calibration_fn/SPS_MB_I2B_CALIBRATION_FN_v7.csv
+            ys_: null
+        - class_path: transformertf.data.RunningNormalizer
+          init_args:
+            num_features_: 1
+            center_: 0.0
+            scale_: 0.0011
+            n_samples_seen_: 0.0
+            frozen_: true
+        - class_path: transformertf.data.RunningNormalizer
+          init_args:
+            center_: -0.6866
+            scale_: 0.9340
+            frozen_: true
+      __time__:
+        - class_path: transformertf.data.transform.DeltaTransform
+        - class_path: transformertf.data.transform.StandardScaler
+          init_args:
+            center_: 1.0
+            scale_: 0.0017
+            frozen_: true
+        - class_path: transformertf.data.transform.DeltaTransform
+        - class_path: transformertf.data.transform.StandardScaler
+          init_args:
+            center_: 0.0015
+            scale_: 0.9135
+            frozen_: true

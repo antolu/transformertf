@@ -9,6 +9,7 @@ import torch
 
 from .._dtype import VALID_DTYPES, convert_data
 from .._sample_generator import TimeSeriesSample, TimeSeriesSampleGenerator
+from .._window_strategy import TimeSeriesWindowStrategy
 from ..transform import BaseTransform
 from ._base import (
     AbstractTimeSeriesDataset,
@@ -180,25 +181,21 @@ class TimeSeriesDataset(AbstractTimeSeriesDataset):
 
         self._transforms = transforms or {}
 
-        self._input_data = [
-            df.iloc[start::stride] for df in self._input_data for start in range(stride)
-        ]
-        self._target_data = [  # type: ignore[assignment]
-            df.iloc[start::stride] if df is not None else None
-            for df in self._target_data
-            for start in range(stride)
-        ]
+        # Create window strategy to handle sample generator creation
+        window_strategy = TimeSeriesWindowStrategy(
+            seq_len=seq_len,
+            stride=stride,
+            min_seq_len=min_seq_len,
+            randomize_seq_len=randomize_seq_len,
+            predict=predict,
+        )
 
-        self._sample_gen: list[TimeSeriesSampleGenerator[pd.DataFrame]] = [
-            TimeSeriesSampleGenerator(
-                input_data=input_,
-                window_size=seq_len,
-                label_data=target,
-                stride=seq_len if predict else 1,
-                zero_pad=predict,
+        self._sample_gen: list[TimeSeriesSampleGenerator[pd.DataFrame]] = (
+            window_strategy.create_sample_generators(
+                input_data=self._input_data,
+                target_data=self._target_data,
             )
-            for input_, target in zip(self._input_data, self._target_data, strict=False)
-        ]
+        )
 
         # needed to determine which dataframe to get samples from
         self._cum_num_samples = np.cumsum([len(gen) for gen in self._sample_gen])

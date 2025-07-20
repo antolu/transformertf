@@ -5,6 +5,7 @@ from transformertf.data.dataset import (
 )
 
 from .._mod_replace import replace_modname
+from ._dataset_factory import DatasetFactory
 from ._downsample import downsample
 from ._sample_generator import (
     EncoderDecoderSample,
@@ -16,6 +17,12 @@ from ._sample_generator import (
     TransformerSampleGenerator,
 )
 from ._window_generator import WindowGenerator
+from ._window_strategy import (
+    TimeSeriesWindowStrategy,
+    TransformerWindowStrategy,
+    WindowStrategy,
+    WindowStrategyFactory,
+)
 from .datamodule import (
     DataModuleBase,
     EncoderDecoderDataModule,
@@ -42,6 +49,11 @@ for _mod in (
     TimeSeriesSampleGenerator,
     TransformerSampleGenerator,
     TransformerPredictionSampleGenerator,
+    DatasetFactory,
+    TimeSeriesWindowStrategy,
+    TransformerWindowStrategy,
+    WindowStrategy,
+    WindowStrategyFactory,
     downsample,
 ):
     replace_modname(_mod, __name__)
@@ -53,6 +65,7 @@ __all__ = [
     "AbstractTimeSeriesDataset",
     "BaseTransform",
     "DataModuleBase",
+    "DatasetFactory",
     "DiscreteFunctionTransform",
     "EncoderDecoderDataModule",
     "EncoderDecoderDataset",
@@ -66,10 +79,14 @@ __all__ = [
     "TimeSeriesDataset",
     "TimeSeriesSample",
     "TimeSeriesSampleGenerator",
+    "TimeSeriesWindowStrategy",
     "TransformCollection",
     "TransformerDataModule",
     "TransformerPredictionSampleGenerator",
     "TransformerSampleGenerator",
+    "TransformerWindowStrategy",
     "WindowGenerator",
+    "WindowStrategy",
+    "WindowStrategyFactory",
     "downsample",
 ]

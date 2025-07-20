@@ -13,6 +13,12 @@ from typing import Literal
 
 import pandas as pd
 
+from ._covariates import (
+    KNOWN_COV_CONT_PREFIX,
+    PAST_KNOWN_COV_PREFIX,
+    TARGET_PREFIX,
+    TIME_PREFIX,
+)
 from ._dtype import VALID_DTYPES
 from .dataset import (
     EncoderDecoderDataset,
@@ -75,20 +81,24 @@ class DatasetFactory:
         if isinstance(data, list):
             input_data = [
                 df.drop(
-                    columns=[col for col in df.columns if col.startswith("__target")]
+                    columns=[
+                        col for col in df.columns if col.startswith(TARGET_PREFIX)
+                    ],
                 )
                 for df in data
             ]
             target_data = [
-                df[[col for col in df.columns if col.startswith("__target")]]
+                df[[col for col in df.columns if col.startswith(TARGET_PREFIX)]]
                 for df in data
-                if any(col.startswith("__target") for col in df.columns)
+                if any(col.startswith(TARGET_PREFIX) for col in df.columns)
             ]
             if not target_data and not predict:
                 target_data = None
         else:
-            input_cols = [col for col in data.columns if not col.startswith("__target")]
-            target_cols = [col for col in data.columns if col.startswith("__target")]
+            input_cols = [
+                col for col in data.columns if not col.startswith(TARGET_PREFIX)
+            ]
+            target_cols = [col for col in data.columns if col.startswith(TARGET_PREFIX)]
 
             input_data = data[input_cols] if input_cols else data
             target_data = data[target_cols] if target_cols and not predict else None
@@ -161,19 +171,17 @@ class DatasetFactory:
         """
         # Extract different data types
         if isinstance(data, list):
-            input_data = [
-                _extract_columns(df, "__future_known_continuous_") for df in data
-            ]
+            input_data = [_extract_columns(df, KNOWN_COV_CONT_PREFIX) for df in data]
             known_past_data = [
-                _extract_columns(df, "__past_known_continuous_") for df in data
+                _extract_columns(df, PAST_KNOWN_COV_PREFIX) for df in data
             ]
-            target_data = [_extract_columns(df, "__target") for df in data]
-            time_data = [_extract_columns(df, "__time__") for df in data]
+            target_data = [_extract_columns(df, TARGET_PREFIX) for df in data]
+            time_data = [_extract_columns(df, TIME_PREFIX) for df in data]
         else:
-            input_data = _extract_columns(data, "__future_known_continuous_")
-            known_past_data = _extract_columns(data, "__past_known_continuous_")
-            target_data = _extract_columns(data, "__target")
-            time_data = _extract_columns(data, "__time__")
+            input_data = _extract_columns(data, KNOWN_COV_CONT_PREFIX)
+            known_past_data = _extract_columns(data, PAST_KNOWN_COV_PREFIX)
+            target_data = _extract_columns(data, TARGET_PREFIX)
+            time_data = _extract_columns(data, TIME_PREFIX)
 
         # Handle None values for optional data
         if (
