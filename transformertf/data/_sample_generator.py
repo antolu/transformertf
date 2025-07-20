@@ -21,8 +21,6 @@ from ._window_generator import WindowGenerator
 __all__ = [
     "EncoderDecoderSample",
     "EncoderDecoderTargetSample",
-    "EncoderSample",
-    "EncoderTargetSample",
     "SampleGenerator",
     "TimeSeriesSample",
     "TimeSeriesSampleGenerator",
@@ -148,18 +146,12 @@ class TimeSeriesSampleGenerator(SampleGenerator[TimeSeriesSample[T]]):
         return self._window_generator.num_samples
 
 
-class EncoderSample(TypedDict, typing.Generic[T]):
+class EncoderDecoderSample(TypedDict, typing.Generic[T]):
     encoder_input: T
     """ Source sequence to encoder. """
     encoder_mask: NotRequired[T]
     """ Source sequence mask to encoder. Typically should all be ones. """
     encoder_lengths: NotRequired[T]
-
-
-class EncoderTargetSample(EncoderSample, TargetSample, typing.Generic[T]): ...
-
-
-class EncoderDecoderSample(EncoderSample, TypedDict, typing.Generic[T]):
     decoder_input: T
     """ Target sequence input to transformer. Typically should all be zeros. """
     decoder_mask: NotRequired[T]

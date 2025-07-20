@@ -252,16 +252,16 @@ reportPrivateImportUsage = "none"
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = [
-  "-ra",
-  "--strict-markers",
-  "--strict-config",
-  "--cov=transformertf",
-  "--cov-report=term-missing:skip-covered",
-  "--cov-report=html:htmlcov",
-  "--cov-report=xml",
-  "--tb=short",
-  "-n 4",
-  "-p no:warnings",
+#  "-ra",
+#  "--strict-markers",
+#  "--strict-config",
+#  "--cov=transformertf",
+#  "--cov-report=term-missing:skip-covered",
+#  "--cov-report=html:htmlcov",
+#  "--cov-report=xml",
+#  "--tb=short",
+#  "-n 0",
+#  "-p no:warnings",
 ]
 markers = [
   "unit: marks tests as unit tests (isolated component testing)",

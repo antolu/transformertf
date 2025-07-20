@@ -10,7 +10,6 @@ from ._downsample import downsample
 from ._sample_generator import (
     EncoderDecoderSample,
     EncoderDecoderTargetSample,
-    EncoderTargetSample,
     TimeSeriesSample,
     TimeSeriesSampleGenerator,
     TransformerPredictionSampleGenerator,
@@ -41,7 +40,6 @@ from .transform import (
 for _mod in (
     WindowGenerator,
     TimeSeriesSample,
-    EncoderTargetSample,
     EncoderDecoderSample,
     EncoderDecoderTargetSample,
     FixedPolynomialTransform,
@@ -71,7 +69,6 @@ __all__ = [
     "EncoderDecoderDataset",
     "EncoderDecoderSample",
     "EncoderDecoderTargetSample",
-    "EncoderTargetSample",
     "FixedPolynomialTransform",
     "PolynomialTransform",
     "RunningNormalizer",
