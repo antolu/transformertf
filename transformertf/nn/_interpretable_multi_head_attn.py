@@ -40,6 +40,8 @@ import typing
 
 import torch
 
+from ._scaled_dot_product_attn import ScaledDotProductAttention
+
 
 class InterpretableMultiHeadAttention(torch.nn.Module):
     """
@@ -183,7 +185,7 @@ class InterpretableMultiHeadAttention(torch.nn.Module):
         super().__init__()
         self.num_heads = n_heads
         self.d_model = n_dim_model
-        self.dropout = dropout
+        self.dropout = torch.nn.Dropout(dropout) if dropout > 0 else None
 
         self.d_q = self.d_k = self.d_v = n_dim_model // n_heads
 
@@ -196,6 +198,10 @@ class InterpretableMultiHeadAttention(torch.nn.Module):
         self.value_layer = torch.nn.Linear(n_dim_model, self.d_v)
 
         self.output_layer = torch.nn.Linear(self.d_v, n_dim_model)
+
+        # Use custom attention for interpretability (returns attention weights)
+        # Dropout is applied at the output level, not within attention
+        self.attention = ScaledDotProductAttention(dropout=0.0)
 
         self.initialize_parameters()
 
@@ -370,16 +376,14 @@ class InterpretableMultiHeadAttention(torch.nn.Module):
         for i in range(self.num_heads):
             q = self.query_layers[i](query)
             k = self.key_layers[i](key)
-            v = torch.eye(
-                value.shape[1], device=query.device
-            )  # hack to get attention scores
 
-            attn = torch.nn.functional.scaled_dot_product_attention(
-                q, k, v, attn_mask=mask, dropout_p=self.dropout
+            # Use custom attention implementation that returns both output and weights
+            head, attn_weights = self.attention(
+                q, k, value, mask=mask, return_attention_weights=True
             )
-            head = attn @ value
-            attns.append(attn)
+
             heads.append(head)
+            attns.append(attn_weights)
 
         head = torch.stack(heads, dim=2) if self.num_heads > 1 else heads[0]
         attn = torch.stack(attns, dim=2) if self.num_heads > 1 else attns[0]
@@ -387,7 +391,7 @@ class InterpretableMultiHeadAttention(torch.nn.Module):
         head = head.mean(dim=2) if self.num_heads > 1 else head
 
         output = self.output_layer(head)
-        output = torch.nn.functional.dropout(output, p=self.dropout)
+        output = output if self.dropout is None else self.dropout(output)
 
         if return_attn:
             return output, attn
