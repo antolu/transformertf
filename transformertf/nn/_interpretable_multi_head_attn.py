@@ -201,7 +201,7 @@ class InterpretableMultiHeadAttention(torch.nn.Module):
 
         # Use custom attention for interpretability (returns attention weights)
         # Dropout is applied at the output level, not within attention
-        self.attention = ScaledDotProductAttention(dropout=0.0)
+        self.attention = ScaledDotProductAttention(dropout=dropout)
 
         self.initialize_parameters()
 
