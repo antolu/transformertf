@@ -264,7 +264,7 @@ class LightningModuleBase(L.LightningModule):
             msg = f"Expected outputs to be dict during training, got {type(outputs)}"
             raise TypeError(msg)
 
-        if self.hparams.logging_metrics:
+        if self.hparams.get("logging_metrics"):
             other_metrics = self.calc_other_metrics(outputs, batch["target"])
             self.common_log_step(other_metrics, "train")  # type: ignore[attr-defined]
 
@@ -290,7 +290,7 @@ class LightningModuleBase(L.LightningModule):
 
         self._val_outputs[dataloader_idx].append(ops.to_cpu(ops.detach(data)))  # type: ignore[arg-type,type-var]
 
-        if self.hparams.logging_metrics:
+        if self.hparams.get("logging_metrics"):
             if "target" not in batch:
                 msg = "Expected 'target' key in batch during validation"
                 raise ValueError(msg)

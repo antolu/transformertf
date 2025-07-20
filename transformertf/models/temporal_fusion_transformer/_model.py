@@ -280,7 +280,7 @@ class TemporalFusionTransformerModel(torch.nn.Module):
         # multi-head attention and post-processing
         if self.training:
             attn_output = self.attn(
-                attn_input[:, :enc_seq_len],
+                attn_input[:, enc_seq_len:],
                 attn_input,
                 attn_input,
                 mask=attn_mask,
@@ -308,13 +308,16 @@ class TemporalFusionTransformerModel(torch.nn.Module):
 
         output = self.output_layer(attn_output)
 
-        return {
+        output_d = {
             "output": output,
             "enc_weights": enc_weights,
             "dec_weights": dec_weights,
-            "attn_weights": attn_weights,
             "static_weights": static_variable_selection,
         }
+        if attn_weights is not None:
+            output_d["attn_weights"] = attn_weights
+
+        return output_d
 
 
 def basic_grn(dim: int, dropout: float) -> GatedResidualNetwork:
