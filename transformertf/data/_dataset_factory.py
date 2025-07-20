@@ -92,7 +92,7 @@ class DatasetFactory:
                 for df in data
                 if any(col.startswith(TARGET_PREFIX) for col in df.columns)
             ]
-            if not target_data and not predict:
+            if not target_data:
                 target_data = None
         else:
             input_cols = [
@@ -101,7 +101,7 @@ class DatasetFactory:
             target_cols = [col for col in data.columns if col.startswith(TARGET_PREFIX)]
 
             input_data = data[input_cols] if input_cols else data
-            target_data = data[target_cols] if target_cols and not predict else None
+            target_data = data[target_cols] if target_cols else None
 
         return TimeSeriesDataset(
             input_data=input_data,
