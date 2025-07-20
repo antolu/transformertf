@@ -179,6 +179,7 @@ def test_attention_lstm_module_quantile_loss_computation() -> None:
     }
 
     # Forward pass through model
+    module.eval()  # Set to eval mode to disable dropout
     output = module(batch)
 
     # Manually compute loss
