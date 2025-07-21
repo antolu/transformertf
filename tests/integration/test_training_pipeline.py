@@ -11,9 +11,9 @@ from transformertf.models.temporal_fusion_transformer import (
 
 from ..factories import TFTModelFactory, create_sample_batch
 from ..test_utils import (
-    TestDataGenerator,
     assert_tensor_finite,
     assert_tensor_shape,
+    create_hysteresis_data,
 )
 
 
@@ -22,7 +22,7 @@ from ..test_utils import (
 def test_full_training_pipeline(tmp_path):
     """Integration test for full training pipeline."""
     # Create temporary data
-    data = TestDataGenerator.create_hysteresis_data(length=500)
+    data = create_hysteresis_data(length=500)
     data_path = tmp_path / "test_data.parquet"
     data.to_parquet(data_path)
 

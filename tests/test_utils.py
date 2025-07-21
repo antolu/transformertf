@@ -179,87 +179,83 @@ def approximate_equal(
     return abs(a - b) < tolerance
 
 
-class TestDataGenerator:
-    """Helper class for generating test data."""
+def create_time_series(
+    length: int = 1000,
+    n_features: int = 3,
+    trend: bool = True,
+    seasonal: bool = True,
+    noise_std: float = 0.1,
+    seed: int = 42,
+) -> pd.DataFrame:
+    """Create synthetic time series data."""
+    with temporary_seed(seed):
+        time = np.linspace(0, 100, length)
+        data = {"time_ms": time * 1000}
 
-    @staticmethod
-    def create_time_series(
-        length: int = 1000,
-        n_features: int = 3,
-        trend: bool = True,
-        seasonal: bool = True,
-        noise_std: float = 0.1,
-        seed: int = 42,
-    ) -> pd.DataFrame:
-        """Create synthetic time series data."""
-        with temporary_seed(seed):
-            time = np.linspace(0, 100, length)
-            data = {"time_ms": time * 1000}
+        for i in range(n_features):
+            values = np.zeros(length)
 
-            for i in range(n_features):
-                values = np.zeros(length)
+            if trend:
+                values += 0.1 * time + np.random.normal(0, 0.05)
 
-                if trend:
-                    values += 0.1 * time + np.random.normal(0, 0.05)
+            if seasonal:
+                # Multiple seasonal components
+                values += 2 * np.sin(2 * np.pi * time / 10)
+                values += 0.5 * np.sin(2 * np.pi * time / 3)
 
-                if seasonal:
-                    # Multiple seasonal components
-                    values += 2 * np.sin(2 * np.pi * time / 10)
-                    values += 0.5 * np.sin(2 * np.pi * time / 3)
+            if noise_std > 0:
+                values += np.random.normal(0, noise_std, length)
 
-                if noise_std > 0:
-                    values += np.random.normal(0, noise_std, length)
+            data[f"feature_{i}"] = values
 
-                data[f"feature_{i}"] = values
+        return pd.DataFrame(data)
 
-            return pd.DataFrame(data)
 
-    @staticmethod
-    def create_hysteresis_data(
-        length: int = 1000,
-        amplitude: float = 1.0,
-        frequency: float = 0.1,
-        seed: int = 42,
-    ) -> pd.DataFrame:
-        """Create hysteresis-like data for physics applications."""
-        with temporary_seed(seed):
-            time = np.linspace(0, 100, length)
+def create_hysteresis_data(
+    length: int = 1000,
+    amplitude: float = 1.0,
+    frequency: float = 0.1,
+    seed: int = 42,
+) -> pd.DataFrame:
+    """Create hysteresis-like data for physics applications."""
+    with temporary_seed(seed):
+        time = np.linspace(0, 100, length)
 
-            # Create input signal (current)
-            current = amplitude * np.sin(2 * np.pi * frequency * time)
+        # Create input signal (current)
+        current = amplitude * np.sin(2 * np.pi * frequency * time)
 
-            # Create hysteresis response (magnetic field)
-            field = np.zeros(length)
-            for i in range(1, length):
-                # Simple hysteresis model
-                field[i] = (
-                    0.8 * field[i - 1]
-                    + 0.2 * current[i]
-                    + 0.1 * np.sign(current[i] - current[i - 1])
-                )
+        # Create hysteresis response (magnetic field)
+        field = np.zeros(length)
+        for i in range(1, length):
+            # Simple hysteresis model
+            field[i] = (
+                0.8 * field[i - 1]
+                + 0.2 * current[i]
+                + 0.1 * np.sign(current[i] - current[i - 1])
+            )
 
-            # Add noise
-            current += np.random.normal(0, 0.01, length)
-            field += np.random.normal(0, 0.01, length)
+        # Add noise
+        current += np.random.normal(0, 0.01, length)
+        field += np.random.normal(0, 0.01, length)
 
-            return pd.DataFrame({
-                "time_ms": time * 1000,
-                "I_meas_A": current,
-                "B_meas_T": field,
-            })
+        return pd.DataFrame({
+            "time_ms": time * 1000,
+            "I_meas_A": current,
+            "B_meas_T": field,
+        })
 
 
 # Pytest fixtures for common test scenarios
 @pytest.fixture
 def sample_time_series():
     """Fixture providing sample time series data."""
-    return TestDataGenerator.create_time_series()
+    return create_time_series()
 
 
 @pytest.fixture
 def sample_hysteresis_data():
     """Fixture providing sample hysteresis data."""
-    return TestDataGenerator.create_hysteresis_data()
+    return create_hysteresis_data()
 
 
 @pytest.fixture
