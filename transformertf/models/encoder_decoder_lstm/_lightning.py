@@ -9,10 +9,10 @@ from ...data import EncoderDecoderTargetSample
 from ...nn import VALID_ACTIVATIONS, QuantileLoss
 from ...utils import ops
 from .._base_module import DEFAULT_LOGGING_METRICS, LightningModuleBase, MetricLiteral
-from ._model import HIDDEN_STATE, EncoderDecoderLSTM
+from ._model import HIDDEN_STATE, EncoderDecoderLSTMModel
 
 if typing.TYPE_CHECKING:
-    SameType = typing.TypeVar("SameType", bound="EncoderDecoderLSTMModule")
+    SameType = typing.TypeVar("SameType", bound="EncoderDecoderLSTM")
 
 
 class StepOutput(typing.TypedDict):
@@ -22,11 +22,11 @@ class StepOutput(typing.TypedDict):
     point_prediction: typing.NotRequired[torch.Tensor]
 
 
-class EncoderDecoderLSTMModule(LightningModuleBase):
+class EncoderDecoderLSTM(LightningModuleBase):
     """
     Lightning module for EncoderDecoderLSTM model for sequence-to-sequence forecasting.
 
-    This Lightning module wraps the EncoderDecoderLSTM model and provides the training,
+    This Lightning module wraps the EncoderDecoderLSTMModel and provides the training,
     validation, and testing interfaces required by PyTorch Lightning. It supports both
     point predictions and probabilistic forecasting via quantile regression.
 
@@ -66,7 +66,7 @@ class EncoderDecoderLSTMModule(LightningModuleBase):
 
     Attributes
     ----------
-    model : EncoderDecoderLSTM
+    model : EncoderDecoderLSTMModel
         The underlying encoder-decoder LSTM model.
     criterion : torch.nn.Module
         The loss function used for training.
@@ -75,13 +75,13 @@ class EncoderDecoderLSTMModule(LightningModuleBase):
 
     Examples
     --------
-    >>> from transformertf.models.encoder_decoder_lstm import EncoderDecoderLSTMModule
+    >>> from transformertf.models.encoder_decoder_lstm import EncoderDecoderLSTM
     >>> from transformertf.data import EncoderDecoderDataModule
     >>> from transformertf.nn import QuantileLoss
     >>> import lightning as L
     >>>
     >>> # Create model for point prediction
-    >>> model = EncoderDecoderLSTMModule(
+    >>> model = EncoderDecoderLSTM(
     ...     num_past_features=10,
     ...     num_future_features=5,
     ...     encoder_hidden_size=64,
@@ -92,7 +92,7 @@ class EncoderDecoderLSTMModule(LightningModuleBase):
     >>>
     >>> # Create model for probabilistic forecasting
     >>> quantiles = [0.1, 0.25, 0.5, 0.75, 0.9]
-    >>> model = EncoderDecoderLSTMModule(
+    >>> model = EncoderDecoderLSTM(
     ...     num_past_features=8,
     ...     num_future_features=3,
     ...     encoder_hidden_size=128,
@@ -135,7 +135,7 @@ class EncoderDecoderLSTMModule(LightningModuleBase):
 
     See Also
     --------
-    EncoderDecoderLSTM : The underlying model implementation
+    EncoderDecoderLSTMModel : The underlying model implementation
     LightningModuleBase : Base class for all Lightning modules
     transformertf.data.EncoderDecoderDataModule : Compatible data module
     transformertf.nn.QuantileLoss : Quantile loss for probabilistic forecasting
@@ -177,7 +177,7 @@ class EncoderDecoderLSTMModule(LightningModuleBase):
             self.hparams["output_dim"] = output_dim
 
         # Create the model
-        self.model = EncoderDecoderLSTM(
+        self.model = EncoderDecoderLSTMModel(
             num_past_features=num_past_features,
             num_future_features=num_future_features,
             encoder_hidden_size=encoder_hidden_size,

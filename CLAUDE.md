@@ -161,6 +161,7 @@ The CLI system automatically validates configurations and provides helpful error
 ## Naming Conventions
 
 - The lightning module of each model should not be appended with model, but rather the torch.nn.Module that the module wraps should be appended with Model. So for an LSTM model, the LightningModule should be named LSTM, and the wrapped model should be named LSTMModel
+- The EncoderDecoderLSTM naming follows this convention: the Lightning module is `EncoderDecoderLSTM`, and the PyTorch model is `EncoderDecoderLSTMModel`
 
 ## Initialization Patterns
 

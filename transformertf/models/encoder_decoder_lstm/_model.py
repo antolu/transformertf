@@ -6,12 +6,12 @@ import torch
 
 from ...nn import MLP, VALID_ACTIVATIONS
 
-__all__ = ["EncoderDecoderLSTM"]
+__all__ = ["EncoderDecoderLSTMModel"]
 
 HIDDEN_STATE = tuple[torch.Tensor, torch.Tensor]
 
 
-class EncoderDecoderLSTM(torch.nn.Module):
+class EncoderDecoderLSTMModel(torch.nn.Module):
     """
     Encoder-Decoder LSTM model for sequence-to-sequence time series forecasting.
 
@@ -64,10 +64,10 @@ class EncoderDecoderLSTM(torch.nn.Module):
     Examples
     --------
     >>> import torch
-    >>> from transformertf.models.encoder_decoder_lstm import EncoderDecoderLSTM
+    >>> from transformertf.models.encoder_decoder_lstm import EncoderDecoderLSTMModel
     >>>
     >>> # Create model with different past/future features
-    >>> model = EncoderDecoderLSTM(
+    >>> model = EncoderDecoderLSTMModel(
     ...     num_past_features=10,
     ...     num_future_features=5,
     ...     encoder_hidden_size=64,
