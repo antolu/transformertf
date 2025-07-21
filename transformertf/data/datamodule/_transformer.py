@@ -215,6 +215,7 @@ class TransformerDataModule(DataModuleBase):
         dtype: VALID_DTYPES = "float32",
         shuffle: bool = True,
         distributed: bool | typing.Literal["auto"] = "auto",
+        _legacy_target_in_future_covariates: bool = False,
     ):
         """
         Initialize the transformer data module.
@@ -237,6 +238,7 @@ class TransformerDataModule(DataModuleBase):
             dtype=dtype,
             shuffle=shuffle,
             distributed=distributed,
+            _legacy_target_in_future_covariates=_legacy_target_in_future_covariates,
         )
 
         self.save_hyperparameters(ignore=["extra_transforms"])
