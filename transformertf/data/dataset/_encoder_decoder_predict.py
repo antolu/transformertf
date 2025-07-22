@@ -252,13 +252,14 @@ class EncoderDecoderPredictDataset(
         if "__time__" in sample["encoder_input"].columns:
             sample_torch["encoder_input"][0, 0] = 0.0
 
-        sample_torch["encoder_lengths"] = torch.ones(
-            (1,), dtype=self._dtype, device=sample_torch["encoder_input"].device
+        sample_torch["encoder_lengths"] = torch.tensor(
+            (sample["encoder_input"].shape[0],),
+            dtype=self._dtype,
+            device=sample_torch["encoder_input"].device,
         )
 
         # decoder lengths must be computed from actual number of future time steps
-        sample_torch["decoder_lengths"] /= self._target_length
-        sample_torch["decoder_lengths"] = sample_torch["decoder_lengths"].flatten()
+        sample_torch["decoder_lengths"] = sample_torch["decoder_lengths"]  # .flatten()
 
         return sample_torch
 

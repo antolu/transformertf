@@ -470,11 +470,11 @@ class TransformerPredictionSampleGenerator(SampleGenerator[EncoderDecoderSample[
 
         encoder_lengths: T
         if isinstance(src, pd.DataFrame):
-            encoder_lengths = pd.DataFrame({"encoder_lengths": [1.0]})  # type: ignore[assignment]
+            encoder_lengths = pd.DataFrame({"encoder_lengths": [self._context_length]})  # type: ignore[assignment]
         elif isinstance(src, torch.Tensor):
-            encoder_lengths = torch.tensor([1.0])  # type: ignore[assignment]
+            encoder_lengths = torch.tensor([self._context_length])  # type: ignore[assignment]
         else:
-            encoder_lengths = np.array([1.0])  # type: ignore[assignment]
+            encoder_lengths = np.array([self._context_length])  # type: ignore[assignment]
 
         decoder_lengths: T
         if isinstance(tgt, pd.DataFrame):
