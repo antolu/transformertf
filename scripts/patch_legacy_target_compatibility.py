@@ -91,6 +91,10 @@ def main(argv: list[str] | None = None) -> int:
     checkpoint["datamodule_hyper_parameters"]["_legacy_target_in_future_covariates"] = (
         True
     )
+    print(
+        "Decreasing number of future known covariates by 1 to maintain compatibility."
+    )
+    checkpoint["hyper_parameters"]["num_future_features"] -= 1
 
     # Determine output path
     output = args.output or args.checkpoint.with_name(
