@@ -7,8 +7,8 @@ import torch
 
 from ...data import EncoderDecoderTargetSample
 from ...nn import QuantileLoss
-from ...utils import ops
-from .._base_module import DEFAULT_LOGGING_METRICS, LightningModuleBase, MetricLiteral
+from .._base_module import DEFAULT_LOGGING_METRICS, MetricLiteral
+from .._base_transformer import TransformerModuleBase
 from ._model import HIDDEN_STATE, AttentionLSTMModel
 
 if typing.TYPE_CHECKING:
@@ -22,7 +22,7 @@ class StepOutput(typing.TypedDict):
     point_prediction: typing.NotRequired[torch.Tensor]
 
 
-class AttentionLSTM(LightningModuleBase):
+class AttentionLSTM(TransformerModuleBase):
     """
     Lightning module for AttentionLSTMModel for sequence-to-sequence forecasting.
 
@@ -159,6 +159,7 @@ class AttentionLSTM(LightningModuleBase):
         use_gating: bool = True,
         trainable_add: bool = False,
         output_dim: int = 1,
+        causal_attention: bool = True,
         criterion: torch.nn.Module | None = None,
         *,
         prediction_type: typing.Literal["delta", "point"] = "point",
@@ -191,13 +192,12 @@ class AttentionLSTM(LightningModuleBase):
             use_gating=use_gating,
             trainable_add=trainable_add,
             output_dim=output_dim,
+            causal_attention=causal_attention,
         )
 
     def forward(
         self,
         batch: EncoderDecoderTargetSample,
-        *,
-        return_encoder_states: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, HIDDEN_STATE]:
         """
         Forward pass through the model.
@@ -227,220 +227,7 @@ class AttentionLSTM(LightningModuleBase):
             ..., : self.hparams["num_future_features"]
         ]
 
-        return self.model(
-            past_sequence=batch["encoder_input"],
-            future_sequence=decoder_inputs,
-            encoder_lengths=encoder_lengths,
-            decoder_lengths=decoder_lengths,
-            return_encoder_states=return_encoder_states,
-        )
-
-    def _compute_loss_and_output(
-        self, batch: EncoderDecoderTargetSample
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Compute model output and loss for a batch."""
-        assert "target" in batch, "Target is required for loss computation"
-
-        output = self(batch)
-        loss = self.criterion(output, batch["target"])
-
-        return loss, output
-
-    def _common_step(
-        self, batch: EncoderDecoderTargetSample, batch_idx: int, stage: str
-    ) -> StepOutput:
-        """Common logic for validation and test steps."""
-        loss, model_output = self._compute_loss_and_output(batch)
-
-        # Extract and reshape lengths like main forward method
-        encoder_lengths = batch.get("encoder_lengths")
-        decoder_lengths = batch.get("decoder_lengths")
-        if encoder_lengths is not None:
-            encoder_lengths = encoder_lengths[..., 0]  # (B, 1) -> (B,)
-        if decoder_lengths is not None:
-            decoder_lengths = decoder_lengths[..., 0]  # (B, 1) -> (B,)
-
-        # Slice decoder inputs to keep only num_future_features
-        decoder_inputs = batch["decoder_input"][
-            ..., : self.hparams["num_future_features"]
-        ]
-
-        # Get encoder states
-        _, encoder_states = self.model(
-            past_sequence=batch["encoder_input"],
-            future_sequence=decoder_inputs,
-            encoder_lengths=encoder_lengths,
-            decoder_lengths=decoder_lengths,
-            return_encoder_states=True,
-        )
-
-        # Log metrics
-        self.common_log_step({"loss": loss}, stage)
-
-        # Prepare output dictionary
-        output_dict = {
-            "loss": loss,
-            "output": ops.detach(model_output),
-            "encoder_states": ops.detach(encoder_states),
-        }
-
-        # Extract point prediction for metrics
-        output_dict["point_prediction"] = self._extract_point_prediction(model_output)
-
-        return typing.cast(StepOutput, output_dict)
-
-    def _extract_point_prediction(self, model_output: torch.Tensor) -> torch.Tensor:
-        """Extract point prediction from model output for quantile models."""
-        if isinstance(self.criterion, QuantileLoss):
-            return self.criterion.point_prediction(model_output)
-        return model_output
-
-    def training_step(
-        self, batch: EncoderDecoderTargetSample, batch_idx: int
-    ) -> StepOutput:
-        """
-        Perform a single training step.
-
-        Parameters
-        ----------
-        batch : EncoderDecoderTargetSample
-            Training batch containing encoder_input, decoder_input, decoder_lengths, and target.
-        batch_idx : int
-            Index of the current batch within the training epoch.
-
-        Returns
-        -------
-        StepOutput
-            Dictionary containing loss, output, encoder_states, and point_prediction.
-        """
-        loss, model_output = self._compute_loss_and_output(batch)
-
-        # Extract and reshape lengths like main forward method
-        encoder_lengths = batch.get("encoder_lengths")
-        decoder_lengths = batch.get("decoder_lengths")
-        if encoder_lengths is not None:
-            encoder_lengths = encoder_lengths[..., 0]  # (B, 1) -> (B,)
-        if decoder_lengths is not None:
-            decoder_lengths = decoder_lengths[..., 0]  # (B, 1) -> (B,)
-
-        # Slice decoder inputs to keep only num_future_features
-        decoder_inputs = batch["decoder_input"][
-            ..., : self.hparams["num_future_features"]
-        ]
-
-        # Get encoder states for potential analysis
-        _, encoder_states = self.model(
-            past_sequence=batch["encoder_input"],
-            future_sequence=decoder_inputs,
-            encoder_lengths=encoder_lengths,
-            decoder_lengths=decoder_lengths,
-            return_encoder_states=True,
-        )
-
-        # Log training metrics
-        self.common_log_step({"loss": loss}, "train")
-
-        # Prepare output dictionary
-        output_dict = {
-            "loss": loss,
-            "output": ops.detach(model_output),
-            "encoder_states": ops.detach(encoder_states),
-        }
-
-        # Extract point prediction for metrics
-        output_dict["point_prediction"] = self._extract_point_prediction(model_output)
-
-        return typing.cast(StepOutput, output_dict)
-
-    def validation_step(
-        self,
-        batch: EncoderDecoderTargetSample,
-        batch_idx: int,
-        dataloader_idx: int = 0,
-    ) -> StepOutput:
-        """
-        Perform a single validation step.
-
-        Parameters
-        ----------
-        batch : EncoderDecoderTargetSample
-            Validation batch containing encoder_input, decoder_input, decoder_lengths, and target.
-        batch_idx : int
-            Index of the current batch within the validation epoch.
-        dataloader_idx : int, default=0
-            Index of the validation dataloader (for multiple validation sets).
-
-        Returns
-        -------
-        StepOutput
-            Dictionary containing loss, output, encoder_states, and point_prediction.
-        """
-        return self._common_step(batch, batch_idx, "validation")
-
-    def test_step(
-        self,
-        batch: EncoderDecoderTargetSample,
-        batch_idx: int,
-        dataloader_idx: int = 0,
-    ) -> StepOutput:
-        """
-        Perform a single test step.
-
-        Parameters
-        ----------
-        batch : EncoderDecoderTargetSample
-            Test batch containing encoder_input, decoder_input, decoder_lengths, and target.
-        batch_idx : int
-            Index of the current batch within the test epoch.
-        dataloader_idx : int, default=0
-            Index of the test dataloader (for multiple test sets).
-
-        Returns
-        -------
-        StepOutput
-            Dictionary containing loss, output, encoder_states, and point_prediction.
-        """
-        return self._common_step(batch, batch_idx, "test")
-
-    def predict_step(
-        self,
-        batch: EncoderDecoderTargetSample,
-        batch_idx: int,
-        dataloader_idx: int = 0,
-    ) -> dict[str, torch.Tensor]:
-        """
-        Perform a single prediction step.
-
-        Parameters
-        ----------
-        batch : EncoderDecoderTargetSample
-            Prediction batch containing encoder_input, decoder_input, and decoder_lengths.
-            Target is optional for prediction.
-        batch_idx : int
-            Index of the current batch within the prediction phase.
-        dataloader_idx : int, default=0
-            Index of the prediction dataloader.
-
-        Returns
-        -------
-        dict[str, torch.Tensor]
-            Dictionary containing model output and encoder states.
-        """
-        # Extract and reshape lengths like main forward method
-        encoder_lengths = batch.get("encoder_lengths")
-        decoder_lengths = batch.get("decoder_lengths")
-        if encoder_lengths is not None:
-            encoder_lengths = encoder_lengths[..., 0]  # (B, 1) -> (B,)
-        if decoder_lengths is not None:
-            decoder_lengths = decoder_lengths[..., 0]  # (B, 1) -> (B,)
-
-        # Slice decoder inputs to keep only num_future_features
-        decoder_inputs = batch["decoder_input"][
-            ..., : self.hparams["num_future_features"]
-        ]
-
-        # Get model output and encoder states
-        output, encoder_states = self.model(
+        output, states = self.model(
             past_sequence=batch["encoder_input"],
             future_sequence=decoder_inputs,
             encoder_lengths=encoder_lengths,
@@ -450,6 +237,5 @@ class AttentionLSTM(LightningModuleBase):
 
         return {
             "output": output,
-            "encoder_states": encoder_states,
-            "point_prediction": self._extract_point_prediction(output),
+            "encoder_states": states,
         }

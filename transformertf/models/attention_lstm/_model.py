@@ -5,6 +5,7 @@ import typing
 import torch
 
 from ...nn import GateAddNorm, InterpretableMultiHeadAttention
+from .._base_transformer import get_attention_mask
 
 __all__ = ["AttentionLSTMModel"]
 
@@ -123,6 +124,7 @@ class AttentionLSTMModel(torch.nn.Module):
         use_gating: bool = True,
         trainable_add: bool = False,
         output_dim: int = 1,
+        causal_attention: bool = True,
     ):
         super().__init__()
 
@@ -140,6 +142,8 @@ class AttentionLSTMModel(torch.nn.Module):
         self.n_heads = n_heads
         self.use_gating = use_gating
         self.output_dim = output_dim
+        self.trainable_add = trainable_add
+        self.causal_attention = causal_attention
 
         # Encoder LSTM
         self.encoder = torch.nn.LSTM(
@@ -274,28 +278,47 @@ class AttentionLSTMModel(torch.nn.Module):
                 Tuple of (output, encoder_states) where encoder_states is (h_n, c_n)
         """
         # 1. Encode past sequence
-        _, encoder_states = self.encoder(past_sequence)
+        encoder_output, encoder_states = self.encoder(past_sequence)
 
         # 2. Decode future sequence using encoder context
         decoder_output, _ = self.decoder(future_sequence, encoder_states)
 
         # 3. Apply self-attention with optional masking
         attention_mask = None
-        if decoder_lengths is not None:
-            max_length = future_sequence.size(1)
+        if decoder_lengths is not None and encoder_lengths is not None:
+            max_encoder_length = past_sequence.size(1)
+            max_decoder_length = future_sequence.size(1)
 
             # Validate decoder lengths
             if (decoder_lengths <= 0).any():
                 msg = "All decoder lengths must be positive"
                 raise ValueError(msg)
-            if (decoder_lengths > max_length).any():
-                msg = f"Decoder lengths cannot exceed max_length {max_length}"
+            if (decoder_lengths > max_decoder_length).any():
+                msg = f"Decoder lengths cannot exceed max_length {max_decoder_length}"
                 raise IndexError(msg)
 
-            attention_mask = self._create_attention_mask(decoder_lengths, max_length)
+            if (encoder_lengths <= 0).any():
+                msg = "All encoder lengths must be positive"
+                raise ValueError(msg)
+            if (encoder_lengths > max_encoder_length).any():
+                msg = f"Encoder lengths cannot exceed past_sequence length {max_encoder_length}"
+                raise IndexError(msg)
+
+            attention_mask = get_attention_mask(
+                encoder_lengths=encoder_lengths,
+                decoder_lengths=decoder_lengths,
+                max_encoder_length=max_encoder_length,
+                max_decoder_length=max_decoder_length,
+                causal_attention=self.causal_attention,
+            )
+
+        attn_input = torch.concatenate((encoder_output, decoder_output), dim=-2)
 
         attention_output = self.attention(
-            decoder_output, decoder_output, decoder_output, mask=attention_mask
+            decoder_output,
+            attn_input,
+            attn_input,
+            mask=attention_mask,
         )
 
         # 4. Skip connection (gated or simple residual)
