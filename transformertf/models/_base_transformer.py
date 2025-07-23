@@ -8,6 +8,7 @@ import torch
 
 from ..data import EncoderDecoderSample, EncoderDecoderTargetSample
 from ..nn import QuantileLoss
+from ..utils import ops
 from ._base_module import LightningModuleBase
 
 if sys.version_info >= (3, 12):
@@ -242,7 +243,7 @@ class TransformerModuleBase(LightningModuleBase):
         return {
             **loss_dict,
             "output": model_output.pop("output"),
-            **{k: v.detach() for k, v in model_output.items()},
+            **{k: ops.detach(v) for k, v in model_output.items()},
             "point_prediction": point_prediction,
         }
 
@@ -384,6 +385,102 @@ class TransformerModuleBase(LightningModuleBase):
 
         # Prepare and return step output
         return self._prepare_step_output(model_output, loss)
+
+    def test_step(
+        self,
+        batch: EncoderDecoderTargetSample,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> dict[str, torch.Tensor]:
+        """
+        Perform a single test step for transformer-based models.
+
+        This method processes a test batch, computes the model output and optionally
+        the loss (if targets are available), and returns the results. Used for
+        evaluation on test datasets and inference on new data.
+
+        Parameters
+        ----------
+        batch : EncoderDecoderTargetSample
+            A test batch containing encoder inputs, decoder inputs, and optionally target values.
+            Expected keys: "encoder_input", "decoder_input".
+            Optional key: "target" (for evaluation with loss computation).
+        batch_idx : int
+            Index of the current batch within the test epoch.
+        dataloader_idx : int, default=0
+            Index of the dataloader when multiple test dataloaders are used.
+
+        Returns
+        -------
+        dict[str, torch.Tensor]
+            Dictionary containing:
+            - "loss": The computed test loss value (only if target is available)
+            - "output": The raw model output
+            - "point_prediction": Point estimate (median for quantile models)
+            - Additional model outputs (detached for memory efficiency)
+
+        Raises
+        ------
+        ValueError
+            If required keys are missing or tensor shapes are invalid.
+        TypeError
+            If batch contains invalid types.
+
+        Notes
+        -----
+        This method:
+        - Validates input batch structure with helpful error messages
+        - Runs in no-grad mode (handled by Lightning)
+        - Conditionally computes loss only if target is available in batch
+        - Automatically handles quantile loss point prediction extraction
+        - Logs test metrics via `common_log_step` (only when loss is computed)
+        - Supports multiple test dataloaders
+        - Handles both evaluation scenarios (with targets) and inference scenarios (without targets)
+
+        The test outputs are automatically collected by the base class and
+        can be accessed via the `test_outputs` property.
+
+        Examples
+        --------
+        >>> # Test with targets for evaluation
+        >>> batch_with_target = {
+        ...     "encoder_input": encoder_data,
+        ...     "decoder_input": decoder_data,
+        ...     "target": target_data
+        ... }
+        >>> output = model.test_step(batch_with_target, 0)
+        >>> print(f"Test loss: {output['loss']}")
+        >>>
+        >>> # Test without targets for inference
+        >>> batch_inference = {
+        ...     "encoder_input": encoder_data,
+        ...     "decoder_input": decoder_data
+        ... }
+        >>> output = model.test_step(batch_inference, 0)
+        >>> print(f"Predictions: {output['point_prediction']}")
+        """
+        # Validate encoder-decoder batch structure
+        self._validate_encoder_decoder_batch(batch, "test")
+
+        model_output = self(batch)
+
+        # Conditionally compute loss if target is available
+        if "target" in batch:
+            loss = self.calc_loss(model_output["output"], batch)
+
+            # Log test metrics
+            self.common_log_step({"loss": loss}, "test")
+
+            # Prepare and return step output with loss
+            return self._prepare_step_output(model_output, loss)
+        # No target available - return model output without loss
+        point_prediction = self._extract_point_prediction(model_output["output"])
+
+        return {
+            "output": model_output.pop("output"),
+            **{k: ops.detach(v) for k, v in model_output.items()},
+            "point_prediction": point_prediction,
+        }
 
     def predict_step(
         self, batch: EncoderDecoderSample, batch_idx: int
