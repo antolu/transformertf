@@ -514,6 +514,13 @@ class LightningModuleBase(L.LightningModule):
             )
             raise TypeError(msg)
 
+        if stage in ("training", "validation") and "target" not in batch:
+            msg = (
+                f"Expected 'target' key in batch during {stage} stage, "
+                f"but got keys: {list(batch.keys())}"
+            )
+            raise ValueError(msg)
+
         # Check required keys
         if "target" in batch:
             # Training/validation batch should have target
