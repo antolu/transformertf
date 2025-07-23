@@ -130,7 +130,7 @@ def test_attention_lstm_module_predict_step() -> None:
     batch = {
         "encoder_input": torch.randn(batch_size, past_seq_len, 3),
         "decoder_input": torch.randn(batch_size, future_seq_len, 2),
-        "encoder_lengths": torch.tensor([past_seq_len] * batch_size),
+        "encoder_lengths": torch.tensor([[past_seq_len]] * batch_size),
         "decoder_lengths": torch.tensor([[future_seq_len]] * batch_size),
     }
 

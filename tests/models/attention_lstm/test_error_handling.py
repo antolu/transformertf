@@ -93,14 +93,25 @@ def test_attention_lstm_invalid_sequence_lengths() -> None:
     future_covariates = torch.randn(batch_size, future_seq_len, 2)
 
     # Test with decoder_lengths exceeding sequence length
+    encoder_lengths = torch.tensor([past_seq_len] * batch_size)
     decoder_lengths = torch.tensor([15, 10, 10, 10])  # First exceeds future_seq_len
     with pytest.raises((RuntimeError, IndexError)):
-        model(past_covariates, future_covariates, decoder_lengths=decoder_lengths)
+        model(
+            past_covariates,
+            future_covariates,
+            encoder_lengths=encoder_lengths,
+            decoder_lengths=decoder_lengths,
+        )
 
     # Test with zero lengths
     decoder_lengths = torch.tensor([0, 10, 10, 10])  # Zero length
     with pytest.raises((RuntimeError, ValueError)):
-        model(past_covariates, future_covariates, decoder_lengths=decoder_lengths)
+        model(
+            past_covariates,
+            future_covariates,
+            encoder_lengths=encoder_lengths,
+            decoder_lengths=decoder_lengths,
+        )
 
 
 def test_attention_lstm_module_invalid_hyperparameters() -> None:
@@ -221,7 +232,7 @@ def test_attention_lstm_module_missing_batch_keys() -> None:
         "decoder_lengths": torch.tensor([[10], [10], [10], [10]]),
         "target": torch.randn(4, 10, 1),
     }
-    with pytest.raises(KeyError):
+    with pytest.raises(ValueError, match="Expected 'encoder_input' key"):
         model.training_step(batch, batch_idx=0)
 
     # Test with missing target (should fail in training)
@@ -230,5 +241,5 @@ def test_attention_lstm_module_missing_batch_keys() -> None:
         "decoder_input": torch.randn(4, 10, 2),
         "decoder_lengths": torch.tensor([[10], [10], [10], [10]]),
     }
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError, match="Expected 'target' key"):
         model.training_step(batch, batch_idx=0)

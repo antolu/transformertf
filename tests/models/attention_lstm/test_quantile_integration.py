@@ -33,7 +33,7 @@ def test_attention_lstm_module_quantile_loss_basic() -> None:
         "target": torch.randn(4, 10, 1),  # Target is still single dimension
     }
 
-    output = module(batch)
+    output = module(batch)["output"]
 
     # Output should have quantile dimensions
     assert output.shape == (4, 10, len(quantiles))
@@ -149,8 +149,8 @@ def test_attention_lstm_module_quantile_vs_mse() -> None:
         "target": torch.randn(2, 5, 1),
     }
 
-    quantile_output = quantile_module(batch)
-    mse_output = mse_module(batch)
+    quantile_output = quantile_module(batch)["output"]
+    mse_output = mse_module(batch)["output"]
 
     # Different output shapes
     assert quantile_output.shape == (2, 5, len(quantiles))
@@ -180,7 +180,7 @@ def test_attention_lstm_module_quantile_loss_computation() -> None:
 
     # Forward pass through model
     module.eval()  # Set to eval mode to disable dropout
-    output = module(batch)
+    output = module(batch)["output"]
 
     # Manually compute loss
     manual_loss = criterion(output, batch["target"])
@@ -223,7 +223,7 @@ def test_attention_lstm_module_quantile_different_sizes() -> None:
             "target": torch.randn(1, 3, 1),
         }
 
-        output = module(batch)
+        output = module(batch)["output"]
         assert output.shape == (1, 3, len(quantiles))
 
         step_output = module.training_step(batch, batch_idx=0)
@@ -252,7 +252,7 @@ def test_attention_lstm_module_quantile_variable_lengths() -> None:
         "target": torch.randn(3, 10, 1),
     }
 
-    output = module(batch)
+    output = module(batch)["output"]
     assert output.shape == (3, 10, len(quantiles))
 
     step_output = module.training_step(batch, batch_idx=0)
