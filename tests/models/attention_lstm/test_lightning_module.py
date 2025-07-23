@@ -26,7 +26,7 @@ def test_attention_lstm_module_training_step() -> None:
     batch = {
         "encoder_input": torch.randn(batch_size, past_seq_len, 3),
         "decoder_input": torch.randn(batch_size, future_seq_len, 2),
-        "decoder_lengths": torch.tensor([future_seq_len] * batch_size),
+        "decoder_lengths": torch.tensor([[future_seq_len]] * batch_size),
         "target": torch.randn(batch_size, future_seq_len, 1),
     }
 
@@ -62,7 +62,7 @@ def test_attention_lstm_module_validation_step() -> None:
     batch = {
         "encoder_input": torch.randn(batch_size, past_seq_len, 3),
         "decoder_input": torch.randn(batch_size, future_seq_len, 2),
-        "decoder_lengths": torch.tensor([future_seq_len] * batch_size),
+        "decoder_lengths": torch.tensor([[future_seq_len]] * batch_size),
         "target": torch.randn(batch_size, future_seq_len, 1),
     }
 
@@ -96,7 +96,7 @@ def test_attention_lstm_module_test_step() -> None:
     batch = {
         "encoder_input": torch.randn(batch_size, past_seq_len, 3),
         "decoder_input": torch.randn(batch_size, future_seq_len, 2),
-        "decoder_lengths": torch.tensor([future_seq_len] * batch_size),
+        "decoder_lengths": torch.tensor([[future_seq_len]] * batch_size),
         "target": torch.randn(batch_size, future_seq_len, 1),
     }
 
@@ -131,7 +131,7 @@ def test_attention_lstm_module_predict_step() -> None:
         "encoder_input": torch.randn(batch_size, past_seq_len, 3),
         "decoder_input": torch.randn(batch_size, future_seq_len, 2),
         "encoder_lengths": torch.tensor([past_seq_len] * batch_size),
-        "decoder_lengths": torch.tensor([future_seq_len] * batch_size),
+        "decoder_lengths": torch.tensor([[future_seq_len]] * batch_size),
     }
 
     # Run predict step
@@ -240,7 +240,7 @@ def test_attention_lstm_module_gating_options(use_gating: bool) -> None:
     batch = {
         "encoder_input": torch.randn(batch_size, past_seq_len, 3),
         "decoder_input": torch.randn(batch_size, future_seq_len, 2),
-        "decoder_lengths": torch.tensor([future_seq_len] * batch_size),
+        "decoder_lengths": torch.tensor([[future_seq_len]] * batch_size),
         "target": torch.randn(batch_size, future_seq_len, 1),
     }
 

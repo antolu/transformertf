@@ -205,7 +205,7 @@ class AttentionLSTM(LightningModuleBase):
         Parameters
         ----------
         batch : EncoderDecoderTargetSample
-            Batch containing encoder_input, decoder_input, decoder_lengths, and optionally target.
+            Batch containing encoder_input, decoder_input, encoder_lengths, decoder_lengths, and optionally target.
         return_encoder_states : bool, default=False
             Whether to return encoder hidden states along with output.
 
@@ -214,14 +214,23 @@ class AttentionLSTM(LightningModuleBase):
         torch.Tensor | tuple[torch.Tensor, HIDDEN_STATE]
             Model output, optionally with encoder states.
         """
+        # Extract and reshape lengths like PF-TFT
+        encoder_lengths = batch.get("encoder_lengths")
         decoder_lengths = batch.get("decoder_lengths")
-        if decoder_lengths is not None and decoder_lengths.dim() > 1:
-            # Remove the last dimension if it's (B, 1) -> (B,)
-            decoder_lengths = decoder_lengths.squeeze(-1)
+        if encoder_lengths is not None:
+            encoder_lengths = encoder_lengths[..., 0]  # (B, 1) -> (B,)
+        if decoder_lengths is not None:
+            decoder_lengths = decoder_lengths[..., 0]  # (B, 1) -> (B,)
+
+        # Slice decoder inputs to keep only num_future_features (like PF-TFT)
+        decoder_inputs = batch["decoder_input"][
+            ..., : self.hparams["num_future_features"]
+        ]
 
         return self.model(
             past_sequence=batch["encoder_input"],
-            future_sequence=batch["decoder_input"],
+            future_sequence=decoder_inputs,
+            encoder_lengths=encoder_lengths,
             decoder_lengths=decoder_lengths,
             return_encoder_states=return_encoder_states,
         )
@@ -243,11 +252,25 @@ class AttentionLSTM(LightningModuleBase):
         """Common logic for validation and test steps."""
         loss, model_output = self._compute_loss_and_output(batch)
 
+        # Extract and reshape lengths like main forward method
+        encoder_lengths = batch.get("encoder_lengths")
+        decoder_lengths = batch.get("decoder_lengths")
+        if encoder_lengths is not None:
+            encoder_lengths = encoder_lengths[..., 0]  # (B, 1) -> (B,)
+        if decoder_lengths is not None:
+            decoder_lengths = decoder_lengths[..., 0]  # (B, 1) -> (B,)
+
+        # Slice decoder inputs to keep only num_future_features
+        decoder_inputs = batch["decoder_input"][
+            ..., : self.hparams["num_future_features"]
+        ]
+
         # Get encoder states
         _, encoder_states = self.model(
             past_sequence=batch["encoder_input"],
-            future_sequence=batch["decoder_input"],
-            decoder_lengths=batch.get("decoder_lengths"),
+            future_sequence=decoder_inputs,
+            encoder_lengths=encoder_lengths,
+            decoder_lengths=decoder_lengths,
             return_encoder_states=True,
         )
 
@@ -292,11 +315,25 @@ class AttentionLSTM(LightningModuleBase):
         """
         loss, model_output = self._compute_loss_and_output(batch)
 
+        # Extract and reshape lengths like main forward method
+        encoder_lengths = batch.get("encoder_lengths")
+        decoder_lengths = batch.get("decoder_lengths")
+        if encoder_lengths is not None:
+            encoder_lengths = encoder_lengths[..., 0]  # (B, 1) -> (B,)
+        if decoder_lengths is not None:
+            decoder_lengths = decoder_lengths[..., 0]  # (B, 1) -> (B,)
+
+        # Slice decoder inputs to keep only num_future_features
+        decoder_inputs = batch["decoder_input"][
+            ..., : self.hparams["num_future_features"]
+        ]
+
         # Get encoder states for potential analysis
         _, encoder_states = self.model(
             past_sequence=batch["encoder_input"],
-            future_sequence=batch["decoder_input"],
-            decoder_lengths=batch.get("decoder_lengths"),
+            future_sequence=decoder_inputs,
+            encoder_lengths=encoder_lengths,
+            decoder_lengths=decoder_lengths,
             return_encoder_states=True,
         )
 
@@ -389,11 +426,25 @@ class AttentionLSTM(LightningModuleBase):
         dict[str, torch.Tensor]
             Dictionary containing model output and encoder states.
         """
+        # Extract and reshape lengths like main forward method
+        encoder_lengths = batch.get("encoder_lengths")
+        decoder_lengths = batch.get("decoder_lengths")
+        if encoder_lengths is not None:
+            encoder_lengths = encoder_lengths[..., 0]  # (B, 1) -> (B,)
+        if decoder_lengths is not None:
+            decoder_lengths = decoder_lengths[..., 0]  # (B, 1) -> (B,)
+
+        # Slice decoder inputs to keep only num_future_features
+        decoder_inputs = batch["decoder_input"][
+            ..., : self.hparams["num_future_features"]
+        ]
+
         # Get model output and encoder states
         output, encoder_states = self.model(
             past_sequence=batch["encoder_input"],
-            future_sequence=batch["decoder_input"],
-            decoder_lengths=batch.get("decoder_lengths"),
+            future_sequence=decoder_inputs,
+            encoder_lengths=encoder_lengths,
+            decoder_lengths=decoder_lengths,
             return_encoder_states=True,
         )
 

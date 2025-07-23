@@ -29,7 +29,7 @@ def test_attention_lstm_module_quantile_loss_basic() -> None:
     batch = {
         "encoder_input": torch.randn(4, 20, 5),
         "decoder_input": torch.randn(4, 10, 3),
-        "decoder_lengths": torch.tensor([10, 10, 10, 10]),
+        "decoder_lengths": torch.tensor([[10], [10], [10], [10]]),
         "target": torch.randn(4, 10, 1),  # Target is still single dimension
     }
 
@@ -57,7 +57,7 @@ def test_attention_lstm_module_quantile_training_step() -> None:
     batch = {
         "encoder_input": torch.randn(2, 15, 3),
         "decoder_input": torch.randn(2, 8, 2),
-        "decoder_lengths": torch.tensor([8, 8]),
+        "decoder_lengths": torch.tensor([[8], [8]]),
         "target": torch.randn(2, 8, 1),
     }
 
@@ -95,7 +95,7 @@ def test_attention_lstm_module_quantile_point_prediction() -> None:
     batch = {
         "encoder_input": torch.randn(3, 12, 4),
         "decoder_input": torch.randn(3, 6, 2),
-        "decoder_lengths": torch.tensor([6, 6, 6]),
+        "decoder_lengths": torch.tensor([[6], [6], [6]]),
     }
 
     # Test predict step (no target required)
@@ -145,7 +145,7 @@ def test_attention_lstm_module_quantile_vs_mse() -> None:
     batch = {
         "encoder_input": torch.randn(2, 10, 3),
         "decoder_input": torch.randn(2, 5, 2),
-        "decoder_lengths": torch.tensor([5, 5]),
+        "decoder_lengths": torch.tensor([[5], [5]]),
         "target": torch.randn(2, 5, 1),
     }
 
@@ -174,7 +174,7 @@ def test_attention_lstm_module_quantile_loss_computation() -> None:
     batch = {
         "encoder_input": torch.randn(1, 8, 2),
         "decoder_input": torch.randn(1, 4, 1),
-        "decoder_lengths": torch.tensor([4]),
+        "decoder_lengths": torch.tensor([[4]]),
         "target": torch.randn(1, 4, 1),
     }
 
@@ -219,7 +219,7 @@ def test_attention_lstm_module_quantile_different_sizes() -> None:
         batch = {
             "encoder_input": torch.randn(1, 5, 2),
             "decoder_input": torch.randn(1, 3, 1),
-            "decoder_lengths": torch.tensor([3]),
+            "decoder_lengths": torch.tensor([[3]]),
             "target": torch.randn(1, 3, 1),
         }
 
@@ -248,7 +248,7 @@ def test_attention_lstm_module_quantile_variable_lengths() -> None:
     batch = {
         "encoder_input": torch.randn(3, 15, 3),
         "decoder_input": torch.randn(3, 10, 2),
-        "decoder_lengths": torch.tensor([8, 10, 6]),  # Variable lengths
+        "decoder_lengths": torch.tensor([[8], [10], [6]]),  # Variable lengths
         "target": torch.randn(3, 10, 1),
     }
 

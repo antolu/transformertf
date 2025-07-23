@@ -221,6 +221,7 @@ class AttentionLSTMModel(torch.nn.Module):
         self,
         past_sequence: torch.Tensor,
         future_sequence: torch.Tensor,
+        encoder_lengths: torch.Tensor | None = None,
         decoder_lengths: torch.Tensor | None = None,
         *,
         return_encoder_states: typing.Literal[False] = False,
@@ -231,6 +232,7 @@ class AttentionLSTMModel(torch.nn.Module):
         self,
         past_sequence: torch.Tensor,
         future_sequence: torch.Tensor,
+        encoder_lengths: torch.Tensor | None = None,
         decoder_lengths: torch.Tensor | None = None,
         *,
         return_encoder_states: typing.Literal[True],
@@ -240,6 +242,7 @@ class AttentionLSTMModel(torch.nn.Module):
         self,
         past_sequence: torch.Tensor,
         future_sequence: torch.Tensor,
+        encoder_lengths: torch.Tensor | None = None,
         decoder_lengths: torch.Tensor | None = None,
         *,
         return_encoder_states: bool = False,
@@ -253,8 +256,11 @@ class AttentionLSTMModel(torch.nn.Module):
             Past sequence tensor of shape (batch_size, past_seq_len, num_past_features).
         future_sequence : torch.Tensor
             Future sequence tensor of shape (batch_size, future_seq_len, num_future_features).
+        encoder_lengths : torch.Tensor or None, default=None
+            Tensor of shape (batch_size,) containing actual encoder sequence lengths.
+            Currently not used for masking but included for API consistency.
         decoder_lengths : torch.Tensor or None, default=None
-            Tensor of shape (batch_size,) containing actual sequence lengths for masking.
+            Tensor of shape (batch_size,) containing actual decoder sequence lengths for masking.
             If None, no masking is applied.
         return_encoder_states : bool, default=False
             Whether to return the encoder's final hidden states.

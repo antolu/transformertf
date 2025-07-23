@@ -141,7 +141,9 @@ def test_attention_lstm_parameter_compatibility() -> None:
     future_covariates = torch.randn(
         batch_size, data_params["tgt_seq_len"], data_params["num_future_features"]
     )
-    decoder_lengths = torch.tensor([data_params["tgt_seq_len"]] * batch_size)
+    decoder_lengths = torch.tensor(
+        [[data_params["tgt_seq_len"]]] * batch_size
+    )  # (B, 1) shape
 
     batch = {
         "encoder_input": past_covariates,
@@ -177,7 +179,9 @@ def test_attention_lstm_minimal_integration() -> None:
     batch = {
         "encoder_input": torch.randn(batch_size, past_seq_len, 2),
         "decoder_input": torch.randn(batch_size, future_seq_len, 1),
-        "decoder_lengths": torch.tensor([future_seq_len] * batch_size),
+        "decoder_lengths": torch.tensor(
+            [[future_seq_len]] * batch_size
+        ),  # (B, 1) shape
         "target": torch.randn(batch_size, future_seq_len, 1),
     }
 
@@ -221,7 +225,7 @@ def test_attention_lstm_compile_option(compile_model: bool) -> None:
     batch = {
         "encoder_input": torch.randn(batch_size, past_seq_len, 3),
         "decoder_input": torch.randn(batch_size, future_seq_len, 2),
-        "decoder_lengths": torch.tensor([future_seq_len] * batch_size),
+        "decoder_lengths": torch.tensor([[future_seq_len]] * batch_size),
         "target": torch.randn(batch_size, future_seq_len, 1),
     }
 
