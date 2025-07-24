@@ -3,6 +3,7 @@ from __future__ import annotations
 import fnmatch
 import sys
 import typing
+import warnings
 
 import torch
 
@@ -545,14 +546,25 @@ class TransformerModuleBase(LightningModuleBase):
         ValueError
             If transformer hyperparameter configuration is invalid.
         """
-        # Validate prediction type
-        prediction_type = self.hparams.get("prediction_type", "point")
-        if prediction_type not in {"point", "delta"}:
-            msg = (
-                f"Invalid prediction_type '{prediction_type}'. "
-                f"Must be 'point' or 'delta'."
+        # Validate prediction type and issue deprecation warning
+        prediction_type = self.hparams.get("prediction_type")
+        if prediction_type is not None:
+            warnings.warn(
+                "The 'prediction_type' parameter is deprecated. To predict deltas, "
+                "use DeltaTransform in the data preprocessing pipeline by adding "
+                "it to data.init_args.extra_transforms in your config: "
+                "{'target_covariate_name': [{'class_path': 'transformertf.data.transform.DeltaTransform'}]}",
+                DeprecationWarning,
+                stacklevel=3,
             )
-            raise ValueError(msg)
+
+            # Maintain existing validation for backward compatibility
+            if prediction_type not in {"point", "delta"}:
+                msg = (
+                    f"Invalid prediction_type '{prediction_type}'. "
+                    f"Must be 'point' or 'delta'."
+                )
+                raise ValueError(msg)
 
         # Validate trainable parameters
         trainable_params = self.hparams.get("trainable_parameters")
@@ -777,101 +789,44 @@ class TransformerModuleBase(LightningModuleBase):
         """
         Calculate the loss based on model output and target values.
 
-        This method supports different prediction types and handles the transformation
-        of targets accordingly. The loss calculation depends on the `prediction_type`
-        hyperparameter.
+        This method computes the loss for point prediction (absolute values).
+        For delta prediction (differences), use DeltaTransform in the data
+        preprocessing pipeline instead.
 
         Parameters
         ----------
         model_output : torch.Tensor
             The raw output from the model, typically of shape (batch_size, seq_len, features).
         batch : EncoderDecoderTargetSample
-            The batch containing target values and encoder inputs.
-            Expected keys: "target", "encoder_input".
+            The batch containing target values.
+            Expected keys: "target".
 
         Returns
         -------
         torch.Tensor
             The computed loss value.
 
-        Raises
-        ------
-        ValueError
-            If an invalid prediction_type is specified in hyperparameters.
-
-        Notes
-        -----
-        Supported prediction types:
-
-        - **"point"** (default): Direct prediction of target values.
-          Loss is computed as criterion(model_output, target).
-
-        - **"delta"**: Prediction of differences between consecutive time steps.
-          Targets are transformed to deltas: delta[t] = target[t] - target[t-1].
-          The first delta is computed as target[0] - past_target (last encoder value).
-
-        The delta prediction mode can be beneficial for certain time series patterns
-        where the model should focus on changes rather than absolute values.
-
         Examples
         --------
-        >>> # Point prediction (default)
+        >>> # Point prediction
         >>> loss = self.calc_loss(model_output, batch)
-        >>>
-        >>> # Delta prediction
-        >>> model = SomeModel(prediction_type="delta")
-        >>> loss = model.calc_loss(model_output, batch)
         """
         weights = None
+        target = batch["target"]
 
+        # Squeeze target only if model output has been squeezed (for compatibility)
+        if model_output.dim() == target.dim() - 1:
+            target = target.squeeze(-1)
+
+        # Pass weights only if criterion supports it (e.g., QuantileLoss)
         if (
-            "prediction_type" in self.hparams
-            and self.hparams["prediction_type"] == "delta"
+            hasattr(self.criterion, "forward")
+            and "weights" in self.criterion.forward.__code__.co_varnames
         ):
-            with torch.no_grad():
-                target = batch["target"]
-                # Squeeze target only if model output has been squeezed (for compatibility)
-                if model_output.dim() == target.dim() - 1:
-                    target = target.squeeze(-1)
-                delta = torch.zeros_like(target)
-                delta[:, 1:] = target[:, 1:] - target[:, :-1]
-
-                past_target = batch["encoder_input"][:, -1, -1]
-                if delta.dim() == 3:  # [batch, seq, 1]
-                    past_target = past_target.unsqueeze(-1)
-                delta[:, 0] = target[:, 0] - past_target
-
-            # Pass weights only if criterion supports it (e.g., QuantileLoss)
-            if (
-                hasattr(self.criterion, "forward")
-                and "weights" in self.criterion.forward.__code__.co_varnames
-            ):
-                return typing.cast(
-                    torch.Tensor, self.criterion(model_output, delta, weights=weights)
-                )
-            return typing.cast(torch.Tensor, self.criterion(model_output, delta))
-
-        if (
-            "prediction_type" not in self.hparams
-            or self.hparams["prediction_type"] == "point"
-        ):
-            target = batch["target"]
-            # Squeeze target only if model output has been squeezed (for compatibility)
-            if model_output.dim() == target.dim() - 1:
-                target = target.squeeze(-1)
-            # Pass weights only if criterion supports it (e.g., QuantileLoss)
-            if (
-                hasattr(self.criterion, "forward")
-                and "weights" in self.criterion.forward.__code__.co_varnames
-            ):
-                return typing.cast(
-                    torch.Tensor, self.criterion(model_output, target, weights=weights)
-                )
-            return typing.cast(torch.Tensor, self.criterion(model_output, target))
-
-        # This should never happen
-        msg = f"Invalid prediction_type: {self.hparams['prediction_type']}"
-        raise ValueError(msg)
+            return typing.cast(
+                torch.Tensor, self.criterion(model_output, target, weights=weights)
+            )
+        return typing.cast(torch.Tensor, self.criterion(model_output, target))
 
     def _maybe_mark_dynamic(
         self, batch: EncoderDecoderTargetSample
