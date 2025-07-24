@@ -14,6 +14,7 @@ import numpy as np
 import torch
 
 from ..data import BaseTransform, EncoderDecoderDataset, TimeSeriesDataset
+from ..data.transform import DeltaTransform
 from ..models import LightningModuleBase
 
 log = logging.getLogger(__name__)
@@ -97,6 +98,38 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
     def __init__(self, plot_every: int = 1):
         super().__init__()
         self.plot_every = plot_every
+
+    def _has_delta_transform(self, transform_collection):
+        """Check if transform collection contains DeltaTransform."""
+        for transform in transform_collection.transforms:
+            if isinstance(transform, DeltaTransform):
+                return True
+        return False
+
+    def _get_time_step_size(self, val_dataset):
+        """Extract actual time step size (dt) from dataset time information."""
+        try:
+            # Access raw time data from sample generator
+            input_data = val_dataset._sample_gen[0]._input_data  # noqa: SLF001
+
+            # Find time column (prefixed with TIME_PREFIX = "__time__")
+            time_columns = [
+                col for col in input_data.columns if col.startswith("__time__")
+            ]
+
+            if time_columns:
+                time_col = time_columns[0]  # Use first time column
+                time_values = input_data[time_col].values
+
+                # Calculate dt as median difference (robust to outliers)
+                dt = np.median(np.diff(time_values))
+                return float(dt)
+            # No time column found, assume unit time steps
+            return 1.0  # noqa: TRY300
+
+        except Exception:
+            # Fallback to unit time steps if extraction fails
+            return 1.0
 
     def on_validation_epoch_end(
         self, trainer: L.Trainer, pl_module: LightningModuleBase
@@ -192,8 +225,6 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
             msg = "Only TimeSeriesDataset and EncoderDecoderDataset are supported."
             raise ValueError(msg)  # noqa: TRY004
 
-        time = np.arange(len(predictions))
-
         assert val_dataset._sample_gen[0]._label_data is not None  # noqa: SLF001
         targets = torch.cat([o["target"].squeeze() for o in validation_outputs[0]])
         targets = targets[indices]  # type: ignore[assignment]
@@ -243,18 +274,64 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
         )
 
         target_transform = transforms[target_key]
-        if target_transform.transform_type == BaseTransform.TransformType.XY:
+
+        if self._has_delta_transform(target_transform):
+            # Extract time step size for proper scaling
+            dt = self._get_time_step_size(val_dataset)
+
+            # Apply inverse transform (includes cumsum from DeltaTransform)
+            if target_transform.transform_type == BaseTransform.TransformType.XY:
+                predictions_cumsum = target_transform.inverse_transform(
+                    depends_on, predictions
+                )
+                targets_cumsum = target_transform.inverse_transform(depends_on, targets)
+            else:
+                predictions_cumsum = target_transform.inverse_transform(predictions)
+                targets_cumsum = target_transform.inverse_transform(targets)
+
+            # Use first target value as integration constant
+            first_target = targets_cumsum[0].item()
+
+            # Proper reconstruction: y[t] = y[0] + cumsum(delta * dt)
+            # Since inverse_transform already did cumsum, we need to:
+            # 1. Scale by dt (cumsum result needs dt scaling)
+            # 2. Adjust starting point to first_target
+
+            predictions_scaled = predictions_cumsum * dt
+            targets_scaled = targets_cumsum * dt
+
+            # Adjust to start from correct integration constant
             predictions = (
-                target_transform.inverse_transform(depends_on, predictions)
+                (predictions_scaled - predictions_scaled[0] + first_target)
                 .cpu()
                 .numpy()
             )
-            targets = (
-                target_transform.inverse_transform(depends_on, targets).cpu().numpy()
-            )
+            targets = targets_scaled.cpu().numpy()
+
+            # Update time array to reflect actual time values
+            time = np.arange(len(predictions)) * dt
+
         else:
-            predictions = target_transform.inverse_transform(predictions).cpu().numpy()
-            targets = target_transform.inverse_transform(targets).cpu().numpy()
+            # Standard inverse transform (existing logic)
+            if target_transform.transform_type == BaseTransform.TransformType.XY:
+                predictions = (
+                    target_transform.inverse_transform(depends_on, predictions)
+                    .cpu()
+                    .numpy()
+                )
+                targets = (
+                    target_transform.inverse_transform(depends_on, targets)
+                    .cpu()
+                    .numpy()
+                )
+            else:
+                predictions = (
+                    target_transform.inverse_transform(predictions).cpu().numpy()
+                )
+                targets = target_transform.inverse_transform(targets).cpu().numpy()
+
+            # Keep existing time array
+            time = np.arange(len(predictions))
 
         prediction_horizons = np.arange(sample_len, len(predictions), sample_len)
 
