@@ -179,7 +179,7 @@ class TemporalConvTransformer(TransformerModuleBase):
         compile_model: bool = False,
         log_grad_norm: bool = False,
         trainable_parameters: list[str] | None = None,
-        prediction_type: typing.Literal["point", "delta"] = "point",
+        prediction_type: typing.Literal["point", "delta"] | None = None,
         logging_metrics: collections.abc.Container[
             MetricLiteral
         ] = DEFAULT_LOGGING_METRICS,

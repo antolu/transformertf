@@ -176,7 +176,7 @@ class TemporalFusionTransformer(TransformerModuleBase):
         criterion: QuantileLoss | torch.nn.Module | None = None,
         *,
         casual_attention: bool = True,
-        prediction_type: typing.Literal["delta", "point"] = "point",
+        prediction_type: typing.Literal["delta", "point"] | None = None,
         log_grad_norm: bool = False,
         compile_model: bool = False,
         trainable_parameters: list[str] | None = None,
