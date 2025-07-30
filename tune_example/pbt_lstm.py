@@ -1,5 +1,9 @@
 """
 Do a hyperparameter scan for the LSTM model.
+
+DEPRECATED: This file uses the old Python-based tuning API which has been replaced
+with the YAML-based configuration system. See lstm_tune_config.yml for the new approach.
+This file is kept for reference but is no longer functional.
 """
 
 from __future__ import annotations
@@ -84,7 +88,7 @@ def main() -> None:
         num_epochs_per_trial=NUM_EPOCHS,
         perturbation_interval=PERTURBATION_INTERVAL,
     )
-    results_grid = tune(tune_config)
+    results_grid = tune(tune_config)  # type: ignore[arg-type]  # Deprecated API
     results_grid.get_dataframe().to_parquet(LOG_DIR / "results.parquet")
 
     best_trial = results_grid.get_best_result(MONITOR, "min", "last")
