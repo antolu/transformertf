@@ -105,7 +105,7 @@ Sample configuration files in ``sample_configs/`` demonstrate the correct parame
         d_model: 300           # Model dimension
         num_heads: 4           # Attention heads
         num_lstm_layers: 2     # Number of LSTM layers
-        hidden_continuous_dim: 8  # Context-specific dimension
+        d_hidden_continuous: 8  # Context-specific dimension
         dropout: 0.1
 
 These conventions ensure that TransformerTF provides a clean, consistent, and academically-aligned API for time series modeling with transformer architectures.

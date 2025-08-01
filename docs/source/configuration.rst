@@ -78,7 +78,7 @@ Model Configurations
      init_args:
        # Architecture parameters
        d_model: 64                 # Model dimension (32, 64, 128, 256)
-       hidden_continuous_dim: 16       # Continuous variable processing dim
+       d_hidden_continuous: 16       # Continuous variable processing dim
        num_heads: 4                    # Number of attention heads (4, 8, 16)
        num_lstm_layers: 2              # LSTM encoder/decoder layers (1, 2, 3)
        dropout: 0.1                    # Dropout rate (0.0 - 0.5)
@@ -98,7 +98,7 @@ Model Configurations
    model:
      class_path: transformertf.models.lstm.LSTM
      init_args:
-       hidden_size: 128               # LSTM hidden dimension
+       d_model: 128               # LSTM hidden dimension
        num_layers: 2                  # Number of LSTM layers
        dropout: 0.1                   # Dropout rate
        bidirectional: false           # Use bidirectional LSTM
@@ -112,8 +112,8 @@ Model Configurations
    model:
      class_path: transformertf.models.tsmixer.TSMixer
      init_args:
-       n_block: 8                     # Number of mixing blocks
-       ff_dim: 256                    # Feed-forward dimension
+       num_blocks: 8                     # Number of mixing blocks
+       d_fc: 256                    # Feed-forward dimension
        dropout: 0.1                   # Dropout rate
        activation: "gelu"             # Activation function
        norm_type: "batch_norm"        # Normalization type
@@ -130,7 +130,7 @@ Model Configurations
        num_heads: 8                   # Attention heads
        num_encoder_layers: 6          # Encoder layers
        num_decoder_layers: 6          # Decoder layers
-       ff_dim: 512                    # Feed-forward dimension
+       d_fc: 512                    # Feed-forward dimension
        dropout: 0.1                   # Dropout rate
        output_dim: 1                  # Output dimension
 
@@ -289,7 +289,7 @@ Simple LSTM for single time series:
    model:
      class_path: transformertf.models.lstm.LSTM
      init_args:
-       hidden_size: 64
+       d_model: 64
        num_layers: 2
        dropout: 0.1
 
@@ -327,7 +327,7 @@ TFT with uncertainty quantification:
      class_path: transformertf.models.temporal_fusion_transformer.TemporalFusionTransformer
      init_args:
        d_model: 128
-       hidden_continuous_dim: 32
+       d_hidden_continuous: 32
        num_heads: 8
        num_lstm_layers: 2
        dropout: 0.15
@@ -391,8 +391,8 @@ Optimized for fast training on large datasets:
    model:
      class_path: transformertf.models.tsmixer.TSMixer
      init_args:
-       n_block: 12
-       ff_dim: 512
+       num_blocks: 12
+       d_fc: 512
        dropout: 0.1
        activation: "gelu"
        compile_model: true            # PyTorch compilation
@@ -463,18 +463,18 @@ Model Architecture
 **Temporal Fusion Transformer:**
 - ``d_model``: 32-256, higher for complex data
 - ``num_heads``: 4-16, should divide ``d_model``
-- ``hidden_continuous_dim``: 8-64, typically d_model/2-4
+- ``d_hidden_continuous``: 8-64, typically d_model/2-4
 - ``num_lstm_layers``: 1-3, more layers for longer sequences
 - ``dropout``: 0.1-0.3, higher for overfitting
 
 **LSTM:**
-- ``hidden_size``: 32-512, scale with data complexity
+- ``d_model``: 32-512, scale with data complexity
 - ``num_layers``: 1-4, diminishing returns beyond 3
 - ``dropout``: 0.1-0.5, apply between layers
 
 **TSMixer:**
-- ``n_block``: 4-16, more blocks for complex patterns
-- ``ff_dim``: 128-1024, typically 2-4x model dimension
+- ``num_blocks``: 4-16, more blocks for complex patterns
+- ``d_fc``: 128-1024, typically 2-4x model dimension
 
 Data Configuration
 ~~~~~~~~~~~~~~~~~

@@ -162,7 +162,7 @@ For forecasting multiple time steps into the future:
 
    model = TemporalFusionTransformer(
        d_model=128,
-       hidden_continuous_dim=32,
+       d_hidden_continuous=32,
        num_heads=8,
        output_dim=100     # Match target sequence length
    )
