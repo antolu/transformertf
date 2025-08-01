@@ -55,7 +55,7 @@ Python API usage:
    )
 
    model = TemporalFusionTransformer(
-       n_dim_model=64,
+       d_model=64,
        num_heads=4,
        dropout=0.1
    )
@@ -123,6 +123,12 @@ Documentation Contents
 
     api
     faq
+
+.. toctree::
+    :caption: Development
+    :maxdepth: 1
+
+    development
 
 .. toctree::
     :caption: Index
