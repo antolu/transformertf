@@ -109,7 +109,7 @@ Memory Errors
 
       model:
         init_args:
-          n_dim_model: 32    # Instead of 64 or 128
+          d_model: 32    # Instead of 64 or 128
           num_heads: 4       # Instead of 8
 
 Training Issues
@@ -162,7 +162,7 @@ Training Issues
 
       model:
         init_args:
-          n_dim_model: 128   # Increase from 64
+          d_model: 128   # Increase from 64
           num_lstm_layers: 3 # Add more layers
 
 4. **Adjust learning rate schedule**:
@@ -399,7 +399,7 @@ Poor Prediction Quality
       # Start simple, add complexity
       model:
         init_args:
-          n_dim_model: 32     # → 64 → 128
+          d_model: 32     # → 64 → 128
           num_heads: 4        # → 8 → 16
 
 5. **Longer training**:

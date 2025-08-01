@@ -162,7 +162,7 @@ Create a YAML configuration for the TFT model with quantile regression:
    model:
      class_path: transformertf.models.temporal_fusion_transformer.TemporalFusionTransformer
      init_args:
-       n_dim_model: 64
+       d_model: 64
        hidden_continuous_dim: 16
        num_heads: 4
        num_lstm_layers: 2
@@ -240,7 +240,7 @@ Train the TFT model using the Lightning CLI:
 
    # Initialize model
    model = TemporalFusionTransformer(
-       n_dim_model=64,
+       d_model=64,
        hidden_continuous_dim=16,
        num_heads=4,
        num_lstm_layers=2,

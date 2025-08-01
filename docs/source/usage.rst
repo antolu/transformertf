@@ -113,7 +113,7 @@ Create a YAML configuration file:
    model:
      class_path: transformertf.models.temporal_fusion_transformer.TemporalFusionTransformer
      init_args:
-       n_dim_model: 64
+       d_model: 64
        num_heads: 4
        dropout: 0.1
 
@@ -161,7 +161,7 @@ For forecasting multiple time steps into the future:
    )
 
    model = TemporalFusionTransformer(
-       n_dim_model=128,
+       d_model=128,
        hidden_continuous_dim=32,
        num_heads=8,
        output_dim=100     # Match target sequence length
@@ -215,7 +215,7 @@ Use Ray Tune for automated hyperparameter search:
 
    # Define search space
    config = {
-       "model.init_args.n_dim_model": {"type": "choice", "values": [32, 64, 128]},
+       "model.init_args.d_model": {"type": "choice", "values": [32, 64, 128]},
        "model.init_args.num_heads": {"type": "choice", "values": [4, 8]},
        "model.init_args.dropout": {"type": "uniform", "low": 0.1, "high": 0.3},
        "data.init_args.batch_size": {"type": "choice", "values": [16, 32, 64]}
@@ -253,7 +253,7 @@ For programmatic control:
    )
 
    model = TemporalFusionTransformer(
-       n_dim_model=64,
+       d_model=64,
        num_heads=4,
        num_lstm_layers=2,
        dropout=0.1

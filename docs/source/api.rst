@@ -53,7 +53,7 @@ Quick Start Example
 
    # Setup model
    model = TemporalFusionTransformer(
-       n_dim_model=64,
+       d_model=64,
        num_heads=4
    )
 

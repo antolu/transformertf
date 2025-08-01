@@ -77,7 +77,7 @@ Model Configurations
      class_path: transformertf.models.temporal_fusion_transformer.TemporalFusionTransformer
      init_args:
        # Architecture parameters
-       n_dim_model: 64                 # Model dimension (32, 64, 128, 256)
+       d_model: 64                 # Model dimension (32, 64, 128, 256)
        hidden_continuous_dim: 16       # Continuous variable processing dim
        num_heads: 4                    # Number of attention heads (4, 8, 16)
        num_lstm_layers: 2              # LSTM encoder/decoder layers (1, 2, 3)
@@ -126,7 +126,7 @@ Model Configurations
    model:
      class_path: transformertf.models.transformer.VanillaTransformer
      init_args:
-       n_dim_model: 128               # Model dimension
+       d_model: 128               # Model dimension
        num_heads: 8                   # Attention heads
        num_encoder_layers: 6          # Encoder layers
        num_decoder_layers: 6          # Decoder layers
@@ -326,7 +326,7 @@ TFT with uncertainty quantification:
    model:
      class_path: transformertf.models.temporal_fusion_transformer.TemporalFusionTransformer
      init_args:
-       n_dim_model: 128
+       d_model: 128
        hidden_continuous_dim: 32
        num_heads: 8
        num_lstm_layers: 2
@@ -436,7 +436,7 @@ Fine-tune pre-trained model:
      class_path: transformertf.models.temporal_fusion_transformer.TemporalFusionTransformer
      init_args:
        # Must match pre-trained model architecture
-       n_dim_model: 64
+       d_model: 64
        num_heads: 4
        num_lstm_layers: 2
        # ... other parameters from original model
@@ -461,9 +461,9 @@ Model Architecture
 ~~~~~~~~~~~~~~~~~
 
 **Temporal Fusion Transformer:**
-- ``n_dim_model``: 32-256, higher for complex data
-- ``num_heads``: 4-16, should divide ``n_dim_model``
-- ``hidden_continuous_dim``: 8-64, typically n_dim_model/2-4
+- ``d_model``: 32-256, higher for complex data
+- ``num_heads``: 4-16, should divide ``d_model``
+- ``hidden_continuous_dim``: 8-64, typically d_model/2-4
 - ``num_lstm_layers``: 1-3, more layers for longer sequences
 - ``dropout``: 0.1-0.3, higher for overfitting
 
