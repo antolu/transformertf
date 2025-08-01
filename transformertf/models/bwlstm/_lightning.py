@@ -359,7 +359,7 @@ class BWLSTM1(BWLSTMBase):
     def __init__(
         self,
         num_layers: int = 3,
-        n_dim_model: int = 350,
+        d_model: int = 350,
         n_dim_fc: int | None = None,
         dropout: float = 0.2,
         loss_weights: BoucWenLoss.LossWeights | None = None,
@@ -397,7 +397,7 @@ class BWLSTM1(BWLSTMBase):
 
         self.bwlstm1 = BWLSTM1Model(
             num_layers=num_layers,
-            d_model=n_dim_model,
+            d_model=d_model,
             n_dim_fc=n_dim_fc,
             dropout=dropout,
         )
@@ -451,7 +451,7 @@ class BWLSTM2(BWLSTMBase):
     def __init__(
         self,
         num_layers: int | tuple[int, int] = 3,
-        n_dim_model: int | tuple[int, int] = 350,
+        d_model: int | tuple[int, int] = 350,
         n_dim_fc: int | tuple[int, int] | None = None,
         dropout: float | tuple[float, float] = 0.2,
         loss_weights: BoucWenLoss.LossWeights | None = None,
@@ -497,9 +497,9 @@ class BWLSTM2(BWLSTMBase):
         self.save_hyperparameters(ignore=["loss_weights"])
 
         num_layers_ = _parse_tuple_or_int(num_layers, 2)
-        n_dim_model_ = _parse_tuple_or_int(n_dim_model, 2)
+        d_model_ = _parse_tuple_or_int(d_model, 2)
         if n_dim_fc is None:
-            n_dim_fc_ = tuple(dim // 2 for dim in n_dim_model_)
+            n_dim_fc_ = tuple(dim // 2 for dim in d_model_)
         else:
             n_dim_fc_ = _parse_tuple_or_int(n_dim_fc, 2)
 
@@ -507,13 +507,13 @@ class BWLSTM2(BWLSTMBase):
 
         self.bwlstm1 = BWLSTM1Model(
             num_layers=num_layers_[0],
-            d_model=n_dim_model_[0],
+            d_model=d_model_[0],
             n_dim_fc=n_dim_fc_[0],
             dropout=dropout_[0],
         )
         self.bwlstm2 = BWLSTM2Model(
             num_layers=num_layers_[1],
-            d_model=n_dim_model_[1],
+            d_model=d_model_[1],
             n_dim_fc=n_dim_fc_[1],
             dropout=dropout_[1],
         )
@@ -583,7 +583,7 @@ class BWLSTM3(BWLSTMBase):
         self,
         n_features: int = 1,
         num_layers: int | tuple[int, int, int] = 3,
-        n_dim_model: int | tuple[int, int, int] = 350,
+        d_model: int | tuple[int, int, int] = 350,
         n_dim_fc: int | tuple[int, int, int] | None = None,
         dropout: float | tuple[float, float, float] = 0.2,
         loss_weights: BoucWenLoss.LossWeights | None = None,
@@ -602,7 +602,7 @@ class BWLSTM3(BWLSTMBase):
         The model parameters are saved to the model directory by Lightning.
 
         :param num_layers: The number of LSTM layers.
-        :param n_dim_model: The number of hidden units in each LSTM layer.
+        :param d_model: The number of hidden units in each LSTM layer.
         :param n_dim_fc: The number of hidden units in the fully connected layer.
         :param dropout: The dropout probability.
         :param lr: The optimizer learning rate. This may be set to "auto"
@@ -615,7 +615,7 @@ class BWLSTM3(BWLSTMBase):
         self.save_hyperparameters(ignore=["loss_weights"])
 
         num_layers_ = _parse_tuple_or_int(num_layers, 3)
-        n_dim_model_ = _parse_tuple_or_int(n_dim_model, 3)
+        n_dim_model_ = _parse_tuple_or_int(d_model, 3)
 
         if n_dim_fc is None:
             n_dim_fc_ = tuple(dim // 2 for dim in n_dim_model_)

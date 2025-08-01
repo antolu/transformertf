@@ -15,7 +15,7 @@ def transformer_module_config(
         "num_features": 2,
         "num_encoder_layers": 2,
         "num_decoder_layers": 2,
-        "n_dim_model": 32,
+        "d_model": 32,
         "num_heads": 4,
         "fc_dim": 16,
         "ctxt_seq_len": encoder_decoder_datamodule_config["ctxt_seq_len"],

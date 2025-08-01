@@ -264,7 +264,7 @@ def test_temporal_conv_transformer_hyperparameter_storage():
     assert hparams["num_past_features"] == 10
     assert hparams["num_future_features"] == 6
     assert hparams["output_dim"] == 1
-    assert hparams["hidden_dim"] == 128
+    assert hparams["d_model"] == 128
     assert hparams["compression_factor"] == 8
     assert hparams["dropout"] == 0.2
 

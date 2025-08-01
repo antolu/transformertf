@@ -148,7 +148,7 @@ class TemporalConvTransformerModel(torch.nn.Module):
         # Temporal encoder for past (encoder) sequences
         self.past_encoder = TemporalEncoder(
             input_dim=num_past_features,
-            d_model=d_model,
+            hidden_dim=d_model,
             num_layers=num_encoder_layers,
             dropout=dropout,
             activation=activation,
@@ -159,7 +159,7 @@ class TemporalConvTransformerModel(torch.nn.Module):
         # Temporal encoder for future (decoder) sequences
         self.future_encoder = TemporalEncoder(
             input_dim=num_future_features,
-            d_model=d_model,
+            hidden_dim=d_model,
             num_layers=num_encoder_layers,
             dropout=dropout,
             activation=activation,
@@ -178,7 +178,7 @@ class TemporalConvTransformerModel(torch.nn.Module):
         self.decoder = TemporalDecoder(
             input_dim=d_model,
             output_dim=output_dim,
-            d_model=d_model,
+            hidden_dim=d_model,
             num_layers=num_decoder_layers,
             dropout=dropout,
             activation=activation,

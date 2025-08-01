@@ -126,7 +126,7 @@ class PETE(SABWLSTM):
             n_dim_selection=n_dim_selection,
             d_model=d_model if isinstance(d_model, int) else d_model[0],
             num_heads=n_enc_heads,
-            num_layers=num_layers if isinstance(num_layers, int) else num_layers[0],
+            n_layers=num_layers if isinstance(num_layers, int) else num_layers[0],
             n_layers_encoded=num_layers
             if isinstance(num_layers, int)
             else num_layers[2],

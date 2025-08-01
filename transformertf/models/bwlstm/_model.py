@@ -32,7 +32,7 @@ class BWLSTM1Model(nn.Module):
         self,
         n_features: int = 1,
         num_layers: int = 3,
-        n_dim_model: int = 350,
+        d_model: int = 350,
         n_dim_fc: int | None = None,
         dropout: float = 0.2,
     ):
@@ -66,7 +66,7 @@ class BWLSTM1Model(nn.Module):
         :class:`BWLSTMModel3` do.
 
         :param num_layers: Number of LSTM layers.
-        :param n_dim_model: Number of hidden units in each LSTM layer.
+        :param d_model: Number of hidden units in each LSTM layer.
         :param dropout: Dropout probability.
 
         Parameters
@@ -85,15 +85,15 @@ class BWLSTM1Model(nn.Module):
         # state space variable modeling
         self.lstm1 = nn.LSTM(
             input_size=n_features,
-            d_model=n_dim_model,
+            hidden_size=d_model,
             num_layers=num_layers,
             batch_first=True,
             dropout=dropout,
         )
 
-        n_dim_fc_ = n_dim_fc or n_dim_model // 2
+        n_dim_fc_ = n_dim_fc or d_model // 2
         self.fc1 = MLP(
-            input_dim=n_dim_model,
+            input_dim=d_model,
             hidden_dim=n_dim_fc_,
             output_dim=3,
             activation="lrelu",
@@ -181,23 +181,23 @@ class BWLSTM2Model(nn.Module):
     def __init__(
         self,
         num_layers: int = 3,
-        n_dim_model: int = 350,
+        d_model: int = 350,
         n_dim_fc: int | None = None,
         dropout: float = 0.2,
     ) -> None:
         super().__init__()
         self.lstm2 = nn.LSTM(
             input_size=3,
-            d_model=n_dim_model,
+            hidden_size=d_model,
             num_layers=num_layers,
             batch_first=True,
             dropout=dropout,
         )
 
-        n_dim_fc_ = n_dim_fc or n_dim_model // 2
+        n_dim_fc_ = n_dim_fc or d_model // 2
 
         self.fc2 = MLP(
-            input_dim=n_dim_model,
+            input_dim=d_model,
             hidden_dim=n_dim_fc_,
             output_dim=1,
             activation="lrelu",
@@ -282,7 +282,7 @@ class BWLSTM3Model(nn.Module):
     def __init__(
         self,
         num_layers: int = 3,
-        n_dim_model: int = 350,
+        d_model: int = 350,
         n_dim_fc: int | None = None,
         dropout: float = 0.2,
     ):
@@ -290,16 +290,16 @@ class BWLSTM3Model(nn.Module):
         # hysteric parameter modeling
         self.lstm3 = nn.LSTM(
             input_size=2,
-            d_model=n_dim_model,
+            hidden_size=d_model,
             num_layers=num_layers,
             batch_first=True,
             dropout=dropout,
         )
 
-        n_dim_fc = n_dim_fc or n_dim_model // 2
+        n_dim_fc = n_dim_fc or d_model // 2
 
         self.fc3 = MLP(
-            input_dim=n_dim_model,
+            input_dim=d_model,
             hidden_dim=n_dim_fc,
             output_dim=1,
             activation="lrelu",

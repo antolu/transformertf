@@ -113,7 +113,7 @@ class TFTModelFactory(factory.Factory):
     ctxt_seq_len = fuzzy.FuzzyInteger(50, 200)
     tgt_seq_len = fuzzy.FuzzyInteger(10, 50)
     num_lstm_layers = fuzzy.FuzzyChoice([1, 2, 3])
-    n_dim_model = fuzzy.FuzzyChoice([32, 64, 128])
+    d_model = fuzzy.FuzzyChoice([32, 64, 128])
     num_heads = fuzzy.FuzzyChoice([2, 4, 8])
     output_dim = 1
     hidden_continuous_dim = fuzzy.FuzzyInteger(8, 32)
@@ -130,7 +130,7 @@ class TFTLightningFactory(factory.Factory):
     ctxt_seq_len = fuzzy.FuzzyInteger(50, 200)
     tgt_seq_len = fuzzy.FuzzyInteger(10, 50)
     num_lstm_layers = fuzzy.FuzzyChoice([1, 2, 3])
-    n_dim_model = fuzzy.FuzzyChoice([32, 64, 128])
+    d_model = fuzzy.FuzzyChoice([32, 64, 128])
     num_heads = fuzzy.FuzzyChoice([2, 4, 8])
     output_dim = 1
     hidden_continuous_dim = fuzzy.FuzzyInteger(8, 32)

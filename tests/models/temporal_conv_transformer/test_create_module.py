@@ -50,7 +50,7 @@ class TestTemporalConvTransformerCreation:
         assert model.hparams["num_past_features"] == 8
         assert model.hparams["num_future_features"] == 3
         assert model.hparams["output_dim"] == 2
-        assert model.hparams["hidden_dim"] == 64
+        assert model.hparams["d_model"] == 64
         assert model.hparams["compression_factor"] == 4
 
     def test_tct_alias(self):
@@ -75,7 +75,7 @@ class TestTemporalConvTransformerCreation:
 
         # Check default values
         assert model.hparams["output_dim"] == 1
-        assert model.hparams["hidden_dim"] == 256
+        assert model.hparams["d_model"] == 256
         assert model.hparams["compression_factor"] == 4
         assert hasattr(model, "model")
         assert hasattr(model, "criterion")
@@ -102,7 +102,7 @@ class TestTemporalConvTransformerCreation:
         assert model.hparams["num_past_features"] == 15
         assert model.hparams["num_future_features"] == 8
         assert model.hparams["output_dim"] == 3
-        assert model.hparams["hidden_dim"] == 128
+        assert model.hparams["d_model"] == 128
         assert model.hparams["compression_factor"] == 8
         assert model.hparams["max_dilation"] == 16
 

@@ -15,7 +15,7 @@ def tft_module_config(
         "num_past_features": 2,
         "num_future_features": 1,
         "num_lstm_layers": 2,
-        "n_dim_model": 32,
+        "d_model": 32,
         "ctxt_seq_len": encoder_decoder_datamodule_config["ctxt_seq_len"],
         "tgt_seq_len": encoder_decoder_datamodule_config["tgt_seq_len"],
     }

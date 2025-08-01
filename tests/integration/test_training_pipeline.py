@@ -33,7 +33,7 @@ def test_full_training_pipeline(tmp_path):
         "ctxt_seq_len": 50,
         "tgt_seq_len": 25,
         "num_lstm_layers": 1,
-        "n_dim_model": 32,
+        "d_model": 32,
         "num_heads": 4,
         "output_dim": 1,
         "hidden_continuous_dim": 16,

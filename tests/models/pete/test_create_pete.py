@@ -10,7 +10,7 @@ def test_create_pete() -> None:
         n_dim_selection=64,
         d_model=300,
         num_heads=4,
-        num_layers=2,
+        n_layers=2,
         n_layers_encoded=2,
         dropout=0.1,
     )

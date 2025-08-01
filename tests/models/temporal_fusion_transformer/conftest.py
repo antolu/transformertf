@@ -13,7 +13,7 @@ def tft_module_config() -> dict[str, typing.Any]:
         "num_past_features": 2,
         "num_future_features": 1,
         "num_lstm_layers": 2,
-        "n_dim_model": 32,
+        "d_model": 32,
         "ctxt_seq_len": 100,
         "tgt_seq_len": 50,
     }

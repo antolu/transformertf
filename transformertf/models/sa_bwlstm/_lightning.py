@@ -19,7 +19,7 @@ class SABWLSTM(BWLSTM3):
         self,
         n_features: int = 1,
         num_layers: int | tuple[int, int, int] = 3,
-        n_dim_model: int | tuple[int, int, int] = 350,
+        d_model: int | tuple[int, int, int] = 350,
         n_dim_fc: int | tuple[int, int, int] | None = None,
         dropout: float | tuple[float, float, float] = 0.2,
         loss_weights: BoucWenLoss.LossWeights | None = None,
@@ -75,7 +75,7 @@ class SABWLSTM(BWLSTM3):
         super().__init__(
             n_features=n_features,
             num_layers=num_layers,
-            d_model=n_dim_model,
+            d_model=d_model,
             n_dim_fc=n_dim_fc,
             dropout=dropout,
             loss_weights=loss_weights,

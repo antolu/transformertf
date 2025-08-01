@@ -90,7 +90,7 @@ def tft_config_strategy(draw):
         "ctxt_seq_len": draw(st.integers(min_value=10, max_value=200)),
         "tgt_seq_len": draw(st.integers(min_value=5, max_value=100)),
         "num_lstm_layers": draw(st.integers(min_value=1, max_value=3)),
-        "n_dim_model": draw(st.sampled_from([16, 32, 64, 128])),
+        "d_model": draw(st.sampled_from([16, 32, 64, 128])),
         "num_heads": draw(st.sampled_from([1, 2, 4, 8])),
         "output_dim": 1,
         "hidden_continuous_dim": draw(st.integers(min_value=8, max_value=32)),
