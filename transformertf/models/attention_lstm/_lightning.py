@@ -40,13 +40,13 @@ class AttentionLSTM(TransformerModuleBase):
         Number of input features in the past sequence (encoder input).
     num_future_features : int
         Number of input features in the future sequence (decoder input).
-    hidden_size : int, default=128
+    d_model : int, default=128
         Hidden size used for both encoder and decoder LSTM layers.
     num_layers : int, default=2
         Number of LSTM layers used for both encoder and decoder.
     dropout : float, default=0.1
         Dropout probability applied to all components (LSTM, attention, output).
-    n_heads : int, default=4
+    num_heads : int, default=4
         Number of attention heads in the multi-head attention mechanism.
     use_gating : bool, default=True
         Whether to use gating mechanism for skip connections.
@@ -91,9 +91,9 @@ class AttentionLSTM(TransformerModuleBase):
     >>> model = AttentionLSTMModule(
     ...     num_past_features=10,
     ...     num_future_features=5,
-    ...     hidden_size=64,
+    ...     d_model=64,
     ...     num_layers=2,
-    ...     n_heads=4,
+    ...     num_heads=4,
     ...     use_gating=True,
     ...     output_dim=1
     ... )
@@ -103,8 +103,8 @@ class AttentionLSTM(TransformerModuleBase):
     >>> model = AttentionLSTMModule(
     ...     num_past_features=8,
     ...     num_future_features=3,
-    ...     hidden_size=128,
-    ...     n_heads=8,
+    ...     d_model=128,
+    ...     num_heads=8,
     ...     criterion=QuantileLoss(quantiles=quantiles)
     ... )
     >>>
@@ -152,10 +152,10 @@ class AttentionLSTM(TransformerModuleBase):
         self,
         num_past_features: int,
         num_future_features: int,
-        hidden_size: int = 128,
+        d_model: int = 128,
         num_layers: int = 2,
         dropout: float = 0.1,
-        n_heads: int = 4,
+        num_heads: int = 4,
         use_gating: bool = True,
         trainable_add: bool = False,
         output_dim: int = 1,
@@ -185,10 +185,10 @@ class AttentionLSTM(TransformerModuleBase):
         self.model = AttentionLSTMModel(
             num_past_features=num_past_features,
             num_future_features=num_future_features,
-            hidden_size=hidden_size,
+            d_model=d_model,
             num_layers=num_layers,
             dropout=dropout,
-            n_heads=n_heads,
+            num_heads=num_heads,
             use_gating=use_gating,
             trainable_add=trainable_add,
             output_dim=output_dim,

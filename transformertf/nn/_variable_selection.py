@@ -71,7 +71,7 @@ class VariableSelection(torch.nn.Module):
     hidden_dim : int, default=8
         Hidden dimension for prescaling layers. Controls the initial
         feature processing capacity.
-    n_dim_model : int, default=300
+    d_model : int, default=300
         Model dimension for output features. This is the final feature
         dimension after selection and processing.
     context_size : int, optional
@@ -88,7 +88,7 @@ class VariableSelection(torch.nn.Module):
         Number of input features.
     hidden_dim : int
         Hidden dimension for prescaling.
-    n_dim_model : int
+    d_model : int
         Model output dimension.
     context_size : int or None
         Context dimension if context-aware selection is enabled.
@@ -125,14 +125,14 @@ class VariableSelection(torch.nn.Module):
     >>> from transformertf.nn import VariableSelection
     >>>
     >>> # Basic variable selection
-    >>> vs = VariableSelection(n_features=10, n_dim_model=256)\n    >>> x = torch.randn(32, 128, 10)  # (batch, seq, features)
+    >>> vs = VariableSelection(n_features=10, d_model=256)\n    >>> x = torch.randn(32, 128, 10)  # (batch, seq, features)
     >>> output, weights = vs(x)
     >>> print(output.shape)  # torch.Size([32, 128, 256])
     >>> print(weights.shape)  # torch.Size([32, 128, 10, 1])
     >>>
     >>> # With context conditioning
     >>> vs_ctx = VariableSelection(
-    ...     n_features=10, n_dim_model=256, context_size=64
+    ...     n_features=10, d_model=256, context_size=64
     ... )
     >>> context = torch.randn(32, 128, 64)
     >>> output_ctx, weights_ctx = vs_ctx(x, context)
@@ -144,7 +144,7 @@ class VariableSelection(torch.nn.Module):
     >>> print(f\"Feature importance: {feature_importance}\")
     >>>
     >>> # Single feature case (no selection needed)
-    >>> vs_single = VariableSelection(n_features=1, n_dim_model=256)
+    >>> vs_single = VariableSelection(n_features=1, d_model=256)
     >>> x_single = torch.randn(32, 128, 1)
     >>> output_single, weights_single = vs_single(x_single)
     >>> print(weights_single.unique())  # All ones (no selection)
@@ -154,7 +154,7 @@ class VariableSelection(torch.nn.Module):
     >>> n_series = 20
     >>> vs_forecast = VariableSelection(
     ...     n_features=n_series,
-    ...     n_dim_model=512,
+    ...     d_model=512,
     ...     context_size=32  # Static covariates
     ... )
     >>> time_series = torch.randn(64, 168, n_series)  # Weekly data
@@ -181,14 +181,14 @@ class VariableSelection(torch.nn.Module):
         self,
         n_features: int,
         hidden_dim: int = 8,
-        n_dim_model: int = 300,
+        d_model: int = 300,
         context_size: int | None = None,
         dropout: float = 0.1,
     ):
         super().__init__()
         self.n_features = n_features
         self.hidden_dim = hidden_dim
-        self.n_dim_model = n_dim_model
+        self.d_model = d_model
         self.context_size = context_size
 
         self.prescalers = torch.nn.ModuleList([
@@ -199,7 +199,7 @@ class VariableSelection(torch.nn.Module):
             if self.context_size is not None:
                 self.flattened_grn = GatedResidualNetwork(
                     input_dim=n_features * hidden_dim,
-                    hidden_dim=min(self.n_dim_model, self.n_features),
+                    hidden_dim=min(self.d_model, self.n_features),
                     output_dim=self.n_features,
                     context_dim=self.context_size,
                     dropout=dropout,
@@ -208,7 +208,7 @@ class VariableSelection(torch.nn.Module):
             else:
                 self.flattened_grn = GatedResidualNetwork(
                     input_dim=n_features * hidden_dim,
-                    hidden_dim=min(self.n_dim_model, self.n_features),
+                    hidden_dim=min(self.d_model, self.n_features),
                     output_dim=self.n_features,
                     dropout=dropout,
                     projection="interpolate",
@@ -219,8 +219,8 @@ class VariableSelection(torch.nn.Module):
         self.single_grn = torch.nn.ModuleList([
             GatedResidualNetwork(
                 input_dim=hidden_dim,
-                hidden_dim=min(hidden_dim, self.n_dim_model),
-                output_dim=self.n_dim_model,
+                hidden_dim=min(hidden_dim, self.d_model),
+                output_dim=self.d_model,
                 dropout=dropout,
                 projection="interpolate",
             )
@@ -253,7 +253,7 @@ class VariableSelection(torch.nn.Module):
         tuple[torch.Tensor, torch.Tensor]
             A tuple containing:
             - output : torch.Tensor
-                Selected and processed features of shape (batch_size, seq_len, n_dim_model).
+                Selected and processed features of shape (batch_size, seq_len, d_model).
                 This is the weighted sum of all processed features.
             - weights : torch.Tensor
                 Feature importance weights of shape (batch_size, seq_len, n_features, 1).
@@ -273,7 +273,7 @@ class VariableSelection(torch.nn.Module):
         1. Validate input shapes and context consistency
         2. For each feature:
            a. Apply prescaling: transform scalar to hidden_dim representation
-           b. Process through individual GRN: hidden_dim → n_dim_model
+           b. Process through individual GRN: hidden_dim → d_model
         3. If n_features > 1:
            a. Compute attention weights using flattened GRN
            b. Apply softmax to get normalized weights
@@ -286,7 +286,7 @@ class VariableSelection(torch.nn.Module):
         Examples
         --------
         >>> import torch
-        >>> vs = VariableSelection(n_features=5, n_dim_model=128)
+        >>> vs = VariableSelection(n_features=5, d_model=128)
         >>> x = torch.randn(32, 64, 5)  # batch=32, seq=64, features=5
         >>> output, weights = vs(x)
         >>> print(output.shape)  # torch.Size([32, 64, 128])
@@ -294,7 +294,7 @@ class VariableSelection(torch.nn.Module):
         >>> print(weights.sum(dim=2).unique())  # All 1.0 (normalized)
         >>>
         >>> # With context
-        >>> vs_ctx = VariableSelection(n_features=5, n_dim_model=128, context_size=32)
+        >>> vs_ctx = VariableSelection(n_features=5, d_model=128, context_size=32)
         >>> context = torch.randn(32, 64, 32)
         >>> output_ctx, weights_ctx = vs_ctx(x, context)
         >>>

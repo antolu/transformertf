@@ -28,7 +28,7 @@ class PETE(SABWLSTM):
         ctxt_seq_len: int = 100,
         num_layers: int | tuple[int, int, int] = 3,
         n_enc_heads: int = 4,
-        n_dim_model: int | tuple[int, int, int] = 350,
+        d_model: int | tuple[int, int, int] = 350,
         n_dim_selection: int = 32,
         n_dim_fc: int | tuple[int, int, int] | None = None,
         dropout: float | tuple[float, float, float] = 0.2,
@@ -85,7 +85,7 @@ class PETE(SABWLSTM):
         super().__init__(
             n_features=num_future_features,
             num_layers=num_layers,
-            n_dim_model=n_dim_model,
+            d_model=d_model,
             n_dim_fc=n_dim_fc,
             dropout=dropout,
             loss_weights=loss_weights,
@@ -124,8 +124,8 @@ class PETE(SABWLSTM):
             seq_len=ctxt_seq_len,
             num_features=num_past_features,
             n_dim_selection=n_dim_selection,
-            n_dim_model=n_dim_model if isinstance(n_dim_model, int) else n_dim_model[0],
-            n_heads=n_enc_heads,
+            d_model=d_model if isinstance(d_model, int) else d_model[0],
+            num_heads=n_enc_heads,
             n_layers=num_layers if isinstance(num_layers, int) else num_layers[0],
             n_layers_encoded=num_layers
             if isinstance(num_layers, int)

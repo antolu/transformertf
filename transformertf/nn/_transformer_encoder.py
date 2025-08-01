@@ -25,7 +25,7 @@ class TransformerEncoder(torch.nn.Module):
         Number of input features per time step
     seq_len : int
         Length of input sequences
-    n_dim_model : int, default=128
+    d_model : int, default=128
         Model dimension (embedding size)
     num_heads : int, default=8
         Number of attention heads
@@ -45,7 +45,7 @@ class TransformerEncoder(torch.nn.Module):
         self,
         num_features: int,
         seq_len: int,
-        n_dim_model: int = 128,
+        d_model: int = 128,
         num_heads: int = 8,
         num_encoder_layers: int = 6,
         dropout: float = 0.1,
@@ -57,7 +57,7 @@ class TransformerEncoder(torch.nn.Module):
 
         self.num_features = num_features
         self.seq_len = seq_len
-        self.n_dim_model = n_dim_model
+        self.d_model = d_model
         self.num_heads = num_heads
         self.num_encoder_layers = num_encoder_layers
         self.dropout = dropout
@@ -65,28 +65,28 @@ class TransformerEncoder(torch.nn.Module):
         self.fc_dim = fc_dim
 
         self.feature_embedding = torch.nn.Linear(
-            self.num_features, self.n_dim_model
+            self.num_features, self.d_model
         )  # [bs, seq_len, n_dim_model]
 
         self.pos_encoder = SimplePositionalEncoding(
-            dim_model=self.n_dim_model, dropout=self.dropout
+            dim_model=self.d_model, dropout=self.dropout
         )
 
         encoder_layer = torch.nn.TransformerEncoderLayer(
-            d_model=self.n_dim_model,
+            d_model=self.d_model,
             nhead=self.num_heads,
             dropout=self.dropout,
             activation=self.activation,
             batch_first=True,
         )
-        norm = torch.nn.LayerNorm(self.n_dim_model)
+        norm = torch.nn.LayerNorm(self.d_model)
         self.transformer = torch.nn.TransformerEncoder(
             encoder_layer=encoder_layer,
             num_layers=self.num_encoder_layers,
             norm=norm,
         )
         self.fc = MLP(
-            input_dim=self.n_dim_model,
+            input_dim=self.d_model,
             hidden_dim=self.fc_dim,
             output_dim=output_dim,
             dropout=self.dropout,

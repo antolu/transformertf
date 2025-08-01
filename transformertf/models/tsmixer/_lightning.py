@@ -37,7 +37,7 @@ class TSMixer(LightningModuleBase):
     fc_dim : int, default=1024
         Dimension of the fully connected layers in the mixing blocks.
         Higher values increase model capacity.
-    n_dim_model : int or None, default=None
+    d_model : int or None, default=None
         Hidden dimension of the model. If None, uses num_features.
     num_blocks : int, default=4
         Number of TSMixer blocks. Each block contains time-mixing and
@@ -153,7 +153,7 @@ class TSMixer(LightningModuleBase):
         ctxt_seq_len: int = 500,
         tgt_seq_len: int = 300,
         fc_dim: int = 1024,
-        n_dim_model: int | None = None,
+        d_model: int | None = None,
         num_blocks: int = 4,
         dropout: float = 0.1,
         activation: typing.Literal["relu", "gelu"] = "relu",
@@ -184,7 +184,7 @@ class TSMixer(LightningModuleBase):
             ctxt_seq_len=ctxt_seq_len,
             tgt_seq_len=tgt_seq_len,
             fc_dim=fc_dim,
-            hidden_dim=n_dim_model,
+            hidden_dim=d_model,
             num_blocks=num_blocks,
             dropout=dropout,
             norm=norm,

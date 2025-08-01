@@ -32,12 +32,12 @@ class VanillaTransformer(TransformerModuleBase):
         Length of the context (encoder) sequence for historical data.
     tgt_seq_len : int
         Length of the target (decoder) sequence for predictions.
-    n_dim_model : int, default=128
+    d_model : int, default=128
         Dimension of the model's hidden representations. Must be divisible
         by num_heads for multi-head attention.
     num_heads : int, default=8
         Number of attention heads in multi-head attention mechanisms.
-        Should divide n_dim_model evenly.
+        Should divide d_model evenly.
     num_encoder_layers : int, default=6
         Number of transformer encoder layers. More layers can capture
         more complex patterns but increase computational cost.
@@ -92,7 +92,7 @@ class VanillaTransformer(TransformerModuleBase):
     ...     num_features=10,
     ...     ctxt_seq_len=96,     # 4 days of hourly data
     ...     tgt_seq_len=24,      # 1 day prediction horizon
-    ...     n_dim_model=256,
+    ...     d_model=256,
     ...     num_heads=8,
     ...     num_encoder_layers=4,
     ...     num_decoder_layers=4,
@@ -171,7 +171,7 @@ class VanillaTransformer(TransformerModuleBase):
         num_features: int,
         ctxt_seq_len: int,
         tgt_seq_len: int,
-        n_dim_model: int = 128,
+        d_model: int = 128,
         num_heads: int = 8,
         num_encoder_layers: int = 6,
         num_decoder_layers: int = 6,
@@ -201,7 +201,7 @@ class VanillaTransformer(TransformerModuleBase):
             num_features=num_features,
             seq_len=ctxt_seq_len,
             out_seq_len=tgt_seq_len,
-            n_dim_model=n_dim_model,
+            d_model=d_model,
             num_heads=num_heads,
             num_encoder_layers=num_encoder_layers,
             num_decoder_layers=num_decoder_layers,

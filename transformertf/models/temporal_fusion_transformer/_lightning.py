@@ -42,7 +42,7 @@ class TemporalFusionTransformer(TransformerModuleBase):
         historical information the model can access.
     tgt_seq_len : int
         Length of the target (decoder) sequence. This is the prediction horizon.
-    n_dim_model : int, default=300
+    d_model : int, default=300
         Dimension of the model's hidden representations. This affects model
         capacity and computational requirements.
     hidden_continuous_dim : int, default=8
@@ -102,7 +102,7 @@ class TemporalFusionTransformer(TransformerModuleBase):
     ...     num_future_features=5,
     ...     ctxt_seq_len=168,  # 1 week of hourly data
     ...     tgt_seq_len=24,    # 1 day prediction horizon
-    ...     n_dim_model=256,
+    ...     d_model=256,
     ...     criterion=QuantileLoss(quantiles=quantiles),
     ...     compile_model=True
     ... )
@@ -167,7 +167,7 @@ class TemporalFusionTransformer(TransformerModuleBase):
         num_future_features: int,
         ctxt_seq_len: int,
         tgt_seq_len: int,
-        n_dim_model: int = 300,
+        d_model: int = 300,
         hidden_continuous_dim: int = 8,
         num_heads: int = 4,
         num_lstm_layers: int = 2,
@@ -201,7 +201,7 @@ class TemporalFusionTransformer(TransformerModuleBase):
             num_future_features=num_future_features,
             ctxt_seq_len=ctxt_seq_len,
             tgt_seq_len=tgt_seq_len,
-            n_dim_model=n_dim_model,
+            d_model=d_model,
             num_static_features=1,
             hidden_continuous_dim=hidden_continuous_dim,
             num_heads=num_heads,

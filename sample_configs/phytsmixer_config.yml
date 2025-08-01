@@ -29,7 +29,7 @@ optimizer:
 model:
   class_path: transformertf.models.phytsmixer.PhyTSMixer
   init_args:
-    n_dim_model: 32
+    d_model: 32
     activation: "relu"
     fc_dim: 512
     dropout: 0.2

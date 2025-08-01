@@ -41,7 +41,7 @@ class LSTM(LightningModuleBase):
     num_layers : int, default=3
         Number of LSTM layers in the model. More layers can capture more
         complex temporal patterns but may lead to overfitting.
-    n_dim_model : int, default=350
+    d_model : int, default=350
         Hidden size of the LSTM layers. This controls the model capacity
         and computational requirements.
     n_layers_fc : int, default=1
@@ -85,7 +85,7 @@ class LSTM(LightningModuleBase):
     >>> model = LSTM(
     ...     num_features=5,
     ...     num_layers=2,
-    ...     n_dim_model=128,
+    ...     d_model=128,
     ...     n_layers_fc=2,
     ...     n_dim_fc=64,
     ...     output_dim=1,
@@ -97,7 +97,7 @@ class LSTM(LightningModuleBase):
     >>> model = LSTM(
     ...     num_features=5,
     ...     num_layers=3,
-    ...     n_dim_model=256,
+    ...     d_model=256,
     ...     criterion=QuantileLoss(quantiles=quantiles),
     ...     compile_model=True
     ... )
@@ -153,7 +153,7 @@ class LSTM(LightningModuleBase):
         self,
         num_features: int = 1,
         num_layers: int = 3,
-        n_dim_model: int = 350,
+        d_model: int = 350,
         n_layers_fc: int = 1,
         n_dim_fc: int | None = None,
         output_dim: int = 1,
@@ -167,7 +167,7 @@ class LSTM(LightningModuleBase):
         ] = DEFAULT_LOGGING_METRICS,
     ):
         super().__init__()
-        n_dim_fc = n_dim_fc or n_dim_model
+        n_dim_fc = n_dim_fc or d_model
 
         self.criterion = criterion or torch.nn.MSELoss()
         self.save_hyperparameters(ignore=["criterion"])
@@ -182,21 +182,21 @@ class LSTM(LightningModuleBase):
 
         self.model = torch.nn.LSTM(
             input_size=num_features,
-            hidden_size=n_dim_model,
+            hidden_size=d_model,
             num_layers=num_layers,
             dropout=dropout,
             batch_first=True,
         )
         if n_layers_fc > 1:
             self.fc = MLP(
-                input_dim=n_dim_model,
+                input_dim=d_model,
                 output_dim=output_dim,
                 hidden_dim=[n_dim_fc] * (n_layers_fc - 1),
                 activation="relu",
                 dropout=dropout,
             )
         else:
-            self.fc = torch.nn.Linear(n_dim_model, output_dim)
+            self.fc = torch.nn.Linear(d_model, output_dim)
 
     @typing.overload
     def forward(
@@ -236,7 +236,7 @@ class LSTM(LightningModuleBase):
             Input sequence tensor of shape (batch_size, seq_len, num_features).
         hx : HIDDEN_STATE or None, default=None
             Initial hidden state tuple (h_0, c_0) where each has shape
-            (num_layers, batch_size, n_dim_model). If None, zero-initialized.
+            (num_layers, batch_size, d_model). If None, zero-initialized.
         return_states : bool, default=False
             Whether to return the final hidden states along with the output.
 
@@ -248,8 +248,8 @@ class LSTM(LightningModuleBase):
             If return_states=True:
                 Tuple of (output, (h_n, c_n)) where:
                 - output: (batch_size, seq_len, output_dim)
-                - h_n: (num_layers, batch_size, n_dim_model)
-                - c_n: (num_layers, batch_size, n_dim_model)
+                - h_n: (num_layers, batch_size, d_model)
+                - c_n: (num_layers, batch_size, d_model)
 
         Notes
         -----
@@ -262,7 +262,7 @@ class LSTM(LightningModuleBase):
 
         Examples
         --------
-        >>> model = LSTM(num_features=3, n_dim_model=64, output_dim=1)
+        >>> model = LSTM(num_features=3, d_model=64, output_dim=1)
         >>> x = torch.randn(32, 100, 3)  # batch_size=32, seq_len=100
         >>>
         >>> # Simple forward pass
