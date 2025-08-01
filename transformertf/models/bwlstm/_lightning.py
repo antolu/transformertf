@@ -397,7 +397,7 @@ class BWLSTM1(BWLSTMBase):
 
         self.bwlstm1 = BWLSTM1Model(
             num_layers=num_layers,
-            n_dim_model=n_dim_model,
+            d_model=n_dim_model,
             n_dim_fc=n_dim_fc,
             dropout=dropout,
         )
@@ -507,13 +507,13 @@ class BWLSTM2(BWLSTMBase):
 
         self.bwlstm1 = BWLSTM1Model(
             num_layers=num_layers_[0],
-            n_dim_model=n_dim_model_[0],
+            d_model=n_dim_model_[0],
             n_dim_fc=n_dim_fc_[0],
             dropout=dropout_[0],
         )
         self.bwlstm2 = BWLSTM2Model(
             num_layers=num_layers_[1],
-            n_dim_model=n_dim_model_[1],
+            d_model=n_dim_model_[1],
             n_dim_fc=n_dim_fc_[1],
             dropout=dropout_[1],
         )
@@ -626,19 +626,19 @@ class BWLSTM3(BWLSTMBase):
         self.bwlstm1 = BWLSTM1Model(
             n_features=n_features,
             num_layers=num_layers_[0],
-            n_dim_model=n_dim_model_[0],
+            d_model=n_dim_model_[0],
             n_dim_fc=n_dim_fc_[0],
             dropout=dropout_[0],
         )
         self.bwlstm2 = BWLSTM2Model(
             num_layers=num_layers_[1],
-            n_dim_model=n_dim_model_[1],
+            d_model=n_dim_model_[1],
             n_dim_fc=n_dim_fc_[1],
             dropout=dropout_[1],
         )
         self.bwlstm3 = BWLSTM3Model(
             num_layers=num_layers_[2],
-            n_dim_model=n_dim_model_[2],
+            d_model=n_dim_model_[2],
             n_dim_fc=n_dim_fc_[2],
             dropout=dropout_[2],
         )

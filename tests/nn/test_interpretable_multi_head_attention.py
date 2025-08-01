@@ -13,8 +13,8 @@ def sample() -> torch.Tensor:
 
 def test_interpretable_multi_head_attention(sample: torch.Tensor) -> None:
     model = InterpretableMultiHeadAttention(
-        n_dim_model=4,
-        n_heads=2,
+        d_model=4,
+        num_heads=2,
         dropout=0.1,
     )
 
@@ -34,10 +34,10 @@ def test_interpretable_multi_head_attention(sample: torch.Tensor) -> None:
 )
 def test_attention_output_shapes(batch_size, seq_len, num_features):
     """Test attention module with various input shapes."""
-    n_heads = 2 if num_features % 2 == 0 else 1
+    num_heads = 2 if num_features % 2 == 0 else 1
     attention = InterpretableMultiHeadAttention(
-        n_dim_model=num_features,
-        n_heads=n_heads,
+        d_model=num_features,
+        num_heads=num_heads,
         dropout=0.1,
     )
 
@@ -50,10 +50,10 @@ def test_attention_output_shapes(batch_size, seq_len, num_features):
     assert output.shape == (batch_size, seq_len, num_features)
 
     # Check attention weights shape - depends on number of heads
-    if n_heads == 1:
+    if num_heads == 1:
         expected_attn_shape = (batch_size, seq_len, seq_len)
     else:
-        expected_attn_shape = (batch_size, seq_len, n_heads, seq_len)
+        expected_attn_shape = (batch_size, seq_len, num_heads, seq_len)
 
     assert attn_weights.shape == expected_attn_shape
 
@@ -69,8 +69,8 @@ def test_attention_with_mask():
     num_features = 4
 
     attention = InterpretableMultiHeadAttention(
-        n_dim_model=num_features,
-        n_heads=2,
+        d_model=num_features,
+        num_heads=2,
         dropout=0.1,
     )
 
@@ -93,8 +93,8 @@ def test_attention_different_qkv_shapes():
     num_features = 8
 
     attention = InterpretableMultiHeadAttention(
-        n_dim_model=num_features,
-        n_heads=4,
+        d_model=num_features,
+        num_heads=4,
         dropout=0.1,
     )
 
@@ -111,8 +111,8 @@ def test_attention_different_qkv_shapes():
 def test_attention_initialization():
     """Test that attention weights are properly initialized."""
     attention = InterpretableMultiHeadAttention(
-        n_dim_model=16,
-        n_heads=4,
+        d_model=16,
+        num_heads=4,
         dropout=0.0,
     )
 
@@ -132,8 +132,8 @@ def test_attention_initialization():
 def test_attention_deterministic():
     """Test that attention is deterministic when dropout is 0."""
     attention = InterpretableMultiHeadAttention(
-        n_dim_model=8,
-        n_heads=2,
+        d_model=8,
+        num_heads=2,
         dropout=0.0,
     )
     attention.eval()
@@ -150,8 +150,8 @@ def test_attention_deterministic():
 def test_attention_basic_properties():
     """Test basic attention mechanism properties."""
     attention = InterpretableMultiHeadAttention(
-        n_dim_model=64,
-        n_heads=8,
+        d_model=64,
+        num_heads=8,
         dropout=0.0,
     )
 
@@ -179,8 +179,8 @@ def test_attention_basic_properties():
 def test_attention_gradient_flow():
     """Test that gradients flow properly through attention."""
     attention = InterpretableMultiHeadAttention(
-        n_dim_model=16,
-        n_heads=4,
+        d_model=16,
+        num_heads=4,
         dropout=0.1,
     )
 

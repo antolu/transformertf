@@ -169,8 +169,8 @@ class TemporalConvTransformerModel(torch.nn.Module):
 
         # Multi-head attention for compressed sequences
         self.attention = InterpretableMultiHeadAttention(
-            n_dim_model=d_model,
-            n_heads=num_heads,
+            d_model=d_model,
+            num_heads=num_heads,
             dropout=dropout,
         )
 

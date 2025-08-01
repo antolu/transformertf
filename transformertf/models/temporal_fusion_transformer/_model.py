@@ -142,7 +142,7 @@ class TemporalFusionTransformerModel(torch.nn.Module):
         )
 
         self.attn = InterpretableMultiHeadAttention(
-            n_heads=num_heads,
+            num_heads=num_heads,
             d_model=d_model,
             dropout=dropout,
         )

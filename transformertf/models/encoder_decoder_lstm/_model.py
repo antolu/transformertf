@@ -70,8 +70,8 @@ class EncoderDecoderLSTMModel(torch.nn.Module):
     >>> model = EncoderDecoderLSTMModel(
     ...     num_past_features=10,
     ...     num_future_features=5,
-    ...     encoder_hidden_size=64,
-    ...     decoder_hidden_size=64,
+    ...     encoder_d_model=64,
+    ...     decoder_d_model=64,
     ...     mlp_hidden_dim=(32, 16),
     ...     output_dim=3
     ... )

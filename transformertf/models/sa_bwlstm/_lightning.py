@@ -75,7 +75,7 @@ class SABWLSTM(BWLSTM3):
         super().__init__(
             n_features=n_features,
             num_layers=num_layers,
-            n_dim_model=n_dim_model,
+            d_model=n_dim_model,
             n_dim_fc=n_dim_fc,
             dropout=dropout,
             loss_weights=loss_weights,

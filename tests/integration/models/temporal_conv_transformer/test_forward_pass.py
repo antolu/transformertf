@@ -129,7 +129,7 @@ def test_tct_training_convergence():
         num_past_features=num_past_features,
         num_future_features=num_future_features,
         output_dim=1,
-        hidden_dim=64,
+        d_model=64,
         compression_factor=4,
         dropout=0.0,  # Disable dropout for deterministic training
     )
@@ -183,7 +183,7 @@ def test_tct_prediction_consistency():
         num_past_features=6,
         num_future_features=3,
         output_dim=1,
-        hidden_dim=32,
+        d_model=32,
         compression_factor=2,
         dropout=0.0,
     )
@@ -213,7 +213,7 @@ def test_tct_with_different_sequence_lengths():
         num_past_features=8,
         num_future_features=4,
         output_dim=1,
-        hidden_dim=32,
+        d_model=32,
         compression_factor=4,
     )
 
@@ -243,8 +243,8 @@ def test_tct_attention_weights_analysis():
         num_past_features=8,
         num_future_features=4,
         output_dim=1,
-        hidden_dim=64,
-        num_attention_heads=8,
+        d_model=64,
+        num_heads=8,
         compression_factor=4,
     )
     model.eval()
@@ -279,7 +279,7 @@ def test_tct_memory_efficiency_integration():
         num_past_features=16,
         num_future_features=8,
         output_dim=1,
-        hidden_dim=128,
+        d_model=128,
         compression_factor=8,  # High compression for efficiency
     )
 
@@ -302,7 +302,7 @@ def test_tct_gradient_flow_integration():
         num_past_features=8,
         num_future_features=4,
         output_dim=1,
-        hidden_dim=64,
+        d_model=64,
         compression_factor=4,
     )
 
@@ -334,7 +334,7 @@ def test_tct_state_dict_integration():
         num_past_features=6,
         num_future_features=3,
         output_dim=1,
-        hidden_dim=32,
+        d_model=32,
         compression_factor=2,
     )
 
@@ -346,7 +346,7 @@ def test_tct_state_dict_integration():
         num_past_features=6,
         num_future_features=3,
         output_dim=1,
-        hidden_dim=32,
+        d_model=32,
         compression_factor=2,
     )
     model2.load_state_dict(state_dict)
@@ -373,7 +373,7 @@ def test_tct_device_transfer_integration():
         num_past_features=6,
         num_future_features=3,
         output_dim=1,
-        hidden_dim=32,
+        d_model=32,
         compression_factor=2,
     )
 
@@ -403,7 +403,7 @@ def test_tct_alias_integration():
         num_past_features=8,
         num_future_features=4,
         output_dim=1,
-        hidden_dim=32,
+        d_model=32,
         compression_factor=2,
     )
 

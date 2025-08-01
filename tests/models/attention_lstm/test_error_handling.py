@@ -13,9 +13,9 @@ def test_attention_lstm_invalid_parameters() -> None:
         AttentionLSTMModel(
             num_past_features=3,
             num_future_features=2,
-            hidden_size=30,  # Not divisible by 4
+            d_model=30,  # Not divisible by 4
             num_layers=1,
-            n_heads=4,
+            num_heads=4,
             dropout=0.1,
             use_gating=True,
         )
@@ -24,9 +24,9 @@ def test_attention_lstm_invalid_parameters() -> None:
     model = AttentionLSTMModel(
         num_past_features=3,
         num_future_features=2,
-        hidden_size=32,
+        d_model=32,
         num_layers=1,
-        n_heads=2,
+        num_heads=2,
         dropout=0.1,
         use_gating=True,
     )
@@ -38,9 +38,9 @@ def test_attention_lstm_mismatched_input_shapes() -> None:
     model = AttentionLSTMModel(
         num_past_features=3,
         num_future_features=2,
-        hidden_size=32,
+        d_model=32,
         num_layers=1,
-        n_heads=2,
+        num_heads=2,
         dropout=0.1,
         use_gating=True,
     )
@@ -78,9 +78,9 @@ def test_attention_lstm_invalid_sequence_lengths() -> None:
     model = AttentionLSTMModel(
         num_past_features=3,
         num_future_features=2,
-        hidden_size=32,
+        d_model=32,
         num_layers=1,
-        n_heads=2,
+        num_heads=2,
         dropout=0.1,
         use_gating=True,
     )
@@ -120,9 +120,9 @@ def test_attention_lstm_module_invalid_hyperparameters() -> None:
     module = AttentionLSTM(
         num_past_features=3,
         num_future_features=2,
-        hidden_size=32,
+        d_model=32,
         num_layers=1,
-        n_heads=2,
+        num_heads=2,
         dropout=0.1,
         use_gating=True,
     )
@@ -131,7 +131,7 @@ def test_attention_lstm_module_invalid_hyperparameters() -> None:
     # Test hyperparameter storage
     assert module.hparams.num_past_features == 3
     assert module.hparams.num_future_features == 2
-    assert module.hparams.hidden_size == 32
+    assert module.hparams.d_model == 32
 
 
 def test_attention_lstm_empty_batch() -> None:
@@ -139,9 +139,9 @@ def test_attention_lstm_empty_batch() -> None:
     model = AttentionLSTMModel(
         num_past_features=3,
         num_future_features=2,
-        hidden_size=32,
+        d_model=32,
         num_layers=1,
-        n_heads=2,
+        num_heads=2,
         dropout=0.1,
         use_gating=True,
     )
@@ -161,9 +161,9 @@ def test_attention_lstm_nan_inputs() -> None:
     model = AttentionLSTMModel(
         num_past_features=3,
         num_future_features=2,
-        hidden_size=32,
+        d_model=32,
         num_layers=1,
-        n_heads=2,
+        num_heads=2,
         dropout=0.1,
         use_gating=True,
     )
@@ -189,9 +189,9 @@ def test_attention_lstm_inf_inputs() -> None:
     model = AttentionLSTMModel(
         num_past_features=3,
         num_future_features=2,
-        hidden_size=32,
+        d_model=32,
         num_layers=1,
-        n_heads=2,
+        num_heads=2,
         dropout=0.1,
         use_gating=True,
     )
@@ -219,9 +219,9 @@ def test_attention_lstm_module_missing_batch_keys() -> None:
     model = AttentionLSTM(
         num_past_features=3,
         num_future_features=2,
-        hidden_size=32,
+        d_model=32,
         num_layers=1,
-        n_heads=2,
+        num_heads=2,
         dropout=0.1,
         use_gating=True,
     )

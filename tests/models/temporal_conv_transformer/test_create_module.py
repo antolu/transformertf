@@ -19,8 +19,8 @@ class TestTemporalConvTransformerCreation:
             num_past_features=10,
             num_future_features=5,
             output_dim=1,
-            hidden_dim=32,
-            num_attention_heads=4,
+            d_model=32,
+            num_heads=4,
             compression_factor=2,
         )
 
@@ -29,7 +29,7 @@ class TestTemporalConvTransformerCreation:
         assert model.num_past_features == 10
         assert model.num_future_features == 5
         assert model.output_dim == 1
-        assert model.hidden_dim == 32
+        assert model.d_model == 32
         assert model.compression_factor == 2
 
     def test_create_temporal_conv_transformer_lightning(self):
@@ -40,7 +40,7 @@ class TestTemporalConvTransformerCreation:
             num_past_features=8,
             num_future_features=3,
             output_dim=2,
-            hidden_dim=64,
+            d_model=64,
             compression_factor=4,
             criterion=custom_criterion,
         )
@@ -88,8 +88,8 @@ class TestTemporalConvTransformerCreation:
             num_past_features=15,
             num_future_features=8,
             output_dim=3,
-            hidden_dim=128,
-            num_attention_heads=8,
+            d_model=128,
+            num_heads=8,
             compression_factor=8,
             num_encoder_layers=6,
             num_decoder_layers=6,
@@ -112,7 +112,7 @@ class TestTemporalConvTransformerCreation:
             num_past_features=10,
             num_future_features=5,
             output_dim=3,  # Multiple outputs should trigger QuantileLoss
-            hidden_dim=32,
+            d_model=32,
         )
 
         # Should have QuantileLoss for multiple outputs
@@ -129,7 +129,7 @@ class TestTemporalConvTransformerCreation:
             num_past_features=10,
             num_future_features=5,
             output_dim=1,  # Single output should trigger MSELoss
-            hidden_dim=32,
+            d_model=32,
         )
 
         # Should have MSELoss for single output
@@ -146,7 +146,7 @@ class TestTemporalConvTransformerCreation:
             num_past_features=10,
             num_future_features=5,
             criterion=custom_criterion,
-            hidden_dim=32,
+            d_model=32,
         )
 
         assert model.criterion is custom_criterion
@@ -158,7 +158,7 @@ class TestTemporalConvTransformerCreation:
             num_past_features=10,
             num_future_features=5,
             compression_factor=compression_factor,
-            hidden_dim=32,
+            d_model=32,
         )
 
         assert model.hparams["compression_factor"] == compression_factor
@@ -167,14 +167,14 @@ class TestTemporalConvTransformerCreation:
     @pytest.mark.parametrize("num_heads", [1, 2, 4, 8])
     def test_different_attention_heads(self, num_heads):
         """Test model creation with different numbers of attention heads."""
-        # Ensure hidden_dim is divisible by num_heads
-        hidden_dim = 32 if num_heads <= 4 else 64
+        # Ensure d_model is divisible by num_heads
+        d_model = num_heads * 8  # Ensure divisibility
 
         model = TemporalConvTransformer(
             num_past_features=10,
             num_future_features=5,
-            num_attention_heads=num_heads,
-            hidden_dim=hidden_dim,
+            num_heads=num_heads,
+            d_model=d_model,
         )
 
         assert model.model.attention.num_heads == num_heads
@@ -184,7 +184,7 @@ class TestTemporalConvTransformerCreation:
         model = TemporalConvTransformer(
             num_past_features=10,
             num_future_features=5,
-            hidden_dim=32,
+            d_model=32,
         )
 
         # Check that model has required components
@@ -200,7 +200,7 @@ class TestTemporalConvTransformerCreation:
             num_past_features=12,
             num_future_features=6,
             output_dim=1,
-            hidden_dim=64,
+            d_model=64,
             compression_factor=4,
         )
 
@@ -209,7 +209,7 @@ class TestTemporalConvTransformerCreation:
         assert core_model.num_past_features == 12
         assert core_model.num_future_features == 6
         assert core_model.output_dim == 1
-        assert core_model.hidden_dim == 64
+        assert core_model.d_model == 64
         assert core_model.compression_factor == 4
 
     def test_invalid_parameters_raise_errors(self):
@@ -227,8 +227,8 @@ class TestTemporalConvTransformerCreation:
             TemporalConvTransformer(
                 num_past_features=10,
                 num_future_features=5,
-                hidden_dim=17,  # Not divisible by num_heads=8
-                num_attention_heads=8,
+                d_model=17,  # Not divisible by num_heads=8
+                num_heads=8,
             )
 
     def test_model_device_placement(self):
@@ -236,7 +236,7 @@ class TestTemporalConvTransformerCreation:
         model = TemporalConvTransformer(
             num_past_features=5,
             num_future_features=3,
-            hidden_dim=32,
+            d_model=32,
         )
 
         # Test CPU placement (default)
@@ -252,7 +252,7 @@ class TestTemporalConvTransformerCreation:
         model = TemporalConvTransformer(
             num_past_features=5,
             num_future_features=3,
-            hidden_dim=32,
+            d_model=32,
         )
 
         # Test train mode (default)
@@ -271,7 +271,7 @@ class TestTemporalConvTransformerCreation:
         model = TemporalConvTransformer(
             num_past_features=10,
             num_future_features=5,
-            hidden_dim=64,
+            d_model=64,
         )
 
         total_params = sum(p.numel() for p in model.parameters())
@@ -285,7 +285,7 @@ class TestTemporalConvTransformerCreation:
         model = TemporalConvTransformer(
             num_past_features=8,
             num_future_features=4,
-            hidden_dim=32,
+            d_model=32,
         )
 
         state_dict = model.state_dict()
@@ -300,14 +300,14 @@ class TestTemporalConvTransformerCreation:
         model1 = TemporalConvTransformer(
             num_past_features=6,
             num_future_features=3,
-            hidden_dim=32,
+            d_model=32,
         )
 
         torch.manual_seed(42)
         model2 = TemporalConvTransformer(
             num_past_features=6,
             num_future_features=3,
-            hidden_dim=32,
+            d_model=32,
         )
 
         # Models should have same initial parameters
@@ -324,7 +324,7 @@ class TestTemporalConvTransformerCreation:
             num_past_features=5,
             num_future_features=3,
             activation=activation,
-            hidden_dim=32,
+            d_model=32,
         )
 
         assert model is not None

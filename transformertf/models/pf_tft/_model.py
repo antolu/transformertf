@@ -73,14 +73,14 @@ class PFTemporalFusionTransformerModel(torch.nn.Module):
         self.static_vs = VariableSelection(
             n_features=num_static_features,
             hidden_dim=hidden_continuous_dim,
-            n_dim_model=n_dim_model,
+            d_model=n_dim_model,
             dropout=dropout,
         )
 
         self.enc_vs = VariableSelection(
             n_features=num_past_features,
             hidden_dim=hidden_continuous_dim,
-            n_dim_model=n_dim_model,
+            d_model=n_dim_model,
             context_size=n_dim_model,
             dropout=dropout,
         )
@@ -88,7 +88,7 @@ class PFTemporalFusionTransformerModel(torch.nn.Module):
         self.dec_vs = VariableSelection(
             n_features=num_future_features,
             hidden_dim=hidden_continuous_dim,
-            n_dim_model=n_dim_model,
+            d_model=n_dim_model,
             context_size=n_dim_model,
             dropout=dropout,
         )
@@ -131,8 +131,8 @@ class PFTemporalFusionTransformerModel(torch.nn.Module):
         )
 
         self.attn = InterpretableMultiHeadAttention(
-            n_heads=num_heads,
-            n_dim_model=n_dim_model,
+            num_heads=num_heads,
+            d_model=n_dim_model,
             dropout=dropout,
         )
 

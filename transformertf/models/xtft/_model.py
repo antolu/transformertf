@@ -104,7 +104,7 @@ class xTFTModel(torch.nn.Module):  # noqa: N801
         self.dec_norm1 = self.enc_norm1
 
         self.attn = InterpretableMultiHeadAttention(
-            n_heads=num_heads,
+            num_heads=num_heads,
             d_model=d_model,
             dropout=dropout,
         )

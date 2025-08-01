@@ -14,9 +14,9 @@ def test_attention_lstm_module_quantile_loss_basic() -> None:
     module = AttentionLSTM(
         num_past_features=5,
         num_future_features=3,
-        hidden_size=32,
+        d_model=32,
         num_layers=1,
-        n_heads=2,
+        num_heads=2,
         dropout=0.1,
         criterion=criterion,
     )
@@ -48,9 +48,9 @@ def test_attention_lstm_module_quantile_training_step() -> None:
     module = AttentionLSTM(
         num_past_features=3,
         num_future_features=2,
-        hidden_size=16,
+        d_model=16,
         num_layers=1,
-        n_heads=2,
+        num_heads=2,
         criterion=criterion,
     )
 
@@ -86,9 +86,9 @@ def test_attention_lstm_module_quantile_point_prediction() -> None:
     module = AttentionLSTM(
         num_past_features=4,
         num_future_features=2,
-        hidden_size=20,
+        d_model=20,
         num_layers=1,
-        n_heads=4,
+        num_heads=4,
         criterion=criterion,
     )
 
@@ -122,18 +122,18 @@ def test_attention_lstm_module_quantile_vs_mse() -> None:
     quantile_module = AttentionLSTM(
         num_past_features=3,
         num_future_features=2,
-        hidden_size=16,
+        d_model=16,
         num_layers=1,
-        n_heads=2,
+        num_heads=2,
         criterion=QuantileLoss(quantiles=quantiles),
     )
 
     mse_module = AttentionLSTM(
         num_past_features=3,
         num_future_features=2,
-        hidden_size=16,
+        d_model=16,
         num_layers=1,
-        n_heads=2,
+        num_heads=2,
         output_dim=1,
         criterion=torch.nn.MSELoss(),
     )
@@ -165,9 +165,9 @@ def test_attention_lstm_module_quantile_loss_computation() -> None:
     module = AttentionLSTM(
         num_past_features=2,
         num_future_features=1,
-        hidden_size=12,
+        d_model=12,
         num_layers=1,
-        n_heads=3,
+        num_heads=3,
         criterion=criterion,
     )
 
@@ -208,9 +208,9 @@ def test_attention_lstm_module_quantile_different_sizes() -> None:
         module = AttentionLSTM(
             num_past_features=2,
             num_future_features=1,
-            hidden_size=8,
+            d_model=8,
             num_layers=1,
-            n_heads=2,
+            num_heads=2,
             criterion=criterion,
         )
 
@@ -239,9 +239,9 @@ def test_attention_lstm_module_quantile_variable_lengths() -> None:
     module = AttentionLSTM(
         num_past_features=3,
         num_future_features=2,
-        hidden_size=16,
+        d_model=16,
         num_layers=1,
-        n_heads=2,
+        num_heads=2,
         criterion=criterion,
     )
 

@@ -39,7 +39,7 @@ def encoder_decoder_module() -> VanillaTransformer:
         num_encoder_layers=3,
         num_decoder_layers=3,
         num_heads=4,
-        n_dim_model=32,
+        d_model=32,
         fc_dim=64,
     )
 

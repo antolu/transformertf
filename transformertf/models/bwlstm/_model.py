@@ -85,7 +85,7 @@ class BWLSTM1Model(nn.Module):
         # state space variable modeling
         self.lstm1 = nn.LSTM(
             input_size=n_features,
-            hidden_size=n_dim_model,
+            d_model=n_dim_model,
             num_layers=num_layers,
             batch_first=True,
             dropout=dropout,
@@ -188,7 +188,7 @@ class BWLSTM2Model(nn.Module):
         super().__init__()
         self.lstm2 = nn.LSTM(
             input_size=3,
-            hidden_size=n_dim_model,
+            d_model=n_dim_model,
             num_layers=num_layers,
             batch_first=True,
             dropout=dropout,
@@ -290,7 +290,7 @@ class BWLSTM3Model(nn.Module):
         # hysteric parameter modeling
         self.lstm3 = nn.LSTM(
             input_size=2,
-            hidden_size=n_dim_model,
+            d_model=n_dim_model,
             num_layers=num_layers,
             batch_first=True,
             dropout=dropout,

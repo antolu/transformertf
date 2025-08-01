@@ -148,7 +148,7 @@ class AttentionLSTMModel(torch.nn.Module):
         # Encoder LSTM
         self.encoder = torch.nn.LSTM(
             input_size=num_past_features,
-            d_model=d_model,
+            hidden_size=d_model,
             num_layers=num_layers,
             dropout=dropout if num_layers > 1 else 0.0,
             batch_first=True,
@@ -157,7 +157,7 @@ class AttentionLSTMModel(torch.nn.Module):
         # Decoder LSTM (same parameters as encoder)
         self.decoder = torch.nn.LSTM(
             input_size=num_future_features,
-            d_model=d_model,
+            hidden_size=d_model,
             num_layers=num_layers,
             dropout=dropout if num_layers > 1 else 0.0,
             batch_first=True,
@@ -165,7 +165,7 @@ class AttentionLSTMModel(torch.nn.Module):
 
         # Self-attention mechanism
         self.attention = InterpretableMultiHeadAttention(
-            n_dim_model=d_model,
+            d_model=d_model,
             num_heads=num_heads,
             dropout=dropout,
         )

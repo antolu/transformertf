@@ -35,7 +35,7 @@ Or use the Python API:
     ...     ctxt_seq_len=200,
     ...     tgt_seq_len=100
     ... )
-    >>> model = TemporalFusionTransformer(n_dim_model=32, num_heads=4)
+    >>> model = TemporalFusionTransformer(d_model=32, num_heads=4)
     >>>
     >>> # Train
     >>> trainer = L.Trainer(max_epochs=100)

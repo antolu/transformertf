@@ -84,8 +84,8 @@ class EncoderDecoderLSTM(LightningModuleBase):
     >>> model = EncoderDecoderLSTM(
     ...     num_past_features=10,
     ...     num_future_features=5,
-    ...     encoder_hidden_size=64,
-    ...     decoder_hidden_size=64,
+    ...     encoder_d_model=64,
+    ...     decoder_d_model=64,
     ...     mlp_hidden_dim=(32, 16),
     ...     output_dim=1
     ... )
@@ -95,8 +95,8 @@ class EncoderDecoderLSTM(LightningModuleBase):
     >>> model = EncoderDecoderLSTM(
     ...     num_past_features=8,
     ...     num_future_features=3,
-    ...     encoder_hidden_size=128,
-    ...     decoder_hidden_size=128,
+    ...     encoder_d_model=128,
+    ...     decoder_d_model=128,
     ...     criterion=QuantileLoss(quantiles=quantiles)
     ... )
     >>>
@@ -180,8 +180,8 @@ class EncoderDecoderLSTM(LightningModuleBase):
         self.model = EncoderDecoderLSTMModel(
             num_past_features=num_past_features,
             num_future_features=num_future_features,
-            encoder_hidden_size=encoder_hidden_size,
-            decoder_hidden_size=decoder_hidden_size,
+            encoder_d_model=encoder_hidden_size,
+            decoder_d_model=decoder_hidden_size,
             num_encoder_layers=num_encoder_layers,
             num_decoder_layers=num_decoder_layers,
             dropout=dropout,

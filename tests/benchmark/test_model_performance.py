@@ -21,7 +21,7 @@ def test_forward_pass_performance():
         ctxt_seq_len=100,
         tgt_seq_len=50,
         num_lstm_layers=2,
-        n_dim_model=64,
+        d_model=64,
         num_heads=8,
         output_dim=1,
         hidden_continuous_dim=32,
@@ -41,8 +41,8 @@ def test_attention_performance():
     from transformertf.nn import InterpretableMultiHeadAttention
 
     attention = InterpretableMultiHeadAttention(
-        n_dim_model=256,
-        n_heads=8,
+        d_model=256,
+        num_heads=8,
         dropout=0.1,
     )
 
@@ -62,7 +62,7 @@ def test_large_batch_performance():
         ctxt_seq_len=50,
         tgt_seq_len=25,
         num_lstm_layers=1,
-        n_dim_model=32,
+        d_model=32,
         num_heads=4,
         output_dim=1,
         hidden_continuous_dim=16,
