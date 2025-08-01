@@ -33,24 +33,24 @@ class BasicTSMixerModel(torch.nn.Module):
         seq_len: int,
         out_seq_len: int | None = None,
         num_blocks: int = 4,
-        fc_dim: int = 512,
-        hidden_dim: int | None = None,
+        d_fc: int = 512,
+        d_hidden: int | None = None,
         dropout: float = 0.2,
         activation: VALID_ACTIVATIONS = "relu",
         norm: typing.Literal["batch", "layer"] = "batch",
     ):
         super().__init__()
-        hidden_dim = hidden_dim or num_features
+        d_hidden = d_hidden or num_features
 
         self.residual_blocks = torch.nn.Sequential(*[
             MixerBlock(
                 input_len=seq_len,
-                num_features=num_features if i == 0 else hidden_dim,
+                num_features=num_features if i == 0 else d_hidden,
                 dropout=dropout,
                 activation=activation,
-                fc_dim=fc_dim,
+                d_fc=d_fc,
                 norm=norm,
-                out_num_features=hidden_dim,
+                out_num_features=d_hidden,
             )
             for i in range(num_blocks)
         ])
@@ -88,8 +88,8 @@ class TSMixerModel(torch.nn.Module):
         num_feat: int,
         num_future_feat: int = 0,
         num_static_real_feat: int = 0,
-        hidden_dim: int | None = None,
-        fc_dim: int = 512,
+        d_hidden: int | None = None,
+        d_fc: int = 512,
         dropout: float = 0.2,
         norm: typing.Literal["batch", "layer"] = "batch",
         activation: typing.Literal["relu", "gelu"] = "relu",
@@ -104,8 +104,8 @@ class TSMixerModel(torch.nn.Module):
         self.num_features = num_feat
         self.num_future_features = num_future_feat
         self.num_static_real_feat = num_static_real_feat
-        self.hidden_dim = hidden_dim or num_feat
-        hidden_dim = self.hidden_dim
+        self.d_hidden = d_hidden or num_feat
+        d_hidden_ = self.d_hidden
 
         self.past_proj = TemporalProjection(ctxt_seq_len, tgt_seq_len)
         self.past_mixer = ConditionalFeatureMixer(
@@ -114,33 +114,33 @@ class TSMixerModel(torch.nn.Module):
             num_static_features=num_static_real_feat,
             dropout=dropout,
             activation=activation,
-            fc_dim=fc_dim,
+            d_fc=d_fc,
             norm=norm,
-            out_num_features=hidden_dim,
+            out_num_features=d_hidden_,
         )
         self.future_mixer = ConditionalFeatureMixer(
             input_len=tgt_seq_len,
             num_features=num_future_feat,
             num_static_features=num_static_real_feat,
-            hidden_dim=hidden_dim,
+            d_hidden=d_hidden_,
             dropout=dropout,
             activation=activation,
-            fc_dim=fc_dim,
+            d_fc=d_fc,
             norm=norm,
-            out_num_features=hidden_dim,
+            out_num_features=d_hidden_,
         )
 
         residual_blocks = [
             ConditionalMixerBlock(
                 input_len=tgt_seq_len,
-                num_features=2 * hidden_dim if i == 0 else hidden_dim,
+                num_features=2 * d_hidden_ if i == 0 else d_hidden_,
                 num_static_features=num_static_real_feat,
-                hidden_dim=hidden_dim,
+                d_hidden=d_hidden_,
                 dropout=dropout,
                 activation=activation,
-                fc_dim=fc_dim,
+                d_fc=d_fc,
                 norm=norm,
-                out_num_features=hidden_dim,
+                out_num_features=d_hidden_,
             )
             for i in range(num_blocks)
         ]
@@ -150,9 +150,9 @@ class TSMixerModel(torch.nn.Module):
             # use MLP for final prediction
             self.fc = torch.nn.Sequential(
                 collections.OrderedDict({
-                    "fc1": torch.nn.Linear(hidden_dim, fc_dim),
+                    "fc1": torch.nn.Linear(d_hidden_, d_fc),
                     "relu": torch.nn.ReLU(),
-                    "fc2": torch.nn.Linear(fc_dim, output_dim),
+                    "fc2": torch.nn.Linear(d_fc, output_dim),
                 })
             )
         else:

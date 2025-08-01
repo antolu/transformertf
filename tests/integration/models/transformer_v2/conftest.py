@@ -17,7 +17,7 @@ def transformer_v2_module_config(
         "num_decoder_layers": 2,
         "d_model": 32,
         "num_heads": 4,
-        "fc_dim": 16,
+        "d_fc": 16,
         "ctxt_seq_len": encoder_decoder_datamodule_config["ctxt_seq_len"],
         "tgt_seq_len": encoder_decoder_datamodule_config["tgt_seq_len"],
     }

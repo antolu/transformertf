@@ -25,7 +25,7 @@ class GRU(LightningModuleBase):
         self,
         num_features: int = 1,
         num_layers: int = 3,
-        n_dim_model: int = 350,
+        d_model: int = 350,
         output_dim: int = 1,
         dropout: float = 0.2,
         criterion: torch.nn.Module | None = None,
@@ -49,9 +49,9 @@ class GRU(LightningModuleBase):
             The number of input features.
         num_layers: int
             The number of LSTM layers.
-        n_dim_model: int
+        d_model: int
             The number of hidden units in each LSTM layer.
-        n_dim_fc: int
+        d_fc: int
             The number of hidden units in the fully connected layer.
         output_dim: int
             The number of output features. If the loss function is a quantile
@@ -80,12 +80,12 @@ class GRU(LightningModuleBase):
 
         self.model = torch.nn.GRU(
             input_size=num_features,
-            hidden_size=n_dim_model,
+            hidden_size=d_model,
             num_layers=num_layers,
             dropout=dropout,
             batch_first=True,
         )
-        self.fc = torch.nn.Linear(n_dim_model, output_dim)
+        self.fc = torch.nn.Linear(d_model, output_dim)
 
     @typing.overload
     def forward(

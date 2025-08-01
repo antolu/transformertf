@@ -29,13 +29,13 @@ class TestTemporalEncoder:
         """Test basic TemporalEncoder creation."""
         encoder = TemporalEncoder(
             input_dim=32,
-            hidden_dim=64,
+            d_hidden=64,
             num_layers=4,
             compression_factor=4,
         )
         assert encoder is not None
         assert encoder.input_dim == 32
-        assert encoder.hidden_dim == 64
+        assert encoder.d_hidden == 64
         assert encoder.num_layers == 4
         assert encoder.compression_factor == 4
 
@@ -43,7 +43,7 @@ class TestTemporalEncoder:
         """Test basic forward pass with sufficient sequence length."""
         encoder = TemporalEncoder(
             input_dim=32,
-            hidden_dim=64,
+            d_hidden=64,
             compression_factor=4,
         )
 
@@ -64,7 +64,7 @@ class TestTemporalEncoder:
         for compression_factor in [1, 2, 4, 8]:
             encoder = TemporalEncoder(
                 input_dim=16,
-                hidden_dim=32,
+                d_hidden=32,
                 compression_factor=compression_factor,
             )
 
@@ -85,7 +85,7 @@ class TestTemporalEncoder:
 
         encoder = TemporalEncoder(
             input_dim=16,
-            hidden_dim=32,
+            d_hidden=32,
             compression_factor=1,
         )
 
@@ -98,7 +98,7 @@ class TestTemporalEncoder:
         """Test that warnings are issued for short sequences."""
         encoder = TemporalEncoder(
             input_dim=16,
-            hidden_dim=32,
+            d_hidden=32,
             compression_factor=4,
             max_dilation=8,
         )
@@ -126,7 +126,7 @@ class TestTemporalEncoder:
         for num_layers in [2, 4, 6, 8]:
             encoder = TemporalEncoder(
                 input_dim=16,
-                hidden_dim=32,
+                d_hidden=32,
                 num_layers=num_layers,
                 compression_factor=2,
             )
@@ -143,7 +143,7 @@ class TestTemporalEncoder:
         for max_dilation in [2, 4, 8, 16]:
             encoder = TemporalEncoder(
                 input_dim=16,
-                hidden_dim=32,
+                d_hidden=32,
                 max_dilation=max_dilation,
                 num_layers=4,
                 compression_factor=4,
@@ -160,7 +160,7 @@ class TestTemporalEncoder:
 
         encoder = TemporalEncoder(
             input_dim=16,
-            hidden_dim=32,
+            d_hidden=32,
             compression_factor=2,
         )
 
@@ -181,7 +181,7 @@ class TestTemporalEncoder:
         """Test deterministic behavior in eval mode."""
         encoder = TemporalEncoder(
             input_dim=16,
-            hidden_dim=32,
+            d_hidden=32,
             compression_factor=2,
             dropout=0.0,
         )
@@ -202,7 +202,7 @@ class TestTemporalEncoder:
 
         encoder = TemporalEncoder(
             input_dim=16,
-            hidden_dim=32,
+            d_hidden=32,
             activation=activation,
             compression_factor=2,
         )
@@ -219,7 +219,7 @@ class TestTemporalEncoder:
 
         encoder = TemporalEncoder(
             input_dim=16,
-            hidden_dim=32,
+            d_hidden=32,
             compression_factor=4,
         )
 
@@ -239,7 +239,7 @@ class TestTemporalEncoder:
 
         encoder = TemporalEncoder(
             input_dim=8,
-            hidden_dim=16,
+            d_hidden=16,
             compression_factor=2,
             dropout=0.0,
         )
@@ -257,17 +257,17 @@ class TestTemporalEncoder:
         batch_size=st.integers(min_value=1, max_value=4),
         seq_len=st.integers(min_value=100, max_value=400),  # Long enough sequences
         input_dim=st.integers(min_value=4, max_value=32),
-        hidden_dim=st.integers(min_value=8, max_value=64),
+        d_hidden=st.integers(min_value=8, max_value=64),
         compression_factor=st.sampled_from([2, 4]),
     )
     @settings(max_examples=15, deadline=None)
     def test_temporal_encoder_properties(
-        self, batch_size, seq_len, input_dim, hidden_dim, compression_factor
+        self, batch_size, seq_len, input_dim, d_hidden, compression_factor
     ):
         """Property-based test for TemporalEncoder invariants."""
         encoder = TemporalEncoder(
             input_dim=input_dim,
-            hidden_dim=hidden_dim,
+            d_hidden=d_hidden,
             compression_factor=compression_factor,
             dropout=0.0,
         )
@@ -277,7 +277,7 @@ class TestTemporalEncoder:
 
         # Property: output should have correct shape
         expected_seq_len = seq_len // compression_factor
-        assert output.shape == (batch_size, expected_seq_len, hidden_dim)
+        assert output.shape == (batch_size, expected_seq_len, d_hidden)
 
         # Property: output should be finite
         assert torch.isfinite(output).all()
@@ -296,7 +296,7 @@ class TestTemporalEncoder:
 
         encoder = TemporalEncoder(
             input_dim=16,
-            hidden_dim=32,
+            d_hidden=32,
             compression_factor=compression_factor,
             max_dilation=max_dilation,
         )
@@ -315,7 +315,7 @@ class TestTemporalEncoder:
 
             encoder = TemporalEncoder(
                 input_dim=16,
-                hidden_dim=32,
+                d_hidden=32,
                 compression_factor=4,
             ).to(device)
 
@@ -332,7 +332,7 @@ class TestTemporalEncoder:
 
         encoder = TemporalEncoder(
             input_dim=16,
-            hidden_dim=32,
+            d_hidden=32,
             compression_factor=16,  # Very high compression
         )
 
@@ -346,13 +346,13 @@ class TestTemporalEncoder:
         """Test that parameter count scales reasonably with dimensions."""
         encoder_small = TemporalEncoder(
             input_dim=8,
-            hidden_dim=16,
+            d_hidden=16,
             num_layers=2,
         )
 
         encoder_large = TemporalEncoder(
             input_dim=32,
-            hidden_dim=64,
+            d_hidden=64,
             num_layers=4,
         )
 
@@ -370,7 +370,7 @@ class TestTemporalEncoder:
 
         encoder = TemporalEncoder(
             input_dim=16,
-            hidden_dim=32,
+            d_hidden=32,
             compression_factor=2,
         )
 
@@ -388,7 +388,7 @@ class TestTemporalEncoder:
 
         encoder = TemporalEncoder(
             input_dim=32,
-            hidden_dim=64,
+            d_hidden=64,
             compression_factor=8,  # High compression for efficiency
         )
 
@@ -405,7 +405,7 @@ class TestTemporalEncoder:
         for kernel_size in [3, 5, 7]:
             encoder = TemporalEncoder(
                 input_dim=16,
-                hidden_dim=32,
+                d_hidden=32,
                 kernel_size=kernel_size,
                 compression_factor=4,
             )

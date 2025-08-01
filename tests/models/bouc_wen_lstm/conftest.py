@@ -27,7 +27,7 @@ def bouc_wen_module_config() -> dict[str, typing.Any]:
     return {
         "num_layers": 1,
         "d_model": 10,
-        "n_dim_fc": 16,
+        "d_fc": 16,
     }
 
 

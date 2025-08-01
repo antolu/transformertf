@@ -14,7 +14,7 @@ def test_conditional_mixer_block(
         input_len=SEQ_LEN,
         num_features=NUM_FEATURES,
         num_static_features=NUM_STATIC_FEATURES,
-        fc_dim=64,
+        d_fc=64,
         dropout=0.1,
         norm="batch",
     )
@@ -31,7 +31,7 @@ def test_conditional_mixer_block_out_features(
         input_len=SEQ_LEN,
         num_features=NUM_FEATURES,
         num_static_features=NUM_STATIC_FEATURES,
-        fc_dim=64,
+        d_fc=64,
         dropout=0.1,
         norm="batch",
         out_num_features=2,

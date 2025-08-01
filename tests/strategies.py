@@ -56,12 +56,12 @@ def tensor_strategy(
 
 # Time series strategies
 @st.composite
-def time_series_strategy(draw, min_length=50, max_length=1000, n_features=None):
+def time_series_strategy(draw, min_length=50, max_length=1000, num_features=None):
     """Strategy for generating time series data."""
     length = draw(st.integers(min_value=min_length, max_value=max_length))
 
-    if n_features is None:
-        n_features = draw(st.integers(min_value=1, max_value=5))
+    if num_features is None:
+        num_features = draw(st.integers(min_value=1, max_value=5))
 
     # Generate time column
     time_data = np.linspace(0, 100, length)
@@ -69,7 +69,7 @@ def time_series_strategy(draw, min_length=50, max_length=1000, n_features=None):
     # Generate feature columns
     columns_data = {"time_ms": time_data * 1000}
 
-    for i in range(n_features):
+    for i in range(num_features):
         # Generate realistic time series with trend and noise
         trend = draw(st.floats(min_value=-0.1, max_value=0.1))
         noise_std = draw(st.floats(min_value=0.01, max_value=0.5))
@@ -164,15 +164,15 @@ def encoder_decoder_batch_strategy(draw):
 @st.composite
 def attention_config_strategy(draw):
     """Strategy for generating attention configurations."""
-    n_dim_model = draw(st.sampled_from([16, 32, 64, 128]))
+    d_model = draw(st.sampled_from([16, 32, 64, 128]))
     n_heads = draw(st.sampled_from([1, 2, 4, 8]))
 
-    # Ensure n_dim_model is divisible by n_heads
-    while n_dim_model % n_heads != 0:
+    # Ensure d_model is divisible by n_heads
+    while d_model % n_heads != 0:
         n_heads = draw(st.sampled_from([1, 2, 4, 8]))
 
     return {
-        "n_dim_model": n_dim_model,
+        "d_model": d_model,
         "n_heads": n_heads,
         "dropout": draw(st.floats(min_value=0.0, max_value=0.5)),
     }
@@ -232,7 +232,7 @@ def tct_config_strategy(draw):
         "num_past_features": draw(st.integers(min_value=2, max_value=8)),
         "num_future_features": draw(st.integers(min_value=1, max_value=6)),
         "output_dim": draw(st.sampled_from([1, 3, 5])),
-        "hidden_dim": draw(st.sampled_from([32, 64, 128])),
+        "d_hidden": draw(st.sampled_from([32, 64, 128])),
         "num_attention_heads": draw(st.sampled_from([2, 4, 8])),
         "compression_factor": compression_factor,
         "num_encoder_layers": draw(st.integers(min_value=2, max_value=6)),

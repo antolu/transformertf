@@ -66,9 +66,9 @@ class VariableSelection(torch.nn.Module):
 
     Parameters
     ----------
-    n_features : int
+    num_features : int
         Number of input features to select from. Must be positive.
-    hidden_dim : int, default=8
+    d_hidden : int, default=8
         Hidden dimension for prescaling layers. Controls the initial
         feature processing capacity.
     d_model : int, default=300
@@ -84,9 +84,9 @@ class VariableSelection(torch.nn.Module):
 
     Attributes
     ----------
-    n_features : int
+    num_features : int
         Number of input features.
-    hidden_dim : int
+    d_hidden : int
         Hidden dimension for prescaling.
     d_model : int
         Model output dimension.
@@ -109,7 +109,7 @@ class VariableSelection(torch.nn.Module):
     3. **Individual Processing**: Each feature gets its own processing pathway
     4. **Efficient Computation**: Only relevant features contribute to the output
 
-    When n_features=1, the module simplifies to just feature processing
+    When num_features=1, the module simplifies to just feature processing
     without selection (unity weights), as there's nothing to select from.
 
     The prescaling layers transform individual scalar features into higher-
@@ -125,14 +125,14 @@ class VariableSelection(torch.nn.Module):
     >>> from transformertf.nn import VariableSelection
     >>>
     >>> # Basic variable selection
-    >>> vs = VariableSelection(n_features=10, d_model=256)\n    >>> x = torch.randn(32, 128, 10)  # (batch, seq, features)
+    >>> vs = VariableSelection(num_features=10, d_model=256)\n    >>> x = torch.randn(32, 128, 10)  # (batch, seq, features)
     >>> output, weights = vs(x)
     >>> print(output.shape)  # torch.Size([32, 128, 256])
     >>> print(weights.shape)  # torch.Size([32, 128, 10, 1])
     >>>
     >>> # With context conditioning
     >>> vs_ctx = VariableSelection(
-    ...     n_features=10, d_model=256, context_size=64
+    ...     num_features=10, d_model=256, context_size=64
     ... )
     >>> context = torch.randn(32, 128, 64)
     >>> output_ctx, weights_ctx = vs_ctx(x, context)
@@ -144,7 +144,7 @@ class VariableSelection(torch.nn.Module):
     >>> print(f\"Feature importance: {feature_importance}\")
     >>>
     >>> # Single feature case (no selection needed)
-    >>> vs_single = VariableSelection(n_features=1, d_model=256)
+    >>> vs_single = VariableSelection(num_features=1, d_model=256)
     >>> x_single = torch.randn(32, 128, 1)
     >>> output_single, weights_single = vs_single(x_single)
     >>> print(weights_single.unique())  # All ones (no selection)
@@ -153,7 +153,7 @@ class VariableSelection(torch.nn.Module):
     >>> # Select from multiple time series features
     >>> n_series = 20
     >>> vs_forecast = VariableSelection(
-    ...     n_features=n_series,
+    ...     num_features=n_series,
     ...     d_model=512,
     ...     context_size=32  # Static covariates
     ... )
@@ -179,37 +179,37 @@ class VariableSelection(torch.nn.Module):
 
     def __init__(
         self,
-        n_features: int,
-        hidden_dim: int = 8,
+        num_features: int,
+        d_hidden: int = 8,
         d_model: int = 300,
         context_size: int | None = None,
         dropout: float = 0.1,
     ):
         super().__init__()
-        self.n_features = n_features
-        self.hidden_dim = hidden_dim
+        self.num_features = num_features
+        self.d_hidden = d_hidden
         self.d_model = d_model
         self.context_size = context_size
 
         self.prescalers = torch.nn.ModuleList([
-            torch.nn.Linear(1, hidden_dim) for _ in range(n_features)
+            torch.nn.Linear(1, d_hidden) for _ in range(num_features)
         ])
 
-        if self.n_features > 1:
+        if self.num_features > 1:
             if self.context_size is not None:
                 self.flattened_grn = GatedResidualNetwork(
-                    input_dim=n_features * hidden_dim,
-                    hidden_dim=min(self.d_model, self.n_features),
-                    output_dim=self.n_features,
+                    input_dim=num_features * d_hidden,
+                    d_hidden=min(self.d_model, self.num_features),
+                    output_dim=self.num_features,
                     context_dim=self.context_size,
                     dropout=dropout,
                     projection="interpolate",
                 )
             else:
                 self.flattened_grn = GatedResidualNetwork(
-                    input_dim=n_features * hidden_dim,
-                    hidden_dim=min(self.d_model, self.n_features),
-                    output_dim=self.n_features,
+                    input_dim=num_features * d_hidden,
+                    d_hidden=min(self.d_model, self.num_features),
+                    output_dim=self.num_features,
                     dropout=dropout,
                     projection="interpolate",
                 )
@@ -218,13 +218,13 @@ class VariableSelection(torch.nn.Module):
 
         self.single_grn = torch.nn.ModuleList([
             GatedResidualNetwork(
-                input_dim=hidden_dim,
-                hidden_dim=min(hidden_dim, self.d_model),
+                input_dim=d_hidden,
+                d_hidden=min(d_hidden, self.d_model),
                 output_dim=self.d_model,
                 dropout=dropout,
                 projection="interpolate",
             )
-            for i in range(n_features)
+            for i in range(num_features)
         ])
 
     def forward(
@@ -278,7 +278,7 @@ class VariableSelection(torch.nn.Module):
            a. Compute attention weights using flattened GRN
            b. Apply softmax to get normalized weights
            c. Apply weighted sum to get final output
-        4. If n_features = 1: return processed feature with unity weights
+        4. If num_features = 1: return processed feature with unity weights
 
         The attention weights provide interpretability by showing which
         features are most important for the current input context.
@@ -286,7 +286,7 @@ class VariableSelection(torch.nn.Module):
         Examples
         --------
         >>> import torch
-        >>> vs = VariableSelection(n_features=5, d_model=128)
+        >>> vs = VariableSelection(num_features=5, d_model=128)
         >>> x = torch.randn(32, 64, 5)  # batch=32, seq=64, features=5
         >>> output, weights = vs(x)
         >>> print(output.shape)  # torch.Size([32, 64, 128])
@@ -294,7 +294,7 @@ class VariableSelection(torch.nn.Module):
         >>> print(weights.sum(dim=2).unique())  # All 1.0 (normalized)
         >>>
         >>> # With context
-        >>> vs_ctx = VariableSelection(n_features=5, d_model=128, context_size=32)
+        >>> vs_ctx = VariableSelection(num_features=5, d_model=128, context_size=32)
         >>> context = torch.randn(32, 64, 32)
         >>> output_ctx, weights_ctx = vs_ctx(x, context)
         >>>
@@ -303,9 +303,9 @@ class VariableSelection(torch.nn.Module):
         >>> most_important_feature = avg_weights_per_timestep.argmax(dim=1)
         >>> print(f\"Most important feature per timestep: {most_important_feature[:10]}\")
         """
-        if x.shape[-1] != self.n_features:
+        if x.shape[-1] != self.num_features:
             msg = (
-                f"Input tensor must have {self.n_features} features, "
+                f"Input tensor must have {self.num_features} features, "
                 f"but got {x.shape[-1]} features instead."
             )
             raise ValueError(msg)
@@ -314,7 +314,7 @@ class VariableSelection(torch.nn.Module):
             msg = "Context tensor is not expected, but got a context tensor."
             raise ValueError(msg)
 
-        if self.n_features == 1:
+        if self.num_features == 1:
             # if there is only one feature, we don't need to do
             # any variable selection (i.e. unit weights).
             x = self.prescalers[0](x)
@@ -331,7 +331,7 @@ class VariableSelection(torch.nn.Module):
         outputs_l = []
         weights_l = []
 
-        for i in range(self.n_features):
+        for i in range(self.num_features):
             x_i = self.prescalers[i](x[..., i : i + 1])
             weights_l.append(x_i)
 

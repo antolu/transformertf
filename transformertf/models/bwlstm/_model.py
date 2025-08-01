@@ -30,10 +30,10 @@ log = logging.getLogger(__name__)
 class BWLSTM1Model(nn.Module):
     def __init__(
         self,
-        n_features: int = 1,
+        num_features: int = 1,
         num_layers: int = 3,
         d_model: int = 350,
-        n_dim_fc: int | None = None,
+        d_fc: int | None = None,
         dropout: float = 0.2,
     ):
         """
@@ -73,9 +73,9 @@ class BWLSTM1Model(nn.Module):
         ----------
         num_layers : int
             Number of LSTM layers.
-        n_dim_model : int
+        d_model : int
             Number of hidden units in each LSTM layer.
-        n_dim_fc : int, optional
+        d_fc : int, optional
             Number of hidden units in the fully connected layer. If None, defaults to n_dim_model // 2.
         dropout : float
             Dropout probability.
@@ -84,17 +84,17 @@ class BWLSTM1Model(nn.Module):
 
         # state space variable modeling
         self.lstm1 = nn.LSTM(
-            input_size=n_features,
+            input_size=num_features,
             hidden_size=d_model,
             num_layers=num_layers,
             batch_first=True,
             dropout=dropout,
         )
 
-        n_dim_fc_ = n_dim_fc or d_model // 2
+        d_fc_ = d_fc or d_model // 2
         self.fc1 = MLP(
             input_dim=d_model,
-            hidden_dim=n_dim_fc_,
+            d_hidden=d_fc_,
             output_dim=3,
             activation="lrelu",
             dropout=dropout,
@@ -182,7 +182,7 @@ class BWLSTM2Model(nn.Module):
         self,
         num_layers: int = 3,
         d_model: int = 350,
-        n_dim_fc: int | None = None,
+        d_fc: int | None = None,
         dropout: float = 0.2,
     ) -> None:
         super().__init__()
@@ -194,11 +194,11 @@ class BWLSTM2Model(nn.Module):
             dropout=dropout,
         )
 
-        n_dim_fc_ = n_dim_fc or d_model // 2
+        d_fc_ = d_fc or d_model // 2
 
         self.fc2 = MLP(
             input_dim=d_model,
-            hidden_dim=n_dim_fc_,
+            d_hidden=d_fc_,
             output_dim=1,
             activation="lrelu",
             dropout=dropout,
@@ -206,16 +206,16 @@ class BWLSTM2Model(nn.Module):
 
         self.g_plus_x = MLP(
             input_dim=2,
-            hidden_dim=n_dim_fc_,
+            d_hidden=d_fc_,
             output_dim=1,
             activation="lrelu",
         )
 
         self.g_plus_x = nn.Sequential(
-            nn.Linear(2, n_dim_fc_),
-            nn.LayerNorm(n_dim_fc_),
+            nn.Linear(2, d_fc_),
+            nn.LayerNorm(d_fc_),
             nn.ReLU(),
-            nn.Linear(n_dim_fc_, 1),
+            nn.Linear(d_fc_, 1),
         )
 
     @typing.overload  # type: ignore[override]
@@ -283,7 +283,7 @@ class BWLSTM3Model(nn.Module):
         self,
         num_layers: int = 3,
         d_model: int = 350,
-        n_dim_fc: int | None = None,
+        d_fc: int | None = None,
         dropout: float = 0.2,
     ):
         super().__init__()
@@ -296,11 +296,11 @@ class BWLSTM3Model(nn.Module):
             dropout=dropout,
         )
 
-        n_dim_fc = n_dim_fc or d_model // 2
+        d_fc_ = d_fc or d_model // 2
 
         self.fc3 = MLP(
             input_dim=d_model,
-            hidden_dim=n_dim_fc,
+            d_hidden=d_fc_,
             output_dim=1,
             activation="lrelu",
             dropout=dropout,

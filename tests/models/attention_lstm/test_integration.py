@@ -15,7 +15,7 @@ from transformertf.models.attention_lstm import AttentionLSTM
 def sample_data() -> pd.DataFrame:
     """Create sample time series data for testing."""
     n_samples = 1000
-    n_features = 5
+    num_features = 3
 
     # Generate synthetic time series data
     data = []
@@ -26,7 +26,7 @@ def sample_data() -> pd.DataFrame:
             "target": torch.randn(1).item(),
         }
         # Add feature columns
-        for j in range(n_features):
+        for j in range(num_features):
             row[f"feature_{j}"] = torch.randn(1).item()
         data.append(row)
 

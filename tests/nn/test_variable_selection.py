@@ -12,7 +12,7 @@ def sample() -> torch.Tensor:
 
 
 def test_variable_selection(sample: torch.Tensor) -> None:
-    model = VariableSelection(4, hidden_dim=8, d_model=32)
+    model = VariableSelection(4, d_hidden=8, d_model=32)
 
     output, _weights = model(sample)
 
@@ -22,7 +22,7 @@ def test_variable_selection(sample: torch.Tensor) -> None:
 
 
 def test_variable_selection_context(sample: torch.Tensor) -> None:
-    model = VariableSelection(4, hidden_dim=8, d_model=32, context_size=8)
+    model = VariableSelection(4, d_hidden=8, d_model=32, context_size=8)
     context = torch.rand(1, 200, 8)
 
     output, _weights = model(sample, context)

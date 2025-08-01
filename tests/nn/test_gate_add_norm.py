@@ -19,8 +19,8 @@ def initialization_correctly_sets_attributes(gate_add_norm: GateAddNorm) -> None
 
 
 def forward_pass_returns_correct_shape(gate_add_norm: GateAddNorm) -> None:
-    x = torch.randn(32, 10, 50)  # batch_size=32, input_dim=10, n_features=50
-    residual = torch.randn(32, 20, 50)  # batch_size=32, output_dim=20, n_features=50
+    x = torch.randn(32, 10, 50)  # batch_size=32, input_dim=10, num_features=50
+    residual = torch.randn(32, 20, 50)  # batch_size=32, output_dim=20, num_features=50
 
     output = gate_add_norm(x, residual)
 
@@ -34,8 +34,8 @@ def trainable_add_is_correctly_set(gate_add_norm: GateAddNorm) -> None:
 def forward_pass_with_mismatched_dimensions_raises_error(
     gate_add_norm: GateAddNorm,
 ) -> None:
-    x = torch.randn(32, 10, 50)  # batch_size=32, input_dim=10, n_features=50
-    residual = torch.randn(32, 30, 50)  # batch_size=32, output_dim=30, n_features=50
+    x = torch.randn(32, 10, 50)  # batch_size=32, input_dim=10, num_features=50
+    residual = torch.randn(32, 30, 50)  # batch_size=32, output_dim=30, num_features=50
 
     with pytest.raises(RuntimeError):
         gate_add_norm(x, residual)

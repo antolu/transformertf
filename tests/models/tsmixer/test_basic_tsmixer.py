@@ -13,7 +13,7 @@ def test_basic_tsmixer(sample: torch.Tensor) -> None:
     mixer = BasicTSMixerModel(
         num_features=NUM_FEATURES,
         num_blocks=3,
-        fc_dim=64,
+        d_fc=64,
         dropout=0.1,
         norm="batch",
         activation="relu",
@@ -30,7 +30,7 @@ def test_basic_tsmixer_headless(sample: torch.Tensor) -> None:
     mixer = BasicTSMixerModel(
         num_features=NUM_FEATURES,
         num_blocks=3,
-        fc_dim=64,
+        d_fc=64,
         dropout=0.1,
         norm="batch",
         activation="relu",
@@ -47,7 +47,7 @@ def test_basic_tsmixer_target_slice(sample: torch.Tensor) -> None:
     mixer = BasicTSMixerModel(
         num_features=NUM_FEATURES,
         num_blocks=3,
-        fc_dim=64,
+        d_fc=64,
         dropout=0.1,
         norm="batch",
         activation="relu",

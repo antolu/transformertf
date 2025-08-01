@@ -30,7 +30,7 @@ class TemporalFusionTransformerModel(torch.nn.Module):
         dropout: float = 0.1,
         output_dim: int = 7,
         *,
-        casual_attention: bool = True,
+        causal_attention: bool = True,
     ):
         """
         Implementation of the Temporal Fusion Transformer architecture.
@@ -78,27 +78,27 @@ class TemporalFusionTransformerModel(torch.nn.Module):
         self.num_lstm_layers = num_lstm_layers
         self.dropout = dropout
         self.output_dim = output_dim
-        self.causal_attention = casual_attention
+        self.causal_attention = causal_attention
 
         # TODO: static covariate embeddings
         self.static_vs = VariableSelection(
-            n_features=num_static_features,
-            hidden_dim=hidden_continuous_dim,
+            num_features=num_static_features,
+            d_hidden=hidden_continuous_dim,
             d_model=d_model,
             dropout=dropout,
         )
 
         self.enc_vs = VariableSelection(
-            n_features=num_past_features,
-            hidden_dim=hidden_continuous_dim,
+            num_features=num_past_features,
+            d_hidden=hidden_continuous_dim,
             d_model=d_model,
             context_size=d_model,
             dropout=dropout,
         )
 
         self.dec_vs = VariableSelection(
-            n_features=num_future_features,
-            hidden_dim=hidden_continuous_dim,
+            num_features=num_future_features,
+            d_hidden=hidden_continuous_dim,
             d_model=d_model,
             context_size=d_model,
             dropout=dropout,
@@ -134,7 +134,7 @@ class TemporalFusionTransformerModel(torch.nn.Module):
 
         self.static_enrichment = GatedResidualNetwork(
             input_dim=d_model,
-            hidden_dim=d_model,
+            d_hidden=d_model,
             output_dim=d_model,
             context_dim=d_model,
             dropout=dropout,
@@ -338,7 +338,7 @@ def basic_grn(dim: int, dropout: float) -> GatedResidualNetwork:
     """
     return GatedResidualNetwork(
         input_dim=dim,
-        hidden_dim=dim,
+        d_hidden=dim,
         output_dim=dim,
         dropout=dropout,
         projection="interpolate",

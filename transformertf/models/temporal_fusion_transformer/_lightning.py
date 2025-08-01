@@ -60,7 +60,7 @@ class TemporalFusionTransformer(TransformerModuleBase):
     criterion : QuantileLoss or torch.nn.Module or None, default=None
         Loss function for training. If None, defaults to QuantileLoss().
         For probabilistic forecasting, use QuantileLoss with desired quantiles.
-    casual_attention : bool, default=True
+    causal_attention : bool, default=True
         Whether to use causal attention masking in the decoder. Should be True
         for autoregressive forecasting.
     prediction_type : {"delta", "point"}, default="point"
@@ -175,7 +175,7 @@ class TemporalFusionTransformer(TransformerModuleBase):
         output_dim: int = 7,
         criterion: QuantileLoss | torch.nn.Module | None = None,
         *,
-        casual_attention: bool = True,
+        causal_attention: bool = True,
         prediction_type: typing.Literal["delta", "point"] | None = None,
         log_grad_norm: bool = False,
         compile_model: bool = False,
@@ -208,7 +208,7 @@ class TemporalFusionTransformer(TransformerModuleBase):
             num_lstm_layers=num_lstm_layers,
             dropout=dropout,
             output_dim=output_dim,
-            casual_attention=casual_attention,
+            causal_attention=causal_attention,
         )
 
     def forward(self, x: EncoderDecoderTargetSample) -> dict[str, torch.Tensor]:

@@ -20,7 +20,7 @@ class VanillaTransformerModel(torch.nn.Module):
         num_decoder_layers: int = 6,
         dropout: float = 0.1,
         activation: str = "relu",
-        fc_dim: int | tuple[int, ...] = 1024,
+        d_fc: int | tuple[int, ...] = 1024,
         output_dim: int = 7,
     ):
         super().__init__()
@@ -36,7 +36,7 @@ class VanillaTransformerModel(torch.nn.Module):
         self.num_decoder_layers = num_decoder_layers
         self.dropout = dropout
         self.activation = activation
-        self.fc_dim = fc_dim
+        self.d_fc = d_fc
 
         self.feature_embedding = torch.nn.Linear(
             self.num_features, self.d_model
@@ -55,7 +55,7 @@ class VanillaTransformerModel(torch.nn.Module):
         )
         self.fc = MLP(
             input_dim=self.d_model,
-            hidden_dim=self.fc_dim,
+            d_hidden=self.d_fc,
             output_dim=output_dim,
             dropout=self.dropout,
             activation=self.activation,  # type: ignore[arg-type]

@@ -181,7 +181,7 @@ def approximate_equal(
 
 def create_time_series(
     length: int = 1000,
-    n_features: int = 3,
+    num_features: int = 3,
     trend: bool = True,
     seasonal: bool = True,
     noise_std: float = 0.1,
@@ -192,7 +192,7 @@ def create_time_series(
         time = np.linspace(0, 100, length)
         data = {"time_ms": time * 1000}
 
-        for i in range(n_features):
+        for i in range(num_features):
             values = np.zeros(length)
 
             if trend:

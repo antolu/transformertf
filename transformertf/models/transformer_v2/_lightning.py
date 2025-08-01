@@ -25,7 +25,7 @@ class VanillaTransformerV2(TransformerModuleBase):
         dropout: float = 0.1,
         activation: str = "relu",
         embedding: typing.Literal["mlp", "lstm"] = "mlp",
-        fc_dim: int | tuple[int, ...] = 1024,
+        d_fc: int | tuple[int, ...] = 1024,
         output_dim: int = 7,
         criterion: QuantileLoss | torch.nn.Module | None = None,
         *,
@@ -54,7 +54,7 @@ class VanillaTransformerV2(TransformerModuleBase):
             dropout=dropout,
             activation=activation,
             embedding=embedding,
-            fc_dim=fc_dim,
+            d_fc=d_fc,
             output_dim=output_dim,
         )
 

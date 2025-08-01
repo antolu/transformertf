@@ -19,7 +19,7 @@ def test_tsmixer(
         num_future_feat=NUM_FEATURES,
         num_static_real_feat=NUM_STATIC_FEATURES,
         num_blocks=3,
-        fc_dim=64,
+        d_fc=64,
         dropout=0.1,
         norm="batch",
         activation="relu",
@@ -36,7 +36,7 @@ def test_tsmixer(
 #     mixer = TSMixer(
 #         num_features=NUM_FEATURES,
 #         num_blocks=3,
-#         fc_dim=64,
+#         d_fc=64,
 #         dropout=0.1,
 #         norm="batch",
 #         activation="relu",
@@ -57,7 +57,7 @@ def test_tsmixer_target_slice(
     mixer = BasicTSMixerModel(
         num_features=NUM_FEATURES,
         num_blocks=3,
-        fc_dim=64,
+        d_fc=64,
         dropout=0.1,
         norm="batch",
         activation="relu",

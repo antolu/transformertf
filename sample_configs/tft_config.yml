@@ -30,7 +30,7 @@ model:
   class_path: transformertf.models.temporal_fusion_transformer.TemporalFusionTransformer
   init_args:
     d_model: 32
-    hidden_continuous_dim: 8
+    d_hidden_continuous: 8
     num_heads: 4
     num_lstm_layers: 2
     dropout: 0.2

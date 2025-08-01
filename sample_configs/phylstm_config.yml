@@ -36,8 +36,8 @@ model:
   class_path: transformertf.models.bwlstm.PhyLSTM
   init_args:
     num_layers: 3
-    hidden_dim: 48
-    hidden_dim_fc: 512
+    d_hidden: 48
+    d_fc: 512
     phylstm: 3
     dropout: 0.2
     loss_weights: # transformertf.models.bwlstm.LossWeights

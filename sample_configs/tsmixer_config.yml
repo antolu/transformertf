@@ -31,7 +31,7 @@ model:
   init_args:
     d_model: 32
     activation: "relu"
-    fc_dim: 512
+    d_fc: 512
     dropout: 0.2
     num_blocks: 4
     criterion:

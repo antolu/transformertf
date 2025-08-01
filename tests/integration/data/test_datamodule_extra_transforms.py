@@ -60,7 +60,7 @@ def test_datamodule_save_extra_transforms(
         num_future_features=datamodule.num_future_known_covariates,
         ctxt_seq_len=datamodule.ctxt_seq_len,
         d_model=16,
-        n_dim_fc=8,
+        d_fc=8,
     )
 
     trainer = L.Trainer(accelerator="cpu", fast_dev_run=True, max_steps=1)

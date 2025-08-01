@@ -68,15 +68,15 @@ class xTFTModel(torch.nn.Module):  # noqa: N801
         self.causal_attention = causal_attention
 
         self.enc_vs = VariableSelection(
-            n_features=num_past_features,
-            hidden_dim=hidden_continuous_dim,
+            num_features=num_past_features,
+            d_hidden=hidden_continuous_dim,
             d_model=d_model,
             dropout=dropout,
         )
 
         self.dec_vs = VariableSelection(
-            n_features=num_future_features,
-            hidden_dim=hidden_continuous_dim,
+            num_features=num_future_features,
+            d_hidden=hidden_continuous_dim,
             d_model=d_model,
             dropout=dropout,
         )
@@ -113,7 +113,7 @@ class xTFTModel(torch.nn.Module):  # noqa: N801
         self.attn_norm1 = AddNorm(d_model, trainable_add=False)
         self.attn_grn = GatedResidualNetwork(
             input_dim=d_model,
-            hidden_dim=d_model,
+            d_hidden=d_model,
             output_dim=d_model,
             dropout=dropout,
             projection="interpolate",

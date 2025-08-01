@@ -27,10 +27,10 @@ class PETE(SABWLSTM):
         num_future_features: int = 2,
         ctxt_seq_len: int = 100,
         num_layers: int | tuple[int, int, int] = 3,
-        n_enc_heads: int = 4,
+        num_encoder_heads: int = 4,
         d_model: int | tuple[int, int, int] = 350,
-        n_dim_selection: int = 32,
-        n_dim_fc: int | tuple[int, int, int] | None = None,
+        d_selection: int = 32,
+        d_fc: int | tuple[int, int, int] | None = None,
         dropout: float | tuple[float, float, float] = 0.2,
         loss_weights: BoucWenLoss.LossWeights | None = None,
         optimizer: str
@@ -83,10 +83,10 @@ class PETE(SABWLSTM):
         ] = DEFAULT_LOGGING_METRICS,
     ):
         super().__init__(
-            n_features=num_future_features,
+            num_features=num_future_features,
             num_layers=num_layers,
             d_model=d_model,
-            n_dim_fc=n_dim_fc,
+            d_fc=d_fc,
             dropout=dropout,
             loss_weights=loss_weights,
             optimizer=optimizer,
@@ -123,10 +123,10 @@ class PETE(SABWLSTM):
         self.encoder = PETEModel(
             seq_len=ctxt_seq_len,
             num_features=num_past_features,
-            n_dim_selection=n_dim_selection,
+            d_selection=d_selection,
             d_model=d_model if isinstance(d_model, int) else d_model[0],
-            num_heads=n_enc_heads,
-            n_layers=num_layers if isinstance(num_layers, int) else num_layers[0],
+            num_heads=num_encoder_heads,
+            num_layers=num_layers if isinstance(num_layers, int) else num_layers[0],
             n_layers_encoded=num_layers
             if isinstance(num_layers, int)
             else num_layers[2],

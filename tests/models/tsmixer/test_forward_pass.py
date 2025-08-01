@@ -14,7 +14,7 @@ def tsmixer_module_config() -> dict[str, typing.Any]:
         "num_features": 2,
         "num_blocks": 2,
         "d_model": 4,  # "hidden_dim": 4,
-        "fc_dim": 16,
+        "d_fc": 16,
         "ctxt_seq_len": 10,
         "tgt_seq_len": 5,
     }

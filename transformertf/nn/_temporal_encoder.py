@@ -23,7 +23,7 @@ class TemporalEncoder(torch.nn.Module):
     ----------
     input_dim : int
         Number of input features/channels
-    hidden_dim : int, default=256
+    d_hidden : int, default=256
         Hidden dimension for convolution blocks
     num_layers : int, default=4
         Number of temporal convolution layers
@@ -57,14 +57,14 @@ class TemporalEncoder(torch.nn.Module):
     Examples
     --------
     >>> # Basic encoder for sequence compression
-    >>> encoder = TemporalEncoder(input_dim=64, hidden_dim=128)
+    >>> encoder = TemporalEncoder(input_dim=64, d_hidden=128)
     >>> x = torch.randn(32, 200, 64)  # [batch, seq_len, features]
     >>> compressed = encoder(x)  # [32, 50, 128] (4x compression)
 
     >>> # Custom compression settings
     >>> encoder = TemporalEncoder(
     ...     input_dim=32,
-    ...     hidden_dim=256,
+    ...     d_hidden=256,
     ...     compression_factor=8,
     ...     num_layers=6
     ... )
@@ -75,7 +75,7 @@ class TemporalEncoder(torch.nn.Module):
     def __init__(
         self,
         input_dim: int,
-        hidden_dim: int = 256,
+        d_hidden: int = 256,
         num_layers: int = 4,
         kernel_size: int = 3,
         dropout: float = 0.1,
@@ -86,13 +86,13 @@ class TemporalEncoder(torch.nn.Module):
         super().__init__()
 
         self.input_dim = input_dim
-        self.hidden_dim = hidden_dim
+        self.d_hidden = d_hidden
         self.num_layers = num_layers
         self.compression_factor = compression_factor
         self.max_dilation = max_dilation
 
         # Input projection
-        self.input_proj = torch.nn.Linear(input_dim, hidden_dim)
+        self.input_proj = torch.nn.Linear(input_dim, d_hidden)
 
         # Temporal convolution layers with increasing dilation
         self.conv_layers = torch.nn.ModuleList()
@@ -102,8 +102,8 @@ class TemporalEncoder(torch.nn.Module):
 
             self.conv_layers.append(
                 TemporalConvBlock(
-                    in_channels=hidden_dim,
-                    out_channels=hidden_dim,
+                    in_channels=d_hidden,
+                    out_channels=d_hidden,
                     kernel_size=kernel_size,
                     dilation=dilation,
                     dropout=dropout,
@@ -121,7 +121,7 @@ class TemporalEncoder(torch.nn.Module):
             self.compression = None
 
         # Output normalization
-        self.output_norm = torch.nn.LayerNorm(hidden_dim)
+        self.output_norm = torch.nn.LayerNorm(d_hidden)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """

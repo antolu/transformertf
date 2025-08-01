@@ -33,7 +33,7 @@ model:
     num_layers: 3
     seq_len: 500
     d_model: 350
-    hidden_dim_fc: 1024
+    d_fc: 1024
     dropout: 0.2
     lr: 0.001
     criterion:

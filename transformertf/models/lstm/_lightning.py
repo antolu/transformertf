@@ -47,7 +47,7 @@ class LSTM(LightningModuleBase):
     n_layers_fc : int, default=1
         Number of fully connected layers in the output head. If > 1,
         creates an MLP with ReLU activations.
-    n_dim_fc : int or None, default=None
+    d_fc : int or None, default=None
         Hidden dimension of the fully connected layers. If None, uses
         the same dimension as the LSTM hidden size.
     output_dim : int, default=1
@@ -87,7 +87,7 @@ class LSTM(LightningModuleBase):
     ...     num_layers=2,
     ...     d_model=128,
     ...     n_layers_fc=2,
-    ...     n_dim_fc=64,
+    ...     d_fc=64,
     ...     output_dim=1,
     ...     dropout=0.1
     ... )
@@ -155,7 +155,7 @@ class LSTM(LightningModuleBase):
         num_layers: int = 3,
         d_model: int = 350,
         n_layers_fc: int = 1,
-        n_dim_fc: int | None = None,
+        d_fc: int | None = None,
         output_dim: int = 1,
         dropout: float = 0.2,
         criterion: torch.nn.Module | None = None,
@@ -167,7 +167,7 @@ class LSTM(LightningModuleBase):
         ] = DEFAULT_LOGGING_METRICS,
     ):
         super().__init__()
-        n_dim_fc = n_dim_fc or d_model
+        d_fc = d_fc or d_model
 
         self.criterion = criterion or torch.nn.MSELoss()
         self.save_hyperparameters(ignore=["criterion"])
@@ -191,7 +191,7 @@ class LSTM(LightningModuleBase):
             self.fc = MLP(
                 input_dim=d_model,
                 output_dim=output_dim,
-                hidden_dim=[n_dim_fc] * (n_layers_fc - 1),
+                d_hidden=[d_fc] * (n_layers_fc - 1),
                 activation="relu",
                 dropout=dropout,
             )

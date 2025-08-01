@@ -43,13 +43,13 @@ class TimeSeriesDataFactory(factory.Factory):
     @classmethod
     def _create(cls, model_class, *args, **kwargs):
         n_samples = kwargs.pop("n_samples", 1000)
-        n_features = kwargs.pop("n_features", 3)
+        num_features = kwargs.pop("num_features", 3)
 
         # Create synthetic time series data
         time = np.linspace(0, 100, n_samples)
         data = {}
 
-        for i in range(n_features):
+        for i in range(num_features):
             # Create correlated time series with trend and noise
             trend = 0.1 * time
             seasonal = 2 * np.sin(2 * np.pi * time / 10)

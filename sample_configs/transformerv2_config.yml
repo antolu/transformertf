@@ -35,7 +35,7 @@ model:
     num_decoder_layers: 3
     embedding: "lstm"
     activation: "relu"
-    fc_dim: 512
+    d_fc: 512
     dropout: 0.2
     output_dim: 7
     criterion:

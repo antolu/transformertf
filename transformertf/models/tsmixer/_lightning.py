@@ -34,7 +34,7 @@ class TSMixer(LightningModuleBase):
         Length of the context (encoder) sequence for historical data.
     tgt_seq_len : int, default=300
         Length of the target (prediction) sequence.
-    fc_dim : int, default=1024
+    d_fc : int, default=1024
         Dimension of the fully connected layers in the mixing blocks.
         Higher values increase model capacity.
     d_model : int or None, default=None
@@ -71,7 +71,7 @@ class TSMixer(LightningModuleBase):
 
     Examples
     --------
-    >>> from transformertf.models import TSMixer
+    >>> from transformertf.models.tsmixer import TSMixer
     >>> from transformertf.data import EncoderDecoderDataModule
     >>> from transformertf.nn import QuantileLoss
     >>> import lightning as L
@@ -81,7 +81,7 @@ class TSMixer(LightningModuleBase):
     ...     num_features=10,
     ...     ctxt_seq_len=168,    # 1 week of hourly data
     ...     tgt_seq_len=24,      # 1 day prediction horizon
-    ...     fc_dim=512,
+    ...     d_fc=512,
     ...     num_blocks=6,
     ...     activation="gelu",
     ...     norm="layer"
@@ -152,7 +152,7 @@ class TSMixer(LightningModuleBase):
         num_static_features: int = 0,
         ctxt_seq_len: int = 500,
         tgt_seq_len: int = 300,
-        fc_dim: int = 1024,
+        d_fc: int = 1024,
         d_model: int | None = None,
         num_blocks: int = 4,
         dropout: float = 0.1,
@@ -183,8 +183,8 @@ class TSMixer(LightningModuleBase):
             num_static_real_feat=num_static_features,
             ctxt_seq_len=ctxt_seq_len,
             tgt_seq_len=tgt_seq_len,
-            fc_dim=fc_dim,
-            hidden_dim=d_model,
+            d_fc=d_fc,
+            d_hidden=d_model,
             num_blocks=num_blocks,
             dropout=dropout,
             norm=norm,

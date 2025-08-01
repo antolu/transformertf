@@ -11,7 +11,7 @@ def test_mixer_block(sample: torch.Tensor) -> None:
     mixer = MixerBlock(
         input_len=SEQ_LEN,
         num_features=NUM_FEATURES,
-        fc_dim=64,
+        d_fc=64,
         dropout=0.1,
         norm="batch",
     )
@@ -25,7 +25,7 @@ def test_mixer_block_out_features(sample: torch.Tensor) -> None:
     tm = MixerBlock(
         input_len=SEQ_LEN,
         num_features=NUM_FEATURES,
-        fc_dim=64,
+        d_fc=64,
         dropout=0.1,
         norm="batch",
         out_num_features=2,

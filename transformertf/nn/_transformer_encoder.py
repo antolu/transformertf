@@ -35,7 +35,7 @@ class TransformerEncoder(torch.nn.Module):
         Dropout probability
     activation : VALID_ACTIVATIONS, default="relu"
         Activation function to use
-    fc_dim : int | tuple[int, ...], default=1024
+    d_fc : int | tuple[int, ...], default=1024
         Dimension(s) of the MLP head
     output_dim : int, default=7
         Output dimension
@@ -50,7 +50,7 @@ class TransformerEncoder(torch.nn.Module):
         num_encoder_layers: int = 6,
         dropout: float = 0.1,
         activation: VALID_ACTIVATIONS = "relu",
-        fc_dim: int | tuple[int, ...] = 1024,
+        d_fc: int | tuple[int, ...] = 1024,
         output_dim: int = 7,
     ):
         super().__init__()
@@ -62,7 +62,7 @@ class TransformerEncoder(torch.nn.Module):
         self.num_encoder_layers = num_encoder_layers
         self.dropout = dropout
         self.activation = activation
-        self.fc_dim = fc_dim
+        self.d_fc = d_fc
 
         self.feature_embedding = torch.nn.Linear(
             self.num_features, self.d_model
@@ -87,7 +87,7 @@ class TransformerEncoder(torch.nn.Module):
         )
         self.fc = MLP(
             input_dim=self.d_model,
-            hidden_dim=self.fc_dim,
+            d_hidden=self.d_fc,
             output_dim=output_dim,
             dropout=self.dropout,
             activation=self.activation,

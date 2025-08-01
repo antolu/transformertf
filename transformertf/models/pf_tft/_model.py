@@ -61,7 +61,7 @@ class PFTemporalFusionTransformerModel(torch.nn.Module):
         self.num_past_features = num_past_features
         self.num_future_features = num_future_features
         self.num_static_features = num_static_features  # not used
-        self.n_dim_model = d_model
+        self.d_model = d_model
         self.hidden_continuous_dim = hidden_continuous_dim
         self.num_heads = num_heads
         self.num_lstm_layers = num_lstm_layers
@@ -71,23 +71,23 @@ class PFTemporalFusionTransformerModel(torch.nn.Module):
 
         # TODO: static covariate embeddings
         self.static_vs = VariableSelection(
-            n_features=num_static_features,
-            hidden_dim=hidden_continuous_dim,
+            num_features=num_static_features,
+            d_hidden=hidden_continuous_dim,
             d_model=d_model,
             dropout=dropout,
         )
 
         self.enc_vs = VariableSelection(
-            n_features=num_past_features,
-            hidden_dim=hidden_continuous_dim,
+            num_features=num_past_features,
+            d_hidden=hidden_continuous_dim,
             d_model=d_model,
             context_size=d_model,
             dropout=dropout,
         )
 
         self.dec_vs = VariableSelection(
-            n_features=num_future_features,
-            hidden_dim=hidden_continuous_dim,
+            num_features=num_future_features,
+            d_hidden=hidden_continuous_dim,
             d_model=d_model,
             context_size=d_model,
             dropout=dropout,
@@ -123,7 +123,7 @@ class PFTemporalFusionTransformerModel(torch.nn.Module):
 
         self.static_enrichment = GatedResidualNetwork(
             input_dim=d_model,
-            hidden_dim=d_model,
+            d_hidden=d_model,
             output_dim=d_model,
             context_dim=d_model,
             dropout=dropout,
@@ -194,7 +194,7 @@ class PFTemporalFusionTransformerModel(torch.nn.Module):
             # embedding layer, but for simplicity we just use zeros
             static_embedding = torch.zeros(
                 batch_size,
-                self.n_dim_model,
+                self.d_model,
                 device=past_covariates.device,
             )  # static covariate embeddings
             static_variable_selection = torch.zeros(
@@ -299,7 +299,7 @@ def basic_grn(dim: int, dropout: float) -> GatedResidualNetwork:
     """
     return GatedResidualNetwork(
         input_dim=dim,
-        hidden_dim=dim,
+        d_hidden=dim,
         output_dim=dim,
         dropout=dropout,
         projection="interpolate",

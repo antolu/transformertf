@@ -32,9 +32,9 @@ class EncoderDecoderLSTMModel(torch.nn.Module):
     num_future_features : int
         Number of input features in the future sequence (decoder input).
         Can be different from num_past_features to handle different feature sets.
-    encoder_hidden_size : int, default=128
+    d_encoder : int, default=128
         Hidden size of the encoder LSTM layers.
-    decoder_hidden_size : int, default=128
+    d_decoder : int, default=128
         Hidden size of the decoder LSTM layers.
     num_encoder_layers : int, default=2
         Number of LSTM layers in the encoder.
@@ -42,7 +42,7 @@ class EncoderDecoderLSTMModel(torch.nn.Module):
         Number of LSTM layers in the decoder.
     dropout : float, default=0.1
         Dropout probability for LSTM layers.
-    mlp_hidden_dim : int | tuple[int, ...] | None, default=None
+    d_mlp_hidden : int | tuple[int, ...] | None, default=None
         Hidden dimensions for the MLP head. If None, uses a single linear layer.
         If int, creates one hidden layer. If tuple, creates multiple hidden layers.
     output_dim : int, default=1
@@ -72,7 +72,7 @@ class EncoderDecoderLSTMModel(torch.nn.Module):
     ...     num_future_features=5,
     ...     encoder_d_model=64,
     ...     decoder_d_model=64,
-    ...     mlp_hidden_dim=(32, 16),
+    ...     d_mlp_hidden=(32, 16),
     ...     output_dim=3
     ... )
     >>>
@@ -110,12 +110,12 @@ class EncoderDecoderLSTMModel(torch.nn.Module):
         self,
         num_past_features: int,
         num_future_features: int,
-        encoder_hidden_size: int = 128,
-        decoder_hidden_size: int = 128,
+        d_encoder: int = 128,
+        d_decoder: int = 128,
         num_encoder_layers: int = 2,
         num_decoder_layers: int = 2,
         dropout: float = 0.1,
-        mlp_hidden_dim: int | tuple[int, ...] | None = None,
+        d_mlp_hidden: int | tuple[int, ...] | None = None,
         output_dim: int = 1,
         mlp_activation: VALID_ACTIVATIONS = "relu",
         mlp_dropout: float = 0.1,
@@ -124,8 +124,8 @@ class EncoderDecoderLSTMModel(torch.nn.Module):
 
         self.num_past_features = num_past_features
         self.num_future_features = num_future_features
-        self.encoder_hidden_size = encoder_hidden_size
-        self.decoder_hidden_size = decoder_hidden_size
+        self.d_encoder = d_encoder
+        self.d_decoder = d_decoder
         self.num_encoder_layers = num_encoder_layers
         self.num_decoder_layers = num_decoder_layers
         self.dropout = dropout
@@ -134,7 +134,7 @@ class EncoderDecoderLSTMModel(torch.nn.Module):
         # Encoder LSTM
         self.encoder = torch.nn.LSTM(
             input_size=num_past_features,
-            hidden_size=encoder_hidden_size,
+            hidden_size=d_encoder,
             num_layers=num_encoder_layers,
             dropout=dropout if num_encoder_layers > 1 else 0.0,
             batch_first=True,
@@ -143,7 +143,7 @@ class EncoderDecoderLSTMModel(torch.nn.Module):
         # Decoder LSTM
         self.decoder = torch.nn.LSTM(
             input_size=num_future_features,
-            hidden_size=decoder_hidden_size,
+            hidden_size=d_decoder,
             num_layers=num_decoder_layers,
             dropout=dropout if num_decoder_layers > 1 else 0.0,
             batch_first=True,
@@ -151,23 +151,23 @@ class EncoderDecoderLSTMModel(torch.nn.Module):
 
         # State projection layer (if encoder and decoder have different hidden sizes)
         self.state_projection: torch.nn.Module | None = None
-        if encoder_hidden_size != decoder_hidden_size:
+        if d_encoder != d_decoder:
             self.state_projection = torch.nn.ModuleDict({
-                "h_proj": torch.nn.Linear(encoder_hidden_size, decoder_hidden_size),
-                "c_proj": torch.nn.Linear(encoder_hidden_size, decoder_hidden_size),
+                "h_proj": torch.nn.Linear(d_encoder, d_decoder),
+                "c_proj": torch.nn.Linear(d_encoder, d_decoder),
             })
 
         # MLP head for output projection
-        if mlp_hidden_dim is not None:
+        if d_mlp_hidden is not None:
             self.mlp_head = MLP(
-                input_dim=decoder_hidden_size,
-                hidden_dim=mlp_hidden_dim,
+                input_dim=d_decoder,
+                d_hidden=d_mlp_hidden,
                 output_dim=output_dim,
                 dropout=mlp_dropout,
                 activation=mlp_activation,
             )
         else:
-            self.mlp_head = torch.nn.Linear(decoder_hidden_size, output_dim)
+            self.mlp_head = torch.nn.Linear(d_decoder, output_dim)
 
     def _project_encoder_states(self, encoder_states: HIDDEN_STATE) -> HIDDEN_STATE:
         """Project encoder states to decoder dimensions if needed."""

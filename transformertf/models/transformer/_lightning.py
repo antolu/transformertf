@@ -49,7 +49,7 @@ class VanillaTransformer(TransformerModuleBase):
     activation : str, default="relu"
         Activation function used in feed-forward networks within transformer blocks.
         Common choices: "relu", "gelu".
-    fc_dim : int or tuple[int, ...], default=1024
+    d_fc : int or tuple[int, ...], default=1024
         Dimension(s) of the feed-forward network within transformer blocks.
         If int, creates a single layer. If tuple, creates multi-layer MLP.
     output_dim : int, default=7
@@ -177,7 +177,7 @@ class VanillaTransformer(TransformerModuleBase):
         num_decoder_layers: int = 6,
         dropout: float = 0.1,
         activation: str = "relu",
-        fc_dim: int | tuple[int, ...] = 1024,
+        d_fc: int | tuple[int, ...] = 1024,
         output_dim: int = 7,
         criterion: QuantileLoss | None = None,
         prediction_type: typing.Literal["delta", "point"] | None = None,
@@ -207,7 +207,7 @@ class VanillaTransformer(TransformerModuleBase):
             num_decoder_layers=num_decoder_layers,
             dropout=dropout,
             activation=activation,
-            fc_dim=fc_dim,
+            d_fc=d_fc,
             output_dim=output_dim,
         )
 

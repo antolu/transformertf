@@ -47,7 +47,7 @@ class TransformerV2Model(torch.nn.Module):
         num_decoder_layers: int = 6,
         dropout: float = 0.1,
         activation: str = "relu",
-        fc_dim: int | tuple[int, ...] = 1024,
+        d_fc: int | tuple[int, ...] = 1024,
         embedding: typing.Literal["mlp", "lstm"] = "mlp",
         output_dim: int = 7,  # quantile loss
     ):
@@ -64,7 +64,7 @@ class TransformerV2Model(torch.nn.Module):
         self.num_decoder_layers = num_decoder_layers
         self.dropout = dropout
         self.activation = activation
-        self.fc_dim = fc_dim
+        self.d_fc = d_fc
 
         if embedding == "lstm":
             self.feature_embedding = LSTMEmbedding(
@@ -91,13 +91,11 @@ class TransformerV2Model(torch.nn.Module):
             dropout=self.dropout,
             activation=self.activation,
             batch_first=True,
-            dim_feedforward=fc_dim,
+            dim_feedforward=d_fc,
         )
         self.grn3 = GatedResidualNetwork(
             input_dim=self.d_model,
-            hidden_dim=(
-                self.fc_dim if isinstance(self.fc_dim, int) else self.fc_dim[0]
-            ),
+            d_hidden=(self.d_fc if isinstance(self.d_fc, int) else self.d_fc[0]),
             output_dim=self.d_model,
             dropout=self.dropout,
             activation=self.activation,  # type: ignore[arg-type]
@@ -106,7 +104,7 @@ class TransformerV2Model(torch.nn.Module):
         self.norm3 = torch.nn.LayerNorm(self.d_model)
         self.fc = MLP(
             input_dim=self.d_model,
-            hidden_dim=None,
+            d_hidden=None,
             output_dim=output_dim,
             dropout=self.dropout,
             activation=self.activation,  # type: ignore[arg-type]
