@@ -57,6 +57,7 @@ test = [
 ]
 doc = ["acc-py-sphinx", "myst-parser", "sphinx-copybutton"]
 dev = ["pre-commit", "ruff", "mypy"]
+tune = ["ray[tune] >= 2.4.0"]
 
 [build-system]
 requires = ["setuptools >= 61", "setuptools-scm[toml] ~= 6.0", "wheel"]

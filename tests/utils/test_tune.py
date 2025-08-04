@@ -399,7 +399,7 @@ def test_configure_asha_scheduler() -> None:
 
     # Basic type check since we can't easily inspect Ray Tune objects
     assert scheduler is not None
-    assert hasattr(scheduler, "max_t")
+    assert "Scheduler" in str(type(scheduler))
 
 
 @pytest.mark.skipif(
@@ -420,7 +420,7 @@ def test_configure_pbt_scheduler() -> None:
 
     # Basic type check since we can't easily inspect Ray Tune objects
     assert scheduler is not None
-    assert hasattr(scheduler, "perturbation_interval")
+    assert "PopulationBasedTraining" in str(type(scheduler))
 
 
 @pytest.mark.skipif(

@@ -331,16 +331,16 @@ def find_optimizer_callback(
 
 
 def load_cli_config(tune_config: TuneConfig) -> dict[str, typing.Any]:
-    if not os.path.exists(tune_config.cli_config_path):
-        msg = f"File not found: {tune_config.cli_config_path}"
-        raise FileNotFoundError(msg)
-
     if not (
         tune_config.cli_config_path.endswith(".yaml")
         or tune_config.cli_config_path.endswith(".yml")
     ):
         msg = f"File must be a YAML file: {tune_config.cli_config_path}"
         raise ValueError(msg)
+
+    if not os.path.exists(tune_config.cli_config_path):
+        msg = f"File not found: {tune_config.cli_config_path}"
+        raise FileNotFoundError(msg)
 
     with open(tune_config.cli_config_path, encoding="utf-8") as f:
         cli_config = yaml.full_load(f)

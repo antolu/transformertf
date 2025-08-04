@@ -34,11 +34,10 @@ VALID_SAMPLING_TYPES = {
     "choice": {"required": ["values"], "optional": []},
     "uniform": {"required": ["min", "max"], "optional": []},
     "loguniform": {"required": ["min", "max"], "optional": ["base"]},
-    "normal": {"required": ["mean", "sd"], "optional": []},
-    "lognormal": {"required": ["mean", "sd"], "optional": []},
-    "randint": {"required": ["lower", "upper"], "optional": ["step"]},
+    "randint": {"required": ["lower", "upper"], "optional": []},
     "randn": {"required": [], "optional": ["mean", "sd"]},
     "lograndint": {"required": ["lower", "upper"], "optional": ["base"]},
+    "grid_search": {"required": ["values"], "optional": []},
 }
 
 
@@ -240,18 +239,9 @@ def create_ray_search_space(search_space_config: dict) -> dict:
             ray_search_space[param_path] = ray.tune.loguniform(
                 param_config["min"], param_config["max"], base=base
             )
-        elif sampling_type == "normal":
-            ray_search_space[param_path] = ray.tune.normal(
-                param_config["mean"], param_config["sd"]
-            )
-        elif sampling_type == "lognormal":
-            ray_search_space[param_path] = ray.tune.lognormal(
-                param_config["mean"], param_config["sd"]
-            )
         elif sampling_type == "randint":
-            step = param_config.get("step", 1)
             ray_search_space[param_path] = ray.tune.randint(
-                param_config["lower"], param_config["upper"], step=step
+                param_config["lower"], param_config["upper"]
             )
         elif sampling_type == "randn":
             mean = param_config.get("mean", 0.0)
@@ -262,6 +252,8 @@ def create_ray_search_space(search_space_config: dict) -> dict:
             ray_search_space[param_path] = ray.tune.lograndint(
                 param_config["lower"], param_config["upper"], base=base
             )
+        elif sampling_type == "grid_search":
+            ray_search_space[param_path] = ray.tune.grid_search(param_config["values"])
         else:
             msg = f"Unsupported sampling type: {sampling_type}"
             raise ValueError(msg)
