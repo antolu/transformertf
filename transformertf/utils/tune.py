@@ -732,7 +732,9 @@ def tune(config_path: str) -> ray.tune.ResultGrid:
         ),
         run_config=ray.train.RunConfig(
             name=tune_config.get("experiment_name", "unified_tune"),
-            storage_path=tune_config.get("storage_path", "./ray_results"),
+            storage_path=os.path.abspath(
+                tune_config.get("storage_path", "./ray_results")
+            ),
         ),
     )
 

@@ -9,8 +9,9 @@ with search space specifications.
 from __future__ import annotations
 
 import copy
+import os
+import pathlib
 import sys
-from pathlib import Path
 
 import yaml
 
@@ -261,13 +262,13 @@ def create_ray_search_space(search_space_config: dict) -> dict:
     return ray_search_space
 
 
-def load_unified_tune_config(config_path: str | Path) -> dict:
+def load_unified_tune_config(config_path: str | pathlib.Path) -> dict:
     """
     Load and validate a unified tune configuration file.
 
     Parameters
     ----------
-    config_path : str or Path
+    config_path : str or pathlib.Path
         Path to the YAML configuration file
 
     Returns
@@ -282,7 +283,7 @@ def load_unified_tune_config(config_path: str | Path) -> dict:
     FileNotFoundError
         If the configuration file doesn't exist
     """
-    config_path = Path(config_path)
+    config_path = pathlib.Path(os.path.abspath(config_path))
 
     if not config_path.exists():
         msg = f"Configuration file not found: {config_path}"
