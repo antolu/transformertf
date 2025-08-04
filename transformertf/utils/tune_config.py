@@ -27,7 +27,7 @@ __all__ = [
     "TuneConfigValidator",
     "create_ray_search_space",
     "inject_trial_params",
-    "load_unified_tune_config",
+    "load_tune_config",
 ]
 
 # Valid Ray Tune sampling types and their required/optional parameters
@@ -262,7 +262,7 @@ def create_ray_search_space(search_space_config: dict) -> dict:
     return ray_search_space
 
 
-def load_unified_tune_config(config_path: str | pathlib.Path) -> dict:
+def load_tune_config(config_path: str | pathlib.Path) -> dict:
     """
     Load and validate a unified tune configuration file.
 
