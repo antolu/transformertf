@@ -54,6 +54,8 @@ test = [
   "pytest-timeout",
   "hypothesis",
   "factory-boy",
+  "transformertf[tune]",
+  "transformertf[tune-algorithms]",
 ]
 doc = ["acc-py-sphinx", "myst-parser", "sphinx-copybutton"]
 dev = ["pre-commit", "ruff", "mypy"]
