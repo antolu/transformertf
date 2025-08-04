@@ -677,25 +677,6 @@ def tune(config_path: str) -> ray.tune.ResultGrid:
             msg = "BOHB is required for 'bohb' search algorithm. Install with: pip install hpbandster ConfigSpace"
             raise ImportError(msg) from e
 
-    elif search_type == "hebo":
-        try:
-            from ray.tune.search.hebo import HEBOSearch  # noqa: PLC0415
-
-            # HEBO-specific parameters
-            hebo_config = {
-                "metric": tune_config["metric"],
-                "mode": tune_config.get("mode", "min"),
-            }
-
-            # Optional HEBO parameters
-            if "random_state_seed" in search_config:
-                hebo_config["random_state_seed"] = search_config["random_state_seed"]
-
-            search_alg = HEBOSearch(**hebo_config)
-        except (ImportError, AssertionError) as e:
-            msg = "HEBO is required for 'hebo' search algorithm. Install with: pip install HEBO"
-            raise ImportError(msg) from e
-
     elif search_type == "nevergrad":
         try:
             from ray.tune.search.nevergrad import NevergradSearch  # noqa: PLC0415

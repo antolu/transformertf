@@ -708,53 +708,6 @@ def test_bohb_search_algorithm_configuration() -> None:
     not pytest.importorskip("ray.tune", reason="Ray Tune not available"),
     reason="Ray Tune not available",
 )
-def test_hebo_search_algorithm_configuration() -> None:
-    """Test HEBO search algorithm configuration."""
-    import tempfile
-
-    import yaml
-
-    from transformertf.utils.tune import tune
-
-    config_data = {
-        "base_config": {
-            "model": {
-                "class_path": "transformertf.models.lstm.LSTM",
-                "init_args": {"d_model": 64},
-            },
-            "data": {"class_path": "transformertf.data.TimeSeriesDataModule"},
-        },
-        "search_space": {
-            "model.init_args.d_model": {"type": "choice", "values": [32, 64, 128]}
-        },
-        "tune_config": {
-            "num_samples": 2,
-            "metric": "loss/val",
-            "search_algorithm": {
-                "type": "hebo",
-                "random_state_seed": 42,
-            },
-        },
-    }
-
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".yml", delete=False, encoding="utf-8"
-    ) as f:
-        yaml.dump(config_data, f)
-        temp_path = f.name
-
-    try:
-        # Should handle missing HEBO dependency gracefully
-        with pytest.raises(ImportError, match="HEBO is required"):
-            tune(temp_path)
-    finally:
-        Path(temp_path).unlink()
-
-
-@pytest.mark.skipif(
-    not pytest.importorskip("ray.tune", reason="Ray Tune not available"),
-    reason="Ray Tune not available",
-)
 def test_nevergrad_search_algorithm_configuration() -> None:
     """Test Nevergrad search algorithm configuration."""
     import tempfile
