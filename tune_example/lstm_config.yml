@@ -1,4 +1,4 @@
-# lightning.pytorch==2.2.1
+# Basic LSTM configuration for training
 seed_everything: true
 trainer:
   accelerator: auto
@@ -26,7 +26,7 @@ model:
   init_args:
     num_features: 1
     num_layers: 3
-    n_dim_model: 300
+    d_model: 300
     dropout: 0.2
     criterion:
         class_path: transformertf.nn.QuantileLoss

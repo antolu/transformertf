@@ -1,0 +1,80 @@
+# LSTM hyperparameter tuning with Bayesian Optimization
+# BayesOpt uses Gaussian Processes for efficient exploration
+
+base_config:
+  seed_everything: true
+  trainer:
+    accelerator: auto
+    strategy: auto
+    devices: auto
+    max_epochs: 100
+    gradient_clip_val: 1.0
+  model:
+    class_path: transformertf.models.lstm.LSTM
+    init_args:
+      num_features: 1
+      num_layers: 2
+      d_model: 128
+      dropout: 0.2
+      criterion:
+        class_path: transformertf.nn.QuantileLoss
+        init_args:
+          quantiles: [0.25, 0.5, 0.75]
+  data:
+    class_path: transformertf.data.TimeSeriesDataModule
+    init_args:
+      known_covariates: ["I_meas_A_medfilt"]
+      target_covariate: "B_meas_T_medfilt"
+      train_df_paths: ["~/data/train.parquet"]
+      val_df_paths: ["~/data/val.parquet"]
+      seq_len: 300
+      batch_size: 512
+      num_workers: 4
+
+search_space:
+  model.init_args.d_model:
+    type: uniform
+    min: 64
+    max: 512
+
+  data.init_args.seq_len:
+    type: randint
+    lower: 200
+    upper: 500
+
+  optimizer.init_args.lr:
+    type: loguniform
+    min: 1.e-5
+    max: 1.e-2
+
+  model.init_args.dropout:
+    type: uniform
+    min: 0.1
+    max: 0.5
+
+tune_config:
+  num_samples: 25
+  metric: "RMSE/validation/dataloader_idx_0"
+  mode: min
+
+  logging_metrics:
+    - "MSE/validation/dataloader_idx_0"
+    - "loss/train"
+
+  # BayesOpt search algorithm configuration
+  search_algorithm:
+    type: bayesopt
+    random_state: 42           # Reproducible results
+    random_search_steps: 5     # Initial random exploration
+    utility_kwargs:            # Acquisition function settings
+      kind: "ucb"              # Upper confidence bound
+      kappa: 2.576             # Exploration parameter
+
+  scheduler:
+    type: asha
+    max_t: 100
+    grace_period: 15
+    reduction_factor: 2
+
+  experiment_name: "lstm_bayesopt"
+  storage_path: "/tmp/ray_results"

@@ -54,9 +54,19 @@ test = [
   "pytest-timeout",
   "hypothesis",
   "factory-boy",
+  "transformertf[tune]",
+  "transformertf[tune-algorithms]",
 ]
 doc = ["acc-py-sphinx", "myst-parser", "sphinx-copybutton"]
 dev = ["pre-commit", "ruff", "mypy"]
+tune = ["ray[tune] >= 2.4.0"]
+tune-algorithms = [
+  "ray[tune] >= 2.4.0",
+  "ax-platform >= 1.0.0",
+  "bayesian-optimization >= 3.1.0",
+  "ConfigSpace >= 0.2.0",
+  "nevergrad >= 0.12.0",
+]
 
 [build-system]
 requires = ["setuptools >= 61", "setuptools-scm[toml] ~= 6.0", "wheel"]
@@ -252,16 +262,16 @@ reportPrivateImportUsage = "none"
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = [
-#  "-ra",
-#  "--strict-markers",
-#  "--strict-config",
-#  "--cov=transformertf",
-#  "--cov-report=term-missing:skip-covered",
-#  "--cov-report=html:htmlcov",
-#  "--cov-report=xml",
-#  "--tb=short",
-#  "-n 0",
-#  "-p no:warnings",
+  "-ra",
+  "--strict-markers",
+  "--strict-config",
+  "--cov=transformertf",
+  "--cov-report=term-missing:skip-covered",
+  "--cov-report=html:htmlcov",
+  "--cov-report=xml",
+  "--tb=short",
+  "-n 0",
+  "-p no:warnings",
 ]
 markers = [
   "unit: marks tests as unit tests (isolated component testing)",

@@ -1,0 +1,103 @@
+# Comparison configuration showcasing different search algorithms
+# This demonstrates how to switch between algorithms easily
+
+base_config:
+  seed_everything: true
+  trainer:
+    accelerator: auto
+    strategy: auto
+    devices: auto
+    max_epochs: 50
+    gradient_clip_val: 1.0
+  model:
+    class_path: transformertf.models.lstm.LSTM
+    init_args:
+      num_features: 1
+      num_layers: 2
+      d_model: 128
+      dropout: 0.2
+      criterion:
+        class_path: transformertf.nn.QuantileLoss
+        init_args:
+          quantiles: [0.1, 0.5, 0.9]
+  data:
+    class_path: transformertf.data.TimeSeriesDataModule
+    init_args:
+      known_covariates: ["I_meas_A_medfilt"]
+      target_covariate: "B_meas_T_medfilt"
+      train_df_paths: ["~/data/train.parquet"]
+      val_df_paths: ["~/data/val.parquet"]
+      seq_len: 300
+      batch_size: 256
+      num_workers: 4
+
+search_space:
+  model.init_args.d_model:
+    type: choice
+    values: [64, 128, 256]
+
+  optimizer.init_args.lr:
+    type: loguniform
+    min: 1.e-4
+    max: 1.e-2
+
+  model.init_args.dropout:
+    type: uniform
+    min: 0.1
+    max: 0.4
+
+tune_config:
+  num_samples: 15
+  metric: "RMSE/validation/dataloader_idx_0"
+  mode: min
+
+  logging_metrics:
+    - "MSE/validation/dataloader_idx_0"
+    - "loss/train"
+
+  # Search algorithm options (uncomment one):
+
+  # 1. Basic random search (default)
+  # search_algorithm:
+  #   type: basic
+
+  # 2. HyperOpt (TPE algorithm)
+  search_algorithm:
+    type: hyperopt
+
+  # 3. Optuna (TPE with pruning)
+  # search_algorithm:
+  #   type: optuna
+
+  # 4. Ax (Adaptive experimentation)
+  # search_algorithm:
+  #   type: ax
+  #   num_bootstrap: 15
+  #   min_trials_observed: 3
+
+  # 5. BayesOpt (Gaussian Process)
+  # search_algorithm:
+  #   type: bayesopt
+  #   random_state: 42
+  #   utility_kwargs:
+  #     kind: "ucb"
+  #     kappa: 1.96
+
+  # 6. HEBO (Heteroscedastic BO)
+  # search_algorithm:
+  #   type: hebo
+  #   random_state_seed: 42
+
+  # 7. Nevergrad (Gradient-free optimization)
+  # search_algorithm:
+  #   type: nevergrad
+  #   optimizer: "NGOpt"
+
+  scheduler:
+    type: asha
+    max_t: 50
+    grace_period: 5
+    reduction_factor: 2
+
+  experiment_name: "lstm_algorithm_comparison"
+  storage_path: "/tmp/ray_results"

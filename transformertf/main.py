@@ -272,6 +272,47 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
 
         add_num_features_link(parser)
 
+    def _add_subcommands(
+        self, parser: LightningArgumentParser, **kwargs: typing.Any
+    ) -> None:
+        """Override to add tune subcommand without expecting it on trainer."""
+        super()._add_subcommands(parser, **kwargs)
+
+        # Access the existing subparsers action that was created by super()
+        for action in parser._actions:  # noqa: SLF001
+            if hasattr(action, "choices") and hasattr(action, "add_subcommand"):
+                # Create a tune subcommand parser
+                tune_parser = LightningArgumentParser(add_help=True)
+                tune_parser.add_argument(
+                    "config", type=str, help="Path to the tune configuration YAML file"
+                )
+
+                # Add tune subcommand using jsonargparse method
+                action.add_subcommand(
+                    "tune",
+                    tune_parser,
+                    help="Run hyperparameter tuning using YAML configuration",
+                )
+
+                # Add to our internal dict for consistency
+                self._subcommand_parsers["tune"] = tune_parser
+                break
+
+    def _run_subcommand(self, subcommand: str) -> None:
+        """Override to handle custom tune subcommand."""
+        if subcommand == "tune":
+            self.tune()
+        else:
+            super()._run_subcommand(subcommand)
+
+    def tune(self) -> None:
+        """Run hyperparameter tuning using YAML configuration."""
+        from .utils.tune import tune  # noqa: PLC0415
+
+        # The config should contain the tune configuration path
+        config_path = self.config.tune.config
+        tune(config_path)
+
     def before_fit(self) -> None:
         # hijack model checkpoint callbacks to save to checkpoint_dir/version_{version}
         if (
