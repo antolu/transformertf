@@ -121,9 +121,12 @@ def migrate_hyperparameters(
     for old_param, new_param in PARAMETER_MAPPINGS.items():
         if old_param in migrated:
             # Skip if already handled by context-specific mapping
-            if model_type and model_type in CONTEXT_SPECIFIC_MAPPINGS:
-                if old_param in CONTEXT_SPECIFIC_MAPPINGS[model_type]:
-                    continue
+            if (
+                model_type
+                and model_type in CONTEXT_SPECIFIC_MAPPINGS
+                and old_param in CONTEXT_SPECIFIC_MAPPINGS[model_type]
+            ):
+                continue
 
             migrated[new_param] = migrated.pop(old_param)
             changes.append(f"{old_param} -> {new_param}")
@@ -212,14 +215,14 @@ def migrate_checkpoint(
         torch.save(checkpoint, output_path)
 
         print("Migration completed successfully!")
-        return True
-
     except Exception as e:
         print(f"Error migrating checkpoint: {e}")
         return False
+    else:
+        return True
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Migrate PyTorch Lightning checkpoints to use new hyperparameter names",
         formatter_class=argparse.RawDescriptionHelpFormatter,

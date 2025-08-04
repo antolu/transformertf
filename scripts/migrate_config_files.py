@@ -236,11 +236,11 @@ def migrate_config_file(
             print(f"Warning: Migrated YAML may have syntax issues: {e}")
 
         print("Migration completed successfully!")
-        return True
-
     except Exception as e:
         print(f"Error migrating configuration: {e}")
         return False
+    else:
+        return True
 
 
 def migrate_multiple_files(
@@ -289,7 +289,7 @@ def migrate_multiple_files(
     return successful, len(all_files)
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Migrate YAML configuration files to use new hyperparameter names",
         formatter_class=argparse.RawDescriptionHelpFormatter,

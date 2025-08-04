@@ -24,7 +24,7 @@ except ImportError:
 def find_checkpoint_files(root_dir: Path, recursive: bool = True) -> list[Path]:
     """Find all checkpoint files in the directory."""
     patterns = ["*.ckpt", "*.pth"]
-    files = []
+    files: list[Path] = []
 
     for pattern in patterns:
         if recursive:
@@ -47,7 +47,7 @@ def find_checkpoint_files(root_dir: Path, recursive: bool = True) -> list[Path]:
 def find_config_files(root_dir: Path, recursive: bool = True) -> list[Path]:
     """Find all configuration files in the directory."""
     patterns = ["*.yml", "*.yaml"]
-    files = []
+    files: list[Path] = []
 
     for pattern in patterns:
         if recursive:
@@ -140,7 +140,7 @@ def migrate_project_files(
     return results
 
 
-def print_summary(results: dict[str, tuple[int, int]], dry_run: bool = False):
+def print_summary(results: dict[str, tuple[int, int]], dry_run: bool = False) -> None:
     """Print migration summary."""
     action = "Would be processed" if dry_run else "Processed"
 
@@ -179,7 +179,7 @@ def print_summary(results: dict[str, tuple[int, int]], dry_run: bool = False):
             print("\n❌ No files were migrated successfully")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Migrate all TransformerTF files in a project directory to use new hyperparameter names",
         formatter_class=argparse.RawDescriptionHelpFormatter,
