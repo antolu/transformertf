@@ -431,10 +431,16 @@ def test_configure_search_alg() -> None:
     """Test configure_search_alg creates HyperOpt search algorithm."""
     from transformertf.utils.tune import configure_search_alg
 
-    search_alg = configure_search_alg(monitor="accuracy")
+    # Mock HyperOptSearch in case hyperopt is not installed
+    with patch("ray.tune.search.hyperopt.HyperOptSearch") as mock_hyperopt:
+        mock_search_alg = Mock()
+        mock_hyperopt.return_value = mock_search_alg
 
-    # Basic type check since we can't easily inspect Ray Tune objects
-    assert search_alg is not None
+        search_alg = configure_search_alg(monitor="accuracy")
+
+        # Verify the function was called with correct parameters
+        mock_hyperopt.assert_called_once_with(metric="accuracy", mode="min")
+        assert search_alg == mock_search_alg
 
 
 @pytest.mark.skipif(
@@ -602,8 +608,14 @@ def test_ax_search_algorithm_configuration() -> None:
         temp_path = f.name
 
     try:
-        # Should handle missing Ax dependency gracefully
-        with pytest.raises(ImportError, match="Ax is required"):
+        # Mock the Ax import to simulate missing dependency
+        with (
+            patch(
+                "ray.tune.search.ax.AxSearch",
+                side_effect=ImportError("No module named 'ax'"),
+            ),
+            pytest.raises(ImportError, match="Ax is required"),
+        ):
             tune(temp_path)
     finally:
         Path(temp_path).unlink()
@@ -651,54 +663,14 @@ def test_bayesopt_search_algorithm_configuration() -> None:
         temp_path = f.name
 
     try:
-        # Should handle missing BayesOpt dependency gracefully
-        with pytest.raises(ImportError, match="BayesOpt is required"):
-            tune(temp_path)
-    finally:
-        Path(temp_path).unlink()
-
-
-@pytest.mark.skipif(
-    not pytest.importorskip("ray.tune", reason="Ray Tune not available"),
-    reason="Ray Tune not available",
-)
-def test_bohb_search_algorithm_configuration() -> None:
-    """Test BOHB search algorithm configuration."""
-    import tempfile
-
-    import yaml
-
-    from transformertf.utils.tune import tune
-
-    config_data = {
-        "base_config": {
-            "model": {
-                "class_path": "transformertf.models.lstm.LSTM",
-                "init_args": {"d_model": 64},
-            },
-            "data": {"class_path": "transformertf.data.TimeSeriesDataModule"},
-        },
-        "search_space": {
-            "model.init_args.d_model": {"type": "choice", "values": [32, 64, 128]}
-        },
-        "tune_config": {
-            "num_samples": 2,
-            "metric": "loss/val",
-            "search_algorithm": {
-                "type": "bohb",
-            },
-        },
-    }
-
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".yml", delete=False, encoding="utf-8"
-    ) as f:
-        yaml.dump(config_data, f)
-        temp_path = f.name
-
-    try:
-        # Should handle missing BOHB dependency gracefully
-        with pytest.raises(ImportError, match="BOHB is required"):
+        # Mock the BayesOpt import to simulate missing dependency
+        with (
+            patch(
+                "ray.tune.search.bayesopt.BayesOptSearch",
+                side_effect=ImportError("No module named 'bayes_opt'"),
+            ),
+            pytest.raises(ImportError, match="BayesOpt is required"),
+        ):
             tune(temp_path)
     finally:
         Path(temp_path).unlink()
@@ -744,8 +716,14 @@ def test_nevergrad_search_algorithm_configuration() -> None:
         temp_path = f.name
 
     try:
-        # Should handle missing Nevergrad dependency gracefully
-        with pytest.raises(ImportError, match="Nevergrad is required"):
+        # Mock the Nevergrad import to simulate missing dependency
+        with (
+            patch(
+                "ray.tune.search.nevergrad.NevergradSearch",
+                side_effect=ImportError("No module named 'nevergrad'"),
+            ),
+            pytest.raises(ImportError, match="Nevergrad is required"),
+        ):
             tune(temp_path)
     finally:
         Path(temp_path).unlink()

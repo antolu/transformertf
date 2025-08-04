@@ -622,16 +622,18 @@ def tune(config_path: str) -> ray.tune.ResultGrid:
                 "mode": tune_config.get("mode", "min"),
             }
 
-            # Optional Ax parameters
-            if "num_bootstrap" in search_config:
-                ax_config["num_bootstrap"] = search_config["num_bootstrap"]
-            if "min_trials_observed" in search_config:
-                ax_config["min_trials_observed"] = search_config["min_trials_observed"]
-            if "verbose_logging" in search_config:
-                ax_config["verbose_logging"] = search_config["verbose_logging"]
+            # Optional Ax parameters to pass to AxClient via ax_kwargs
+            # Only include parameters that are actually supported
+            supported_ax_params = [
+                "verbose_logging"
+            ]  # Add other supported params as needed
+
+            for param in supported_ax_params:
+                if param in search_config:
+                    ax_config[param] = search_config[param]
 
             search_alg = AxSearch(**ax_config)
-        except (ImportError, AssertionError) as e:
+        except (ImportError, AssertionError, TypeError) as e:
             msg = "Ax is required for 'ax' search algorithm. Install with: pip install ax-platform"
             raise ImportError(msg) from e
 
@@ -658,23 +660,6 @@ def tune(config_path: str) -> ray.tune.ResultGrid:
             search_alg = BayesOptSearch(**bayesopt_config)
         except (ImportError, AssertionError) as e:
             msg = "BayesOpt is required for 'bayesopt' search algorithm. Install with: pip install bayesian-optimization"
-            raise ImportError(msg) from e
-
-    elif search_type == "bohb":
-        try:
-            from ray.tune.search.bohb import TuneBOHB  # noqa: PLC0415
-
-            # BOHB-specific parameters
-            bohb_config = {
-                "metric": tune_config["metric"],
-                "mode": tune_config.get("mode", "min"),
-            }
-
-            # Note: BOHB budget parameters are typically handled by the scheduler
-            # The search algorithm itself doesn't take budget parameters
-            search_alg = TuneBOHB(**bohb_config)
-        except (ImportError, AssertionError) as e:
-            msg = "BOHB is required for 'bohb' search algorithm. Install with: pip install hpbandster ConfigSpace"
             raise ImportError(msg) from e
 
     elif search_type == "nevergrad":
