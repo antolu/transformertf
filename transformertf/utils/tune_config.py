@@ -132,17 +132,29 @@ class TuneConfigValidator:
 
     def _validate_tune_config(self, tune_config: dict) -> None:
         """Validate tune configuration section."""
-        required_fields = ["num_samples", "metrics"]
+        required_fields = ["num_samples", "metric"]
         for field in required_fields:
             if field not in tune_config:
                 msg = f"Missing required field '{field}' in tune_config"
                 raise ValueError(msg)
 
-        # Validate metrics
-        metrics = tune_config["metrics"]
-        if not isinstance(metrics, dict) or "primary" not in metrics:
-            msg = "tune_config.metrics must be a dict with 'primary' field"
+        # Validate metric
+        metric = tune_config["metric"]
+        if not isinstance(metric, str) or not metric.strip():
+            msg = "tune_config.metric must be a non-empty string"
             raise ValueError(msg)
+
+        # Validate optional logging_metrics
+        if "logging_metrics" in tune_config:
+            logging_metrics = tune_config["logging_metrics"]
+            if not isinstance(logging_metrics, list):
+                msg = "tune_config.logging_metrics must be a list"
+                raise ValueError(msg)
+
+            for i, log_metric in enumerate(logging_metrics):
+                if not isinstance(log_metric, str) or not log_metric.strip():
+                    msg = f"tune_config.logging_metrics[{i}] must be a non-empty string"
+                    raise ValueError(msg)
 
 
 def inject_trial_params(base_config: dict, trial_params: dict) -> dict:

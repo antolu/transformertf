@@ -109,17 +109,6 @@ search_space:
 tune_config:
   num_samples: 50
 
-  # Primary metric for optimization
-  metric: "RMSE/validation/dataloader_idx_0"
-  mode: min
-
-  # Additional metrics to log
-  logging_metrics:
-    - "MSE/validation/dataloader_idx_0"
-    - "SMAPE/validation/dataloader_idx_0"
-    - "loss/train"
-    - "loss/validation/dataloader_idx_0"
-
   scheduler:
     type: asha
     max_t: 100
@@ -128,6 +117,10 @@ tune_config:
 
   search_algorithm:
     type: hyperopt
+
+  metrics:
+    primary: "RMSE/validation/dataloader_idx_0"
+    mode: min
 
   resources:
     cpu: 1

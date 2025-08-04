@@ -510,7 +510,7 @@ def tune(config_path: str) -> ray.tune.ResultGrid:
     The unified configuration file should contain three main sections:
     - base_config: The base model/data/trainer configuration
     - search_space: Parameter search space specifications
-    - tune_config: Ray Tune execution settings (num_samples, scheduler, etc.)
+    - tune_config: Ray Tune execution settings (num_samples, metric, logging_metrics, scheduler, etc.)
     """
     from .tune_config import (  # noqa: PLC0415
         create_ray_search_space,
@@ -545,10 +545,15 @@ def tune(config_path: str) -> ray.tune.ResultGrid:
             modified_config["trainer"]["callbacks"] = []
 
         # Create tune callback for reporting metrics
+        # Combine primary metric with optional logging metrics
+        all_metrics = [tune_config["metric"]]
+        if "logging_metrics" in tune_config:
+            all_metrics.extend(tune_config["logging_metrics"])
+
+        metrics_dict = {metric: metric for metric in all_metrics}
+
         tune_callback = TuneReportCallback(
-            metrics={
-                tune_config["metrics"]["primary"]: tune_config["metrics"]["primary"]
-            },
+            metrics=metrics_dict,
             on="validation_end",
         )
         modified_config["trainer"]["callbacks"].append(tune_callback)
@@ -581,8 +586,8 @@ def tune(config_path: str) -> ray.tune.ResultGrid:
     elif scheduler_type == "pbt":
         scheduler = ray.tune.schedulers.PopulationBasedTraining(
             time_attr="epoch",
-            metric=tune_config["metrics"]["primary"],
-            mode=tune_config["metrics"].get("mode", "min"),
+            metric=tune_config["metric"],
+            mode=tune_config.get("mode", "min"),
             perturbation_interval=scheduler_config.get("perturbation_interval", 20),
             hyperparam_mutations=ray_search_space,
         )
@@ -597,15 +602,15 @@ def tune(config_path: str) -> ray.tune.ResultGrid:
         from ray.tune.search.hyperopt import HyperOptSearch  # noqa: PLC0415
 
         search_alg = HyperOptSearch(
-            metric=tune_config["metrics"]["primary"],
-            mode=tune_config["metrics"].get("mode", "min"),
+            metric=tune_config["metric"],
+            mode=tune_config.get("mode", "min"),
         )
     elif search_type == "optuna":
         from ray.tune.search.optuna import OptunaSearch  # noqa: PLC0415
 
         search_alg = OptunaSearch(
-            metric=tune_config["metrics"]["primary"],
-            mode=tune_config["metrics"].get("mode", "min"),
+            metric=tune_config["metric"],
+            mode=tune_config.get("mode", "min"),
         )
     else:
         search_alg = None
@@ -618,8 +623,8 @@ def tune(config_path: str) -> ray.tune.ResultGrid:
             num_samples=tune_config.get("num_samples", 10),
             scheduler=scheduler,
             search_alg=search_alg,
-            metric=tune_config["metrics"]["primary"],
-            mode=tune_config["metrics"].get("mode", "min"),
+            metric=tune_config["metric"],
+            mode=tune_config.get("mode", "min"),
         ),
         run_config=ray.train.RunConfig(
             name=tune_config.get("experiment_name", "unified_tune"),
@@ -633,7 +638,7 @@ def tune(config_path: str) -> ray.tune.ResultGrid:
     # Print best result
     best_result = results.get_best_result()
     print(
-        f"\nBest trial completed with {tune_config['metrics']['primary']}: {best_result.metrics[tune_config['metrics']['primary']]}"
+        f"\nBest trial completed with {tune_config['metric']}: {best_result.metrics[tune_config['metric']]}"
     )
     print(f"Best config: {best_result.config}")
 
