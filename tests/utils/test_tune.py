@@ -555,3 +555,299 @@ def test_read_from_dot_key_error_handling() -> None:
 
     with pytest.raises(KeyError):
         read_from_dot_key(config, "missing_section.d_model")
+
+
+# Tests for new search algorithms
+
+
+@pytest.mark.skipif(
+    not pytest.importorskip("ray.tune", reason="Ray Tune not available"),
+    reason="Ray Tune not available",
+)
+def test_ax_search_algorithm_configuration() -> None:
+    """Test Ax search algorithm configuration."""
+    import tempfile
+
+    import yaml
+
+    from transformertf.utils.tune import tune
+
+    config_data = {
+        "base_config": {
+            "model": {
+                "class_path": "transformertf.models.lstm.LSTM",
+                "init_args": {"d_model": 64},
+            },
+            "data": {"class_path": "transformertf.data.TimeSeriesDataModule"},
+        },
+        "search_space": {
+            "model.init_args.d_model": {"type": "choice", "values": [32, 64, 128]}
+        },
+        "tune_config": {
+            "num_samples": 2,
+            "metric": "loss/val",
+            "search_algorithm": {
+                "type": "ax",
+                "num_bootstrap": 20,
+                "min_trials_observed": 5,
+                "verbose_logging": False,
+            },
+        },
+    }
+
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".yml", delete=False, encoding="utf-8"
+    ) as f:
+        yaml.dump(config_data, f)
+        temp_path = f.name
+
+    try:
+        # Should handle missing Ax dependency gracefully
+        with pytest.raises(ImportError, match="Ax is required"):
+            tune(temp_path)
+    finally:
+        Path(temp_path).unlink()
+
+
+@pytest.mark.skipif(
+    not pytest.importorskip("ray.tune", reason="Ray Tune not available"),
+    reason="Ray Tune not available",
+)
+def test_bayesopt_search_algorithm_configuration() -> None:
+    """Test BayesOpt search algorithm configuration."""
+    import tempfile
+
+    import yaml
+
+    from transformertf.utils.tune import tune
+
+    config_data = {
+        "base_config": {
+            "model": {
+                "class_path": "transformertf.models.lstm.LSTM",
+                "init_args": {"d_model": 64},
+            },
+            "data": {"class_path": "transformertf.data.TimeSeriesDataModule"},
+        },
+        "search_space": {
+            "model.init_args.d_model": {"type": "choice", "values": [32, 64, 128]}
+        },
+        "tune_config": {
+            "num_samples": 2,
+            "metric": "loss/val",
+            "search_algorithm": {
+                "type": "bayesopt",
+                "random_state": 42,
+                "random_search_steps": 10,
+                "utility_kwargs": {"kind": "ucb", "kappa": 2.576},
+            },
+        },
+    }
+
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".yml", delete=False, encoding="utf-8"
+    ) as f:
+        yaml.dump(config_data, f)
+        temp_path = f.name
+
+    try:
+        # Should handle missing BayesOpt dependency gracefully
+        with pytest.raises(ImportError, match="BayesOpt is required"):
+            tune(temp_path)
+    finally:
+        Path(temp_path).unlink()
+
+
+@pytest.mark.skipif(
+    not pytest.importorskip("ray.tune", reason="Ray Tune not available"),
+    reason="Ray Tune not available",
+)
+def test_bohb_search_algorithm_configuration() -> None:
+    """Test BOHB search algorithm configuration."""
+    import tempfile
+
+    import yaml
+
+    from transformertf.utils.tune import tune
+
+    config_data = {
+        "base_config": {
+            "model": {
+                "class_path": "transformertf.models.lstm.LSTM",
+                "init_args": {"d_model": 64},
+            },
+            "data": {"class_path": "transformertf.data.TimeSeriesDataModule"},
+        },
+        "search_space": {
+            "model.init_args.d_model": {"type": "choice", "values": [32, 64, 128]}
+        },
+        "tune_config": {
+            "num_samples": 2,
+            "metric": "loss/val",
+            "search_algorithm": {
+                "type": "bohb",
+            },
+        },
+    }
+
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".yml", delete=False, encoding="utf-8"
+    ) as f:
+        yaml.dump(config_data, f)
+        temp_path = f.name
+
+    try:
+        # Should handle missing BOHB dependency gracefully
+        with pytest.raises(ImportError, match="BOHB is required"):
+            tune(temp_path)
+    finally:
+        Path(temp_path).unlink()
+
+
+@pytest.mark.skipif(
+    not pytest.importorskip("ray.tune", reason="Ray Tune not available"),
+    reason="Ray Tune not available",
+)
+def test_hebo_search_algorithm_configuration() -> None:
+    """Test HEBO search algorithm configuration."""
+    import tempfile
+
+    import yaml
+
+    from transformertf.utils.tune import tune
+
+    config_data = {
+        "base_config": {
+            "model": {
+                "class_path": "transformertf.models.lstm.LSTM",
+                "init_args": {"d_model": 64},
+            },
+            "data": {"class_path": "transformertf.data.TimeSeriesDataModule"},
+        },
+        "search_space": {
+            "model.init_args.d_model": {"type": "choice", "values": [32, 64, 128]}
+        },
+        "tune_config": {
+            "num_samples": 2,
+            "metric": "loss/val",
+            "search_algorithm": {
+                "type": "hebo",
+                "random_state_seed": 42,
+            },
+        },
+    }
+
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".yml", delete=False, encoding="utf-8"
+    ) as f:
+        yaml.dump(config_data, f)
+        temp_path = f.name
+
+    try:
+        # Should handle missing HEBO dependency gracefully
+        with pytest.raises(ImportError, match="HEBO is required"):
+            tune(temp_path)
+    finally:
+        Path(temp_path).unlink()
+
+
+@pytest.mark.skipif(
+    not pytest.importorskip("ray.tune", reason="Ray Tune not available"),
+    reason="Ray Tune not available",
+)
+def test_nevergrad_search_algorithm_configuration() -> None:
+    """Test Nevergrad search algorithm configuration."""
+    import tempfile
+
+    import yaml
+
+    from transformertf.utils.tune import tune
+
+    config_data = {
+        "base_config": {
+            "model": {
+                "class_path": "transformertf.models.lstm.LSTM",
+                "init_args": {"d_model": 64},
+            },
+            "data": {"class_path": "transformertf.data.TimeSeriesDataModule"},
+        },
+        "search_space": {
+            "model.init_args.d_model": {"type": "choice", "values": [32, 64, 128]}
+        },
+        "tune_config": {
+            "num_samples": 2,
+            "metric": "loss/val",
+            "search_algorithm": {
+                "type": "nevergrad",
+                "optimizer": "NGOpt",
+            },
+        },
+    }
+
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".yml", delete=False, encoding="utf-8"
+    ) as f:
+        yaml.dump(config_data, f)
+        temp_path = f.name
+
+    try:
+        # Should handle missing Nevergrad dependency gracefully
+        with pytest.raises(ImportError, match="Nevergrad is required"):
+            tune(temp_path)
+    finally:
+        Path(temp_path).unlink()
+
+
+def test_unknown_search_algorithm() -> None:
+    """Test handling of unknown search algorithm."""
+    import tempfile
+
+    import yaml
+
+    from transformertf.utils.tune import tune
+
+    config_data = {
+        "base_config": {
+            "model": {
+                "class_path": "transformertf.models.lstm.LSTM",
+                "init_args": {"d_model": 64},
+            },
+            "data": {"class_path": "transformertf.data.TimeSeriesDataModule"},
+        },
+        "search_space": {
+            "model.init_args.d_model": {"type": "choice", "values": [32, 64, 128]}
+        },
+        "tune_config": {
+            "num_samples": 2,
+            "metric": "loss/val",
+            "search_algorithm": {"type": "unknown_algorithm"},
+        },
+    }
+
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".yml", delete=False, encoding="utf-8"
+    ) as f:
+        yaml.dump(config_data, f)
+        temp_path = f.name
+
+    try:
+        # Should run without error (unknown algorithm defaults to None)
+        with patch("ray.tune.Tuner") as mock_tuner_class:
+            mock_tuner = Mock()
+            mock_results = Mock()
+            mock_best_result = Mock()
+            mock_best_result.metrics = {"loss/val": 0.5}
+            mock_best_result.config = {"model.init_args.d_model": 64}
+            mock_results.get_best_result.return_value = mock_best_result
+            mock_tuner.fit.return_value = mock_results
+            mock_tuner_class.return_value = mock_tuner
+
+            with patch("transformertf.main.LightningCLI") as mock_cli_class:
+                mock_cli = Mock()
+                mock_cli.trainer.fit = Mock()
+                mock_cli_class.return_value = mock_cli
+
+                results = tune(temp_path)
+                assert results == mock_results
+    finally:
+        Path(temp_path).unlink()

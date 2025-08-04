@@ -1,0 +1,83 @@
+# LSTM hyperparameter tuning with BOHB
+# BOHB combines Bayesian Optimization with multi-fidelity HyperBand
+
+base_config:
+  seed_everything: true
+  trainer:
+    accelerator: auto
+    strategy: auto
+    devices: auto
+    max_epochs: 200  # Higher budget for BOHB
+    gradient_clip_val: 1.0
+  model:
+    class_path: transformertf.models.lstm.LSTM
+    init_args:
+      num_features: 1
+      num_layers: 2
+      d_model: 128
+      dropout: 0.2
+      criterion:
+        class_path: transformertf.nn.QuantileLoss
+        init_args:
+          quantiles: [0.25, 0.5, 0.75]
+  data:
+    class_path: transformertf.data.TimeSeriesDataModule
+    init_args:
+      known_covariates: ["I_meas_A_medfilt"]
+      target_covariate: "B_meas_T_medfilt"
+      train_df_paths: ["~/data/train.parquet"]
+      val_df_paths: ["~/data/val.parquet"]
+      seq_len: 300
+      batch_size: 512
+      num_workers: 4
+
+search_space:
+  model.init_args.num_layers:
+    type: choice
+    values: [1, 2, 3, 4, 5]
+
+  model.init_args.d_model:
+    type: choice
+    values: [64, 128, 256, 512, 1024]
+
+  data.init_args.seq_len:
+    type: choice
+    values: [100, 200, 300, 400, 500]
+
+  optimizer.init_args.lr:
+    type: loguniform
+    min: 1.e-5
+    max: 1.e-2
+
+  model.init_args.dropout:
+    type: uniform
+    min: 0.0
+    max: 0.5
+
+tune_config:
+  num_samples: 40
+  metric: "RMSE/validation/dataloader_idx_0"
+  mode: min
+
+  logging_metrics:
+    - "MSE/validation/dataloader_idx_0"
+    - "SMAPE/validation/dataloader_idx_0"
+    - "loss/train"
+    - "loss/validation/dataloader_idx_0"
+
+  # BOHB search algorithm configuration
+  search_algorithm:
+    type: bohb
+    max_budget: 200           # Maximum training epochs
+    min_budget: 20            # Minimum training epochs
+    reduction_factor: 3       # Factor for successive halving
+
+  # BOHB works best with its own scheduler
+  scheduler:
+    type: asha
+    max_t: 200
+    grace_period: 20
+    reduction_factor: 3
+
+  experiment_name: "lstm_bohb_multifidelity"
+  storage_path: "/tmp/ray_results"

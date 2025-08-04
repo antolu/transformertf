@@ -612,6 +612,110 @@ def tune(config_path: str) -> ray.tune.ResultGrid:
             metric=tune_config["metric"],
             mode=tune_config.get("mode", "min"),
         )
+    elif search_type == "ax":
+        try:
+            from ray.tune.search.ax import AxSearch  # noqa: PLC0415
+
+            # Ax-specific parameters
+            ax_config = {
+                "metric": tune_config["metric"],
+                "mode": tune_config.get("mode", "min"),
+            }
+
+            # Optional Ax parameters
+            if "num_bootstrap" in search_config:
+                ax_config["num_bootstrap"] = search_config["num_bootstrap"]
+            if "min_trials_observed" in search_config:
+                ax_config["min_trials_observed"] = search_config["min_trials_observed"]
+            if "verbose_logging" in search_config:
+                ax_config["verbose_logging"] = search_config["verbose_logging"]
+
+            search_alg = AxSearch(**ax_config)
+        except (ImportError, AssertionError) as e:
+            msg = "Ax is required for 'ax' search algorithm. Install with: pip install ax-platform"
+            raise ImportError(msg) from e
+
+    elif search_type == "bayesopt":
+        try:
+            from ray.tune.search.bayesopt import BayesOptSearch  # noqa: PLC0415
+
+            # BayesOpt-specific parameters
+            bayesopt_config = {
+                "metric": tune_config["metric"],
+                "mode": tune_config.get("mode", "min"),
+            }
+
+            # Optional BayesOpt parameters
+            if "utility_kwargs" in search_config:
+                bayesopt_config["utility_kwargs"] = search_config["utility_kwargs"]
+            if "random_state" in search_config:
+                bayesopt_config["random_state"] = search_config["random_state"]
+            if "random_search_steps" in search_config:
+                bayesopt_config["random_search_steps"] = search_config[
+                    "random_search_steps"
+                ]
+
+            search_alg = BayesOptSearch(**bayesopt_config)
+        except (ImportError, AssertionError) as e:
+            msg = "BayesOpt is required for 'bayesopt' search algorithm. Install with: pip install bayesian-optimization"
+            raise ImportError(msg) from e
+
+    elif search_type == "bohb":
+        try:
+            from ray.tune.search.bohb import TuneBOHB  # noqa: PLC0415
+
+            # BOHB-specific parameters
+            bohb_config = {
+                "metric": tune_config["metric"],
+                "mode": tune_config.get("mode", "min"),
+            }
+
+            # Note: BOHB budget parameters are typically handled by the scheduler
+            # The search algorithm itself doesn't take budget parameters
+            search_alg = TuneBOHB(**bohb_config)
+        except (ImportError, AssertionError) as e:
+            msg = "BOHB is required for 'bohb' search algorithm. Install with: pip install hpbandster ConfigSpace"
+            raise ImportError(msg) from e
+
+    elif search_type == "hebo":
+        try:
+            from ray.tune.search.hebo import HEBOSearch  # noqa: PLC0415
+
+            # HEBO-specific parameters
+            hebo_config = {
+                "metric": tune_config["metric"],
+                "mode": tune_config.get("mode", "min"),
+            }
+
+            # Optional HEBO parameters
+            if "random_state_seed" in search_config:
+                hebo_config["random_state_seed"] = search_config["random_state_seed"]
+
+            search_alg = HEBOSearch(**hebo_config)
+        except (ImportError, AssertionError) as e:
+            msg = "HEBO is required for 'hebo' search algorithm. Install with: pip install HEBO"
+            raise ImportError(msg) from e
+
+    elif search_type == "nevergrad":
+        try:
+            from ray.tune.search.nevergrad import NevergradSearch  # noqa: PLC0415
+
+            # Nevergrad-specific parameters
+            nevergrad_config = {
+                "metric": tune_config["metric"],
+                "mode": tune_config.get("mode", "min"),
+            }
+
+            # Optional Nevergrad parameters
+            if "optimizer" in search_config:
+                nevergrad_config["optimizer"] = search_config["optimizer"]
+            # Note: Budget is typically handled by the Tuner, not the search algorithm
+
+            search_alg = NevergradSearch(**nevergrad_config)
+        except (ImportError, AssertionError) as e:
+            msg = "Nevergrad is required for 'nevergrad' search algorithm. Install with: pip install nevergrad"
+            raise ImportError(msg) from e
+
     else:
         search_alg = None
 
