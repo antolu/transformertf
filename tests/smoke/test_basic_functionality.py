@@ -31,7 +31,7 @@ class TestSmokeTests:
             ctxt_seq_len=10,
             tgt_seq_len=5,
             num_lstm_layers=1,
-            n_dim_model=16,
+            d_model=16,
             num_heads=2,
             output_dim=1,
             hidden_continuous_dim=8,
@@ -46,7 +46,7 @@ class TestSmokeTests:
             ctxt_seq_len=10,
             tgt_seq_len=5,
             num_lstm_layers=1,
-            n_dim_model=16,
+            d_model=16,
             num_heads=2,
             output_dim=1,
             hidden_continuous_dim=8,
@@ -65,8 +65,8 @@ class TestSmokeTests:
         from transformertf.nn import InterpretableMultiHeadAttention
 
         attention = InterpretableMultiHeadAttention(
-            n_dim_model=16,
-            n_heads=2,
+            d_model=16,
+            num_heads=2,
             dropout=0.1,
         )
 
@@ -111,7 +111,7 @@ class TestSmokeTests:
             ctxt_seq_len=10,
             tgt_seq_len=5,
             num_lstm_layers=1,
-            n_dim_model=16,
+            d_model=16,
             num_heads=2,
             output_dim=1,
             hidden_continuous_dim=8,

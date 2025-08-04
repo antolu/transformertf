@@ -76,12 +76,12 @@ class InterpretableMultiHeadAttention(torch.nn.Module):
 
     Parameters
     ----------
-    n_dim_model : int
-        Model dimension (d_model). Must be divisible by n_heads.
+    d_model : int
+        Model dimension. Must be divisible by num_heads.
         This is the input and output feature dimension.
-    n_heads : int
-        Number of attention heads. Each head will have dimension d_model // n_heads.
-        Must be a positive integer that divides n_dim_model.
+    num_heads : int
+        Number of attention heads. Each head will have dimension d_model // num_heads.
+        Must be a positive integer that divides d_model.
     dropout : float, default=0.1
         Dropout probability applied to attention weights and final output.
         Must be in the range [0, 1).
@@ -121,8 +121,8 @@ class InterpretableMultiHeadAttention(torch.nn.Module):
     This implementation uses scaled dot-product attention with optional masking
     for applications like causal self-attention in time series forecasting.
 
-    The dimension per head is automatically computed as d_model // n_heads,
-    which means d_model must be divisible by n_heads for proper operation.
+    The dimension per head is automatically computed as d_model // num_heads,
+    which means d_model must be divisible by num_heads for proper operation.
 
     Examples
     --------
@@ -131,7 +131,7 @@ class InterpretableMultiHeadAttention(torch.nn.Module):
     >>>
     >>> # Basic usage
     >>> attn = InterpretableMultiHeadAttention(
-    ...     n_dim_model=512, n_heads=8, dropout=0.1
+    ...     d_model=512, num_heads=8, dropout=0.1
     ... )
     >>>
     >>> # Self-attention
@@ -178,26 +178,26 @@ class InterpretableMultiHeadAttention(torch.nn.Module):
 
     def __init__(
         self,
-        n_dim_model: int,
-        n_heads: int,
+        d_model: int,
+        num_heads: int,
         dropout: float = 0.1,
     ):
         super().__init__()
-        self.num_heads = n_heads
-        self.d_model = n_dim_model
+        self.num_heads = num_heads
+        self.d_model = d_model
         self.dropout = torch.nn.Dropout(dropout) if dropout > 0 else None
 
-        self.d_q = self.d_k = self.d_v = n_dim_model // n_heads
+        self.d_q = self.d_k = self.d_v = d_model // num_heads
 
         self.query_layers = torch.nn.ModuleList([
-            torch.nn.Linear(n_dim_model, self.d_q) for _ in range(n_heads)
+            torch.nn.Linear(d_model, self.d_q) for _ in range(num_heads)
         ])
         self.key_layers = torch.nn.ModuleList([
-            torch.nn.Linear(n_dim_model, self.d_k) for _ in range(n_heads)
+            torch.nn.Linear(d_model, self.d_k) for _ in range(num_heads)
         ])
-        self.value_layer = torch.nn.Linear(n_dim_model, self.d_v)
+        self.value_layer = torch.nn.Linear(d_model, self.d_v)
 
-        self.output_layer = torch.nn.Linear(self.d_v, n_dim_model)
+        self.output_layer = torch.nn.Linear(self.d_v, d_model)
 
         # Use custom attention for interpretability (returns attention weights)
         # Dropout is applied at the output level, not within attention

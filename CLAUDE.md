@@ -163,6 +163,21 @@ The CLI system automatically validates configurations and provides helpful error
 - The lightning module of each model should not be appended with model, but rather the torch.nn.Module that the module wraps should be appended with Model. So for an LSTM model, the LightningModule should be named LSTM, and the wrapped model should be named LSTMModel
 - The EncoderDecoderLSTM naming follows this convention: the Lightning module is `EncoderDecoderLSTM`, and the PyTorch model is `EncoderDecoderLSTMModel`
 
+### Hyperparameter Naming
+
+All models use standardized hyperparameter names following PyTorch and academic conventions:
+
+- **`d_model`**: Model dimension (embedding/hidden size) - follows the original "Attention Is All You Need" paper and PyTorch's native transformer implementation
+- **`num_heads`**: Number of attention heads - consistent with PyTorch MultiheadAttention
+- **`num_layers`**: Number of transformer/encoder/decoder layers - descriptive and clear
+
+**Legacy parameter names are no longer supported:**
+- `n_dim_model`, `hidden_size`, `hidden_dim` → use `d_model`
+- `n_heads`, `num_attention_heads` → use `num_heads`  
+- `n_layers` → use `num_layers`
+
+**Migration:** Use the scripts in `scripts/` directory to migrate existing checkpoints and configuration files from legacy parameter names.
+
 ## Initialization Patterns
 
 - `__init__` arguments that are supposed to be passed to a parent module do not need to be explicitly passed by calling the super init, unless explicitly stated in the parent class or if they are torch.nn.Modules, since the save_hyperparameters call will save them to hparams immediately. In short, any `__init__` argument that is not in `save_hyperparameters(ignore=...)` do not need to be passed to super init.

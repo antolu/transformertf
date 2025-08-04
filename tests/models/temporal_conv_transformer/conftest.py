@@ -19,7 +19,7 @@ def tct_config() -> dict[str, typing.Any]:
         "num_past_features": 8,
         "num_future_features": 4,
         "output_dim": 1,
-        "hidden_dim": 64,
+        "d_hidden": 64,
         "num_attention_heads": 4,
         "compression_factor": 4,
         "num_encoder_layers": 3,
@@ -36,7 +36,7 @@ def small_tct_config() -> dict[str, typing.Any]:
         "num_past_features": 4,
         "num_future_features": 2,
         "output_dim": 1,
-        "hidden_dim": 32,
+        "d_hidden": 32,
         "num_attention_heads": 2,
         "compression_factor": 2,
         "num_encoder_layers": 2,
@@ -177,7 +177,7 @@ def tct_config_factory():
             "num_past_features": 8,
             "num_future_features": 4,
             "output_dim": 1,
-            "hidden_dim": 64,
+            "d_hidden": 64,
             "num_attention_heads": 4,
             "compression_factor": 4,
             "num_encoder_layers": 3,
@@ -236,7 +236,7 @@ def model_factory():
             "num_past_features": 8,
             "num_future_features": 4,
             "output_dim": 1,
-            "hidden_dim": 32,  # Smaller for testing
+            "d_hidden": 32,  # Smaller for testing
             "compression_factor": 2,  # Lower for testing
             "dropout": 0.0,  # Deterministic
         }

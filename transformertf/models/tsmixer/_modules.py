@@ -183,7 +183,7 @@ class FeatureMixer(torch.nn.Module):
         self,
         input_len: int,
         num_features: int,
-        fc_dim: int = 512,
+        d_fc: int = 512,
         dropout: float = 0.2,
         norm: typing.Literal["batch", "layer"] = "batch",
         activation: VALID_ACTIVATIONS = "relu",
@@ -209,8 +209,8 @@ class FeatureMixer(torch.nn.Module):
             num_features=1,
             normalized_shape=(input_len, out_num_features or num_features),
         )
-        self.fc1 = torch.nn.Linear(num_features, fc_dim)
-        self.fc2 = torch.nn.Linear(fc_dim, out_num_features or num_features)
+        self.fc1 = torch.nn.Linear(num_features, d_fc)
+        self.fc2 = torch.nn.Linear(d_fc, out_num_features or num_features)
 
         # reduce dimensionality of residual connection
         if out_num_features is not None and out_num_features != num_features:
@@ -260,8 +260,8 @@ class ConditionalFeatureMixer(torch.nn.Module):
         input_len: int,
         num_features: int,
         num_static_features: int,
-        hidden_dim: int | None = None,
-        fc_dim: int = 512,
+        d_hidden: int | None = None,
+        d_fc: int = 512,
         dropout: float = 0.2,
         norm: typing.Literal["batch", "layer"] = "batch",
         activation: typing.Literal["relu", "gelu"] = "relu",
@@ -281,20 +281,20 @@ class ConditionalFeatureMixer(torch.nn.Module):
 
         self.num_static_features = num_static_features
 
-        hidden_dim = hidden_dim or num_features
+        d_hidden_ = d_hidden or num_features
 
         if num_static_features > 0:
             self.fr = FeatureMixer(
                 input_len=input_len,
                 num_features=num_static_features,
-                fc_dim=fc_dim,
+                d_fc=d_fc,
                 dropout=dropout,
                 norm=norm,
                 activation=activation,
-                out_num_features=hidden_dim,
+                out_num_features=d_hidden_,
             )
 
-            cfm_num_features = num_features + hidden_dim
+            cfm_num_features = num_features + d_hidden_
         else:
             self.fr = None
 
@@ -303,7 +303,7 @@ class ConditionalFeatureMixer(torch.nn.Module):
         self.fm = FeatureMixer(
             input_len=input_len,
             num_features=cfm_num_features,
-            fc_dim=fc_dim,
+            d_fc=d_fc,
             dropout=dropout,
             norm=norm,
             activation=activation,
@@ -356,7 +356,7 @@ class MixerBlock(torch.nn.Module):
         num_features: int,
         norm: typing.Literal["batch", "layer"] = "batch",
         activation: VALID_ACTIVATIONS = "relu",
-        fc_dim: int = 512,
+        d_fc: int = 512,
         dropout: float = 0.2,
         out_num_features: int | None = None,
     ):
@@ -373,7 +373,7 @@ class MixerBlock(torch.nn.Module):
             to `torch.nn.ReLU` and `torch.nn.GELU`
         dropout : float
             Dropout probability to use. Must be between 0 and 1.
-        fc_dim : int
+        d_fc : int
             Dimension of the fully-connected layers.
         """
         super().__init__()
@@ -388,7 +388,7 @@ class MixerBlock(torch.nn.Module):
         self.fm = FeatureMixer(
             input_len=input_len,
             num_features=num_features,
-            fc_dim=fc_dim,
+            d_fc=d_fc,
             dropout=dropout,
             norm=norm,
             activation=activation,
@@ -422,10 +422,10 @@ class ConditionalMixerBlock(torch.nn.Module):
         input_len: int,
         num_features: int,
         num_static_features: int,
-        hidden_dim: int | None = None,
+        d_hidden: int | None = None,
         norm: typing.Literal["batch", "layer"] = "batch",
         activation: typing.Literal["relu", "gelu"] = "relu",
-        fc_dim: int = 512,
+        d_fc: int = 512,
         dropout: float = 0.2,
         out_num_features: int | None = None,
     ):
@@ -442,10 +442,12 @@ class ConditionalMixerBlock(torch.nn.Module):
             to `torch.nn.ReLU` and `torch.nn.GELU`
         dropout : float
             Dropout probability to use. Must be between 0 and 1.
-        fc_dim : int
+        d_fc : int
             Dimension of the fully-connected layers.
         """
         super().__init__()
+
+        d_hidden = d_hidden or num_features
 
         self.tm = TimeMixer(
             input_len=input_len,
@@ -458,8 +460,8 @@ class ConditionalMixerBlock(torch.nn.Module):
             input_len=input_len,
             num_features=num_features,
             num_static_features=num_static_features,
-            hidden_dim=hidden_dim,
-            fc_dim=fc_dim,
+            d_hidden=d_hidden,
+            d_fc=d_fc,
             dropout=dropout,
             norm=norm,
             activation=activation,

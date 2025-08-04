@@ -12,13 +12,13 @@ def test_grn_creation():
     """Test GRN module creation."""
     grn = GatedResidualNetwork(
         input_dim=32,
-        hidden_dim=64,
+        d_hidden=64,
         output_dim=32,
         dropout=0.1,
     )
 
     assert grn.input_dim == 32
-    assert grn.hidden_dim == 64
+    assert grn.d_hidden == 64
     assert grn.output_dim == 32
     assert grn.dropout.p == 0.1
 
@@ -27,7 +27,7 @@ def test_grn_forward_without_context():
     """Test GRN forward pass without context."""
     grn = GatedResidualNetwork(
         input_dim=16,
-        hidden_dim=32,
+        d_hidden=32,
         output_dim=16,
         dropout=0.1,
     )
@@ -44,7 +44,7 @@ def test_grn_forward_with_context():
     """Test GRN forward pass with context."""
     grn = GatedResidualNetwork(
         input_dim=16,
-        hidden_dim=32,
+        d_hidden=32,
         output_dim=16,
         context_dim=8,
         dropout=0.1,
@@ -63,7 +63,7 @@ def test_grn_different_dimensions():
     """Test GRN with different input/output dimensions."""
     grn = GatedResidualNetwork(
         input_dim=8,
-        hidden_dim=16,
+        d_hidden=16,
         output_dim=12,
         dropout=0.0,
     )
@@ -80,7 +80,7 @@ def test_grn_projection_types(projection):
     """Test GRN with different projection types."""
     grn = GatedResidualNetwork(
         input_dim=16,
-        hidden_dim=32,
+        d_hidden=32,
         output_dim=16,
         dropout=0.1,
         projection=projection,
@@ -97,7 +97,7 @@ def test_grn_gradient_flow():
     """Test gradient flow through GRN."""
     grn = GatedResidualNetwork(
         input_dim=8,
-        hidden_dim=16,
+        d_hidden=16,
         output_dim=8,
         dropout=0.1,
     )
@@ -122,7 +122,7 @@ def test_grn_deterministic():
     """Test GRN deterministic behavior when dropout=0."""
     grn = GatedResidualNetwork(
         input_dim=16,
-        hidden_dim=32,
+        d_hidden=32,
         output_dim=16,
         dropout=0.0,
     )
@@ -140,7 +140,7 @@ def test_grn_with_activation():
     """Test GRN with different activation functions."""
     grn = GatedResidualNetwork(
         input_dim=16,
-        hidden_dim=32,
+        d_hidden=32,
         output_dim=16,
         dropout=0.1,
         activation="relu",
@@ -157,7 +157,7 @@ def test_grn_training_vs_eval():
     """Test GRN behavior in training vs eval mode."""
     grn = GatedResidualNetwork(
         input_dim=16,
-        hidden_dim=32,
+        d_hidden=32,
         output_dim=16,
         dropout=0.5,
     )
@@ -181,7 +181,7 @@ def test_grn_context_broadcasting():
     """Test GRN with context broadcasting."""
     grn = GatedResidualNetwork(
         input_dim=8,
-        hidden_dim=16,
+        d_hidden=16,
         output_dim=8,
         context_dim=4,
         dropout=0.1,
@@ -200,7 +200,7 @@ def test_grn_initialization():
     """Test GRN parameter initialization."""
     grn = GatedResidualNetwork(
         input_dim=32,
-        hidden_dim=64,
+        d_hidden=64,
         output_dim=32,
         dropout=0.1,
     )

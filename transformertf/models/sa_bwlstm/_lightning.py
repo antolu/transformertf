@@ -17,10 +17,10 @@ from ..bwlstm import BWLSTM3, BoucWenLoss
 class SABWLSTM(BWLSTM3):
     def __init__(
         self,
-        n_features: int = 1,
+        num_features: int = 1,
         num_layers: int | tuple[int, int, int] = 3,
-        n_dim_model: int | tuple[int, int, int] = 350,
-        n_dim_fc: int | tuple[int, int, int] | None = None,
+        d_model: int | tuple[int, int, int] = 350,
+        d_fc: int | tuple[int, int, int] | None = None,
         dropout: float | tuple[float, float, float] = 0.2,
         loss_weights: BoucWenLoss.LossWeights | None = None,
         optimizer: str
@@ -73,10 +73,10 @@ class SABWLSTM(BWLSTM3):
         ] = DEFAULT_LOGGING_METRICS,
     ):
         super().__init__(
-            n_features=n_features,
+            num_features=num_features,
             num_layers=num_layers,
-            n_dim_model=n_dim_model,
-            n_dim_fc=n_dim_fc,
+            d_model=d_model,
+            d_fc=d_fc,
             dropout=dropout,
             loss_weights=loss_weights,
             log_grad_norm=log_grad_norm,

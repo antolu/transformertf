@@ -22,13 +22,13 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=64,
             output_dim=1,
-            hidden_dim=32,
+            d_hidden=32,
             expansion_factor=4,
         )
         assert decoder is not None
         assert decoder.input_dim == 64
         assert decoder.output_dim == 1
-        assert decoder.hidden_dim == 32
+        assert decoder.d_hidden == 32
         assert decoder.expansion_factor == 4
 
     def test_forward_pass_basic(self, sample_compressed_input):
@@ -37,7 +37,7 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=64,
             output_dim=1,
-            hidden_dim=32,
+            d_hidden=32,
             expansion_factor=4,
         )
 
@@ -57,7 +57,7 @@ class TestTemporalDecoder:
             decoder = TemporalDecoder(
                 input_dim=32,
                 output_dim=1,
-                hidden_dim=16,
+                d_hidden=16,
                 expansion_factor=expansion_factor,
             )
 
@@ -73,7 +73,7 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=32,
             output_dim=2,
-            hidden_dim=16,
+            d_hidden=16,
             expansion_factor=1,
         )
 
@@ -90,7 +90,7 @@ class TestTemporalDecoder:
             decoder = TemporalDecoder(
                 input_dim=32,
                 output_dim=1,
-                hidden_dim=16,
+                d_hidden=16,
                 expansion_factor=4,
             )
 
@@ -107,7 +107,7 @@ class TestTemporalDecoder:
             decoder = TemporalDecoder(
                 input_dim=32,
                 output_dim=output_dim,
-                hidden_dim=16,
+                d_hidden=16,
                 expansion_factor=4,
             )
 
@@ -124,7 +124,7 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=32,
             output_dim=1,
-            hidden_dim=16,
+            d_hidden=16,
             expansion_factor=4,
         )
 
@@ -141,7 +141,7 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=32,
             output_dim=1,
-            hidden_dim=16,
+            d_hidden=16,
             expansion_factor=4,
         )
 
@@ -163,7 +163,7 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=32,
             output_dim=1,
-            hidden_dim=16,
+            d_hidden=16,
             expansion_factor=4,
             dropout=0.0,
         )
@@ -185,7 +185,7 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=32,
             output_dim=1,
-            hidden_dim=16,
+            d_hidden=16,
             activation=activation,
             expansion_factor=4,
         )
@@ -203,7 +203,7 @@ class TestTemporalDecoder:
             decoder = TemporalDecoder(
                 input_dim=32,
                 output_dim=1,
-                hidden_dim=16,
+                d_hidden=16,
                 num_layers=num_layers,
                 expansion_factor=4,
             )
@@ -224,7 +224,7 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=16,
             output_dim=1,
-            hidden_dim=8,
+            d_hidden=8,
             expansion_factor=4,
             dropout=0.0,
         )
@@ -260,7 +260,7 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=input_dim,
             output_dim=output_dim,
-            hidden_dim=16,
+            d_hidden=16,
             expansion_factor=expansion_factor,
             dropout=0.0,
         )
@@ -285,7 +285,7 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=32,
             output_dim=1,
-            hidden_dim=16,
+            d_hidden=16,
             expansion_factor=4,
         )
 
@@ -302,7 +302,7 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=32,
             output_dim=1,
-            hidden_dim=16,
+            d_hidden=16,
             expansion_factor=4,
         )
 
@@ -320,7 +320,7 @@ class TestTemporalDecoder:
             decoder = TemporalDecoder(
                 input_dim=32,
                 output_dim=1,
-                hidden_dim=16,
+                d_hidden=16,
                 expansion_factor=4,
             ).to(device)
 
@@ -339,7 +339,7 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=32,
             output_dim=1,
-            hidden_dim=16,
+            d_hidden=16,
             expansion_factor=16,  # Large expansion
         )
 
@@ -353,14 +353,14 @@ class TestTemporalDecoder:
         decoder_small = TemporalDecoder(
             input_dim=16,
             output_dim=1,
-            hidden_dim=8,
+            d_hidden=8,
             num_layers=2,
         )
 
         decoder_large = TemporalDecoder(
             input_dim=64,
             output_dim=3,
-            hidden_dim=32,
+            d_hidden=32,
             num_layers=4,
         )
 
@@ -379,7 +379,7 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=32,
             output_dim=1,
-            hidden_dim=16,
+            d_hidden=16,
             expansion_factor=4,
         )
 
@@ -398,7 +398,7 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=32,
             output_dim=1,
-            hidden_dim=16,
+            d_hidden=16,
             expansion_factor=4,
         )
 
@@ -417,7 +417,7 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=16,
             output_dim=1,
-            hidden_dim=8,
+            d_hidden=8,
             expansion_factor=4,
             dropout=0.0,
         )
@@ -438,7 +438,7 @@ class TestTemporalDecoder:
         decoder = TemporalDecoder(
             input_dim=32,
             output_dim=1,
-            hidden_dim=16,
+            d_hidden=16,
             expansion_factor=8,
         )
 
@@ -455,7 +455,7 @@ class TestTemporalDecoder:
             decoder = TemporalDecoder(
                 input_dim=32,
                 output_dim=1,
-                hidden_dim=16,
+                d_hidden=16,
                 kernel_size=kernel_size,
                 expansion_factor=4,
             )

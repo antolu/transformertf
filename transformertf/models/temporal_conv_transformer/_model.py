@@ -32,9 +32,9 @@ class TemporalConvTransformerModel(torch.nn.Module):
         Number of features in decoder (future) sequences
     output_dim : int, default=1
         Output dimension for predictions
-    hidden_dim : int, default=256
+    d_model : int, default=256
         Hidden dimension for convolution and attention layers
-    num_attention_heads : int, default=8
+    num_heads : int, default=8
         Number of attention heads in the transformer layer
     compression_factor : int, default=4
         Factor by which to compress sequences before attention.
@@ -108,7 +108,7 @@ class TemporalConvTransformerModel(torch.nn.Module):
     ...     num_past_features=20,
     ...     num_future_features=10,
     ...     compression_factor=8,  # More aggressive compression
-    ...     hidden_dim=512
+    ...     d_model=512
     ... )
     """
 
@@ -117,8 +117,8 @@ class TemporalConvTransformerModel(torch.nn.Module):
         num_past_features: int,
         num_future_features: int,
         output_dim: int = 1,
-        hidden_dim: int = 256,
-        num_attention_heads: int = 8,
+        d_model: int = 256,
+        num_heads: int = 8,
         compression_factor: int = 4,
         num_encoder_layers: int = 4,
         num_decoder_layers: int = 4,
@@ -134,24 +134,21 @@ class TemporalConvTransformerModel(torch.nn.Module):
             msg = f"compression_factor must be positive, got {compression_factor}"
             raise ValueError(msg)
 
-        if hidden_dim % num_attention_heads != 0:
-            msg = (
-                f"hidden_dim ({hidden_dim}) must be divisible by "
-                f"num_attention_heads ({num_attention_heads})"
-            )
+        if d_model % num_heads != 0:
+            msg = f"d_model ({d_model}) must be divisible by num_heads ({num_heads})"
             raise ValueError(msg)
 
         self.num_past_features = num_past_features
         self.num_future_features = num_future_features
         self.output_dim = output_dim
-        self.hidden_dim = hidden_dim
+        self.d_model = d_model
         self.compression_factor = compression_factor
         self.causal_attention = causal_attention
 
         # Temporal encoder for past (encoder) sequences
         self.past_encoder = TemporalEncoder(
             input_dim=num_past_features,
-            hidden_dim=hidden_dim,
+            d_hidden=d_model,
             num_layers=num_encoder_layers,
             dropout=dropout,
             activation=activation,
@@ -162,7 +159,7 @@ class TemporalConvTransformerModel(torch.nn.Module):
         # Temporal encoder for future (decoder) sequences
         self.future_encoder = TemporalEncoder(
             input_dim=num_future_features,
-            hidden_dim=hidden_dim,
+            d_hidden=d_model,
             num_layers=num_encoder_layers,
             dropout=dropout,
             activation=activation,
@@ -172,16 +169,16 @@ class TemporalConvTransformerModel(torch.nn.Module):
 
         # Multi-head attention for compressed sequences
         self.attention = InterpretableMultiHeadAttention(
-            n_dim_model=hidden_dim,
-            n_heads=num_attention_heads,
+            d_model=d_model,
+            num_heads=num_heads,
             dropout=dropout,
         )
 
         # Temporal decoder for reconstructing predictions
         self.decoder = TemporalDecoder(
-            input_dim=hidden_dim,
+            input_dim=d_model,
             output_dim=output_dim,
-            hidden_dim=hidden_dim,
+            d_hidden=d_model,
             num_layers=num_decoder_layers,
             dropout=dropout,
             activation=activation,
@@ -238,10 +235,10 @@ class TemporalConvTransformerModel(torch.nn.Module):
         # Compress both encoder and decoder sequences
         compressed_encoder = self.past_encoder(
             encoder_input
-        )  # [batch, compressed_enc_len, hidden_dim]
+        )  # [batch, compressed_enc_len, d_model]
         compressed_decoder = self.future_encoder(
             decoder_input
-        )  # [batch, compressed_dec_len, hidden_dim]
+        )  # [batch, compressed_dec_len, d_model]
 
         # Get compressed lengths for attention masking
         compressed_enc_len = compressed_encoder.shape[1]

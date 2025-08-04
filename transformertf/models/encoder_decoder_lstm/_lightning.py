@@ -40,9 +40,9 @@ class EncoderDecoderLSTM(LightningModuleBase):
         Number of input features in the past sequence (encoder input).
     num_future_features : int
         Number of input features in the future sequence (decoder input).
-    encoder_hidden_size : int, default=128
+    d_encoder : int, default=128
         Hidden size of the encoder LSTM layers.
-    decoder_hidden_size : int, default=128
+    d_decoder : int, default=128
         Hidden size of the decoder LSTM layers.
     num_encoder_layers : int, default=2
         Number of LSTM layers in the encoder.
@@ -50,7 +50,7 @@ class EncoderDecoderLSTM(LightningModuleBase):
         Number of LSTM layers in the decoder.
     dropout : float, default=0.1
         Dropout probability for LSTM layers.
-    mlp_hidden_dim : int | tuple[int, ...] | None, default=None
+    d_mlp_hidden : int | tuple[int, ...] | None, default=None
         Hidden dimensions for the MLP head. If None, uses a single linear layer.
     output_dim : int, default=1
         Output dimension. For quantile loss, this is automatically set to the number of quantiles.
@@ -84,9 +84,9 @@ class EncoderDecoderLSTM(LightningModuleBase):
     >>> model = EncoderDecoderLSTM(
     ...     num_past_features=10,
     ...     num_future_features=5,
-    ...     encoder_hidden_size=64,
-    ...     decoder_hidden_size=64,
-    ...     mlp_hidden_dim=(32, 16),
+    ...     encoder_d_model=64,
+    ...     decoder_d_model=64,
+    ...     d_mlp_hidden=(32, 16),
     ...     output_dim=1
     ... )
     >>>
@@ -95,8 +95,8 @@ class EncoderDecoderLSTM(LightningModuleBase):
     >>> model = EncoderDecoderLSTM(
     ...     num_past_features=8,
     ...     num_future_features=3,
-    ...     encoder_hidden_size=128,
-    ...     decoder_hidden_size=128,
+    ...     encoder_d_model=128,
+    ...     decoder_d_model=128,
     ...     criterion=QuantileLoss(quantiles=quantiles)
     ... )
     >>>
@@ -145,12 +145,12 @@ class EncoderDecoderLSTM(LightningModuleBase):
         self,
         num_past_features: int,
         num_future_features: int,
-        encoder_hidden_size: int = 128,
-        decoder_hidden_size: int = 128,
+        d_encoder: int = 128,
+        d_decoder: int = 128,
         num_encoder_layers: int = 2,
         num_decoder_layers: int = 2,
         dropout: float = 0.1,
-        mlp_hidden_dim: int | tuple[int, ...] | None = None,
+        d_mlp_hidden: int | tuple[int, ...] | None = None,
         output_dim: int = 1,
         mlp_activation: VALID_ACTIVATIONS = "relu",
         mlp_dropout: float = 0.1,
@@ -180,12 +180,12 @@ class EncoderDecoderLSTM(LightningModuleBase):
         self.model = EncoderDecoderLSTMModel(
             num_past_features=num_past_features,
             num_future_features=num_future_features,
-            encoder_hidden_size=encoder_hidden_size,
-            decoder_hidden_size=decoder_hidden_size,
+            encoder_d_model=d_encoder,
+            decoder_d_model=d_decoder,
             num_encoder_layers=num_encoder_layers,
             num_decoder_layers=num_decoder_layers,
             dropout=dropout,
-            mlp_hidden_dim=mlp_hidden_dim,
+            d_mlp_hidden=d_mlp_hidden,
             output_dim=output_dim,
             mlp_activation=mlp_activation,
             mlp_dropout=mlp_dropout,

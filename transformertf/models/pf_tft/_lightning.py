@@ -15,7 +15,7 @@ class PFTemporalFusionTransformer(TransformerModuleBase):
         self,
         num_past_features: int,
         num_future_features: int,
-        n_dim_model: int = 300,
+        d_model: int = 300,
         hidden_continuous_dim: int = 8,
         num_heads: int = 4,
         num_lstm_layers: int = 2,
@@ -42,7 +42,7 @@ class PFTemporalFusionTransformer(TransformerModuleBase):
         self.model = PFTemporalFusionTransformerModel(
             num_past_features=num_past_features,
             num_future_features=num_future_features,
-            n_dim_model=n_dim_model,
+            d_model=d_model,
             num_static_features=1,
             hidden_continuous_dim=hidden_continuous_dim,
             num_heads=num_heads,

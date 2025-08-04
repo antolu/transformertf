@@ -23,7 +23,7 @@ class TemporalDecoder(torch.nn.Module):
         Input dimension from compressed representation (typically from attention)
     output_dim : int
         Output dimension for final predictions
-    hidden_dim : int, default=256
+    d_hidden : int, default=256
         Hidden dimension for convolution blocks
     num_layers : int, default=4
         Number of temporal convolution layers after upsampling
@@ -78,7 +78,7 @@ class TemporalDecoder(torch.nn.Module):
         self,
         input_dim: int,
         output_dim: int,
-        hidden_dim: int = 256,
+        d_hidden: int = 256,
         num_layers: int = 4,
         kernel_size: int = 3,
         dropout: float = 0.1,
@@ -89,19 +89,19 @@ class TemporalDecoder(torch.nn.Module):
 
         self.input_dim = input_dim
         self.output_dim = output_dim
-        self.hidden_dim = hidden_dim
+        self.d_hidden = d_hidden
         self.expansion_factor = expansion_factor
         self.num_layers = num_layers
 
         # Input projection
-        self.input_proj = torch.nn.Linear(input_dim, hidden_dim)
+        self.input_proj = torch.nn.Linear(input_dim, d_hidden)
 
         # Upsampling/expansion layer
         if expansion_factor > 1:
             # Transposed convolution for upsampling
             self.upsample = torch.nn.ConvTranspose1d(
-                in_channels=hidden_dim,
-                out_channels=hidden_dim,
+                in_channels=d_hidden,
+                out_channels=d_hidden,
                 kernel_size=expansion_factor
                 * 2,  # Larger kernel for smoother upsampling
                 stride=expansion_factor,
@@ -119,8 +119,8 @@ class TemporalDecoder(torch.nn.Module):
 
             self.conv_layers.append(
                 TemporalConvBlock(
-                    in_channels=hidden_dim,
-                    out_channels=hidden_dim,
+                    in_channels=d_hidden,
+                    out_channels=d_hidden,
                     kernel_size=kernel_size,
                     dilation=dilation,
                     dropout=dropout,
@@ -130,7 +130,7 @@ class TemporalDecoder(torch.nn.Module):
             )
 
         # Output projection
-        self.output_proj = torch.nn.Linear(hidden_dim, output_dim)
+        self.output_proj = torch.nn.Linear(d_hidden, output_dim)
 
         # Final normalization (only if output_dim > 1)
         if output_dim > 1:

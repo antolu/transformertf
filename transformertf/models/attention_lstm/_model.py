@@ -33,13 +33,13 @@ class AttentionLSTMModel(torch.nn.Module):
         Number of input features in the past sequence (encoder input).
     num_future_features : int
         Number of input features in the future sequence (decoder input).
-    hidden_size : int, default=128
+    d_model : int, default=128
         Hidden size used for both encoder and decoder LSTM layers.
     num_layers : int, default=2
         Number of LSTM layers used for both encoder and decoder.
     dropout : float, default=0.1
         Dropout probability applied to all components (LSTM, attention, output).
-    n_heads : int, default=4
+    num_heads : int, default=4
         Number of attention heads in the multi-head attention mechanism.
     use_gating : bool, default=True
         Whether to use gating mechanism for skip connections. If False, uses simple residual.
@@ -72,9 +72,9 @@ class AttentionLSTMModel(torch.nn.Module):
     >>> model = AttentionLSTM(
     ...     num_past_features=10,
     ...     num_future_features=5,
-    ...     hidden_size=64,
+    ...     d_model=64,
     ...     num_layers=2,
-    ...     n_heads=4,
+    ...     num_heads=4,
     ...     use_gating=True
     ... )
     >>>
@@ -90,7 +90,7 @@ class AttentionLSTMModel(torch.nn.Module):
     -----
     **Shared Parameters:**
 
-    Both encoder and decoder use the same hidden_size and num_layers to reduce
+    Both encoder and decoder use the same d_model and num_layers to reduce
     hyperparameter complexity and ensure consistent capacity.
 
     **Dynamic Length Support:**
@@ -117,10 +117,10 @@ class AttentionLSTMModel(torch.nn.Module):
         self,
         num_past_features: int,
         num_future_features: int,
-        hidden_size: int = 128,
+        d_model: int = 128,
         num_layers: int = 2,
         dropout: float = 0.1,
-        n_heads: int = 4,
+        num_heads: int = 4,
         use_gating: bool = True,
         trainable_add: bool = False,
         output_dim: int = 1,
@@ -128,18 +128,18 @@ class AttentionLSTMModel(torch.nn.Module):
     ):
         super().__init__()
 
-        # Validate that hidden_size is divisible by n_heads for attention mechanism
-        assert hidden_size % n_heads == 0, (
-            f"hidden_size ({hidden_size}) must be divisible by n_heads ({n_heads}) "
+        # Validate that d_model is divisible by num_heads for attention mechanism
+        assert d_model % num_heads == 0, (
+            f"d_model ({d_model}) must be divisible by num_heads ({num_heads}) "
             f"for the attention mechanism to work properly."
         )
 
         self.num_past_features = num_past_features
         self.num_future_features = num_future_features
-        self.hidden_size = hidden_size
+        self.d_model = d_model
         self.num_layers = num_layers
         self.dropout = dropout
-        self.n_heads = n_heads
+        self.num_heads = num_heads
         self.use_gating = use_gating
         self.output_dim = output_dim
         self.trainable_add = trainable_add
@@ -148,7 +148,7 @@ class AttentionLSTMModel(torch.nn.Module):
         # Encoder LSTM
         self.encoder = torch.nn.LSTM(
             input_size=num_past_features,
-            hidden_size=hidden_size,
+            hidden_size=d_model,
             num_layers=num_layers,
             dropout=dropout if num_layers > 1 else 0.0,
             batch_first=True,
@@ -157,7 +157,7 @@ class AttentionLSTMModel(torch.nn.Module):
         # Decoder LSTM (same parameters as encoder)
         self.decoder = torch.nn.LSTM(
             input_size=num_future_features,
-            hidden_size=hidden_size,
+            hidden_size=d_model,
             num_layers=num_layers,
             dropout=dropout if num_layers > 1 else 0.0,
             batch_first=True,
@@ -165,25 +165,25 @@ class AttentionLSTMModel(torch.nn.Module):
 
         # Self-attention mechanism
         self.attention = InterpretableMultiHeadAttention(
-            n_dim_model=hidden_size,
-            n_heads=n_heads,
+            d_model=d_model,
+            num_heads=num_heads,
             dropout=dropout,
         )
 
         # Skip connection mechanism
         if use_gating:
             self.gate_add_norm = GateAddNorm(
-                input_dim=hidden_size,
+                input_dim=d_model,
                 dropout=dropout,
                 trainable_add=trainable_add,
             )
             self.layer_norm = None
         else:
             self.gate_add_norm = None
-            self.layer_norm = torch.nn.LayerNorm(hidden_size)
+            self.layer_norm = torch.nn.LayerNorm(d_model)
 
         # Output projection
-        self.output_head = torch.nn.Linear(hidden_size, output_dim)
+        self.output_head = torch.nn.Linear(d_model, output_dim)
 
     def _create_attention_mask(
         self, decoder_lengths: torch.Tensor, max_length: int

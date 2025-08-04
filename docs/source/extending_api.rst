@@ -131,7 +131,7 @@ Now let's look at a complete, working example. This model predicts magnetic fiel
         def __init__(
             self,
             num_layers: int,                    # How many hidden layers in the MLP
-            hidden_size: int = 64,              # How many neurons in each layer
+            d_hidden: int = 64,              # How many neurons in each layer
             dropout: float = 0.1,               # Dropout rate to prevent overfitting
             lr: float = 1e-3,                   # Learning rate for training
             weight_decay: float = 0.0,          # Weight decay for regularization
@@ -142,11 +142,11 @@ Now let's look at a complete, working example. This model predicts magnetic fiel
             self.save_hyperparameters()
 
             # Create the main MLP network
-            # It takes 3 inputs and outputs 'hidden_size' features
+            # It takes 3 inputs and outputs 'd_hidden' features
             self.mlp = MLP(
                 input_dim=3,  # past B, current I, next I
-                output_dim=hidden_size,
-                hidden_dim=[hidden_size] * num_layers,  # All layers have same size
+                output_dim=d_hidden,
+                hidden_dim=[d_hidden] * num_layers,  # All layers have same size
                 dropout=dropout,
                 activation="relu",  # ReLU activation function
             )
@@ -154,19 +154,19 @@ Now let's look at a complete, working example. This model predicts magnetic fiel
             # Create two Gated Residual Networks
             # These help the model learn complex patterns
             self.grn1 = GatedResidualNetwork(
-                input_dim=hidden_size,
-                hidden_dim=hidden_size,
-                output_dim=hidden_size,
+                input_dim=d_hidden,
+                hidden_dim=d_hidden,
+                output_dim=d_hidden,
             )
 
             self.grn2 = GatedResidualNetwork(
-                input_dim=hidden_size,
-                hidden_dim=hidden_size,
-                output_dim=hidden_size,
+                input_dim=d_hidden,
+                hidden_dim=d_hidden,
+                output_dim=d_hidden,
             )
 
             # Final layer that outputs just 1 value (the predicted magnetic field)
-            self.linear = torch.nn.Linear(hidden_size, 1)
+            self.linear = torch.nn.Linear(d_hidden, 1)
 
             # Set up the loss function (how we measure prediction errors)
             # MSE = Mean Squared Error
@@ -339,7 +339,7 @@ Now we create our model and train it:
     # Create our custom model
     model = MLPHysteresis(
         num_layers=2,           # 2 hidden layers
-        hidden_size=128,        # 128 neurons per layer
+        d_hidden=128,        # 128 neurons per layer
         dropout=0.1,            # 10% dropout
         lr=1e-4,                # Learning rate of 0.0001
         weight_decay=1e-4       # Small weight decay for regularization

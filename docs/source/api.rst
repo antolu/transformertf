@@ -53,7 +53,7 @@ Quick Start Example
 
    # Setup model
    model = TemporalFusionTransformer(
-       n_dim_model=64,
+       d_model=64,
        num_heads=4
    )
 
@@ -101,7 +101,6 @@ Neural network model implementations including base classes and specific archite
    transformertf.models.transformer_v2
    transformertf.models.tsmixer
    transformertf.models.bwlstm
-   transformertf.models.phytsmixer
    transformertf.models.pete
    transformertf.models.gru
    transformertf.models.sa_bwlstm

@@ -20,45 +20,43 @@ class PETEModel(torch.nn.Module):
         self,
         seq_len: int,
         num_features: int,
-        n_dim_selection: int = 32,
-        n_dim_model: int = 128,
-        n_heads: int = 4,
-        n_layers: int = 2,
+        d_selection: int = 32,
+        d_model: int = 128,
+        num_heads: int = 4,
+        num_layers: int = 2,
         n_layers_encoded: int = 2,
         dropout: float = 0.1,
     ):
         super().__init__()
         self.num_features = num_features
-        self.n_dim_selection = n_dim_selection
-        self.n_dim_model = n_dim_model
-        self.n_heads = n_heads
-        self.n_layers = n_layers
+        self.d_selection = d_selection
+        self.d_model = d_model
+        self.num_heads = num_heads
+        self.num_layers = num_layers
         self.n_layers_encoded = n_layers_encoded
         self.dropout = dropout
 
         self.vs = VariableSelection(
-            n_features=num_features,
-            hidden_dim=n_dim_selection,
-            n_dim_model=n_dim_model,
+            num_features=num_features,
+            d_hidden=d_selection,
+            d_model=d_model,
             dropout=dropout,
         )
         # self.lstm = torch.nn.LSTM(
-        #     n_dim_model, n_dim_model, num_layers=n_layers, batch_first=True
+        #     d_model, d_model, num_layers=n_layers, batch_first=True
         # )
         self.block = BasicTSMixerModel(
             seq_len=seq_len,
-            num_features=n_dim_model,
-            num_blocks=n_layers,
-            hidden_dim=n_dim_model,
+            num_features=d_model,
+            num_blocks=num_layers,
+            d_hidden=d_model,
             activation="tanh",
             norm="layer",
         )
         self.attention = InterpretableMultiHeadAttention(
-            n_dim_model=n_dim_model, n_heads=n_heads, dropout=dropout
+            d_model=d_model, num_heads=num_heads, dropout=dropout
         )
-        self.gate = GateAddNorm(
-            input_dim=n_dim_model, output_dim=n_dim_model, dropout=dropout
-        )
+        self.gate = GateAddNorm(input_dim=d_model, output_dim=d_model, dropout=dropout)
 
         self.grn1h = GatedResidualNetwork(
             input_dim=seq_len,

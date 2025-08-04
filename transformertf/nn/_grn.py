@@ -78,7 +78,7 @@ class GatedResidualNetwork(torch.nn.Module):
         Input feature dimension. Must match the last dimension of input tensors.
     output_dim : int
         Output feature dimension. The output will have this dimension.
-    hidden_dim : int, optional
+    d_hidden : int, optional
         Hidden layer dimension for internal transformations. If None, defaults
         to input_dim. Controls the capacity of the internal feedforward network.
     context_dim : int, optional
@@ -104,7 +104,7 @@ class GatedResidualNetwork(torch.nn.Module):
         Output feature dimension.
     context_dim : int or None
         Context feature dimension if context is used.
-    hidden_dim : int
+    d_hidden : int
         Hidden layer dimension.
     fc1 : torch.nn.Linear
         First linear transformation layer.
@@ -164,7 +164,7 @@ class GatedResidualNetwork(torch.nn.Module):
     >>> grn_custom = GatedResidualNetwork(
     ...     input_dim=256,
     ...     output_dim=512,
-    ...     hidden_dim=1024,
+    ...     d_hidden=1024,
     ...     dropout=0.2,
     ...     activation="gelu",
     ...     projection="interpolate"
@@ -199,7 +199,7 @@ class GatedResidualNetwork(torch.nn.Module):
         self,
         input_dim: int,
         output_dim: int,
-        hidden_dim: int | None = None,
+        d_hidden: int | None = None,
         context_dim: int | None = None,
         dropout: float = 0.1,
         activation: VALID_ACTIVATIONS = "elu",
@@ -210,16 +210,14 @@ class GatedResidualNetwork(torch.nn.Module):
         self.output_dim = output_dim
         self.context_dim = context_dim
 
-        hidden_dim = hidden_dim or input_dim
-        self.hidden_dim = hidden_dim
+        d_hidden_ = d_hidden or input_dim
+        self.d_hidden = d_hidden_
 
-        self.fc1 = torch.nn.Linear(input_dim, hidden_dim)
-        self.fc2 = torch.nn.Linear(hidden_dim, output_dim)
+        self.fc1 = torch.nn.Linear(input_dim, d_hidden_)
+        self.fc2 = torch.nn.Linear(d_hidden_, output_dim)
         self.dropout = torch.nn.Dropout(dropout) if dropout > 0 else None
         self.fc3 = (
-            torch.nn.Linear(context_dim, hidden_dim, bias=False)
-            if context_dim
-            else None
+            torch.nn.Linear(context_dim, d_hidden_, bias=False) if context_dim else None
         )
 
         if input_dim != output_dim:

@@ -31,7 +31,7 @@ def test_temporal_conv_transformer_lightning_module_creation():
         num_past_features=8,
         num_future_features=4,
         output_dim=1,
-        hidden_dim=64,
+        d_model=64,
     )
 
     assert model is not None
@@ -46,7 +46,7 @@ def test_temporal_conv_transformer_training_step(sample_batch):
         num_past_features=8,
         num_future_features=4,
         output_dim=1,
-        hidden_dim=32,
+        d_model=32,
         compression_factor=4,
     )
 
@@ -69,7 +69,7 @@ def test_temporal_conv_transformer_validation_step(sample_batch):
         num_past_features=8,
         num_future_features=4,
         output_dim=1,
-        hidden_dim=32,
+        d_model=32,
         compression_factor=4,
     )
 
@@ -92,7 +92,7 @@ def test_temporal_conv_transformer_predict_step():
         num_past_features=8,
         num_future_features=4,
         output_dim=1,
-        hidden_dim=32,
+        d_model=32,
         compression_factor=4,
     )
 
@@ -120,7 +120,7 @@ def test_temporal_conv_transformer_loss_computation_single_output(sample_batch):
         num_past_features=8,
         num_future_features=4,
         output_dim=1,  # Single output should use MSELoss
-        hidden_dim=32,
+        d_model=32,
     )
 
     # Should use MSELoss for single output
@@ -139,7 +139,7 @@ def test_temporal_conv_transformer_loss_computation_multiple_outputs():
         num_past_features=8,
         num_future_features=4,
         output_dim=3,  # Multiple outputs should use QuantileLoss
-        hidden_dim=32,
+        d_model=32,
     )
 
     # Should use QuantileLoss for multiple outputs
@@ -166,7 +166,7 @@ def test_temporal_conv_transformer_custom_criterion(sample_batch):
         num_past_features=8,
         num_future_features=4,
         criterion=custom_criterion,
-        hidden_dim=32,
+        d_model=32,
     )
 
     assert model.criterion is custom_criterion
@@ -181,7 +181,7 @@ def test_temporal_conv_transformer_point_prediction_extraction(sample_batch):
         num_past_features=8,
         num_future_features=4,
         output_dim=1,
-        hidden_dim=32,
+        d_model=32,
     )
 
     output = model.training_step(sample_batch, 0)
@@ -196,7 +196,7 @@ def test_temporal_conv_transformer_point_prediction_extraction_quantile():
         num_past_features=8,
         num_future_features=4,
         output_dim=3,  # Multiple outputs for quantile
-        hidden_dim=32,
+        d_model=32,
     )
 
     batch = {
@@ -224,7 +224,7 @@ def test_temporal_conv_transformer_model_state_transitions(sample_batch):
         num_past_features=8,
         num_future_features=4,
         output_dim=1,
-        hidden_dim=32,
+        d_model=32,
         dropout=0.1,  # Enable dropout to see difference
     )
 
@@ -254,7 +254,7 @@ def test_temporal_conv_transformer_hyperparameter_storage():
         num_past_features=10,
         num_future_features=6,
         output_dim=1,  # Use 1 to avoid QuantileLoss adjustment
-        hidden_dim=128,
+        d_model=128,
         compression_factor=8,
         dropout=0.2,
     )
@@ -264,7 +264,7 @@ def test_temporal_conv_transformer_hyperparameter_storage():
     assert hparams["num_past_features"] == 10
     assert hparams["num_future_features"] == 6
     assert hparams["output_dim"] == 1
-    assert hparams["hidden_dim"] == 128
+    assert hparams["d_model"] == 128
     assert hparams["compression_factor"] == 8
     assert hparams["dropout"] == 0.2
 
@@ -275,7 +275,7 @@ def test_temporal_conv_transformer_tct_alias_lightning_functionality(sample_batc
         num_past_features=8,
         num_future_features=4,
         output_dim=1,
-        hidden_dim=32,
+        d_model=32,
     )
 
     # Test training step
@@ -293,7 +293,7 @@ def test_temporal_conv_transformer_compile_model_functionality(sample_batch):
         num_past_features=8,
         num_future_features=4,
         output_dim=1,
-        hidden_dim=32,
+        d_model=32,
         compile_model=True,
     )
 
@@ -311,14 +311,14 @@ def test_temporal_conv_transformer_logging_metrics_configuration(sample_batch):
     model1 = TemporalConvTransformer(
         num_past_features=8,
         num_future_features=4,
-        hidden_dim=32,
+        d_model=32,
     )
 
     # Custom metrics
     model2 = TemporalConvTransformer(
         num_past_features=8,
         num_future_features=4,
-        hidden_dim=32,
+        d_model=32,
         logging_metrics=["MSE", "MAE"],
     )
 
@@ -326,7 +326,7 @@ def test_temporal_conv_transformer_logging_metrics_configuration(sample_batch):
     model3 = TemporalConvTransformer(
         num_past_features=8,
         num_future_features=4,
-        hidden_dim=32,
+        d_model=32,
         logging_metrics=[],
     )
 
@@ -341,7 +341,7 @@ def test_temporal_conv_transformer_device_placement_lightning():
     model = TemporalConvTransformer(
         num_past_features=8,
         num_future_features=4,
-        hidden_dim=32,
+        d_model=32,
     )
 
     # Test CPU placement (default)
@@ -370,7 +370,7 @@ def test_temporal_conv_transformer_parameter_freezing(sample_batch):
     model = TemporalConvTransformer(
         num_past_features=8,
         num_future_features=4,
-        hidden_dim=32,
+        d_model=32,
         trainable_parameters=["model.attention"],  # Only train attention
     )
 
@@ -387,7 +387,7 @@ def test_temporal_conv_transformer_state_dict_compilation_handling():
     model = TemporalConvTransformer(
         num_past_features=8,
         num_future_features=4,
-        hidden_dim=32,
+        d_model=32,
         compile_model=True,
     )
 
@@ -409,7 +409,7 @@ def test_temporal_conv_transformer_different_batch_configurations():
     model = TemporalConvTransformer(
         num_past_features=6,
         num_future_features=3,
-        hidden_dim=32,
+        d_model=32,
         compression_factor=2,
     )
 
@@ -437,7 +437,7 @@ def test_temporal_conv_transformer_validation_outputs_collection(sample_batch):
     model = TemporalConvTransformer(
         num_past_features=8,
         num_future_features=4,
-        hidden_dim=32,
+        d_model=32,
     )
 
     # Simulate validation epoch start
@@ -464,7 +464,7 @@ def test_temporal_conv_transformer_gradient_accumulation_compatibility(sample_ba
     model = TemporalConvTransformer(
         num_past_features=8,
         num_future_features=4,
-        hidden_dim=32,
+        d_model=32,
     )
 
     # Simulate multiple training steps without optimizer step
@@ -484,7 +484,7 @@ def test_temporal_conv_transformer_error_handling_invalid_batch():
     model = TemporalConvTransformer(
         num_past_features=8,
         num_future_features=4,
-        hidden_dim=32,
+        d_model=32,
     )
 
     # Invalid batch missing required keys
@@ -503,7 +503,7 @@ def test_temporal_conv_transformer_memory_efficiency_lightning():
     model = TemporalConvTransformer(
         num_past_features=16,
         num_future_features=8,
-        hidden_dim=64,
+        d_model=64,
         compression_factor=8,  # High compression for efficiency
     )
 

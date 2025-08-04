@@ -74,7 +74,7 @@ transformertf fit --experiment-name my_experiment --config sample_configs/tft_co
 model:
   class_path: transformertf.models.temporal_fusion_transformer.TemporalFusionTransformer
   init_args:
-    n_dim_model: 32
+    d_model: 32
     num_heads: 4
     dropout: 0.2
 
@@ -118,7 +118,7 @@ data_module = EncoderDecoderDataModule(
 
 # Initialize model
 model = TemporalFusionTransformer(
-    n_dim_model=32,
+    d_model=32,
     num_heads=4,
     seq_len=200,
     output_dim=1

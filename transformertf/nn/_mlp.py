@@ -15,7 +15,7 @@ class MLP(torch.nn.Module):
     def __init__(
         self,
         input_dim: int,
-        hidden_dim: int | typing.Sequence[int] | None = None,
+        d_hidden: int | typing.Sequence[int] | None = None,
         output_dim: int = 1,
         dropout: float = 0.1,
         activation: VALID_ACTIVATIONS = "relu",
@@ -24,10 +24,10 @@ class MLP(torch.nn.Module):
 
         layers: list[torch.nn.Module] = []
         prev_dim = input_dim
-        if hidden_dim is not None:
-            if isinstance(hidden_dim, int):
-                hidden_dim = (hidden_dim,)
-            for dim in hidden_dim:
+        if d_hidden is not None:
+            if isinstance(d_hidden, int):
+                d_hidden = (d_hidden,)
+            for dim in d_hidden:
                 layers.append(torch.nn.Linear(prev_dim, dim))
                 layers.append(get_activation(activation))
                 if dropout > 0:

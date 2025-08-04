@@ -29,9 +29,9 @@ optimizer:
 model:
   class_path: transformertf.models.tsmixer.TSMixer
   init_args:
-    n_dim_model: 32
+    d_model: 32
     activation: "relu"
-    fc_dim: 512
+    d_fc: 512
     dropout: 0.2
     num_blocks: 4
     criterion:

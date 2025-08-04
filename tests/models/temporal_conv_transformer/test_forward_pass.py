@@ -46,7 +46,7 @@ class TestTemporalConvTransformerForwardPass:
             num_past_features=10,
             num_future_features=5,
             output_dim=1,
-            hidden_dim=64,
+            d_model=64,
             compression_factor=4,
         )
 
@@ -75,7 +75,7 @@ class TestTemporalConvTransformerForwardPass:
             num_past_features=10,
             num_future_features=5,
             output_dim=1,
-            hidden_dim=64,
+            d_model=64,
             compression_factor=4,
         )
 
@@ -101,7 +101,7 @@ class TestTemporalConvTransformerForwardPass:
             num_past_features=10,
             num_future_features=5,
             output_dim=1,
-            hidden_dim=32,
+            d_model=32,
             compression_factor=2,
         )
 
@@ -132,7 +132,7 @@ class TestTemporalConvTransformerForwardPass:
             num_past_features=8,
             num_future_features=4,
             output_dim=1,
-            hidden_dim=32,
+            d_model=32,
             compression_factor=compression_factor,
         )
 
@@ -159,7 +159,7 @@ class TestTemporalConvTransformerForwardPass:
             num_past_features=6,
             num_future_features=3,
             output_dim=output_dim,
-            hidden_dim=32,
+            d_model=32,
             compression_factor=2,
         )
 
@@ -180,8 +180,8 @@ class TestTemporalConvTransformerForwardPass:
             num_past_features=10,
             num_future_features=5,
             output_dim=1,
-            hidden_dim=64,
-            num_attention_heads=8,
+            d_model=64,
+            num_heads=8,
             compression_factor=4,
         )
 
@@ -216,7 +216,7 @@ class TestTemporalConvTransformerForwardPass:
             num_past_features=8,
             num_future_features=4,
             output_dim=1,
-            hidden_dim=32,
+            d_model=32,
             compression_factor=2,
         )
 
@@ -244,7 +244,7 @@ class TestTemporalConvTransformerForwardPass:
             num_past_features=10,
             num_future_features=5,
             output_dim=1,
-            hidden_dim=32,
+            d_model=32,
             compression_factor=4,
         )
 
@@ -277,7 +277,7 @@ class TestTemporalConvTransformerForwardPass:
             num_past_features=10,
             num_future_features=5,
             output_dim=1,
-            hidden_dim=32,
+            d_model=32,
             compression_factor=4,
             dropout=0.0,
         )
@@ -308,7 +308,7 @@ class TestTemporalConvTransformerForwardPass:
             num_past_features=6,
             num_future_features=3,
             output_dim=1,
-            hidden_dim=32,
+            d_model=32,
             compression_factor=2,
         )
 
@@ -335,7 +335,7 @@ class TestTemporalConvTransformerForwardPass:
             num_past_features=8,
             num_future_features=4,
             output_dim=1,
-            hidden_dim=32,
+            d_model=32,
             compression_factor=4,
         )
 
@@ -370,7 +370,7 @@ class TestTemporalConvTransformerForwardPass:
             num_past_features=8,
             num_future_features=4,
             output_dim=1,
-            hidden_dim=32,
+            d_model=32,
             compression_factor=2,
         )
 
@@ -398,7 +398,7 @@ class TestTemporalConvTransformerForwardPass:
                 num_past_features=8,
                 num_future_features=4,
                 output_dim=1,
-                hidden_dim=32,
+                d_model=32,
                 compression_factor=2,
             ).to(device)
 
@@ -438,7 +438,7 @@ class TestTemporalConvTransformerForwardPass:
             num_past_features=num_past_features,
             num_future_features=num_future_features,
             output_dim=1,
-            hidden_dim=32,
+            d_model=32,
             compression_factor=compression_factor,
         )
 
@@ -474,7 +474,7 @@ class TestTemporalConvTransformerForwardPass:
             num_past_features=5,
             num_future_features=3,
             output_dim=1,
-            hidden_dim=32,
+            d_model=32,
             compression_factor=2,
         )
 
@@ -499,7 +499,7 @@ class TestTemporalConvTransformerForwardPass:
             num_past_features=8,
             num_future_features=4,
             output_dim=1,
-            hidden_dim=32,
+            d_model=32,
             compression_factor=8,  # High compression for efficiency
         )
 
@@ -525,7 +525,7 @@ class TestTemporalConvTransformerForwardPass:
             num_past_features=4,
             num_future_features=2,
             output_dim=1,
-            hidden_dim=16,
+            d_model=16,
             compression_factor=2,
             max_dilation=4,  # Smaller dilation for minimal sequences
         )
@@ -546,7 +546,7 @@ class TestTemporalConvTransformerForwardPass:
             num_past_features=6,
             num_future_features=3,
             output_dim=1,
-            hidden_dim=32,
+            d_model=32,
             compression_factor=2,
             dropout=0.0,
         )
@@ -578,7 +578,7 @@ class TestTemporalConvTransformerForwardPass:
             num_past_features=8,
             num_future_features=4,
             output_dim=1,
-            hidden_dim=32,
+            d_model=32,
             compression_factor=4,
         )
 
@@ -621,7 +621,7 @@ class TestTemporalConvTransformerForwardPass:
                 num_past_features=8,
                 num_future_features=4,
                 output_dim=1,
-                hidden_dim=32,
+                d_model=32,
                 compression_factor=4,
             )
 
@@ -652,7 +652,7 @@ class TestTemporalConvTransformerForwardPass:
             num_past_features=16,
             num_future_features=8,
             output_dim=1,
-            hidden_dim=64,
+            d_model=64,
             compression_factor=8,  # High compression for efficiency
         )
 

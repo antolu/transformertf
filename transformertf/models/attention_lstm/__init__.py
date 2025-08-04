@@ -32,9 +32,9 @@ Examples
 >>> model = AttentionLSTM(
 ...     num_past_features=10,
 ...     num_future_features=5,
-...     hidden_size=128,
+...     d_model=128,
 ...     num_layers=2,
-...     n_heads=4,
+...     num_heads=4,
 ...     use_gating=True,
 ...     dropout=0.1
 ... )

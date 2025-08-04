@@ -41,7 +41,7 @@ Predict sinusoidal magnetic field response using LSTM:
        batch_size=16
    )
 
-   model = LSTM(hidden_size=64, num_layers=2)
+   model = LSTM(d_model=64, num_layers=2)
 
    # Train
    trainer = L.Trainer(max_epochs=50, accelerator='auto')
@@ -59,7 +59,7 @@ Predict sinusoidal magnetic field response using LSTM:
    model:
      class_path: transformertf.models.lstm.LSTM
      init_args:
-       hidden_size: 64
+       d_model: 64
        num_layers: 2
 
    data:
@@ -91,7 +91,7 @@ Predict multiple steps ahead with uncertainty:
    model:
      class_path: transformertf.models.temporal_fusion_transformer.TemporalFusionTransformer
      init_args:
-       n_dim_model: 64
+       d_model: 64
        num_heads: 4
        quantiles: [0.1, 0.5, 0.9]
        criterion:
@@ -192,8 +192,8 @@ Multi-sensor calibration with temperature compensation:
    model:
      class_path: transformertf.models.temporal_fusion_transformer.TemporalFusionTransformer
      init_args:
-       n_dim_model: 128
-       hidden_continuous_dim: 32
+       d_model: 128
+       d_hidden_continuous: 32
        num_heads: 8
        num_lstm_layers: 2
        dropout: 0.1
@@ -250,8 +250,8 @@ High-frequency temperature measurement with environmental factors:
    model:
      class_path: transformertf.models.tsmixer.TSMixer
      init_args:
-       n_block: 8
-       ff_dim: 256
+       num_blocks: 8
+       d_fc: 256
        dropout: 0.1
        activation: 'gelu'
 
@@ -291,11 +291,11 @@ Accelerometer data processing with frequency analysis:
    model:
      class_path: transformertf.models.transformer.VanillaTransformer
      init_args:
-       n_dim_model: 256
+       d_model: 256
        num_heads: 8
        num_encoder_layers: 6
        num_decoder_layers: 6
-       ff_dim: 1024
+       d_fc: 1024
        dropout: 0.15
 
    data:
@@ -337,7 +337,7 @@ Magnetic field modeling with physics constraints:
    model:
      class_path: transformertf.models.pete.PETE
      init_args:
-       n_dim_model: 128
+       d_model: 128
        num_heads: 8
        num_layers: 3
        dropout: 0.1
@@ -378,7 +378,7 @@ Fine-tune a pre-trained model on new domain:
      class_path: transformertf.models.temporal_fusion_transformer.TemporalFusionTransformer
      init_args:
        # Architecture must match pre-trained model
-       n_dim_model: 128
+       d_model: 128
        num_heads: 8
        num_lstm_layers: 2
        dropout: 0.1
@@ -411,7 +411,7 @@ Automated hyperparameter search with Ray Tune:
 
    # Define search space
    search_space = {
-       "model.init_args.n_dim_model": {
+       "model.init_args.d_model": {
            "type": "choice",
            "values": [32, 64, 128]
        },
@@ -574,8 +574,8 @@ Configuration for limited GPU memory:
    model:
      class_path: transformertf.models.tsmixer.TSMixer
      init_args:
-       n_block: 6                     # Smaller model
-       ff_dim: 128
+       num_blocks: 6                     # Smaller model
+       d_fc: 128
        dropout: 0.1
 
    data:
@@ -608,7 +608,7 @@ Scale training across multiple GPUs:
    model:
      class_path: transformertf.models.temporal_fusion_transformer.TemporalFusionTransformer
      init_args:
-       n_dim_model: 256               # Larger model for multi-GPU
+       d_model: 256               # Larger model for multi-GPU
        num_heads: 16
        compile_model: true            # PyTorch compilation
 

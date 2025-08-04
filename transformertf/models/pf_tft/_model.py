@@ -20,7 +20,7 @@ class PFTemporalFusionTransformerModel(torch.nn.Module):
         num_past_features: int,
         num_future_features: int,
         num_static_features: int = 0,
-        n_dim_model: int = 300,
+        d_model: int = 300,
         hidden_continuous_dim: int = 8,
         num_heads: int = 4,
         num_lstm_layers: int = 2,
@@ -38,7 +38,7 @@ class PFTemporalFusionTransformerModel(torch.nn.Module):
             Number of continuous features / covariates (time series)
         num_static_features : int, optional
             Number of static features, by default 0. Currently not used.
-        n_dim_model : int, optional
+        d_model : int, optional
             Dimension of the model, by default 300. The most important
             hyperparameter, as it determines the model capacity.
         variable_selection_dim : int, optional
@@ -61,7 +61,7 @@ class PFTemporalFusionTransformerModel(torch.nn.Module):
         self.num_past_features = num_past_features
         self.num_future_features = num_future_features
         self.num_static_features = num_static_features  # not used
-        self.n_dim_model = n_dim_model
+        self.d_model = d_model
         self.hidden_continuous_dim = hidden_continuous_dim
         self.num_heads = num_heads
         self.num_lstm_layers = num_lstm_layers
@@ -71,79 +71,79 @@ class PFTemporalFusionTransformerModel(torch.nn.Module):
 
         # TODO: static covariate embeddings
         self.static_vs = VariableSelection(
-            n_features=num_static_features,
-            hidden_dim=hidden_continuous_dim,
-            n_dim_model=n_dim_model,
+            num_features=num_static_features,
+            d_hidden=hidden_continuous_dim,
+            d_model=d_model,
             dropout=dropout,
         )
 
         self.enc_vs = VariableSelection(
-            n_features=num_past_features,
-            hidden_dim=hidden_continuous_dim,
-            n_dim_model=n_dim_model,
-            context_size=n_dim_model,
+            num_features=num_past_features,
+            d_hidden=hidden_continuous_dim,
+            d_model=d_model,
+            context_size=d_model,
             dropout=dropout,
         )
 
         self.dec_vs = VariableSelection(
-            n_features=num_future_features,
-            hidden_dim=hidden_continuous_dim,
-            n_dim_model=n_dim_model,
-            context_size=n_dim_model,
+            num_features=num_future_features,
+            d_hidden=hidden_continuous_dim,
+            d_model=d_model,
+            context_size=d_model,
             dropout=dropout,
         )
 
-        self.static_ctxt_vs = basic_grn(n_dim_model, dropout)
-        self.static_ctxt_enrichment = basic_grn(n_dim_model, dropout)
+        self.static_ctxt_vs = basic_grn(d_model, dropout)
+        self.static_ctxt_enrichment = basic_grn(d_model, dropout)
 
-        self.lstm_init_hidden = basic_grn(n_dim_model, dropout)
-        self.lstm_init_cell = basic_grn(n_dim_model, dropout)
+        self.lstm_init_hidden = basic_grn(d_model, dropout)
+        self.lstm_init_cell = basic_grn(d_model, dropout)
 
         self.enc_lstm = torch.nn.LSTM(
-            input_size=n_dim_model,
-            hidden_size=n_dim_model,
+            input_size=d_model,
+            hidden_size=d_model,
             num_layers=num_lstm_layers,
             dropout=dropout if num_lstm_layers > 1 else 0.0,
             batch_first=True,
         )
 
         self.dec_lstm = torch.nn.LSTM(
-            input_size=n_dim_model,
-            hidden_size=n_dim_model,
+            input_size=d_model,
+            hidden_size=d_model,
             num_layers=num_lstm_layers,
             dropout=dropout if num_lstm_layers > 1 else 0.0,
             batch_first=True,
         )
 
-        self.enc_gate1 = GatedLinearUnit(n_dim_model, dropout=dropout)
+        self.enc_gate1 = GatedLinearUnit(d_model, dropout=dropout)
         self.dec_gate1 = self.enc_gate1
 
-        self.enc_norm1 = AddNorm(n_dim_model, trainable_add=False)
+        self.enc_norm1 = AddNorm(d_model, trainable_add=False)
         self.dec_norm1 = self.enc_norm1
 
         self.static_enrichment = GatedResidualNetwork(
-            input_dim=n_dim_model,
-            hidden_dim=n_dim_model,
-            output_dim=n_dim_model,
-            context_dim=n_dim_model,
+            input_dim=d_model,
+            d_hidden=d_model,
+            output_dim=d_model,
+            context_dim=d_model,
             dropout=dropout,
             projection="interpolate",
         )
 
         self.attn = InterpretableMultiHeadAttention(
-            n_heads=num_heads,
-            n_dim_model=n_dim_model,
+            num_heads=num_heads,
+            d_model=d_model,
             dropout=dropout,
         )
 
-        self.attn_gate1 = GatedLinearUnit(n_dim_model, dropout=dropout)
-        self.attn_norm1 = AddNorm(n_dim_model, trainable_add=False)
-        self.attn_grn = basic_grn(n_dim_model, dropout)
+        self.attn_gate1 = GatedLinearUnit(d_model, dropout=dropout)
+        self.attn_norm1 = AddNorm(d_model, trainable_add=False)
+        self.attn_grn = basic_grn(d_model, dropout)
 
-        self.attn_gate2 = GatedLinearUnit(n_dim_model, dropout=0.0)
-        self.attn_norm2 = AddNorm(n_dim_model, trainable_add=False)
+        self.attn_gate2 = GatedLinearUnit(d_model, dropout=0.0)
+        self.attn_norm2 = AddNorm(d_model, trainable_add=False)
 
-        self.output_layer = torch.nn.Linear(n_dim_model, output_dim)
+        self.output_layer = torch.nn.Linear(d_model, output_dim)
 
     def forward(
         self,
@@ -194,7 +194,7 @@ class PFTemporalFusionTransformerModel(torch.nn.Module):
             # embedding layer, but for simplicity we just use zeros
             static_embedding = torch.zeros(
                 batch_size,
-                self.n_dim_model,
+                self.d_model,
                 device=past_covariates.device,
             )  # static covariate embeddings
             static_variable_selection = torch.zeros(
@@ -299,7 +299,7 @@ def basic_grn(dim: int, dropout: float) -> GatedResidualNetwork:
     """
     return GatedResidualNetwork(
         input_dim=dim,
-        hidden_dim=dim,
+        d_hidden=dim,
         output_dim=dim,
         dropout=dropout,
         projection="interpolate",

@@ -11,9 +11,9 @@ def test_attention_lstm_module_training_step() -> None:
     model = AttentionLSTM(
         num_past_features=3,
         num_future_features=2,
-        hidden_size=32,
+        d_model=32,
         num_layers=1,
-        n_heads=2,
+        num_heads=2,
         dropout=0.1,
         use_gating=True,
     )
@@ -47,9 +47,9 @@ def test_attention_lstm_module_validation_step() -> None:
     model = AttentionLSTM(
         num_past_features=3,
         num_future_features=2,
-        hidden_size=32,
+        d_model=32,
         num_layers=1,
-        n_heads=2,
+        num_heads=2,
         dropout=0.1,
         use_gating=True,
     )
@@ -81,9 +81,9 @@ def test_attention_lstm_module_test_step() -> None:
     model = AttentionLSTM(
         num_past_features=3,
         num_future_features=2,
-        hidden_size=32,
+        d_model=32,
         num_layers=1,
-        n_heads=2,
+        num_heads=2,
         dropout=0.1,
         use_gating=True,
     )
@@ -115,9 +115,9 @@ def test_attention_lstm_module_predict_step() -> None:
     model = AttentionLSTM(
         num_past_features=3,
         num_future_features=2,
-        hidden_size=32,
+        d_model=32,
         num_layers=1,
-        n_heads=2,
+        num_heads=2,
         dropout=0.1,
         use_gating=True,
     )
@@ -155,9 +155,9 @@ def test_attention_lstm_module_configure_optimizers() -> None:
     model = AttentionLSTM(
         num_past_features=3,
         num_future_features=2,
-        hidden_size=32,
+        d_model=32,
         num_layers=1,
-        n_heads=2,
+        num_heads=2,
         dropout=0.1,
         use_gating=True,
     )
@@ -172,9 +172,9 @@ def test_attention_lstm_module_hyperparameter_storage() -> None:
     model = AttentionLSTM(
         num_past_features=5,
         num_future_features=3,
-        hidden_size=64,
+        d_model=64,
         num_layers=2,
-        n_heads=4,
+        num_heads=4,
         dropout=0.1,
         use_gating=True,
     )
@@ -183,9 +183,9 @@ def test_attention_lstm_module_hyperparameter_storage() -> None:
     assert hasattr(model, "hparams")
     assert model.hparams.num_past_features == 5
     assert model.hparams.num_future_features == 3
-    assert model.hparams.hidden_size == 64
+    assert model.hparams.d_model == 64
     assert model.hparams.num_layers == 2
-    assert model.hparams.n_heads == 4
+    assert model.hparams.num_heads == 4
     assert model.hparams.dropout == 0.1
     assert model.hparams.use_gating is True
 
@@ -195,9 +195,9 @@ def test_attention_lstm_module_model_instantiation() -> None:
     lightning_module = AttentionLSTM(
         num_past_features=3,
         num_future_features=2,
-        hidden_size=32,
+        d_model=32,
         num_layers=1,
-        n_heads=2,
+        num_heads=2,
         dropout=0.1,
         use_gating=True,
     )
@@ -209,9 +209,9 @@ def test_attention_lstm_module_model_instantiation() -> None:
     # Check that model has the correct parameters
     assert lightning_module.model.num_past_features == 3
     assert lightning_module.model.num_future_features == 2
-    assert lightning_module.model.hidden_size == 32
+    assert lightning_module.model.d_model == 32
     assert lightning_module.model.num_layers == 1
-    assert lightning_module.model.n_heads == 2
+    assert lightning_module.model.num_heads == 2
     assert lightning_module.model.dropout == 0.1
     assert lightning_module.model.use_gating is True
 
@@ -222,9 +222,9 @@ def test_attention_lstm_module_gating_options(use_gating: bool) -> None:
     model = AttentionLSTM(
         num_past_features=3,
         num_future_features=2,
-        hidden_size=32,
+        d_model=32,
         num_layers=1,
-        n_heads=2,
+        num_heads=2,
         dropout=0.1,
         use_gating=use_gating,
     )

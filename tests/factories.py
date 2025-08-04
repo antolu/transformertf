@@ -43,13 +43,13 @@ class TimeSeriesDataFactory(factory.Factory):
     @classmethod
     def _create(cls, model_class, *args, **kwargs):
         n_samples = kwargs.pop("n_samples", 1000)
-        n_features = kwargs.pop("n_features", 3)
+        num_features = kwargs.pop("num_features", 3)
 
         # Create synthetic time series data
         time = np.linspace(0, 100, n_samples)
         data = {}
 
-        for i in range(n_features):
+        for i in range(num_features):
             # Create correlated time series with trend and noise
             trend = 0.1 * time
             seasonal = 2 * np.sin(2 * np.pi * time / 10)
@@ -113,7 +113,7 @@ class TFTModelFactory(factory.Factory):
     ctxt_seq_len = fuzzy.FuzzyInteger(50, 200)
     tgt_seq_len = fuzzy.FuzzyInteger(10, 50)
     num_lstm_layers = fuzzy.FuzzyChoice([1, 2, 3])
-    n_dim_model = fuzzy.FuzzyChoice([32, 64, 128])
+    d_model = fuzzy.FuzzyChoice([32, 64, 128])
     num_heads = fuzzy.FuzzyChoice([2, 4, 8])
     output_dim = 1
     hidden_continuous_dim = fuzzy.FuzzyInteger(8, 32)
@@ -130,7 +130,7 @@ class TFTLightningFactory(factory.Factory):
     ctxt_seq_len = fuzzy.FuzzyInteger(50, 200)
     tgt_seq_len = fuzzy.FuzzyInteger(10, 50)
     num_lstm_layers = fuzzy.FuzzyChoice([1, 2, 3])
-    n_dim_model = fuzzy.FuzzyChoice([32, 64, 128])
+    d_model = fuzzy.FuzzyChoice([32, 64, 128])
     num_heads = fuzzy.FuzzyChoice([2, 4, 8])
     output_dim = 1
     hidden_continuous_dim = fuzzy.FuzzyInteger(8, 32)

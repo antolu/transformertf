@@ -15,7 +15,7 @@ from transformertf.models.attention_lstm import AttentionLSTM
 def sample_data() -> pd.DataFrame:
     """Create sample time series data for testing."""
     n_samples = 1000
-    n_features = 5
+    num_features = 3
 
     # Generate synthetic time series data
     data = []
@@ -26,7 +26,7 @@ def sample_data() -> pd.DataFrame:
             "target": torch.randn(1).item(),
         }
         # Add feature columns
-        for j in range(n_features):
+        for j in range(num_features):
             row[f"feature_{j}"] = torch.randn(1).item()
         data.append(row)
 
@@ -71,9 +71,9 @@ def test_attention_lstm_with_data_module(temp_data_file: Path) -> None:
     model = AttentionLSTM(
         num_past_features=num_past_features,
         num_future_features=num_future_features,
-        hidden_size=32,
+        d_model=32,
         num_layers=1,
-        n_heads=2,
+        num_heads=2,
         dropout=0.1,
         use_gating=True,
     )
@@ -122,9 +122,9 @@ def test_attention_lstm_parameter_compatibility() -> None:
     model = AttentionLSTM(
         num_past_features=data_params["num_past_features"],
         num_future_features=data_params["num_future_features"],
-        hidden_size=64,
+        d_model=64,
         num_layers=2,
-        n_heads=4,
+        num_heads=4,
         dropout=0.1,
         use_gating=True,
     )
@@ -164,9 +164,9 @@ def test_attention_lstm_minimal_integration() -> None:
     model = AttentionLSTM(
         num_past_features=2,
         num_future_features=1,
-        hidden_size=16,
+        d_model=16,
         num_layers=1,
-        n_heads=1,
+        num_heads=1,
         dropout=0.0,
         use_gating=False,
     )
@@ -207,9 +207,9 @@ def test_attention_lstm_compile_option(compile_model: bool) -> None:
     model = AttentionLSTM(
         num_past_features=3,
         num_future_features=2,
-        hidden_size=32,
+        d_model=32,
         num_layers=1,
-        n_heads=2,
+        num_heads=2,
         dropout=0.1,
         use_gating=True,
         compile_model=compile_model,

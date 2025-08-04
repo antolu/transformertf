@@ -41,9 +41,9 @@ class TemporalConvTransformer(TransformerModuleBase):
         Number of features in decoder (future) sequences
     output_dim : int, default=1
         Output dimension for predictions
-    hidden_dim : int, default=256
+    d_model : int, default=256
         Hidden dimension for convolution and attention layers
-    num_attention_heads : int, default=8
+    num_heads : int, default=8
         Number of attention heads in the transformer layer
     compression_factor : int, default=4
         Factor by which to compress sequences before attention.
@@ -125,7 +125,7 @@ class TemporalConvTransformer(TransformerModuleBase):
     ...     num_past_features=10,
     ...     num_future_features=5,
     ...     output_dim=1,
-    ...     hidden_dim=256,
+    ...     d_model=256,
     ...     compression_factor=4
     ... )
     >>>
@@ -146,7 +146,7 @@ class TemporalConvTransformer(TransformerModuleBase):
     ...     num_past_features=20,
     ...     num_future_features=10,
     ...     compression_factor=8,  # More aggressive compression
-    ...     hidden_dim=512,
+    ...     d_model=512,
     ...     max_dilation=16
     ... )
 
@@ -166,8 +166,8 @@ class TemporalConvTransformer(TransformerModuleBase):
         num_past_features: int,
         num_future_features: int,
         output_dim: int = 1,
-        hidden_dim: int = 256,
-        num_attention_heads: int = 8,
+        d_model: int = 256,
+        num_heads: int = 8,
         compression_factor: int = 4,
         num_encoder_layers: int = 4,
         num_decoder_layers: int = 4,
@@ -199,8 +199,8 @@ class TemporalConvTransformer(TransformerModuleBase):
             num_past_features=num_past_features,
             num_future_features=num_future_features,
             output_dim=output_dim,
-            hidden_dim=hidden_dim,
-            num_attention_heads=num_attention_heads,
+            d_model=d_model,
+            num_heads=num_heads,
             compression_factor=compression_factor,
             num_encoder_layers=num_encoder_layers,
             num_decoder_layers=num_decoder_layers,

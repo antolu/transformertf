@@ -46,9 +46,9 @@ def test_attention_lstm_forward_pass(
     model = AttentionLSTMModel(
         num_past_features=NUM_PAST_FEATURES,
         num_future_features=NUM_FUTURE_FEATURES,
-        hidden_size=64,
+        d_model=64,
         num_layers=2,
-        n_heads=4,
+        num_heads=4,
         dropout=0.1,
         use_gating=True,
     )
@@ -69,9 +69,9 @@ def test_attention_lstm_without_gating(
     model = AttentionLSTMModel(
         num_past_features=NUM_PAST_FEATURES,
         num_future_features=NUM_FUTURE_FEATURES,
-        hidden_size=32,
+        d_model=32,
         num_layers=1,
-        n_heads=2,
+        num_heads=2,
         dropout=0.0,
         use_gating=False,
     )
@@ -87,9 +87,9 @@ def test_attention_lstm_different_batch_sizes() -> None:
     model = AttentionLSTMModel(
         num_past_features=3,
         num_future_features=2,
-        hidden_size=32,
+        d_model=32,
         num_layers=1,
-        n_heads=2,
+        num_heads=2,
         dropout=0.0,
         use_gating=True,
     )
@@ -112,9 +112,9 @@ def test_attention_lstm_deterministic() -> None:
     model = AttentionLSTMModel(
         num_past_features=3,
         num_future_features=2,
-        hidden_size=32,
+        d_model=32,
         num_layers=1,
-        n_heads=2,
+        num_heads=2,
         dropout=0.0,  # No dropout for deterministic behavior
         use_gating=False,
     )
@@ -139,9 +139,9 @@ def test_attention_lstm_gradient_flow() -> None:
     model = AttentionLSTMModel(
         num_past_features=3,
         num_future_features=2,
-        hidden_size=32,
+        d_model=32,
         num_layers=1,
-        n_heads=2,
+        num_heads=2,
         dropout=0.1,
         use_gating=True,
     )
@@ -167,9 +167,9 @@ def test_attention_lstm_variable_sequence_lengths() -> None:
     model = AttentionLSTMModel(
         num_past_features=2,
         num_future_features=2,
-        hidden_size=32,
+        d_model=32,
         num_layers=1,
-        n_heads=2,
+        num_heads=2,
         dropout=0.0,
         use_gating=True,
     )
@@ -204,9 +204,9 @@ def test_attention_lstm_edge_cases(edge_case: str) -> None:
         model = AttentionLSTMModel(
             num_past_features=2,
             num_future_features=2,
-            hidden_size=16,
+            d_model=16,
             num_layers=1,
-            n_heads=1,
+            num_heads=1,
             dropout=0.0,
             use_gating=False,
         )
@@ -222,9 +222,9 @@ def test_attention_lstm_edge_cases(edge_case: str) -> None:
         model = AttentionLSTMModel(
             num_past_features=2,
             num_future_features=2,
-            hidden_size=16,
+            d_model=16,
             num_layers=1,
-            n_heads=2,
+            num_heads=2,
             dropout=0.0,
             use_gating=True,
         )
@@ -241,9 +241,9 @@ def test_attention_lstm_edge_cases(edge_case: str) -> None:
         model = AttentionLSTMModel(
             num_past_features=2,
             num_future_features=2,
-            hidden_size=16,
+            d_model=16,
             num_layers=1,
-            n_heads=1,
+            num_heads=1,
             dropout=0.0,
             use_gating=True,
         )

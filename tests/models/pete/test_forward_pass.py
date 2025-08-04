@@ -12,9 +12,9 @@ def pete_model() -> PETE:
         num_past_features=2,
         num_future_features=2,
         ctxt_seq_len=100,
-        n_dim_selection=64,
-        n_dim_model=80,
-        n_enc_heads=4,
+        d_selection=64,
+        d_model=80,
+        num_encoder_heads=4,
         num_layers=2,
         dropout=0.1,
     )
