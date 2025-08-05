@@ -288,7 +288,6 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
                 )
                 tune_parser.add_argument(
                     "--resume",
-                    type=str,
                     nargs="?",
                     const=True,
                     default=None,

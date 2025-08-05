@@ -137,224 +137,221 @@ def temp_config_file(sample_tune_config):
     Path(temp_path).unlink(missing_ok=True)
 
 
-class TestTuneResume:
-    """Test suite for tune resume functionality."""
+@patch("transformertf.utils.tune.ray.tune.Tuner")
+@patch("transformertf.utils.tune.ray.init")
+@patch("transformertf.utils.tune.ray.is_initialized")
+def test_tune_no_resume(
+    mock_is_initialized, mock_ray_init, mock_tuner_class, temp_config_file
+):
+    """Test tune function without resume (default behavior)."""
+    mock_is_initialized.return_value = False
+    mock_tuner_instance = Mock()
+    mock_results = Mock()
+    mock_best_result = Mock()
+    mock_best_result.metrics = {"loss/val": 0.5}
+    mock_best_result.config = {"d_model": 64}
+    mock_results.get_best_result.return_value = mock_best_result
+    mock_tuner_instance.fit.return_value = mock_results
+    mock_tuner_class.return_value = mock_tuner_instance
 
-    @patch("transformertf.utils.tune.ray.tune.Tuner")
-    @patch("transformertf.utils.tune.ray.init")
-    @patch("transformertf.utils.tune.ray.is_initialized")
-    def test_tune_no_resume(
-        self, mock_is_initialized, mock_ray_init, mock_tuner_class, temp_config_file
+    # Test without resume parameter
+    result = tune(temp_config_file)
+
+    # Verify new tuner was created (not restored)
+    mock_tuner_class.assert_called_once()
+    mock_tuner_class.restore.assert_not_called()
+    mock_tuner_instance.fit.assert_called_once()
+    assert result == mock_results
+
+
+@patch("transformertf.utils.tune.ray.tune.Tuner")
+@patch("transformertf.utils.tune.ray.init")
+@patch("transformertf.utils.tune.ray.is_initialized")
+@patch("transformertf.utils.tune.os.path.exists")
+def test_tune_resume_true_experiment_exists(
+    mock_exists,
+    mock_is_initialized,
+    mock_ray_init,
+    mock_tuner_class,
+    temp_config_file,
+    temp_storage_dir,
+):
+    """Test tune function with resume=True when experiment directory exists."""
+    mock_is_initialized.return_value = False
+    mock_exists.return_value = True
+
+    # Mock the restored tuner
+    mock_restored_tuner = Mock()
+    mock_results = Mock()
+    mock_best_result = Mock()
+    mock_best_result.metrics = {"loss/val": 0.3}
+    mock_best_result.config = {"d_model": 32}
+    mock_results.get_best_result.return_value = mock_best_result
+    mock_restored_tuner.fit.return_value = mock_results
+    mock_tuner_class.restore.return_value = mock_restored_tuner
+
+    # Test with resume=True
+    result = tune(temp_config_file, resume=True)
+
+    # Verify tuner was restored (not created new)
+    expected_resume_path = os.path.join(temp_storage_dir, "test_experiment")
+    # Check that restore was called with trainable and path
+    assert mock_tuner_class.restore.call_count == 1
+    call_args = mock_tuner_class.restore.call_args
+    assert len(call_args[0]) == 2  # trainable and path
+    assert call_args[0][1] == expected_resume_path  # path is second argument
+    mock_tuner_class.assert_not_called()  # New tuner should not be created
+    mock_restored_tuner.fit.assert_called_once()
+    assert result == mock_results
+
+
+@patch("transformertf.utils.tune.ray.tune.Tuner")
+@patch("transformertf.utils.tune.ray.init")
+@patch("transformertf.utils.tune.ray.is_initialized")
+@patch("transformertf.utils.tune.os.path.exists")
+def test_tune_resume_true_experiment_not_exists(
+    mock_exists,
+    mock_is_initialized,
+    mock_ray_init,
+    mock_tuner_class,
+    temp_config_file,
+):
+    """Test tune function with resume=True when experiment directory doesn't exist."""
+    mock_is_initialized.return_value = False
+    mock_exists.return_value = False
+
+    # Mock new tuner creation
+    mock_tuner_instance = Mock()
+    mock_results = Mock()
+    mock_best_result = Mock()
+    mock_best_result.metrics = {"loss/val": 0.4}
+    mock_best_result.config = {"d_model": 64}
+    mock_results.get_best_result.return_value = mock_best_result
+    mock_tuner_instance.fit.return_value = mock_results
+    mock_tuner_class.return_value = mock_tuner_instance
+
+    # Test with resume=True but no existing experiment
+    result = tune(temp_config_file, resume=True)
+
+    # Verify new tuner was created (not restored)
+    mock_tuner_class.restore.assert_not_called()
+    mock_tuner_class.assert_called_once()
+    mock_tuner_instance.fit.assert_called_once()
+    assert result == mock_results
+
+
+@patch("transformertf.utils.tune.ray.tune.Tuner")
+@patch("transformertf.utils.tune.ray.init")
+@patch("transformertf.utils.tune.ray.is_initialized")
+@patch("transformertf.utils.tune.os.path.exists")
+def test_tune_resume_specific_path_exists(
+    mock_exists,
+    mock_is_initialized,
+    mock_ray_init,
+    mock_tuner_class,
+    temp_config_file,
+):
+    """Test tune function with resume=<specific_path> when path exists."""
+    mock_is_initialized.return_value = False
+    mock_exists.return_value = True
+
+    # Mock the restored tuner
+    mock_restored_tuner = Mock()
+    mock_results = Mock()
+    mock_best_result = Mock()
+    mock_best_result.metrics = {"loss/val": 0.2}
+    mock_best_result.config = {"d_model": 32}
+    mock_results.get_best_result.return_value = mock_best_result
+    mock_restored_tuner.fit.return_value = mock_results
+    mock_tuner_class.restore.return_value = mock_restored_tuner
+
+    # Test with specific resume path
+    resume_path = "/custom/experiment/path"
+    result = tune(temp_config_file, resume=resume_path)
+
+    # Verify tuner was restored from specific path
+    # Check that restore was called with trainable and path
+    assert mock_tuner_class.restore.call_count == 1
+    call_args = mock_tuner_class.restore.call_args
+    assert len(call_args[0]) == 2  # trainable and path
+    assert call_args[0][1] == resume_path  # path is second argument
+    mock_tuner_class.assert_not_called()  # New tuner should not be created
+    mock_restored_tuner.fit.assert_called_once()
+    assert result == mock_results
+
+
+@patch("transformertf.utils.tune.ray.tune.Tuner")
+@patch("transformertf.utils.tune.ray.init")
+@patch("transformertf.utils.tune.ray.is_initialized")
+@patch("transformertf.utils.tune.os.path.exists")
+def test_tune_resume_specific_path_not_exists(
+    mock_exists,
+    mock_is_initialized,
+    mock_ray_init,
+    mock_tuner_class,
+    temp_config_file,
+):
+    """Test tune function with resume=<specific_path> when path doesn't exist."""
+    mock_is_initialized.return_value = False
+    mock_exists.return_value = False
+
+    resume_path = "/nonexistent/experiment/path"
+
+    # Test with non-existent specific resume path
+    with pytest.raises(
+        FileNotFoundError, match=f"Resume path does not exist: {resume_path}"
     ):
-        """Test tune function without resume (default behavior)."""
-        mock_is_initialized.return_value = False
-        mock_tuner_instance = Mock()
-        mock_results = Mock()
-        mock_best_result = Mock()
-        mock_best_result.metrics = {"loss/val": 0.5}
-        mock_best_result.config = {"d_model": 64}
-        mock_results.get_best_result.return_value = mock_best_result
-        mock_tuner_instance.fit.return_value = mock_results
-        mock_tuner_class.return_value = mock_tuner_instance
+        tune(temp_config_file, resume=resume_path)
 
-        # Test without resume parameter
-        result = tune(temp_config_file)
+    # Verify no tuner operations were attempted
+    mock_tuner_class.restore.assert_not_called()
+    mock_tuner_class.assert_not_called()
 
-        # Verify new tuner was created (not restored)
-        mock_tuner_class.assert_called_once()
-        mock_tuner_class.restore.assert_not_called()
-        mock_tuner_instance.fit.assert_called_once()
-        assert result == mock_results
 
-    @patch("transformertf.utils.tune.ray.tune.Tuner")
-    @patch("transformertf.utils.tune.ray.init")
-    @patch("transformertf.utils.tune.ray.is_initialized")
-    @patch("transformertf.utils.tune.os.path.exists")
-    def test_tune_resume_true_experiment_exists(
-        self,
-        mock_exists,
-        mock_is_initialized,
-        mock_ray_init,
-        mock_tuner_class,
-        temp_config_file,
-        temp_storage_dir,
-    ):
-        """Test tune function with resume=True when experiment directory exists."""
-        mock_is_initialized.return_value = False
-        mock_exists.return_value = True
+@patch("transformertf.utils.tune.ray.tune.Tuner")
+@patch("transformertf.utils.tune.ray.init")
+@patch("transformertf.utils.tune.ray.is_initialized")
+def test_tune_resume_none_explicit(
+    mock_is_initialized, mock_ray_init, mock_tuner_class, temp_config_file
+):
+    """Test tune function with resume=None explicitly."""
+    mock_is_initialized.return_value = False
+    mock_tuner_instance = Mock()
+    mock_results = Mock()
+    mock_best_result = Mock()
+    mock_best_result.metrics = {"loss/val": 0.6}
+    mock_best_result.config = {"d_model": 64}
+    mock_results.get_best_result.return_value = mock_best_result
+    mock_tuner_instance.fit.return_value = mock_results
+    mock_tuner_class.return_value = mock_tuner_instance
 
-        # Mock the restored tuner
-        mock_restored_tuner = Mock()
-        mock_results = Mock()
-        mock_best_result = Mock()
-        mock_best_result.metrics = {"loss/val": 0.3}
-        mock_best_result.config = {"d_model": 32}
-        mock_results.get_best_result.return_value = mock_best_result
-        mock_restored_tuner.fit.return_value = mock_results
-        mock_tuner_class.restore.return_value = mock_restored_tuner
+    # Test with explicit resume=None
+    result = tune(temp_config_file, resume=None)
 
-        # Test with resume=True
-        result = tune(temp_config_file, resume=True)
+    # Verify new tuner was created (not restored)
+    mock_tuner_class.assert_called_once()
+    mock_tuner_class.restore.assert_not_called()
+    mock_tuner_instance.fit.assert_called_once()
+    assert result == mock_results
 
-        # Verify tuner was restored (not created new)
-        expected_resume_path = os.path.join(temp_storage_dir, "test_experiment")
-        # Check that restore was called with trainable and path
-        assert mock_tuner_class.restore.call_count == 1
-        call_args = mock_tuner_class.restore.call_args
-        assert len(call_args[0]) == 2  # trainable and path
-        assert call_args[0][1] == expected_resume_path  # path is second argument
-        mock_tuner_class.assert_not_called()  # New tuner should not be created
-        mock_restored_tuner.fit.assert_called_once()
-        assert result == mock_results
 
-    @patch("transformertf.utils.tune.ray.tune.Tuner")
-    @patch("transformertf.utils.tune.ray.init")
-    @patch("transformertf.utils.tune.ray.is_initialized")
-    @patch("transformertf.utils.tune.os.path.exists")
-    def test_tune_resume_true_experiment_not_exists(
-        self,
-        mock_exists,
-        mock_is_initialized,
-        mock_ray_init,
-        mock_tuner_class,
-        temp_config_file,
-    ):
-        """Test tune function with resume=True when experiment directory doesn't exist."""
-        mock_is_initialized.return_value = False
-        mock_exists.return_value = False
+def test_tune_resume_parameter_types():
+    """Test that resume parameter accepts correct types."""
+    # Test with different resume parameter types
+    with patch("transformertf.utils.tune_config.load_tune_config") as mock_load_config:
+        mock_load_config.side_effect = Exception(
+            "Config loading bypassed for type test"
+        )
 
-        # Mock new tuner creation
-        mock_tuner_instance = Mock()
-        mock_results = Mock()
-        mock_best_result = Mock()
-        mock_best_result.metrics = {"loss/val": 0.4}
-        mock_best_result.config = {"d_model": 64}
-        mock_results.get_best_result.return_value = mock_best_result
-        mock_tuner_instance.fit.return_value = mock_results
-        mock_tuner_class.return_value = mock_tuner_instance
+        # These should not raise type errors during function call
+        with pytest.raises(Exception, match="Config loading bypassed"):
+            tune("config.yml", resume=None)
 
-        # Test with resume=True but no existing experiment
-        result = tune(temp_config_file, resume=True)
+        with pytest.raises(Exception, match="Config loading bypassed"):
+            tune("config.yml", resume=True)
 
-        # Verify new tuner was created (not restored)
-        mock_tuner_class.restore.assert_not_called()
-        mock_tuner_class.assert_called_once()
-        mock_tuner_instance.fit.assert_called_once()
-        assert result == mock_results
-
-    @patch("transformertf.utils.tune.ray.tune.Tuner")
-    @patch("transformertf.utils.tune.ray.init")
-    @patch("transformertf.utils.tune.ray.is_initialized")
-    @patch("transformertf.utils.tune.os.path.exists")
-    def test_tune_resume_specific_path_exists(
-        self,
-        mock_exists,
-        mock_is_initialized,
-        mock_ray_init,
-        mock_tuner_class,
-        temp_config_file,
-    ):
-        """Test tune function with resume=<specific_path> when path exists."""
-        mock_is_initialized.return_value = False
-        mock_exists.return_value = True
-
-        # Mock the restored tuner
-        mock_restored_tuner = Mock()
-        mock_results = Mock()
-        mock_best_result = Mock()
-        mock_best_result.metrics = {"loss/val": 0.2}
-        mock_best_result.config = {"d_model": 32}
-        mock_results.get_best_result.return_value = mock_best_result
-        mock_restored_tuner.fit.return_value = mock_results
-        mock_tuner_class.restore.return_value = mock_restored_tuner
-
-        # Test with specific resume path
-        resume_path = "/custom/experiment/path"
-        result = tune(temp_config_file, resume=resume_path)
-
-        # Verify tuner was restored from specific path
-        # Check that restore was called with trainable and path
-        assert mock_tuner_class.restore.call_count == 1
-        call_args = mock_tuner_class.restore.call_args
-        assert len(call_args[0]) == 2  # trainable and path
-        assert call_args[0][1] == resume_path  # path is second argument
-        mock_tuner_class.assert_not_called()  # New tuner should not be created
-        mock_restored_tuner.fit.assert_called_once()
-        assert result == mock_results
-
-    @patch("transformertf.utils.tune.ray.tune.Tuner")
-    @patch("transformertf.utils.tune.ray.init")
-    @patch("transformertf.utils.tune.ray.is_initialized")
-    @patch("transformertf.utils.tune.os.path.exists")
-    def test_tune_resume_specific_path_not_exists(
-        self,
-        mock_exists,
-        mock_is_initialized,
-        mock_ray_init,
-        mock_tuner_class,
-        temp_config_file,
-    ):
-        """Test tune function with resume=<specific_path> when path doesn't exist."""
-        mock_is_initialized.return_value = False
-        mock_exists.return_value = False
-
-        resume_path = "/nonexistent/experiment/path"
-
-        # Test with non-existent specific resume path
-        with pytest.raises(
-            FileNotFoundError, match=f"Resume path does not exist: {resume_path}"
-        ):
-            tune(temp_config_file, resume=resume_path)
-
-        # Verify no tuner operations were attempted
-        mock_tuner_class.restore.assert_not_called()
-        mock_tuner_class.assert_not_called()
-
-    @patch("transformertf.utils.tune.ray.tune.Tuner")
-    @patch("transformertf.utils.tune.ray.init")
-    @patch("transformertf.utils.tune.ray.is_initialized")
-    def test_tune_resume_none_explicit(
-        self, mock_is_initialized, mock_ray_init, mock_tuner_class, temp_config_file
-    ):
-        """Test tune function with resume=None explicitly."""
-        mock_is_initialized.return_value = False
-        mock_tuner_instance = Mock()
-        mock_results = Mock()
-        mock_best_result = Mock()
-        mock_best_result.metrics = {"loss/val": 0.6}
-        mock_best_result.config = {"d_model": 64}
-        mock_results.get_best_result.return_value = mock_best_result
-        mock_tuner_instance.fit.return_value = mock_results
-        mock_tuner_class.return_value = mock_tuner_instance
-
-        # Test with explicit resume=None
-        result = tune(temp_config_file, resume=None)
-
-        # Verify new tuner was created (not restored)
-        mock_tuner_class.assert_called_once()
-        mock_tuner_class.restore.assert_not_called()
-        mock_tuner_instance.fit.assert_called_once()
-        assert result == mock_results
-
-    def test_tune_resume_parameter_types(self):
-        """Test that resume parameter accepts correct types."""
-        # Test with different resume parameter types
-        with patch(
-            "transformertf.utils.tune_config.load_tune_config"
-        ) as mock_load_config:
-            mock_load_config.side_effect = Exception(
-                "Config loading bypassed for type test"
-            )
-
-            # These should not raise type errors during function call
-            with pytest.raises(Exception, match="Config loading bypassed"):
-                tune("config.yml", resume=None)
-
-            with pytest.raises(Exception, match="Config loading bypassed"):
-                tune("config.yml", resume=True)
-
-            with pytest.raises(Exception, match="Config loading bypassed"):
-                tune("config.yml", resume="/some/path")
+        with pytest.raises(Exception, match="Config loading bypassed"):
+            tune("config.yml", resume="/some/path")
 
 
 if __name__ == "__main__":
