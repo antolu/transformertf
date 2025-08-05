@@ -286,6 +286,25 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
                 tune_parser.add_argument(
                     "config", type=str, help="Path to the tune configuration YAML file"
                 )
+                tune_parser.add_argument(
+                    "--resume",
+                    nargs="?",
+                    const=True,
+                    default=None,
+                    help="Resume from checkpoint. Use --resume for auto-resume or --resume <path> for specific experiment path",
+                )
+                tune_parser.add_argument(
+                    "--resume-errored",
+                    action="store_true",
+                    default=False,
+                    help="Resume errored trials (only valid with --resume)",
+                )
+                tune_parser.add_argument(
+                    "--restart-errored",
+                    action="store_true",
+                    default=False,
+                    help="Restart errored trials from scratch (only valid with --resume)",
+                )
 
                 # Add tune subcommand using jsonargparse method
                 action.add_subcommand(
@@ -311,7 +330,23 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
 
         # The config should contain the tune configuration path
         config_path = self.config.tune.config
-        tune(config_path)
+        resume = getattr(self.config.tune, "resume", None)
+        resume_errored = getattr(self.config.tune, "resume_errored", False)
+        restart_errored = getattr(self.config.tune, "restart_errored", False)
+
+        # Validate that error handling arguments are only used with --resume
+        if (resume_errored or restart_errored) and resume is None:
+            msg = (
+                "--resume-errored and --restart-errored can only be used with --resume"
+            )
+            raise ValueError(msg)
+
+        tune(
+            config_path,
+            resume=resume,
+            resume_errored=resume_errored,
+            restart_errored=restart_errored,
+        )
 
     def before_fit(self) -> None:
         # hijack model checkpoint callbacks to save to checkpoint_dir/version_{version}

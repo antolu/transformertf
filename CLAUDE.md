@@ -181,3 +181,15 @@ All models use standardized hyperparameter names following PyTorch and academic 
 ## Initialization Patterns
 
 - `__init__` arguments that are supposed to be passed to a parent module do not need to be explicitly passed by calling the super init, unless explicitly stated in the parent class or if they are torch.nn.Modules, since the save_hyperparameters call will save them to hparams immediately. In short, any `__init__` argument that is not in `save_hyperparameters(ignore=...)` do not need to be passed to super init.
+
+## Merge Request Guidelines
+
+- Merge requests should contain a short summary with 1-2 sentences
+- Include sections if applicable:
+  - Added
+  - Changed
+  - Fixed
+  - Removed
+  - Deprecated
+- Add code examples when appropriate, especially for breaking changes
+- Clearly call out breaking changes

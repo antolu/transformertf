@@ -403,51 +403,91 @@ Fine-tune a pre-trained model on new domain:
 Hyperparameter Optimization
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Automated hyperparameter search with Ray Tune:
+Automated hyperparameter search with Ray Tune using YAML configuration:
+
+Create a hyperparameter tuning configuration file (``tune_config.yml``):
+
+.. code-block:: yaml
+
+   base_config:
+     model:
+       class_path: transformertf.models.temporal_fusion_transformer.TemporalFusionTransformer
+       init_args:
+         d_model: 64
+         num_heads: 4
+         dropout: 0.1
+     data:
+       class_path: transformertf.data.EncoderDecoderDataModule
+       init_args:
+         batch_size: 32
+         train_df_paths: ["data/train.parquet"]
+         val_df_paths: ["data/val.parquet"]
+         target_covariate: "magnetic_field"
+     optimizer:
+       class_path: torch.optim.Adam
+       init_args:
+         lr: 0.001
+     trainer:
+       max_epochs: 100
+
+   search_space:
+     model.init_args.d_model:
+       type: choice
+       values: [32, 64, 128]
+     model.init_args.num_heads:
+       type: choice
+       values: [4, 8]
+     model.init_args.dropout:
+       type: uniform
+       min: 0.1
+       max: 0.3
+     optimizer.init_args.lr:
+       type: loguniform
+       min: 1e-4
+       max: 1e-2
+     data.init_args.batch_size:
+       type: choice
+       values: [16, 32, 64]
+
+   tune_config:
+     num_samples: 30
+     metric: loss/val
+     mode: min
+     resources:
+       cpu: 4
+       gpu: 1
+     scheduler:
+       type: asha
+       max_t: 50
+       grace_period: 10
+
+Run the hyperparameter search:
+
+.. code-block:: bash
+
+   # Start new hyperparameter tuning
+   transformertf tune tune_config.yml
+
+   # Resume interrupted tuning (auto-detect experiment)
+   transformertf tune tune_config.yml --resume
+
+   # Resume from specific experiment path
+   transformertf tune tune_config.yml --resume ./ray_results/my_experiment
+
+You can also use the Python API:
 
 .. code-block:: python
 
-   from transformertf.utils.tune import tune, TuneConfig
-
-   # Define search space
-   search_space = {
-       "model.init_args.d_model": {
-           "type": "choice",
-           "values": [32, 64, 128]
-       },
-       "model.init_args.num_heads": {
-           "type": "choice",
-           "values": [4, 8]
-       },
-       "model.init_args.dropout": {
-           "type": "uniform",
-           "low": 0.1,
-           "high": 0.3
-       },
-       "optimizer.init_args.lr": {
-           "type": "loguniform",
-           "low": 1e-4,
-           "high": 1e-2
-       },
-       "data.init_args.batch_size": {
-           "type": "choice",
-           "values": [16, 32, 64]
-       }
-   }
-
-   # Configure tuning
-   tune_config = TuneConfig(
-       base_config="base_config.yml",
-       search_space=search_space,
-       num_samples=30,
-       max_epochs=50,
-       metric="validation/loss",
-       mode="min"
-   )
+   from transformertf.utils.tune import tune
 
    # Run optimization
-   best_config = tune(tune_config)
-   print(f"Best configuration: {best_config}")
+   results = tune("tune_config.yml")
+   best_result = results.get_best_result()
+   print(f"Best configuration: {best_result.config}")
+   print(f"Best metric: {best_result.metrics}")
+
+   # Resume from specific path
+   results = tune("tune_config.yml", resume="./ray_results/my_experiment")
 
 **Base configuration file:**
 

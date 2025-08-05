@@ -12,7 +12,7 @@ from transformertf.utils.tune_config import (
     TuneConfigValidator,
     create_ray_search_space,
     inject_trial_params,
-    load_unified_tune_config,
+    load_tune_config,
 )
 
 
@@ -514,7 +514,7 @@ def test_create_ray_search_space_unsupported_type() -> None:
         create_ray_search_space(search_config)
 
 
-def test_load_unified_tune_config_valid() -> None:
+def test_load_tune_config_valid() -> None:
     """Test loading a valid configuration file."""
     config_data = {
         "base_config": {"model": {"init_args": {"d_model": 64}}},
@@ -531,13 +531,13 @@ def test_load_unified_tune_config_valid() -> None:
         temp_path = f.name
 
     try:
-        result = load_unified_tune_config(temp_path)
+        result = load_tune_config(temp_path)
         assert result == config_data
     finally:
         Path(temp_path).unlink()
 
 
-def test_load_unified_tune_config_valid_with_logging_metrics() -> None:
+def test_load_tune_config_valid_with_logging_metrics() -> None:
     """Test loading a valid configuration file with logging metrics."""
     config_data = {
         "base_config": {"model": {"init_args": {"d_model": 64}}},
@@ -558,19 +558,19 @@ def test_load_unified_tune_config_valid_with_logging_metrics() -> None:
         temp_path = f.name
 
     try:
-        result = load_unified_tune_config(temp_path)
+        result = load_tune_config(temp_path)
         assert result == config_data
     finally:
         Path(temp_path).unlink()
 
 
-def test_load_unified_tune_config_nonexistent() -> None:
+def test_load_tune_config_nonexistent() -> None:
     """Test loading a non-existent file raises FileNotFoundError."""
     with pytest.raises(FileNotFoundError, match="Configuration file not found"):
-        load_unified_tune_config("nonexistent_file.yml")
+        load_tune_config("nonexistent_file.yml")
 
 
-def test_load_unified_tune_config_empty() -> None:
+def test_load_tune_config_empty() -> None:
     """Test loading an empty file raises ValueError."""
     with tempfile.NamedTemporaryFile(
         mode="w", suffix=".yml", delete=False, encoding="utf-8"
@@ -580,12 +580,12 @@ def test_load_unified_tune_config_empty() -> None:
 
     try:
         with pytest.raises(ValueError, match="Empty or invalid YAML file"):
-            load_unified_tune_config(temp_path)
+            load_tune_config(temp_path)
     finally:
         Path(temp_path).unlink()
 
 
-def test_load_unified_tune_config_invalid_yaml() -> None:
+def test_load_tune_config_invalid_yaml() -> None:
     """Test loading invalid YAML raises an error."""
     with tempfile.NamedTemporaryFile(
         mode="w", suffix=".yml", delete=False, encoding="utf-8"
@@ -595,12 +595,12 @@ def test_load_unified_tune_config_invalid_yaml() -> None:
 
     try:
         with pytest.raises(yaml.YAMLError):
-            load_unified_tune_config(temp_path)
+            load_tune_config(temp_path)
     finally:
         Path(temp_path).unlink()
 
 
-def test_load_unified_tune_config_validation_error() -> None:
+def test_load_tune_config_validation_error() -> None:
     """Test loading config that fails validation."""
     config_data = {
         "base_config": {"model": {}},
@@ -616,12 +616,12 @@ def test_load_unified_tune_config_validation_error() -> None:
 
     try:
         with pytest.raises(ValueError, match="Search space cannot be empty"):
-            load_unified_tune_config(temp_path)
+            load_tune_config(temp_path)
     finally:
         Path(temp_path).unlink()
 
 
-def test_load_unified_tune_config_pathlib() -> None:
+def test_load_tune_config_pathlib() -> None:
     """Test loading config using pathlib.Path object."""
     config_data = {
         "base_config": {"model": {"init_args": {"d_model": 64}}},
@@ -638,7 +638,7 @@ def test_load_unified_tune_config_pathlib() -> None:
         temp_path = Path(f.name)
 
     try:
-        result = load_unified_tune_config(temp_path)
+        result = load_tune_config(temp_path)
         assert result == config_data
     finally:
         temp_path.unlink()

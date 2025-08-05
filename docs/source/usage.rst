@@ -209,27 +209,130 @@ Hyperparameter Optimization
 
 Use Ray Tune for automated hyperparameter search:
 
+Create a YAML configuration file (``tune_config.yml``):
+
+.. code-block:: yaml
+
+   base_config:
+     model:
+       class_path: transformertf.models.temporal_fusion_transformer.TemporalFusionTransformer
+       init_args:
+         d_model: 64
+         num_heads: 4
+         dropout: 0.1
+     data:
+       class_path: transformertf.data.EncoderDecoderDataModule
+       init_args:
+         batch_size: 32
+         train_df_paths: ["data/train.parquet"]
+         val_df_paths: ["data/val.parquet"]
+         target_covariate: "magnetic_field"
+     trainer:
+       max_epochs: 100
+
+   search_space:
+     model.init_args.d_model:
+       type: choice
+       values: [32, 64, 128]
+     model.init_args.num_heads:
+       type: choice
+       values: [4, 8]
+     model.init_args.dropout:
+       type: uniform
+       min: 0.1
+       max: 0.3
+     data.init_args.batch_size:
+       type: choice
+       values: [16, 32, 64]
+
+   tune_config:
+     num_samples: 20
+     metric: loss/val
+     mode: min
+     resources:
+       cpu: 4
+       gpu: 1
+
+Run the hyperparameter search:
+
+.. code-block:: bash
+
+   # Start new hyperparameter tuning
+   transformertf tune tune_config.yml
+
+   # Resume interrupted tuning (auto-detect experiment)
+   transformertf tune tune_config.yml --resume
+
+   # Resume from specific experiment path
+   transformertf tune tune_config.yml --resume /path/to/experiment
+
+   # Resume and handle errored trials
+   transformertf tune tune_config.yml --resume --resume-errored
+   transformertf tune tune_config.yml --resume --restart-errored
+
+You can also use the Python API:
+
 .. code-block:: python
 
-   from transformertf.utils.tune import tune, TuneConfig
+   from transformertf.utils.tune import tune
 
-   # Define search space
-   config = {
-       "model.init_args.d_model": {"type": "choice", "values": [32, 64, 128]},
-       "model.init_args.num_heads": {"type": "choice", "values": [4, 8]},
-       "model.init_args.dropout": {"type": "uniform", "low": 0.1, "high": 0.3},
-       "data.init_args.batch_size": {"type": "choice", "values": [16, 32, 64]}
-   }
+   # Run optimization with YAML config
+   results = tune("tune_config.yml")
+   best_result = results.get_best_result()
+   print(f"Best config: {best_result.config}")
 
-   # Run optimization
-   tune_config = TuneConfig(
-       base_config="base_config.yml",
-       search_space=config,
-       num_samples=20,
-       max_epochs=50
-   )
+   # Resume from specific path
+   results = tune("tune_config.yml", resume="/path/to/experiment")
 
-   best_config = tune(tune_config)
+   # Resume with error handling
+   results = tune("tune_config.yml", resume=True, resume_errored=True)
+   results = tune("tune_config.yml", resume="/path/to/experiment", restart_errored=True)
+
+Resuming Interrupted Experiments
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Ray Tune experiments can be resumed if they are interrupted due to system failures, timeouts, or manual stops:
+
+**Auto-Resume:**
+Use ``--resume`` without a path to automatically detect and resume the most recent experiment:
+
+.. code-block:: bash
+
+   transformertf tune config.yml --resume
+
+This looks for experiments in the default storage path (``./ray_results`` by default) using the experiment name from your configuration.
+
+**Resume from Specific Path:**
+Use ``--resume <path>`` to resume from a specific experiment directory:
+
+.. code-block:: bash
+
+   transformertf tune config.yml --resume ./ray_results/my_experiment_2024_01_15
+
+**Resume Behavior:**
+- If the experiment path exists, Ray Tune will restore the tuner state and continue from where it left off
+- If auto-resume cannot find an existing experiment, it will start a new experiment
+- If a specific path doesn't exist, an error will be raised
+- All trial history, checkpoints, and hyperparameter search state are preserved
+
+**Error Handling Options:**
+When resuming experiments, you can control how errored trials are handled:
+
+- ``--resume-errored``: Resume errored trials from their last checkpoint
+- ``--restart-errored``: Restart errored trials from scratch
+
+These options are only valid when used with ``--resume`` and help you recover from failed trials due to system errors, memory issues, or other transient failures.
+
+**Finding Experiment Paths:**
+Experiments are typically stored in:
+
+.. code-block:: text
+
+   {storage_path}/{experiment_name}/
+
+   # Examples:
+   ./ray_results/tune_experiment/
+   ./my_results/tft_optimization/
 
 Python API Usage
 ~~~~~~~~~~~~~~~~
