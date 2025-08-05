@@ -72,16 +72,23 @@ def tune(config_path: str) -> ray.tune.ResultGrid:
     - base_config: The base model/data/trainer configuration
     - search_space: Parameter search space specifications
     - tune_config: Ray Tune execution settings (num_samples, metric, logging_metrics, scheduler, etc.)
+
+    Environment variable propagation to Ray workers can be configured via:
+    tune_config:
+      env_vars:
+        patterns:
+          - "NEPTUNE_*"      # All Neptune environment variables
+          - "WANDB_*"        # All Weights & Biases variables
+          - "*_proxy"        # All lowercase proxy variables
+          - "*_PROXY"        # All uppercase proxy variables
+          - "AWS_*"          # All AWS credentials
+          - "CUSTOM_API_KEY" # Specific exact variable name
     """
     from .tune_config import (  # noqa: PLC0415
         create_ray_search_space,
         inject_trial_params,
         load_tune_config,
     )
-
-    # Initialize Ray with proper GPU detection
-    if not ray.is_initialized():
-        ray.init()
 
     # Load and validate the configuration
     config = load_tune_config(config_path)
@@ -90,6 +97,42 @@ def tune(config_path: str) -> ray.tune.ResultGrid:
     base_config = config["base_config"]
     search_space_config = config["search_space"]
     tune_config = config["tune_config"]
+
+    # Initialize Ray with proper GPU detection and environment variable propagation
+    if not ray.is_initialized():
+        # Get environment variable patterns from config
+        env_patterns = tune_config.get("env_vars", {}).get("patterns", [])
+
+        # Collect environment variables matching the patterns
+        env_vars = {}
+        for pattern in env_patterns:
+            if pattern.endswith("*"):
+                # Prefix pattern matching
+                prefix = pattern[:-1]
+                env_vars.update({
+                    key: value
+                    for key, value in os.environ.items()
+                    if key.startswith(prefix)
+                })
+            elif pattern.startswith("*"):
+                # Suffix pattern matching
+                suffix = pattern[1:]
+                env_vars.update({
+                    key: value
+                    for key, value in os.environ.items()
+                    if key.endswith(suffix)
+                })
+            else:
+                # Exact match
+                if pattern in os.environ:
+                    env_vars[pattern] = os.environ[pattern]
+
+        # Initialize Ray with environment variables if any were found
+        if env_vars:
+            runtime_env = {"env_vars": env_vars}
+            ray.init(runtime_env=runtime_env)
+        else:
+            ray.init()
 
     # Create Ray Tune search space
     ray_search_space = create_ray_search_space(search_space_config)

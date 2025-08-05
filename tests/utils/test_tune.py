@@ -64,6 +64,7 @@ def test_tune_config_yaml_structure() -> None:
             "experiment_name": "test_experiment",
             "storage_path": "./ray_results",
             "logging_metrics": ["train_loss", "val_accuracy"],
+            "env_vars": {"patterns": ["NEPTUNE_*", "*_proxy", "*_PROXY", "WANDB_*"]},
         },
     }
 
