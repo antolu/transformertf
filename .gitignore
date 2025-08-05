@@ -5,6 +5,7 @@ logs/
 
 .idea/
 .vscode/launch.json
+CLAUDE.local.md
 
 transformertf/_version.py
 
