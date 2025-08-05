@@ -193,6 +193,7 @@ def tune(config_path: str, resume: str | bool | None = None) -> ray.tune.ResultG
             datamodule_class=main.DataModuleBase,
             subclass_mode_model=True,
             subclass_mode_data=True,
+            save_config_kwargs={"overwrite": True},
         )
 
         # Run training
