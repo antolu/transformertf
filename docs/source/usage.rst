@@ -209,27 +209,60 @@ Hyperparameter Optimization
 
 Use Ray Tune for automated hyperparameter search:
 
+Create a YAML configuration file (``tune_config.yml``):
+
+.. code-block:: yaml
+
+   base_config:
+     model:
+       class_path: transformertf.models.temporal_fusion_transformer.TemporalFusionTransformer
+       init_args:
+         d_model: 64
+         num_heads: 4
+         dropout: 0.1
+     data:
+       class_path: transformertf.data.EncoderDecoderDataModule
+       init_args:
+         batch_size: 32
+         train_df_paths: ["data/train.parquet"]
+         val_df_paths: ["data/val.parquet"]
+         target_covariate: "magnetic_field"
+     trainer:
+       max_epochs: 100
+
+   search_space:
+     model.init_args.d_model:
+       type: choice
+       values: [32, 64, 128]
+     model.init_args.num_heads:
+       type: choice
+       values: [4, 8]
+     model.init_args.dropout:
+       type: uniform
+       min: 0.1
+       max: 0.3
+     data.init_args.batch_size:
+       type: choice
+       values: [16, 32, 64]
+
+   tune_config:
+     num_samples: 20
+     metric: loss/val
+     mode: min
+     resources:
+       cpu: 4
+       gpu: 1
+
+Run the hyperparameter search:
+
 .. code-block:: python
 
-   from transformertf.utils.tune import tune, TuneConfig
+   from transformertf.utils.tune import tune
 
-   # Define search space
-   config = {
-       "model.init_args.d_model": {"type": "choice", "values": [32, 64, 128]},
-       "model.init_args.num_heads": {"type": "choice", "values": [4, 8]},
-       "model.init_args.dropout": {"type": "uniform", "low": 0.1, "high": 0.3},
-       "data.init_args.batch_size": {"type": "choice", "values": [16, 32, 64]}
-   }
-
-   # Run optimization
-   tune_config = TuneConfig(
-       base_config="base_config.yml",
-       search_space=config,
-       num_samples=20,
-       max_epochs=50
-   )
-
-   best_config = tune(tune_config)
+   # Run optimization with YAML config
+   results = tune("tune_config.yml")
+   best_result = results.get_best_result()
+   print(f"Best config: {best_result.config}")
 
 Python API Usage
 ~~~~~~~~~~~~~~~~
