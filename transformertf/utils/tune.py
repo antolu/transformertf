@@ -335,8 +335,8 @@ def tune(config_path: str, resume: str | bool | None = None) -> ray.tune.ResultG
             # Auto-resume from default experiment directory
             resume_path = os.path.join(storage_path, experiment_name)
         else:
-            # Resume from specific path
-            resume_path = str(resume)
+            # Resume from specific path (make absolute for consistency)
+            resume_path = os.path.abspath(str(resume))
 
         # Check if resume path exists and restore
         if os.path.exists(resume_path):
