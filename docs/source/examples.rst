@@ -463,6 +463,19 @@ Create a hyperparameter tuning configuration file (``tune_config.yml``):
 
 Run the hyperparameter search:
 
+.. code-block:: bash
+
+   # Start new hyperparameter tuning
+   transformertf tune tune_config.yml
+
+   # Resume interrupted tuning (auto-detect experiment)
+   transformertf tune tune_config.yml --resume
+
+   # Resume from specific experiment path
+   transformertf tune tune_config.yml --resume ./ray_results/my_experiment
+
+You can also use the Python API:
+
 .. code-block:: python
 
    from transformertf.utils.tune import tune
@@ -472,6 +485,9 @@ Run the hyperparameter search:
    best_result = results.get_best_result()
    print(f"Best configuration: {best_result.config}")
    print(f"Best metric: {best_result.metrics}")
+
+   # Resume from specific path
+   results = tune("tune_config.yml", resume="./ray_results/my_experiment")
 
 **Base configuration file:**
 

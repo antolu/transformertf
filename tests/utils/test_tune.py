@@ -198,7 +198,11 @@ class TestTuneResume:
 
         # Verify tuner was restored (not created new)
         expected_resume_path = os.path.join(temp_storage_dir, "test_experiment")
-        mock_tuner_class.restore.assert_called_once_with(expected_resume_path)
+        # Check that restore was called with trainable and path
+        assert mock_tuner_class.restore.call_count == 1
+        call_args = mock_tuner_class.restore.call_args
+        assert len(call_args[0]) == 2  # trainable and path
+        assert call_args[0][1] == expected_resume_path  # path is second argument
         mock_tuner_class.assert_not_called()  # New tuner should not be created
         mock_restored_tuner.fit.assert_called_once()
         assert result == mock_results
@@ -269,7 +273,11 @@ class TestTuneResume:
         result = tune(temp_config_file, resume=resume_path)
 
         # Verify tuner was restored from specific path
-        mock_tuner_class.restore.assert_called_once_with(resume_path)
+        # Check that restore was called with trainable and path
+        assert mock_tuner_class.restore.call_count == 1
+        call_args = mock_tuner_class.restore.call_args
+        assert len(call_args[0]) == 2  # trainable and path
+        assert call_args[0][1] == resume_path  # path is second argument
         mock_tuner_class.assert_not_called()  # New tuner should not be created
         mock_restored_tuner.fit.assert_called_once()
         assert result == mock_results

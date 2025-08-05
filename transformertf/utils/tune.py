@@ -325,6 +325,9 @@ def tune(config_path: str, resume: str | bool | None = None) -> ray.tune.ResultG
     storage_path = os.path.abspath(tune_config.get("storage_path", "./ray_results"))
     experiment_name = tune_config.get("experiment_name", "tune_experiment")
 
+    # Create the trainable function with resources (needed for both new and restored tuners)
+    trainable_with_resources = ray.tune.with_resources(tune_trial, resources=resources)
+
     # Handle resume logic or create new tuner
     if resume is not None:
         # Determine resume path
@@ -338,7 +341,7 @@ def tune(config_path: str, resume: str | bool | None = None) -> ray.tune.ResultG
         # Check if resume path exists and restore
         if os.path.exists(resume_path):
             log.info(f"Resuming experiment from: {resume_path}")
-            tuner = ray.tune.Tuner.restore(resume_path)
+            tuner = ray.tune.Tuner.restore(trainable_with_resources, resume_path)
         else:
             if resume is True:
                 log.warning(
@@ -354,7 +357,7 @@ def tune(config_path: str, resume: str | bool | None = None) -> ray.tune.ResultG
     # Create new tuner if not restored
     if tuner is None:
         tuner = ray.tune.Tuner(
-            ray.tune.with_resources(tune_trial, resources=resources),
+            trainable_with_resources,
             param_space=ray_search_space,
             tune_config=ray.tune.TuneConfig(
                 num_samples=tune_config.get("num_samples", 10),

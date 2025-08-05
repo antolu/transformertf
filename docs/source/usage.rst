@@ -255,6 +255,19 @@ Create a YAML configuration file (``tune_config.yml``):
 
 Run the hyperparameter search:
 
+.. code-block:: bash
+
+   # Start new hyperparameter tuning
+   transformertf tune tune_config.yml
+
+   # Resume interrupted tuning (auto-detect experiment)
+   transformertf tune tune_config.yml --resume
+
+   # Resume from specific experiment path
+   transformertf tune tune_config.yml --resume /path/to/experiment
+
+You can also use the Python API:
+
 .. code-block:: python
 
    from transformertf.utils.tune import tune
@@ -263,6 +276,47 @@ Run the hyperparameter search:
    results = tune("tune_config.yml")
    best_result = results.get_best_result()
    print(f"Best config: {best_result.config}")
+
+   # Resume from specific path
+   results = tune("tune_config.yml", resume="/path/to/experiment")
+
+Resuming Interrupted Experiments
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Ray Tune experiments can be resumed if they are interrupted due to system failures, timeouts, or manual stops:
+
+**Auto-Resume:**
+Use ``--resume`` without a path to automatically detect and resume the most recent experiment:
+
+.. code-block:: bash
+
+   transformertf tune config.yml --resume
+
+This looks for experiments in the default storage path (``./ray_results`` by default) using the experiment name from your configuration.
+
+**Resume from Specific Path:**
+Use ``--resume <path>`` to resume from a specific experiment directory:
+
+.. code-block:: bash
+
+   transformertf tune config.yml --resume ./ray_results/my_experiment_2024_01_15
+
+**Resume Behavior:**
+- If the experiment path exists, Ray Tune will restore the tuner state and continue from where it left off
+- If auto-resume cannot find an existing experiment, it will start a new experiment
+- If a specific path doesn't exist, an error will be raised
+- All trial history, checkpoints, and hyperparameter search state are preserved
+
+**Finding Experiment Paths:**
+Experiments are typically stored in:
+
+.. code-block:: text
+
+   {storage_path}/{experiment_name}/
+
+   # Examples:
+   ./ray_results/tune_experiment/
+   ./my_results/tft_optimization/
 
 Python API Usage
 ~~~~~~~~~~~~~~~~
