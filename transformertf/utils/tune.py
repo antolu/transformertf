@@ -341,7 +341,7 @@ def tune(config_path: str, resume: str | bool | None = None) -> ray.tune.ResultG
         # Check if resume path exists and restore
         if os.path.exists(resume_path):
             log.info(f"Resuming experiment from: {resume_path}")
-            tuner = ray.tune.Tuner.restore(trainable_with_resources, resume_path)
+            tuner = ray.tune.Tuner.restore(resume_path, trainable_with_resources)
         else:
             if resume is True:
                 log.warning(
