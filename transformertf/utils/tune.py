@@ -42,7 +42,7 @@ class TuneReportCallback(
 # Old tune implementation removed - use YAML-based tune() function instead
 
 
-def tune(config_path: str) -> ray.tune.ResultGrid:
+def tune(config_path: str, resume: str | bool | None = None) -> ray.tune.ResultGrid:
     """
     Run hyperparameter tuning using YAML configuration.
 
@@ -54,6 +54,11 @@ def tune(config_path: str) -> ray.tune.ResultGrid:
     ----------
     config_path : str
         Path to the tune configuration YAML file
+    resume : str | bool | None, default=None
+        Resume configuration:
+        - None: Start new experiment
+        - True: Auto-resume from default experiment directory
+        - str: Resume from specific experiment path
 
     Returns
     -------
@@ -316,33 +321,62 @@ def tune(config_path: str) -> ray.tune.ResultGrid:
         elif resources["gpu"] > available_gpus:
             resources["gpu"] = available_gpus
 
-    # Configure Ray Tune with proper resource allocation
-    tuner = ray.tune.Tuner(
-        ray.tune.with_resources(tune_trial, resources=resources),
-        param_space=ray_search_space,
-        tune_config=ray.tune.TuneConfig(
-            num_samples=tune_config.get("num_samples", 10),
-            scheduler=scheduler,
-            search_alg=search_alg,
-            metric=tune_config["metric"],
-            mode=tune_config.get("mode", "min"),
-        ),
-        run_config=ray.train.RunConfig(
-            name=tune_config.get("experiment_name", "tune_experiment"),
-            storage_path=os.path.abspath(
-                tune_config.get("storage_path", "./ray_results")
+    # Get experiment configuration once
+    storage_path = os.path.abspath(tune_config.get("storage_path", "./ray_results"))
+    experiment_name = tune_config.get("experiment_name", "tune_experiment")
+
+    # Handle resume logic or create new tuner
+    if resume is not None:
+        # Determine resume path
+        if resume is True:
+            # Auto-resume from default experiment directory
+            resume_path = os.path.join(storage_path, experiment_name)
+        else:
+            # Resume from specific path
+            resume_path = str(resume)
+
+        # Check if resume path exists and restore
+        if os.path.exists(resume_path):
+            log.info(f"Resuming experiment from: {resume_path}")
+            tuner = ray.tune.Tuner.restore(resume_path)
+        else:
+            if resume is True:
+                log.warning(
+                    f"No existing experiment found at {resume_path}, starting new experiment"
+                )
+                tuner = None
+            else:
+                msg = f"Resume path does not exist: {resume_path}"
+                raise FileNotFoundError(msg)
+    else:
+        tuner = None
+
+    # Create new tuner if not restored
+    if tuner is None:
+        tuner = ray.tune.Tuner(
+            ray.tune.with_resources(tune_trial, resources=resources),
+            param_space=ray_search_space,
+            tune_config=ray.tune.TuneConfig(
+                num_samples=tune_config.get("num_samples", 10),
+                scheduler=scheduler,
+                search_alg=search_alg,
+                metric=tune_config["metric"],
+                mode=tune_config.get("mode", "min"),
             ),
-        ),
-    )
+            run_config=ray.train.RunConfig(
+                name=experiment_name,
+                storage_path=storage_path,
+            ),
+        )
 
     # Run tuning
     results = tuner.fit()
 
-    # Print best result
+    # Log best result
     best_result = results.get_best_result()
-    print(
-        f"\nBest trial completed with {tune_config['metric']}: {best_result.metrics[tune_config['metric']]}"
+    log.info(
+        f"Best trial completed with {tune_config['metric']}: {best_result.metrics[tune_config['metric']]}"
     )
-    print(f"Best config: {best_result.config}")
+    log.info(f"Best config: {best_result.config}")
 
     return results

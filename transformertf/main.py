@@ -286,6 +286,14 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
                 tune_parser.add_argument(
                     "config", type=str, help="Path to the tune configuration YAML file"
                 )
+                tune_parser.add_argument(
+                    "--resume",
+                    type=str,
+                    nargs="?",
+                    const=True,
+                    default=None,
+                    help="Resume from checkpoint. Use --resume for auto-resume or --resume <path> for specific experiment path",
+                )
 
                 # Add tune subcommand using jsonargparse method
                 action.add_subcommand(
@@ -311,7 +319,8 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
 
         # The config should contain the tune configuration path
         config_path = self.config.tune.config
-        tune(config_path)
+        resume = getattr(self.config.tune, "resume", None)
+        tune(config_path, resume=resume)
 
     def before_fit(self) -> None:
         # hijack model checkpoint callbacks to save to checkpoint_dir/version_{version}
