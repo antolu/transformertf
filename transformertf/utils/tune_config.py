@@ -12,6 +12,7 @@ import copy
 import os
 import pathlib
 import sys
+import typing
 
 import yaml
 
@@ -24,19 +25,152 @@ except ImportError:
     sys.exit(1)
 
 __all__ = [
+    "EnvVarsConfig",
+    "ResourceConfig",
+    "SchedulerConfig",
+    "SearchAlgorithmConfig",
+    "SearchSpaceParam",
+    "TuneConfig",
     "TuneConfigValidator",
+    "TunerConfig",
     "create_ray_search_space",
     "inject_trial_params",
     "load_tune_config",
 ]
 
 # Valid Ray Tune sampling types and their required/optional parameters
+# TypedDict definitions for tune configuration structure
+
+
+class ResourceConfig(typing.TypedDict, total=False):
+    """Resource allocation configuration."""
+
+    cpu: int | float
+    """Number of CPU cores to allocate per trial"""
+    gpu: int | float
+    """Number of GPU devices to allocate per trial"""
+    memory: int | str
+    """Memory allocation per trial (bytes or string like '2GB')"""
+
+
+class SchedulerConfig(typing.TypedDict, total=False):
+    """Scheduler configuration."""
+
+    type: typing.Literal["asha", "pbt", "median_stopping", "hyperband"]
+    """Type of scheduler to use for trial management"""
+    max_t: int
+    """Maximum number of epochs/iterations per trial"""
+    grace_period: int
+    """Minimum number of epochs before early stopping"""
+    reduction_factor: int | float
+    """Factor by which to reduce number of trials at each rung"""
+    perturbation_interval: int
+    """Frequency of parameter perturbation for PBT"""
+    time_attr: str
+    """Time attribute to use for scheduling decisions"""
+
+
+class SearchAlgorithmConfig(typing.TypedDict, total=False):
+    """Search algorithm configuration."""
+
+    type: typing.Literal["hyperopt", "ax", "bayesopt", "nevergrad", "optuna"]
+    """Type of search algorithm to use"""
+    num_bootstrap: int
+    """Number of bootstrap samples for Ax"""
+    min_trials_observed: int
+    """Minimum trials before using model for Ax"""
+    verbose_logging: bool
+    """Enable verbose logging for search algorithm"""
+    random_state: int
+    """Random seed for reproducible results"""
+    random_search_steps: int
+    """Number of random search steps before optimization"""
+    utility_kwargs: dict[str, typing.Any]
+    """Additional arguments for utility function"""
+    optimizer: str
+    """Optimizer name for Nevergrad"""
+
+
+class EnvVarsConfig(typing.TypedDict, total=False):
+    """Environment variables configuration."""
+
+    patterns: list[str]
+    """List of environment variable patterns to propagate"""
+
+
+class TunerConfig(typing.TypedDict):
+    """Tune configuration section."""
+
+    num_samples: int
+    """Number of trials to run"""
+    metric: str
+    """Metric name to optimize"""
+    mode: typing.NotRequired[typing.Literal["min", "max"]]
+    """Whether to minimize or maximize the metric"""
+    resources: typing.NotRequired[ResourceConfig]
+    """Resource allocation per trial"""
+    scheduler: typing.NotRequired[SchedulerConfig]
+    """Trial scheduler configuration"""
+    search_algorithm: typing.NotRequired[SearchAlgorithmConfig]
+    """Search algorithm configuration"""
+    experiment_name: typing.NotRequired[str]
+    """Name of the experiment"""
+    storage_path: typing.NotRequired[str]
+    """Path to store experiment results"""
+    logging_metrics: typing.NotRequired[list[str]]
+    """Additional metrics to log"""
+    env_vars: typing.NotRequired[EnvVarsConfig]
+    """Environment variables to propagate"""
+
+
+class SearchSpaceParam(typing.TypedDict):
+    """Individual search space parameter configuration."""
+
+    type: typing.Literal[
+        "choice",
+        "uniform",
+        "loguniform",
+        "randint",
+        "randn",
+        "lograndint",
+        "grid_search",
+    ]
+    """Type of sampling distribution"""
+    values: typing.NotRequired[list[typing.Any]]
+    """List of values for choice and grid_search"""
+    min: typing.NotRequired[float]
+    """Minimum value for uniform and loguniform"""
+    max: typing.NotRequired[float]
+    """Maximum value for uniform and loguniform"""
+    lower: typing.NotRequired[int]
+    """Lower bound for integer distributions"""
+    upper: typing.NotRequired[int]
+    """Upper bound for integer distributions"""
+    base: typing.NotRequired[float]
+    """Base for logarithmic distributions"""
+    mean: typing.NotRequired[float]
+    """Mean for normal distribution"""
+    std: typing.NotRequired[float]
+    """Standard deviation for normal distribution"""
+
+
+class TuneConfig(typing.TypedDict):
+    """Complete unified tune configuration structure."""
+
+    base_config: dict[str, typing.Any]
+    """Base Lightning configuration"""
+    search_space: dict[str, SearchSpaceParam]
+    """Hyperparameter search space definition"""
+    tune_config: TunerConfig
+    """Ray Tune configuration options"""
+
+
 VALID_SAMPLING_TYPES = {
     "choice": {"required": ["values"], "optional": []},
     "uniform": {"required": ["min", "max"], "optional": []},
     "loguniform": {"required": ["min", "max"], "optional": ["base"]},
     "randint": {"required": ["lower", "upper"], "optional": []},
-    "randn": {"required": [], "optional": ["mean", "sd"]},
+    "randn": {"required": [], "optional": ["mean", "std"]},
     "lograndint": {"required": ["lower", "upper"], "optional": ["base"]},
     "grid_search": {"required": ["values"], "optional": []},
 }
@@ -48,13 +182,13 @@ class TuneConfigValidator:
     def __init__(self) -> None:
         """Initialize the validator."""
 
-    def validate_config(self, config: dict) -> None:
+    def validate_config(self, config: TuneConfig) -> None:
         """
         Validate a unified tune configuration.
 
         Parameters
         ----------
-        config : dict
+        config : TuneConfig
             The loaded configuration dictionary
 
         Raises
@@ -157,20 +291,22 @@ class TuneConfigValidator:
                     raise ValueError(msg)
 
 
-def inject_trial_params(base_config: dict, trial_params: dict) -> dict:
+def inject_trial_params(
+    base_config: dict[str, typing.Any], trial_params: dict[str, typing.Any]
+) -> dict[str, typing.Any]:
     """
     Inject trial parameters into base config using dot notation.
 
     Parameters
     ----------
-    base_config : dict
+    base_config : dict[str, Any]
         The base configuration dictionary
-    trial_params : dict
+    trial_params : dict[str, Any]
         Trial parameters with dot-notation keys (e.g., "model.init_args.num_layers")
 
     Returns
     -------
-    dict
+    dict[str, Any]
         Modified configuration with trial parameters injected
 
     Examples
@@ -200,18 +336,20 @@ def inject_trial_params(base_config: dict, trial_params: dict) -> dict:
     return config
 
 
-def create_ray_search_space(search_space_config: dict) -> dict:
+def create_ray_search_space(
+    search_space_config: dict[str, SearchSpaceParam],
+) -> dict[str, typing.Any]:
     """
     Convert search space configuration to Ray Tune search space.
 
     Parameters
     ----------
-    search_space_config : dict
+    search_space_config : dict[str, SearchSpaceParam]
         Search space configuration from YAML
 
     Returns
     -------
-    dict
+    dict[str, Any]
         Ray Tune search space dictionary
 
     Examples
@@ -246,8 +384,8 @@ def create_ray_search_space(search_space_config: dict) -> dict:
             )
         elif sampling_type == "randn":
             mean = param_config.get("mean", 0.0)
-            sd = param_config.get("sd", 1.0)
-            ray_search_space[param_path] = ray.tune.randn(mean=mean, sd=sd)
+            std = param_config.get("std", 1.0)
+            ray_search_space[param_path] = ray.tune.randn(mean=mean, sd=std)
         elif sampling_type == "lograndint":
             base = param_config.get("base", 10)
             ray_search_space[param_path] = ray.tune.lograndint(
@@ -262,7 +400,7 @@ def create_ray_search_space(search_space_config: dict) -> dict:
     return ray_search_space
 
 
-def load_tune_config(config_path: str | pathlib.Path) -> dict:
+def load_tune_config(config_path: str | pathlib.Path) -> TuneConfig:
     """
     Load and validate a unified tune configuration file.
 
@@ -273,7 +411,7 @@ def load_tune_config(config_path: str | pathlib.Path) -> dict:
 
     Returns
     -------
-    dict
+    TuneConfig
         Loaded and validated configuration
 
     Raises
