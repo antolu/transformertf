@@ -32,7 +32,11 @@ def test_tune_function_signature() -> None:
 
     assert "config_path" in params
     assert "resume" in params
-    assert len(params) == 2  # config_path and resume parameters expected
+    assert "resume_errored" in params
+    assert "restart_errored" in params
+    assert (
+        len(params) == 4
+    )  # config_path, resume, resume_errored, restart_errored parameters expected
 
     # Test return type annotation
     assert sig.return_annotation is not None
@@ -40,6 +44,13 @@ def test_tune_function_signature() -> None:
     # Test resume parameter has correct type and default
     resume_param = sig.parameters["resume"]
     assert resume_param.default is None
+
+    # Test error handling parameters have correct defaults
+    resume_errored_param = sig.parameters["resume_errored"]
+    assert resume_errored_param.default is False
+
+    restart_errored_param = sig.parameters["restart_errored"]
+    assert restart_errored_param.default is False
 
 
 def test_tune_config_yaml_structure() -> None:
@@ -195,11 +206,14 @@ def test_tune_resume_true_experiment_exists(
 
     # Verify tuner was restored (not created new)
     expected_resume_path = os.path.join(temp_storage_dir, "test_experiment")
-    # Check that restore was called with path and trainable
+    # Check that restore was called with path, trainable, and default error handling
     assert mock_tuner_class.restore.call_count == 1
     call_args = mock_tuner_class.restore.call_args
     assert len(call_args[0]) == 2  # path and trainable
     assert call_args[0][0] == expected_resume_path  # path is first argument
+    # Check keyword arguments for error handling
+    assert call_args[1]["resume_errored"] is False
+    assert call_args[1]["restart_errored"] is False
     mock_tuner_class.assert_not_called()  # New tuner should not be created
     mock_restored_tuner.fit.assert_called_once()
     assert result == mock_results
@@ -352,6 +366,55 @@ def test_tune_resume_parameter_types():
 
         with pytest.raises(Exception, match="Config loading bypassed"):
             tune("config.yml", resume="/some/path")
+
+        # Test error handling parameters
+        with pytest.raises(Exception, match="Config loading bypassed"):
+            tune("config.yml", resume=True, resume_errored=True, restart_errored=False)
+
+
+@patch("transformertf.utils.tune.ray.tune.Tuner")
+@patch("transformertf.utils.tune.ray.init")
+@patch("transformertf.utils.tune.ray.is_initialized")
+@patch("transformertf.utils.tune.os.path.exists")
+def test_tune_resume_with_error_handling(
+    mock_exists,
+    mock_is_initialized,
+    mock_ray_init,
+    mock_tuner_class,
+    temp_config_file,
+    temp_storage_dir,
+):
+    """Test tune function with resume and error handling parameters."""
+    mock_is_initialized.return_value = False
+    mock_exists.return_value = True
+
+    # Mock the restored tuner
+    mock_restored_tuner = Mock()
+    mock_results = Mock()
+    mock_best_result = Mock()
+    mock_best_result.metrics = {"loss/val": 0.3}
+    mock_best_result.config = {"d_model": 32}
+    mock_results.get_best_result.return_value = mock_best_result
+    mock_restored_tuner.fit.return_value = mock_results
+    mock_tuner_class.restore.return_value = mock_restored_tuner
+
+    # Test with resume=True and error handling parameters
+    result = tune(
+        temp_config_file, resume=True, resume_errored=True, restart_errored=False
+    )
+
+    # Verify tuner was restored with correct error handling parameters
+    expected_resume_path = os.path.join(temp_storage_dir, "test_experiment")
+    assert mock_tuner_class.restore.call_count == 1
+    call_args = mock_tuner_class.restore.call_args
+    assert len(call_args[0]) == 2  # path and trainable
+    assert call_args[0][0] == expected_resume_path  # path is first argument
+    # Check keyword arguments for error handling
+    assert call_args[1]["resume_errored"] is True
+    assert call_args[1]["restart_errored"] is False
+    mock_tuner_class.assert_not_called()  # New tuner should not be created
+    mock_restored_tuner.fit.assert_called_once()
+    assert result == mock_results
 
 
 if __name__ == "__main__":

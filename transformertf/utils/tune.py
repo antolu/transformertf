@@ -42,7 +42,12 @@ class TuneReportCallback(
 # Old tune implementation removed - use YAML-based tune() function instead
 
 
-def tune(config_path: str, resume: str | bool | None = None) -> ray.tune.ResultGrid:
+def tune(
+    config_path: str,
+    resume: str | bool | None = None,
+    resume_errored: bool = False,
+    restart_errored: bool = False,
+) -> ray.tune.ResultGrid:
     """
     Run hyperparameter tuning using YAML configuration.
 
@@ -59,6 +64,12 @@ def tune(config_path: str, resume: str | bool | None = None) -> ray.tune.ResultG
         - None: Start new experiment
         - True: Auto-resume from default experiment directory
         - str: Resume from specific experiment path
+    resume_errored : bool, default=False
+        Whether to resume errored trials when resuming an experiment.
+        Only valid when resume is not None.
+    restart_errored : bool, default=False
+        Whether to restart errored trials from scratch when resuming an experiment.
+        Only valid when resume is not None.
 
     Returns
     -------
@@ -70,6 +81,10 @@ def tune(config_path: str, resume: str | bool | None = None) -> ray.tune.ResultG
     >>> from transformertf.utils.tune import tune
     >>> results = tune("tune_config.yml")
     >>> print(f"Best trial config: {results.get_best_result().config}")
+    >>>
+    >>> # Resume with error handling
+    >>> results = tune("tune_config.yml", resume=True, resume_errored=True)
+    >>> results = tune("tune_config.yml", resume="/path/to/experiment", restart_errored=True)
 
     Notes
     -----
@@ -342,7 +357,12 @@ def tune(config_path: str, resume: str | bool | None = None) -> ray.tune.ResultG
         # Check if resume path exists and restore
         if os.path.exists(resume_path):
             log.info(f"Resuming experiment from: {resume_path}")
-            tuner = ray.tune.Tuner.restore(resume_path, trainable_with_resources)
+            tuner = ray.tune.Tuner.restore(
+                resume_path,
+                trainable_with_resources,
+                resume_errored=resume_errored,
+                restart_errored=restart_errored,
+            )
         else:
             if resume is True:
                 log.warning(

@@ -266,6 +266,10 @@ Run the hyperparameter search:
    # Resume from specific experiment path
    transformertf tune tune_config.yml --resume /path/to/experiment
 
+   # Resume and handle errored trials
+   transformertf tune tune_config.yml --resume --resume-errored
+   transformertf tune tune_config.yml --resume --restart-errored
+
 You can also use the Python API:
 
 .. code-block:: python
@@ -279,6 +283,10 @@ You can also use the Python API:
 
    # Resume from specific path
    results = tune("tune_config.yml", resume="/path/to/experiment")
+
+   # Resume with error handling
+   results = tune("tune_config.yml", resume=True, resume_errored=True)
+   results = tune("tune_config.yml", resume="/path/to/experiment", restart_errored=True)
 
 Resuming Interrupted Experiments
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -306,6 +314,14 @@ Use ``--resume <path>`` to resume from a specific experiment directory:
 - If auto-resume cannot find an existing experiment, it will start a new experiment
 - If a specific path doesn't exist, an error will be raised
 - All trial history, checkpoints, and hyperparameter search state are preserved
+
+**Error Handling Options:**
+When resuming experiments, you can control how errored trials are handled:
+
+- ``--resume-errored``: Resume errored trials from their last checkpoint
+- ``--restart-errored``: Restart errored trials from scratch
+
+These options are only valid when used with ``--resume`` and help you recover from failed trials due to system errors, memory issues, or other transient failures.
 
 **Finding Experiment Paths:**
 Experiments are typically stored in:
