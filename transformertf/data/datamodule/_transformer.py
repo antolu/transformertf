@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import sys
 import typing
 
@@ -527,15 +528,17 @@ class EncoderDecoderDataModule(TransformerDataModule):
             add_target_to_past=self.hparams["add_target_to_past"],
         )
 
+    @staticmethod
     def collate_fn(  # type: ignore[override]
-        self,
-        samples: list[EncoderDecoderTargetSample],
-    ) -> EncoderDecoderTargetSample:
+        encoder_alignment: typing.Literal["left", "right"] = "left",
+    ) -> typing.Callable[
+        [list[EncoderDecoderTargetSample]], EncoderDecoderTargetSample
+    ]:
         """
         Collate function for encoder-decoder samples with variable lengths.
 
-        This function handles batching of encoder-decoder samples that may have
-        different sequence lengths due to randomization. The sequence alignment
+        This function returns a callable that handles batching of encoder-decoder samples
+        that may have different sequence lengths due to randomization. The sequence alignment
         strategy is controlled by the encoder_alignment parameter:
 
         - "right": Encoder sequences right-padded (TFT-style, backwards compatible)
@@ -543,14 +546,14 @@ class EncoderDecoderDataModule(TransformerDataModule):
 
         Parameters
         ----------
-        samples : list of EncoderDecoderTargetSample
-            List of samples to collate into a batch. Each sample is a dictionary
-            containing encoder_input, decoder_input, target, and optional length/mask info.
+        encoder_alignment : {"left", "right"}, optional
+            Sequence alignment strategy. Default is "left".
 
         Returns
         -------
-        EncoderDecoderTargetSample
-            Collated batch with all samples padded/trimmed to consistent lengths.
+        callable
+            A collate function that takes a list of EncoderDecoderTargetSample and returns
+            a collated batch with all samples padded/trimmed to consistent lengths.
             Contains batched tensors for encoder_input, decoder_input, target,
             and optional encoder_lengths, decoder_lengths, encoder_mask, decoder_mask.
 
@@ -561,6 +564,30 @@ class EncoderDecoderDataModule(TransformerDataModule):
         - "left" alignment: Encoder sequences prepared for LSTM pack_padded_sequence
         - Decoder sequences are always trimmed from the end (keeping early predictions)
         - Maximum lengths are determined by the longest sequences in the batch
+        """
+        return functools.partial(
+            EncoderDecoderDataModule._collate_impl, encoder_alignment=encoder_alignment
+        )
+
+    @staticmethod
+    def _collate_impl(
+        samples: list[EncoderDecoderTargetSample],
+        encoder_alignment: typing.Literal["left", "right"],
+    ) -> EncoderDecoderTargetSample:
+        """
+        Implementation of the collate function that can be pickled.
+
+        Parameters
+        ----------
+        samples : list of EncoderDecoderTargetSample
+            List of samples to collate into a batch.
+        encoder_alignment : {"left", "right"}
+            Sequence alignment strategy.
+
+        Returns
+        -------
+        EncoderDecoderTargetSample
+            Collated batch with all samples padded/trimmed to consistent lengths.
         """
         if all("encoder_lengths" in sample for sample in samples):
             max_enc_len = max(sample["encoder_lengths"] for sample in samples)
@@ -608,7 +635,7 @@ class EncoderDecoderDataModule(TransformerDataModule):
 
         # Apply left alignment for LSTM models if requested
         if (
-            self.hparams["encoder_alignment"] == "left"
+            encoder_alignment == "left"
             and "encoder_lengths" in batch
             and batch["encoder_lengths"] is not None
         ):

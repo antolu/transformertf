@@ -675,7 +675,9 @@ class DataModuleBase(L.LightningDataModule):
                 if self.hparams["num_workers"] > 0
                 else None,
                 persistent_workers=self.hparams["num_workers"] > 0,
-                collate_fn=self.collate_fn,
+                collate_fn=functools.partial(
+                    self.collate_fn, encoder_alignment=self.hparams["encoder_alignment"]
+                ),
             )
 
         if len(self._val_df) == 1:
@@ -1196,21 +1198,15 @@ class DataModuleBase(L.LightningDataModule):
         )
 
     @staticmethod
-    def collate_fn(batch: list[dict[str, torch.Tensor]]) -> dict[str, torch.Tensor]:
+    def collate_fn() -> typing.Callable[
+        list[dict[str, torch.Tensor]], dict[str, torch.Tensor]
+    ]:
         """
-        Collates a batch of samples into a single dictionary.
+        Returns a collate function that can be used with the dataloader.
 
-        Parameters
-        ----------
-        batch : list[dict[str, torch.Tensor]]
-            The batch of samples.
-
-        Returns
-        -------
-        dict[str, torch.Tensor]
-            The collated batch.
+        Subclasses can override this method to provide a custom collate function.
         """
-        return torch.utils.data.default_collate(batch)
+        return torch.utils.data.default_collate
 
     def _init_tmpdir(self) -> TmpDirType:
         if self.distributed_sampler:
