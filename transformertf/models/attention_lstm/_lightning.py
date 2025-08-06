@@ -7,6 +7,7 @@ import torch
 
 from ...data import EncoderDecoderTargetSample
 from ...nn import QuantileLoss
+from ...utils.sequence import validate_encoder_alignment
 from .._base_module import DEFAULT_LOGGING_METRICS, MetricLiteral
 from .._base_transformer import TransformerModuleBase
 from ._model import HIDDEN_STATE, AttentionLSTMModel
@@ -194,6 +195,27 @@ class AttentionLSTM(TransformerModuleBase):
             output_dim=output_dim,
             causal_attention=causal_attention,
         )
+
+    def setup(self, stage: str | None = None) -> None:
+        """
+        Setup method called by Lightning to validate configuration.
+
+        This validates that the DataModule's encoder_alignment is compatible
+        with the AttentionLSTM model requirements.
+        """
+        super().setup(stage)
+
+        # Validate encoder alignment compatibility
+        if hasattr(self.trainer, "datamodule") and self.trainer.datamodule is not None:
+            datamodule = self.trainer.datamodule
+            if (
+                hasattr(datamodule, "hparams")
+                and "encoder_alignment" in datamodule.hparams
+            ):
+                encoder_alignment = datamodule.hparams["encoder_alignment"]
+                validate_encoder_alignment(
+                    self.model.__class__.__name__, encoder_alignment
+                )
 
     def forward(
         self,

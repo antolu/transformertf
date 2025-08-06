@@ -775,7 +775,7 @@ class TransformerModuleBase(LightningModuleBase):
         # For backward compatibility, also try matching against the top-level component
         # This maintains compatibility with old trainable_parameters lists
         if "." in param_name:
-            component_name = param_name.split(".")[0]
+            component_name = param_name.split(".", 1)[0]
             if component_name == pattern or fnmatch.fnmatch(component_name, pattern):
                 return True
 
