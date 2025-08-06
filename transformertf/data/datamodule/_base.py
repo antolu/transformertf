@@ -1195,10 +1195,9 @@ class DataModuleBase(L.LightningDataModule):
             else False
         )
 
-    @staticmethod
-    def collate_fn() -> typing.Callable[
-        list[dict[str, torch.Tensor]], dict[str, torch.Tensor]
-    ]:
+    def collate_fn(
+        self,
+    ) -> typing.Callable[list[dict[str, torch.Tensor]], dict[str, torch.Tensor]]:
         """
         Returns a collate function that can be used with the dataloader.
 
