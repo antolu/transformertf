@@ -675,9 +675,7 @@ class DataModuleBase(L.LightningDataModule):
                 if self.hparams["num_workers"] > 0
                 else None,
                 persistent_workers=self.hparams["num_workers"] > 0,
-                collate_fn=functools.partial(
-                    self.collate_fn, encoder_alignment=self.hparams["encoder_alignment"]
-                ),
+                collate_fn=self.collate_fn,
             )
 
         if len(self._val_df) == 1:
