@@ -18,7 +18,17 @@ from ._transformer_encoder import (
     generate_mask,
 )
 from ._variable_selection import VariableSelection
-from ._weighted_loss import HuberLoss, L1Loss, MAELoss, MAPELoss, MSELoss, SMAPELoss
+from ._weighted_loss import (
+    HuberLoss,
+    L1Loss,
+    MAELoss,
+    MAPELoss,
+    MSELoss,
+    SMAPELoss,
+    WeightedHuberLoss,
+    WeightedMAELoss,
+    WeightedMSELoss,
+)
 
 for _mod in (
     AddNorm,
@@ -46,6 +56,9 @@ for _mod in (
     TransformerEncoder,
     SimplePositionalEncoding,
     generate_mask,
+    WeightedHuberLoss,
+    WeightedMAELoss,
+    WeightedMSELoss,
 ):
     replace_modname(_mod, __name__)
 
@@ -75,6 +88,9 @@ __all__ = [
     "TemporalEncoder",
     "TransformerEncoder",
     "VariableSelection",
+    "WeightedHuberLoss",
+    "WeightedMAELoss",
+    "WeightedMSELoss",
     "generate_mask",
     "get_activation",
     "get_loss",

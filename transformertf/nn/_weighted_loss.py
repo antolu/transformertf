@@ -15,6 +15,7 @@ The quantile loss function is implemented in the QuantileLoss class in the _quan
 from __future__ import annotations
 
 import typing
+import warnings
 
 import torch
 
@@ -484,3 +485,28 @@ class SMAPELoss(torch.nn.Module):
 
 # Alias for compatibility with standard naming
 L1Loss = MAELoss
+
+
+# Deprecated aliases for backward compatibility
+def _deprecated_class_factory(new_class, old_name):
+    """Create a deprecated alias class that issues warnings when instantiated."""
+
+    class DeprecatedClass(new_class):
+        def __init__(self, *args, **kwargs):
+            warnings.warn(
+                f"{old_name} is deprecated and will be removed in a future version. "
+                f"Use {new_class.__name__} instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            super().__init__(*args, **kwargs)
+
+    DeprecatedClass.__name__ = old_name
+    DeprecatedClass.__qualname__ = old_name
+    return DeprecatedClass
+
+
+# Create deprecated aliases
+WeightedMSELoss = _deprecated_class_factory(MSELoss, "WeightedMSELoss")
+WeightedMAELoss = _deprecated_class_factory(MAELoss, "WeightedMAELoss")
+WeightedHuberLoss = _deprecated_class_factory(HuberLoss, "WeightedHuberLoss")
