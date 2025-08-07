@@ -74,6 +74,7 @@ class TestAttentionLSTMTorchCompile:
         expected_shape = (4, 10, 1)  # (batch_size, future_seq_len, output_dim)
         assert output.shape == expected_shape
 
+    @torch_compile_available
     def test_attention_lstm_torch_compile_with_packing(
         self, attention_lstm_model, sample_data
     ):
@@ -247,6 +248,7 @@ class TestAttentionLSTMTorchCompile:
 
         assert output.shape == (3, 6, 1)
 
+    @torch_compile_available
     @pytest.mark.parametrize("use_gating", [True, False])
     def test_attention_lstm_compile_different_configs(self, use_gating, sample_data):
         """Test torch.compile with different model configurations."""
