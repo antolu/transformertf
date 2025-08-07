@@ -259,6 +259,7 @@ class TemporalConvTransformerModel(torch.nn.Module):
             max_encoder_length=compressed_enc_len,
             max_decoder_length=compressed_dec_len,
             causal_attention=self.causal_attention,
+            encoder_alignment="right",
         )
 
         # Concatenate encoder and decoder for attention

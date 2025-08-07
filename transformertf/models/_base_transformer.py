@@ -856,6 +856,8 @@ def get_attention_mask(
     max_decoder_length: int,
     *,
     causal_attention: bool = True,
+    encoder_alignment: str = "left",
+    decoder_alignment: str = "left",
 ) -> torch.Tensor:
     """
     Create attention masks for transformer encoder-decoder architectures.
@@ -881,6 +883,10 @@ def get_attention_mask(
         If True, apply causal masking where each decoder position can only
         attend to previous positions. If False, allows attention to all
         non-padded positions.
+    encoder_alignment : str, default="left"
+        Alignment of encoder sequences. Either "left" (padding at start) or "right" (padding at end).
+    decoder_alignment : str, default="left"
+        Alignment of decoder sequences. Either "left" (padding at start) or "right" (padding at end).
 
     Returns
     -------
@@ -941,13 +947,15 @@ def get_attention_mask(
         # allowing forward attention - i.e. only
         #  masking out non-available data and self
         decoder_mask = (
-            create_mask(max_decoder_length, decoder_lengths)
+            create_mask(
+                max_decoder_length, decoder_lengths, alignment=decoder_alignment
+            )
             .unsqueeze(1)
             .expand(-1, max_decoder_length, -1)
         )
     # do not attend to steps where data is padded
     encoder_mask = (
-        create_mask(max_encoder_length, encoder_lengths)
+        create_mask(max_encoder_length, encoder_lengths, alignment=encoder_alignment)
         .unsqueeze(1)
         .expand(-1, max_decoder_length, -1)
     )
@@ -962,7 +970,11 @@ def get_attention_mask(
 
 
 def create_mask(
-    size: int, lengths: torch.LongTensor, *, inverse: bool = False
+    size: int,
+    lengths: torch.LongTensor,
+    *,
+    alignment: str = "left",
+    inverse: bool = False,
 ) -> torch.BoolTensor:
     """
     Create boolean masks for variable-length sequences.
@@ -978,6 +990,10 @@ def create_mask(
     lengths : torch.LongTensor
         Tensor of actual sequence lengths for each item in the batch.
         Shape: (batch_size,).
+    alignment : str, default="left"
+        Sequence alignment type:
+        - "left": Sequences are left-aligned (padding at start)
+        - "right": Sequences are right-aligned (padding at end)
     inverse : bool, default=False
         If False, returns True where positions are invalid (padded).
         If True, returns True where positions are valid (not padded).
@@ -987,22 +1003,29 @@ def create_mask(
     torch.BoolTensor
         Boolean mask of shape (len(lengths), size).
 
+        For left alignment:
+        - When inverse=False: mask[i, j] = True if j < (size - lengths[i]) (padded position)
+        - When inverse=True: mask[i, j] = True if j >= (size - lengths[i]) (valid position)
+
+        For right alignment:
         - When inverse=False: mask[i, j] = True if lengths[i] <= j (padded position)
         - When inverse=True: mask[i, j] = True if lengths[i] > j (valid position)
 
     Examples
     --------
     >>> lengths = torch.tensor([3, 5, 2])
-    >>> mask = create_mask(size=6, lengths=lengths, inverse=False)
-    >>> # mask = [[False, False, False, True, True, True],     # len=3
-    >>> #          [False, False, False, False, False, True],  # len=5
-    >>> #          [False, False, True, True, True, True]]     # len=2
     >>>
-    >>> # For valid positions (inverse=True)
-    >>> valid_mask = create_mask(size=6, lengths=lengths, inverse=True)
-    >>> # valid_mask = [[True, True, True, False, False, False],     # len=3
-    >>> #               [True, True, True, True, True, False],        # len=5
-    >>> #               [True, True, False, False, False, False]]     # len=2
+    >>> # Right alignment (traditional behavior)
+    >>> mask = create_mask(size=6, lengths=lengths, alignment="right", inverse=False)
+    >>> # mask = [[False, False, False, True, True, True],     # len=3, padding at end
+    >>> #          [False, False, False, False, False, True],  # len=5, padding at end
+    >>> #          [False, False, True, True, True, True]]     # len=2, padding at end
+    >>>
+    >>> # Left alignment (new default)
+    >>> mask = create_mask(size=6, lengths=lengths, alignment="left", inverse=False)
+    >>> # mask = [[True, True, True, False, False, False],     # len=3, padding at start
+    >>> #          [True, False, False, False, False, False],  # len=5, padding at start
+    >>> #          [True, True, True, True, False, False]]     # len=2, padding at start
 
     Notes
     -----
@@ -1011,16 +1034,31 @@ def create_mask(
     - Create causal masks for autoregressive generation
     - Handle variable-length sequences in batched operations
 
+    The alignment parameter is critical for correct masking behavior:
+    - Use "left" when sequences have been aligned for RNN packing (padding at start)
+    - Use "right" for traditional padding (padding at end)
+
     See Also
     --------
     get_attention_mask : Higher-level function that uses this for attention masking
     """
 
+    if alignment not in {"left", "right"}:
+        msg = f"alignment must be 'left' or 'right', got '{alignment}'"
+        raise ValueError(msg)
+
+    indices = torch.arange(size, device=lengths.device).unsqueeze(0)
+
+    if alignment == "right":
+        # Right alignment: padding at end
+        if inverse:  # return where values are
+            return indices < lengths.unsqueeze(-1)
+        # return where no values are (padding positions)
+        return indices >= lengths.unsqueeze(-1)
+
+    # Left alignment: padding at start
+    padding_start_positions = size - lengths.unsqueeze(-1)
     if inverse:  # return where values are
-        return torch.arange(size, device=lengths.device).unsqueeze(
-            0
-        ) < lengths.unsqueeze(-1)
-    # return where no values are
-    return torch.arange(size, device=lengths.device).unsqueeze(0) >= lengths.unsqueeze(
-        -1
-    )
+        return indices >= padding_start_positions
+    # return where no values are (padding positions)
+    return indices < padding_start_positions

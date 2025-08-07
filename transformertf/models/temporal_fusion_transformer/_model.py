@@ -275,6 +275,7 @@ class TemporalFusionTransformerModel(torch.nn.Module):
             max_encoder_length=enc_seq_len,
             max_decoder_length=dec_seq_len,
             causal_attention=self.causal_attention,
+            encoder_alignment="right",
         )
 
         # multi-head attention and post-processing
