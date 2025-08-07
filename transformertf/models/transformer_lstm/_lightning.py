@@ -6,7 +6,7 @@ import typing
 import torch
 
 from ...data import EncoderDecoderTargetSample
-from ...nn import QuantileLoss, WeightedMSELoss
+from ...nn import MSELoss, QuantileLoss
 from .._base_module import DEFAULT_LOGGING_METRICS, MetricLiteral
 from .._base_transformer import TransformerModuleBase
 from .._validation_mixin import EncoderAlignmentValidationMixin
@@ -177,7 +177,7 @@ class TransformerLSTM(TransformerModuleBase, EncoderAlignmentValidationMixin):
         self.save_hyperparameters(ignore=["criterion"])
 
         # Set up criterion
-        self.criterion = criterion or WeightedMSELoss()
+        self.criterion = criterion or MSELoss()
 
         # Handle quantile loss case
         if isinstance(self.criterion, QuantileLoss):
