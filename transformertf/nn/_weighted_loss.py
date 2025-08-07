@@ -25,6 +25,31 @@ from .functional._functional import mape_loss, smape_loss
 class MSELoss(torch.nn.Module):
     """
     Mean squared error loss with optional masking and weighting.
+
+    This loss function computes the mean squared error between predictions and targets,
+    with support for masking out specific positions (e.g., padding in variable-length
+    sequences) and applying sample-specific weights.
+
+    Examples
+    --------
+    >>> import torch
+    >>> from transformertf.nn import MSELoss
+    >>>
+    >>> # Basic usage
+    >>> loss_fn = MSELoss()
+    >>> pred = torch.randn(2, 10, 1)
+    >>> target = torch.randn(2, 10, 1)
+    >>> loss = loss_fn(pred, target)
+    >>>
+    >>> # With masking for variable-length sequences
+    >>> mask = torch.ones(2, 10, 1)
+    >>> mask[0, 7:] = 0  # Mask padding positions
+    >>> mask[1, 5:] = 0
+    >>> masked_loss = loss_fn(pred, target, mask=mask)
+    >>>
+    >>> # With both weights and masking
+    >>> weights = torch.ones(2, 10, 1)
+    >>> combined_loss = loss_fn(pred, target, weights=weights, mask=mask)
     """
 
     def __init__(
@@ -56,18 +81,27 @@ class MSELoss(torch.nn.Module):
         weights: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """
-        Calculate the weighted mean squared error loss.
+        Calculate the mean squared error loss with optional masking and weighting.
 
         Parameters
         ----------
         y_pred: torch.Tensor
-            Predicted values.
+            Predicted values, shape (batch_size, seq_len, features).
         target: torch.Tensor
+            Target values, same shape as y_pred.
+        mask: torch.Tensor, optional
+            Numeric mask to exclude certain positions from loss calculation.
+            Values of 1.0 include the position, 0.0 excludes it. Intermediate
+            values provide partial weighting. Shape must match y_pred and target.
+        weights: torch.Tensor, optional
+            Sample-specific weights to apply to the loss. If None, all samples
+            are weighted equally. Shape must match y_pred and target.
 
         Returns
         -------
         torch.Tensor
-            Weighted mean squared error loss.
+            Mean squared error loss, scalar if reduction='mean' or 'sum',
+            otherwise same shape as input.
         """
         return mse_loss(
             y_pred,
@@ -84,6 +118,31 @@ class MSELoss(torch.nn.Module):
 class MAELoss(torch.nn.L1Loss):
     """
     Mean absolute error loss with optional masking and weighting.
+
+    This loss function computes the mean absolute error (L1 loss) between predictions
+    and targets, with support for masking out specific positions and applying
+    sample-specific weights. Also available as L1Loss alias.
+
+    Examples
+    --------
+    >>> import torch
+    >>> from transformertf.nn import MAELoss, L1Loss
+    >>>
+    >>> # Basic usage
+    >>> loss_fn = MAELoss()
+    >>> pred = torch.randn(2, 10, 1)
+    >>> target = torch.randn(2, 10, 1)
+    >>> loss = loss_fn(pred, target)
+    >>>
+    >>> # L1Loss alias
+    >>> l1_loss = L1Loss()  # Same as MAELoss()
+    >>> assert type(l1_loss) is MAELoss
+    >>>
+    >>> # With masking for RNN packed sequences
+    >>> mask = torch.ones(2, 10, 1)
+    >>> mask[0, 8:] = 0  # First sequence has length 8
+    >>> mask[1, 6:] = 0  # Second sequence has length 6
+    >>> masked_loss = loss_fn(pred, target, mask=mask)
     """
 
     def __init__(
@@ -119,8 +178,9 @@ class MAELoss(torch.nn.L1Loss):
         weights: torch.Tensor, optional
             Weights for the loss. If None, no weights are applied.
         mask: torch.Tensor, optional
-            Boolean mask to exclude certain positions from loss calculation.
-            If provided, only positions where mask=True contribute to the loss.
+            Numeric mask to exclude certain positions from loss calculation.
+            Values of 1.0 include the position, 0.0 excludes it. Intermediate
+            values provide partial weighting.
 
         Returns
         -------
@@ -157,6 +217,29 @@ class MAELoss(torch.nn.L1Loss):
 class HuberLoss(torch.nn.HuberLoss):
     """
     Huber loss with optional masking and weighting.
+
+    The Huber loss combines the best properties of MSE and MAE losses: it is quadratic
+    for small errors (like MSE) and linear for large errors (like MAE), making it
+    robust to outliers while remaining differentiable everywhere.
+
+    Examples
+    --------
+    >>> import torch
+    >>> from transformertf.nn import HuberLoss
+    >>>
+    >>> # Basic usage with default delta=1.0
+    >>> loss_fn = HuberLoss()
+    >>> pred = torch.randn(2, 10, 1)
+    >>> target = torch.randn(2, 10, 1)
+    >>> loss = loss_fn(pred, target)
+    >>>
+    >>> # Custom delta for different sensitivity to outliers
+    >>> robust_loss = HuberLoss(delta=0.5)
+    >>>
+    >>> # With masking for variable sequences
+    >>> mask = torch.ones(2, 10, 1)
+    >>> mask[0, -3:] = 0  # Mask last 3 positions
+    >>> masked_loss = loss_fn(pred, target, mask=mask)
     """
 
     def __init__(
@@ -196,8 +279,9 @@ class HuberLoss(torch.nn.HuberLoss):
         weights: torch.Tensor, optional
             Weights for the loss. If None, no weights are applied.
         mask: torch.Tensor, optional
-            Boolean mask to exclude certain positions from loss calculation.
-            If provided, only positions where mask=True contribute to the loss.
+            Numeric mask to exclude certain positions from loss calculation.
+            Values of 1.0 include the position, 0.0 excludes it. Intermediate
+            values provide partial weighting.
 
         Returns
         -------
@@ -236,6 +320,26 @@ class HuberLoss(torch.nn.HuberLoss):
 class MAPELoss(torch.nn.Module):
     """
     Mean Absolute Percentage Error loss with optional masking and weighting.
+
+    MAPE computes the mean of the absolute percentage differences between predictions
+    and targets. It provides interpretable error metrics as percentages, useful when
+    the scale of targets varies significantly.
+
+    Examples
+    --------
+    >>> import torch
+    >>> from transformertf.nn import MAPELoss
+    >>>
+    >>> # Basic usage
+    >>> loss_fn = MAPELoss()
+    >>> pred = torch.randn(2, 10, 1)
+    >>> target = torch.abs(torch.randn(2, 10, 1)) + 0.1  # Avoid zeros
+    >>> loss = loss_fn(pred, target)
+    >>>
+    >>> # With masking for padded sequences
+    >>> mask = torch.ones(2, 10, 1)
+    >>> mask[0, 7:] = 0  # Mask padding
+    >>> masked_loss = loss_fn(pred, target, mask=mask)
     """
 
     def __init__(
@@ -272,8 +376,9 @@ class MAPELoss(torch.nn.Module):
         weights: torch.Tensor, optional
             Weights for the loss. If None, no weights are applied.
         mask: torch.Tensor, optional
-            Boolean mask to exclude certain positions from loss calculation.
-            If provided, only positions where mask=True contribute to the loss.
+            Numeric mask to exclude certain positions from loss calculation.
+            Values of 1.0 include the position, 0.0 excludes it. Intermediate
+            values provide partial weighting.
 
         Returns
         -------
@@ -292,6 +397,33 @@ class MAPELoss(torch.nn.Module):
 class SMAPELoss(torch.nn.Module):
     """
     Symmetric Mean Absolute Percentage Error loss with optional masking and weighting.
+
+    SMAPE provides a symmetric version of MAPE that treats over-prediction and
+    under-prediction equally. It's bounded between 0 and 2, making it more stable
+    than MAPE when targets are near zero. The symmetric nature makes it particularly
+    useful for time series forecasting where prediction direction matters equally.
+
+    Examples
+    --------
+    >>> import torch
+    >>> from transformertf.nn import SMAPELoss
+    >>>
+    >>> # Basic usage
+    >>> loss_fn = SMAPELoss()
+    >>> pred = torch.randn(2, 10, 1)
+    >>> target = torch.randn(2, 10, 1)
+    >>> loss = loss_fn(pred, target)
+    >>>
+    >>> # With masking for time series with different lengths
+    >>> mask = torch.ones(2, 10, 1)
+    >>> mask[0, 8:] = 0  # First series has 8 valid points
+    >>> mask[1, 6:] = 0  # Second series has 6 valid points
+    >>> masked_loss = loss_fn(pred, target, mask=mask)
+    >>>
+    >>> # With sample importance weighting
+    >>> weights = torch.ones(2, 10, 1)
+    >>> weights[:, -3:] = 2.0  # Weight recent observations more heavily
+    >>> weighted_loss = loss_fn(pred, target, weights=weights, mask=mask)
     """
 
     def __init__(
@@ -328,8 +460,9 @@ class SMAPELoss(torch.nn.Module):
         weights: torch.Tensor, optional
             Weights for the loss. If None, no weights are applied.
         mask: torch.Tensor, optional
-            Boolean mask to exclude certain positions from loss calculation.
-            If provided, only positions where mask=True contribute to the loss.
+            Numeric mask to exclude certain positions from loss calculation.
+            Values of 1.0 include the position, 0.0 excludes it. Intermediate
+            values provide partial weighting.
 
         Returns
         -------

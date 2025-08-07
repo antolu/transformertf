@@ -38,8 +38,8 @@ def mape_loss(
     weights : torch.Tensor, optional
         The weights to apply to the loss, by default None.
     mask : torch.Tensor, optional
-        Boolean mask to exclude certain positions from loss calculation, by default None.
-        If provided, only positions where mask=True contribute to the loss.
+        Numeric mask to exclude certain positions from loss calculation, by default None.
+        Values of 1.0 include the position, 0.0 excludes it. Intermediate values provide partial weighting.
     reduction : Literal["mean", "sum"], optional
         The reduction method to apply to the loss, by default "mean". If None, the
         loss is returned as-is.
@@ -88,8 +88,8 @@ def smape_loss(
     weights : torch.Tensor, optional
         The weights to apply to the loss, by default None.
     mask : torch.Tensor, optional
-        Boolean mask to exclude certain positions from loss calculation, by default None.
-        If provided, only positions where mask=True contribute to the loss.
+        Numeric mask to exclude certain positions from loss calculation, by default None.
+        Values of 1.0 include the position, 0.0 excludes it. Intermediate values provide partial weighting.
     reduction : Literal["mean", "sum"], optional
         The reduction method to apply to the loss, by default "mean". If None, the
         loss is returned as-is.

@@ -68,9 +68,9 @@ def get_loss(
     ----------
     loss : VALID_LOSS
         Name of the loss function to create. Must be one of:
-        - "mse": Weighted Mean Squared Error loss
-        - "mae": Weighted Mean Absolute Error loss
-        - "huber": Weighted Huber loss (robust to outliers)
+        - "mse": Mean Squared Error loss with masking and weighting support
+        - "mae": Mean Absolute Error loss with masking and weighting support
+        - "huber": Huber loss with masking and weighting support (robust to outliers)
         - "quantile": Quantile loss for uncertainty quantification
     **loss_kwargs : Any
         Additional keyword arguments passed to the loss function constructor.
@@ -99,11 +99,12 @@ def get_loss(
 
     Notes
     -----
-    All loss functions support sample weighting, which is essential for:
-    1. Handling missing data in time series
-    2. Emphasizing certain time periods or samples
-    3. Dealing with imbalanced datasets
-    4. Implementing curriculum learning strategies
+    All loss functions support masking and sample weighting, which is essential for:
+    1. Handling missing data and padding in variable-length sequences
+    2. Masking invalid positions in packed sequences (RNN applications)
+    3. Emphasizing certain time periods or samples
+    4. Dealing with imbalanced datasets
+    5. Implementing curriculum learning strategies
 
     Loss function characteristics:
     - **MSE**: Penalizes large errors quadratically, sensitive to outliers
@@ -111,9 +112,9 @@ def get_loss(
     - **Huber**: Combines MSE and MAE benefits, robust yet differentiable
     - **Quantile**: Enables uncertainty quantification and prediction intervals
 
-    The weighted variants extend standard PyTorch loss functions to support
-    element-wise weighting, making them suitable for masked sequence modeling
-    and time series applications with irregular sampling.
+    These implementations extend standard PyTorch loss functions with masking
+    and weighting support, making them suitable for masked sequence modeling,
+    variable-length sequences, and time series applications with irregular sampling.
 
     Examples
     --------
@@ -136,6 +137,11 @@ def get_loss(
     >>> # Weighted MSE loss
     >>> loss_value = mse_loss(y_pred, y_true, weights=weights)
     >>> print(f"MSE Loss: {loss_value.item():.4f}")
+    >>>
+    >>> # With masking for variable-length sequences
+    >>> mask = torch.ones(32, 128, 1)
+    >>> mask[:, 100:] = 0  # Mask padding positions
+    >>> masked_loss = mse_loss(y_pred, y_true, mask=mask)
     >>>
     >>> # Quantile predictions for uncertainty
     >>> y_pred_quantiles = torch.randn(32, 128, 3)  # 3 quantiles

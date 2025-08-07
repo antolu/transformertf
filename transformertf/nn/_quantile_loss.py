@@ -134,8 +134,8 @@ class QuantileLoss(torch.nn.Module):
     >>> weighted_loss = qloss(y_pred, target, weights=weights)
     >>>
     >>> # With masking for variable-length sequences
-    >>> mask = torch.ones(batch_size, seq_len, dtype=torch.bool)
-    >>> mask[0, 10:] = False  # Mask out padding positions
+    >>> mask = torch.ones(batch_size, seq_len)
+    >>> mask[0, 10:] = 0  # Mask out padding positions
     >>> masked_loss = qloss(y_pred, target, mask=mask)
     >>>
     >>> # Combine mask and weights
