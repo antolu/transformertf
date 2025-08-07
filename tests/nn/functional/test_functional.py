@@ -49,7 +49,7 @@ def test_mape_loss(
     reduction: typing.Literal["mean", "sum"] | None,
     expected_loss: float,
 ) -> None:
-    loss = mape_loss(y_pred, y_true, weights_or_none, reduction)
+    loss = mape_loss(y_pred, y_true, weights=weights_or_none, reduction=reduction)
     assert torch.allclose(loss, torch.tensor(expected_loss), atol=1e-4)
 
 
@@ -72,5 +72,5 @@ def test_smape_loss(
     reduction: typing.Literal["mean", "sum"] | None,
     expected_loss: float,
 ) -> None:
-    loss = smape_loss(y_pred, y_true, weights_or_none, reduction)
+    loss = smape_loss(y_pred, y_true, weights=weights_or_none, reduction=reduction)
     assert torch.allclose(loss, torch.tensor(expected_loss), atol=1e-4)

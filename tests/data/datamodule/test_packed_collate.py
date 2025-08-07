@@ -34,7 +34,7 @@ def test_collate_with_right_alignment():
     ]
 
     # Collate batch with right alignment
-    batch = datamodule.collate_fn(samples)
+    batch = datamodule.collate_fn()(samples)
 
     # Should use standard TFT behavior (no left alignment)
     assert batch["encoder_input"].shape == (2, 10, 4)  # Trimmed to max length
@@ -78,7 +78,7 @@ def test_collate_with_left_alignment():
     ]
 
     # Collate batch with left alignment
-    batch = datamodule.collate_fn(samples)
+    batch = datamodule.collate_fn()(samples)
 
     # Should align encoder sequences for packing when lengths differ
     # The collate function trims to the max length needed
@@ -131,7 +131,7 @@ def test_collate_with_uniform_lengths():
     ]
 
     # Collate batch
-    batch = datamodule.collate_fn(samples)
+    batch = datamodule.collate_fn()(samples)
 
     # Standard collation should occur (no alignment needed for uniform lengths)
     assert batch["encoder_input"].shape == (2, 10, 4)
@@ -171,7 +171,7 @@ def test_collate_with_masks():
     ]
 
     # Collate batch
-    batch = datamodule.collate_fn(samples)
+    batch = datamodule.collate_fn()(samples)
 
     # Verify shapes
     assert batch["encoder_input"].shape == (2, 8, 2)
@@ -223,7 +223,7 @@ def test_end_to_end_integration():
     ]
 
     # Collate batch (should apply alignment for LSTM models)
-    batch = datamodule.collate_fn(samples)
+    batch = datamodule.collate_fn()(samples)
 
     # Forward pass through model
     with torch.no_grad():
@@ -290,7 +290,7 @@ def test_large_batch_handling():
     ]
 
     # Collate batch
-    batch = datamodule.collate_fn(samples)
+    batch = datamodule.collate_fn()(samples)
 
     # Verify correct batch shape
     assert batch["encoder_input"].shape[0] == batch_size
