@@ -22,6 +22,7 @@ def mape_loss(
     y_pred: torch.Tensor,
     y_true: torch.Tensor,
     weights: torch.Tensor | None = None,
+    mask: torch.Tensor | None = None,
     reduction: typing.Literal["mean", "sum"] | None = "mean",
 ) -> torch.Tensor:
     """
@@ -36,6 +37,9 @@ def mape_loss(
         The true values.
     weights : torch.Tensor, optional
         The weights to apply to the loss, by default None.
+    mask : torch.Tensor, optional
+        Boolean mask to exclude certain positions from loss calculation, by default None.
+        If provided, only positions where mask=True contribute to the loss.
     reduction : Literal["mean", "sum"], optional
         The reduction method to apply to the loss, by default "mean". If None, the
         loss is returned as-is.
@@ -46,7 +50,13 @@ def mape_loss(
         The MAPE loss.
     """
     diff = torch.abs((y_true - y_pred) / y_true)
-    if weights is not None:
+
+    # Combine mask and weights
+    if mask is not None and weights is not None:
+        diff *= weights * mask.float()
+    elif mask is not None:
+        diff *= mask.float()
+    elif weights is not None:
         diff *= weights
     if reduction is None:
         return diff
@@ -62,6 +72,7 @@ def smape_loss(
     y_pred: torch.Tensor,
     y_true: torch.Tensor,
     weights: torch.Tensor | None = None,
+    mask: torch.Tensor | None = None,
     reduction: typing.Literal["mean", "sum"] | None = "mean",
 ) -> torch.Tensor:
     """
@@ -76,6 +87,9 @@ def smape_loss(
         The true values.
     weights : torch.Tensor, optional
         The weights to apply to the loss, by default None.
+    mask : torch.Tensor, optional
+        Boolean mask to exclude certain positions from loss calculation, by default None.
+        If provided, only positions where mask=True contribute to the loss.
     reduction : Literal["mean", "sum"], optional
         The reduction method to apply to the loss, by default "mean". If None, the
         loss is returned as-is.
@@ -86,7 +100,13 @@ def smape_loss(
         The SMAPE loss.
     """
     diff = 2 * torch.abs(y_pred - y_true) / (torch.abs(y_true) + torch.abs(y_pred))
-    if weights is not None:
+
+    # Combine mask and weights
+    if mask is not None and weights is not None:
+        diff *= weights * mask.float()
+    elif mask is not None:
+        diff *= mask.float()
+    elif weights is not None:
         diff *= weights
     if reduction is None:
         return diff

@@ -28,6 +28,7 @@ class xTFT(TransformerModuleBase):  # noqa: N801
         log_grad_norm: bool = False,
         compile_model: bool = False,
         trainable_parameters: list[str] | None = None,
+        use_loss_masking: bool = False,
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["lr_scheduler", "criterion"])

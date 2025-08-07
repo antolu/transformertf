@@ -39,15 +39,15 @@ import typing
 import torch
 
 from ._quantile_loss import QuantileLoss
-from ._weighted_loss import WeightedHuberLoss, WeightedMAELoss, WeightedMSELoss
+from ._weighted_loss import HuberLoss, MAELoss, MSELoss
 
 VALID_LOSS = typing.Literal["mse", "mae", "quantile", "huber"]
 
 
 _LOSS_MAP: dict[VALID_LOSS, type[torch.nn.Module]] = {
-    "huber": WeightedHuberLoss,
-    "mse": WeightedMSELoss,
-    "mae": WeightedMAELoss,
+    "huber": HuberLoss,
+    "mse": MSELoss,
+    "mae": MAELoss,
     "quantile": QuantileLoss,
 }
 
@@ -75,9 +75,9 @@ def get_loss(
     **loss_kwargs : Any
         Additional keyword arguments passed to the loss function constructor.
         The accepted arguments depend on the specific loss function:
-        - WeightedMSELoss: reduction, regularization, regularization_order, regularization_dim
-        - WeightedMAELoss: reduction
-        - WeightedHuberLoss: delta, reduction
+        - MSELoss: reduction, regularization, regularization_order, regularization_dim
+        - MAELoss: reduction
+        - HuberLoss: delta, reduction
         - QuantileLoss: quantiles
 
     Returns
@@ -85,9 +85,9 @@ def get_loss(
     torch.nn.Module
         An instance of the requested loss function. The exact type depends
         on the loss parameter:
-        - WeightedMSELoss for "mse"
-        - WeightedMAELoss for "mae"
-        - WeightedHuberLoss for "huber"
+        - MSELoss for "mse"
+        - MAELoss for "mae"
+        - HuberLoss for "huber"
         - QuantileLoss for "quantile"
 
     Raises
@@ -168,9 +168,9 @@ def get_loss(
     See Also
     --------
     transformertf.nn.QuantileLoss : Detailed quantile loss documentation
-    transformertf.nn.WeightedMSELoss : Weighted MSE loss implementation
-    transformertf.nn.WeightedMAELoss : Weighted MAE loss implementation
-    transformertf.nn.WeightedHuberLoss : Weighted Huber loss implementation
+    transformertf.nn.MSELoss : MSE loss implementation with masking support
+    transformertf.nn.MAELoss : MAE loss implementation with masking support
+    transformertf.nn.HuberLoss : Huber loss implementation with masking support
 
     References
     ----------

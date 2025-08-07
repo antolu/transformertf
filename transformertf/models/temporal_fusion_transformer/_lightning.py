@@ -183,6 +183,7 @@ class TemporalFusionTransformer(TransformerModuleBase):
         logging_metrics: collections.abc.Container[
             MetricLiteral
         ] = DEFAULT_LOGGING_METRICS,
+        use_loss_masking: bool = False,
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["criterion"])

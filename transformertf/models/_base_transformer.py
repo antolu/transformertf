@@ -9,6 +9,7 @@ import torch
 
 from ..data import EncoderDecoderSample, EncoderDecoderTargetSample
 from ..nn import QuantileLoss
+from ..nn._weighted_loss import HuberLoss, MAELoss, MAPELoss, MSELoss, SMAPELoss
 from ..utils import ops
 from ._base_module import LightningModuleBase
 
@@ -787,9 +788,10 @@ class TransformerModuleBase(LightningModuleBase):
         batch: EncoderDecoderTargetSample,
     ) -> torch.Tensor:
         """
-        Calculate the loss based on model output and target values.
+        Calculate the loss based on model output and target values with optional masking.
 
-        This method computes the loss for point prediction (absolute values).
+        This method computes the loss for point prediction (absolute values) and supports
+        masking for variable-length sequences when using RNN packed sequences or similar.
         For delta prediction (differences), use DeltaTransform in the data
         preprocessing pipeline instead.
 
@@ -798,8 +800,8 @@ class TransformerModuleBase(LightningModuleBase):
         model_output : torch.Tensor
             The raw output from the model, typically of shape (batch_size, seq_len, features).
         batch : EncoderDecoderTargetSample
-            The batch containing target values.
-            Expected keys: "target".
+            The batch containing target values and optionally decoder_lengths for masking.
+            Expected keys: "target", optionally "decoder_lengths".
 
         Returns
         -------
@@ -810,22 +812,77 @@ class TransformerModuleBase(LightningModuleBase):
         --------
         >>> # Point prediction
         >>> loss = self.calc_loss(model_output, batch)
+        >>> # With masked sequences
+        >>> batch_with_lengths = {"target": targets, "decoder_lengths": lengths}
+        >>> masked_loss = self.calc_loss(model_output, batch_with_lengths)
         """
-        weights = None
         target = batch["target"]
 
         # Squeeze target only if model output has been squeezed (for compatibility)
         if model_output.dim() == target.dim() - 1:
             target = target.squeeze(-1)
 
-        # Pass weights only if criterion supports it (e.g., QuantileLoss)
+        # Generate mask from decoder_lengths if available and masking is enabled
+        mask = None
         if (
-            hasattr(self.criterion, "forward")
-            and "weights" in self.criterion.forward.__code__.co_varnames
+            self.hparams.get("use_loss_masking", True)
+            and "decoder_lengths" in batch
+            and batch["decoder_lengths"] is not None
         ):
-            return typing.cast(
-                torch.Tensor, self.criterion(model_output, target, weights=weights)
+            decoder_lengths = batch["decoder_lengths"]
+            if decoder_lengths.dim() == 2 and decoder_lengths.shape[1] == 1:
+                decoder_lengths = decoder_lengths.squeeze(-1)  # (B, 1) -> (B,)
+
+            # Create mask for valid positions (left-aligned sequences, padding at start)
+            mask = create_mask(
+                size=target.shape[1],
+                lengths=decoder_lengths,
+                alignment="left",
+                inverse=True,  # True where values are valid
             )
+            # Expand mask to match target dimensions if needed
+            if target.dim() > 2 and mask.dim() == 2:
+                # Expand mask from (B, T) to (B, T, F) to match target shape
+                while mask.dim() < target.dim():
+                    mask = mask.unsqueeze(-1)
+                # Expand the last dimension to match target
+                if mask.shape[-1] == 1 and target.shape[-1] > 1:
+                    mask = mask.expand_as(target)
+
+        # Determine how to pass mask/weights based on loss function type
+
+        # Handle different loss function types
+        if isinstance(self.criterion, QuantileLoss):
+            # QuantileLoss supports both mask and weights
+            # For QuantileLoss, mask should match target dimensions (not model_output)
+            if mask is not None and target.dim() < mask.dim():
+                # Squeeze extra dimensions from mask to match target
+                while mask.dim() > target.dim():
+                    mask = mask.squeeze(-1)
+            return typing.cast(
+                torch.Tensor, self.criterion(model_output, target, mask=mask)
+            )
+        if isinstance(
+            self.criterion, (MSELoss, MAELoss, HuberLoss, MAPELoss, SMAPELoss)
+        ):
+            # Our custom losses support mask parameter
+            return typing.cast(
+                torch.Tensor, self.criterion(model_output, target, mask=mask)
+            )
+        if mask is not None:
+            # For other loss functions, apply mask manually after loss computation
+            loss = self.criterion(model_output, target)
+            if hasattr(loss, "dim") and loss.dim() > 0:
+                # Element-wise loss - apply mask and reduce
+                masked_loss = loss * mask.float()
+                return (
+                    masked_loss.sum() / mask.float().sum()
+                    if mask.any()
+                    else torch.tensor(0.0, device=loss.device, dtype=loss.dtype)
+                )
+            # Scalar loss - cannot mask after computation, just return as-is
+            return typing.cast(torch.Tensor, loss)
+        # No masking needed or available
         return typing.cast(torch.Tensor, self.criterion(model_output, target))
 
     def _maybe_mark_dynamic(
