@@ -193,6 +193,7 @@ def align_encoder_sequences(
     return aligned
 
 
+@torch.compiler.disable
 def pack_encoder_sequences(
     sequences: torch.Tensor,
     lengths: torch.Tensor,
@@ -206,6 +207,13 @@ def pack_encoder_sequences(
 
     This function handles the alignment from right-padding to left-padding
     and then packs the sequences for RNN efficiency.
+
+    This function is decorated with @torch.compiler.disable to avoid
+    torch.compile incompatibility with pack_padded_sequence operations.
+
+    See PyTorch issue: https://github.com/pytorch/pytorch/issues/155238
+    The issue causes Dynamo to fail during FX graph tracing when fake tensors
+    encounter pack_padded_sequence and pad_packed_sequence operations.
 
     Parameters
     ----------
@@ -236,6 +244,7 @@ def pack_encoder_sequences(
     )
 
 
+@torch.compiler.disable
 def pack_decoder_sequences(
     sequences: torch.Tensor,
     lengths: torch.Tensor,
@@ -248,6 +257,13 @@ def pack_decoder_sequences(
 
     Decoder sequences are already right-padded (padding at the end) which
     is the expected format for packing, so no alignment is needed.
+
+    This function is decorated with @torch.compiler.disable to avoid
+    torch.compile incompatibility with pack_padded_sequence operations.
+
+    See PyTorch issue: https://github.com/pytorch/pytorch/issues/155238
+    The issue causes Dynamo to fail during FX graph tracing when fake tensors
+    encounter pack_padded_sequence and pad_packed_sequence operations.
 
     Parameters
     ----------
@@ -274,6 +290,7 @@ def pack_decoder_sequences(
     )
 
 
+@torch.compiler.disable
 def unpack_to_fixed_length(
     packed_sequence: rnn_utils.PackedSequence,
     *,
@@ -285,6 +302,13 @@ def unpack_to_fixed_length(
 
     This function unpacks RNN outputs and returns both the sequences and
     their actual lengths in a format suitable for downstream processing.
+
+    This function is decorated with @torch.compiler.disable to avoid
+    torch.compile incompatibility with pad_packed_sequence operations.
+
+    See PyTorch issue: https://github.com/pytorch/pytorch/issues/155238
+    The issue causes Dynamo to fail during FX graph tracing when fake tensors
+    encounter pack_padded_sequence and pad_packed_sequence operations.
 
     Parameters
     ----------
