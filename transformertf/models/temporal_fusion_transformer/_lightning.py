@@ -78,6 +78,10 @@ class TemporalFusionTransformer(TransformerModuleBase):
         Container of metric names to compute and log during training, validation, and testing.
         If empty, no additional metrics will be logged (only the loss from the criterion).
         Available metrics: "MSE", "MAE", "MAPE", "SMAPE", "RMSE".
+    use_loss_masking : bool, default=False
+        Whether to enable automatic loss masking for variable-length sequences.
+        When True, uses decoder_lengths to mask padding positions in loss calculation.
+        Set to False for backward compatibility with existing TFT models.
 
     Attributes
     ----------

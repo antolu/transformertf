@@ -810,11 +810,22 @@ class TransformerModuleBase(LightningModuleBase):
 
         Examples
         --------
-        >>> # Point prediction
+        >>> # Basic point prediction
+        >>> model_output = torch.randn(32, 24, 1)
+        >>> batch = {"target": torch.randn(32, 24, 1)}
         >>> loss = self.calc_loss(model_output, batch)
-        >>> # With masked sequences
-        >>> batch_with_lengths = {"target": targets, "decoder_lengths": lengths}
-        >>> masked_loss = self.calc_loss(model_output, batch_with_lengths)
+        >>>
+        >>> # With masking for variable-length sequences (RNN packed sequences)
+        >>> decoder_lengths = torch.tensor([20, 18, 24, 15])  # Actual sequence lengths
+        >>> batch_with_masking = {
+        ...     "target": torch.randn(4, 24, 1),
+        ...     "decoder_lengths": decoder_lengths
+        ... }
+        >>> masked_loss = self.calc_loss(model_output[:4], batch_with_masking)
+        >>>
+        >>> # Disabling masking (e.g., for backward compatibility)
+        >>> # Set use_loss_masking=False in model hyperparameters
+        >>> # This will ignore decoder_lengths and compute loss on all positions
         """
         target = batch["target"]
 
@@ -863,7 +874,7 @@ class TransformerModuleBase(LightningModuleBase):
                 torch.Tensor, self.criterion(model_output, target, mask=mask)
             )
         if isinstance(
-            self.criterion, (MSELoss, MAELoss, HuberLoss, MAPELoss, SMAPELoss)
+            self.criterion, MSELoss | MAELoss | HuberLoss | MAPELoss | SMAPELoss
         ):
             # Our custom losses support mask parameter
             return typing.cast(
