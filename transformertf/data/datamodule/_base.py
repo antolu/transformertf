@@ -630,7 +630,7 @@ class DataModuleBase(L.LightningDataModule):
             if self.hparams["num_workers"] > 0
             else None,
             persistent_workers=self.hparams["num_workers"] > 0,
-            collate_fn=self.collate_fn,
+            collate_fn=self.collate_fn(),
         )
 
     @override
@@ -675,7 +675,7 @@ class DataModuleBase(L.LightningDataModule):
                 if self.hparams["num_workers"] > 0
                 else None,
                 persistent_workers=self.hparams["num_workers"] > 0,
-                collate_fn=self.collate_fn,
+                collate_fn=self.collate_fn(),
             )
 
         if len(self._val_df) == 1:
