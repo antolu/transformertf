@@ -191,6 +191,7 @@ class QuantileLoss(torch.nn.Module):
         self,
         y_pred: torch.Tensor,
         target: torch.Tensor,
+        *,
         weights: torch.Tensor | None = None,
         mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
@@ -209,17 +210,25 @@ class QuantileLoss(torch.nn.Module):
 
         if target.ndim <= 2:
             target = target.unsqueeze(-1)
-        if y_pred.ndim <= 2:
-            y_pred = y_pred.unsqueeze(0)
+        if y_pred.ndim == target.ndim + 1:
+            y_pred = y_pred.unsqueeze(-1)
 
         # Expand weights to match quantile dimension if needed
-        if (
-            isinstance(weights, torch.Tensor)
-            and weights.dim() > 0
-            and weights.shape != y_pred.shape
-        ):
-            # Expand weights from (...) to (..., n_quantiles) to match y_pred
-            weights = einops.repeat(weights, "... -> ... n", n=len(self.quantiles))
+        if isinstance(weights, torch.Tensor) and weights.dim() > 0:
+            if weights.ndim == y_pred.ndim - 1:
+                # Expand weights from (...) to (..., n_quantiles) to match y_pred
+                weights = einops.repeat(weights, "... -> ... n", n=len(self.quantiles))
+            elif weights.ndim == y_pred.ndim:
+                if weights.shape[-1] != len(self.quantiles) and weights.shape[-1] != 1:
+                    msg = (
+                        f"weights must have shape [batch_size, ..., n_quantiles], "
+                        f"got {weights.shape} and {y_pred.shape}"
+                    )
+                    raise ValueError(msg)
+
+                weights = einops.repeat(
+                    weights, "... 1 -> ... n", n=len(self.quantiles)
+                )
 
         error = (
             einops.repeat(target, "... 1 -> ... n", n=len(self.quantiles)) - y_pred

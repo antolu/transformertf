@@ -162,7 +162,7 @@ def test_quantile_loss_shapes():
 
     # With weights (should broadcast correctly)
     weights = torch.ones(batch_size, seq_len, 1)
-    weighted_loss = loss_fn.loss(predictions, targets, weights)
+    weighted_loss = loss_fn.loss(predictions, targets, weights=weights)
     assert weighted_loss.shape == (batch_size, num_quantiles)
 
 
@@ -174,7 +174,7 @@ def test_quantile_loss_with_zero_weights():
     targets = torch.randn(5, 10)
     weights = torch.zeros(5, 10, 1)
 
-    loss = loss_fn.loss(predictions, targets, weights)
+    loss = loss_fn.loss(predictions, targets, weights=weights)
 
     # Loss should be zero when weights are zero
     assert torch.allclose(loss, torch.zeros_like(loss))

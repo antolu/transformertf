@@ -51,8 +51,8 @@ def test_weighted_mse(
     reduction: typing.Literal["mean", "sum", "none"],
     expected: torch.Tensor,
 ) -> None:
-    loss_fn = transformertf.nn.WeightedMSELoss(reduction=reduction)
-    loss = loss_fn(y_pred, target, weights_or_none)
+    loss_fn = transformertf.nn.MSELoss(reduction=reduction)
+    loss = loss_fn(y_pred, target, weights=weights_or_none)
     assert torch.allclose(loss, expected)
 
 
@@ -75,8 +75,8 @@ def test_weighted_mae(
     reduction: typing.Literal["mean", "sum", "none"],
     expected: torch.Tensor,
 ) -> None:
-    loss_fn = transformertf.nn.WeightedMAELoss(reduction=reduction)
-    loss = loss_fn(y_pred, target, weights_or_none)
+    loss_fn = transformertf.nn.MAELoss(reduction=reduction)
+    loss = loss_fn(y_pred, target, weights=weights_or_none)
     assert torch.allclose(loss, expected)
 
 
@@ -99,6 +99,6 @@ def test_weighted_huber(
     reduction: typing.Literal["mean", "sum", "none"],
     expected: torch.Tensor,
 ) -> None:
-    loss_fn = transformertf.nn.WeightedHuberLoss(reduction=reduction)
-    loss = loss_fn(y_pred, target, weights_or_none)
+    loss_fn = transformertf.nn.HuberLoss(reduction=reduction)
+    loss = loss_fn(y_pred, target, weights=weights_or_none)
     assert torch.allclose(loss, expected)

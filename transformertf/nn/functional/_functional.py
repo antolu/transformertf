@@ -21,6 +21,7 @@ import torch
 def mape_loss(
     y_pred: torch.Tensor,
     y_true: torch.Tensor,
+    *,
     weights: torch.Tensor | None = None,
     mask: torch.Tensor | None = None,
     reduction: typing.Literal["mean", "sum"] | None = "mean",
@@ -71,6 +72,7 @@ def mape_loss(
 def smape_loss(
     y_pred: torch.Tensor,
     y_true: torch.Tensor,
+    *,
     weights: torch.Tensor | None = None,
     mask: torch.Tensor | None = None,
     reduction: typing.Literal["mean", "sum"] | None = "mean",

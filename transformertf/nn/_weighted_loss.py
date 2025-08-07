@@ -77,6 +77,7 @@ class MSELoss(torch.nn.Module):
         self,
         y_pred: torch.Tensor,
         target: torch.Tensor,
+        *,
         mask: torch.Tensor | None = None,
         weights: torch.Tensor | None = None,
     ) -> torch.Tensor:
@@ -163,6 +164,7 @@ class MAELoss(torch.nn.L1Loss):
         self,
         y_pred: torch.Tensor,
         target: torch.Tensor,
+        *,
         weights: torch.Tensor | None = None,
         mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
@@ -264,6 +266,7 @@ class HuberLoss(torch.nn.HuberLoss):
         self,
         y_pred: torch.Tensor,
         target: torch.Tensor,
+        *,
         weights: torch.Tensor | None = None,
         mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
@@ -361,6 +364,7 @@ class MAPELoss(torch.nn.Module):
         self,
         y_pred: torch.Tensor,
         target: torch.Tensor,
+        *,
         weights: torch.Tensor | None = None,
         mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
