@@ -113,22 +113,37 @@ def test_unpack_to_fixed_length():
 
 
 def test_encoder_alignment_validation():
-    """Test encoder alignment validation for different model types."""
-    # LSTM models should require left alignment
-    validate_encoder_alignment("AttentionLSTMModel", "left")  # Should pass
+    """Test encoder alignment validation using actual tensor structure."""
+    # Test left alignment (padding at start)
+    left_aligned = torch.tensor([
+        [[0, 0], [1, 2], [3, 4]],  # length=2, padding at start
+        [[0, 0], [0, 0], [5, 6]],  # length=1, padding at start
+    ])
+    lengths = torch.tensor([2, 1])
 
-    with pytest.raises(ValueError, match="requires encoder_alignment='left'"):
-        validate_encoder_alignment("AttentionLSTMModel", "right")
+    # Should pass for left alignment
+    validate_encoder_alignment(left_aligned, lengths, "left")
 
-    # TFT models should require right alignment
-    validate_encoder_alignment("TemporalFusionTransformerModel", "right")  # Should pass
+    # Should fail for right alignment
+    with pytest.raises(ValueError, match="Expected right alignment.*padding at end"):
+        validate_encoder_alignment(left_aligned, lengths, "right")
 
-    with pytest.raises(ValueError, match="requires encoder_alignment='right'"):
-        validate_encoder_alignment("TemporalFusionTransformerModel", "left")
+    # Test right alignment (padding at end)
+    right_aligned = torch.tensor([
+        [[1, 2], [3, 4], [0, 0]],  # length=2, padding at end
+        [[5, 6], [0, 0], [0, 0]],  # length=1, padding at end
+    ])
 
-    # Unknown models should pass with any alignment
-    validate_encoder_alignment("UnknownModel", "left")  # Should pass
-    validate_encoder_alignment("UnknownModel", "right")  # Should pass
+    # Should pass for right alignment
+    validate_encoder_alignment(right_aligned, lengths, "right")
+
+    # Should fail for left alignment
+    with pytest.raises(ValueError, match="Expected left alignment.*padding at start"):
+        validate_encoder_alignment(right_aligned, lengths, "left")
+
+    # Test with no length information (should pass)
+    validate_encoder_alignment(left_aligned, None, "left")
+    validate_encoder_alignment(right_aligned, None, "right")
 
 
 def test_alignment_with_variable_max_length():
@@ -169,18 +184,23 @@ def test_zero_length_sequences():
 
 def test_encoder_alignment_edge_cases():
     """Test edge cases for encoder alignment validation."""
-    import pytest
+    # Test sequences where length equals sequence length (no padding)
+    full_length_sequences = torch.tensor([
+        [[1, 2], [3, 4], [5, 6]],  # length=3, no padding
+        [[7, 8], [9, 10], [11, 12]],  # length=3, no padding
+    ])
+    full_lengths = torch.tensor([3, 3])
 
-    # Test invalid alignment values
-    with pytest.raises(ValueError, match="requires encoder_alignment='left'"):
-        validate_encoder_alignment("AttentionLSTMModel", "center")
+    # Should pass for both alignments when no padding exists
+    validate_encoder_alignment(full_length_sequences, full_lengths, "left")
+    validate_encoder_alignment(full_length_sequences, full_lengths, "right")
 
-    with pytest.raises(ValueError, match="requires encoder_alignment='right'"):
-        validate_encoder_alignment("TemporalFusionTransformerModel", "center")
+    # Test with mixed length sequences
+    mixed_sequences = torch.tensor([
+        [[0, 0], [1, 2], [3, 4]],  # length=2, left-aligned
+        [[5, 6], [7, 8], [9, 10]],  # length=3, no padding
+    ])
+    mixed_lengths = torch.tensor([2, 3])
 
-    # Test case sensitivity
-    with pytest.raises(ValueError, match="requires encoder_alignment='left'"):
-        validate_encoder_alignment("AttentionLSTMModel", "LEFT")
-
-    with pytest.raises(ValueError, match="requires encoder_alignment='right'"):
-        validate_encoder_alignment("TemporalFusionTransformerModel", "RIGHT")
+    # Should pass for left alignment
+    validate_encoder_alignment(mixed_sequences, mixed_lengths, "left")

@@ -7,9 +7,9 @@ import torch
 
 from ...data import EncoderDecoderTargetSample
 from ...nn import QuantileLoss
-from ...utils.sequence import validate_encoder_alignment
 from .._base_module import DEFAULT_LOGGING_METRICS, MetricLiteral
 from .._base_transformer import TransformerModuleBase
+from .._validation_mixin import EncoderAlignmentValidationMixin
 from ._model import HIDDEN_STATE, AttentionLSTMModel
 
 if typing.TYPE_CHECKING:
@@ -23,7 +23,7 @@ class StepOutput(typing.TypedDict):
     point_prediction: typing.NotRequired[torch.Tensor]
 
 
-class AttentionLSTM(TransformerModuleBase):
+class AttentionLSTM(TransformerModuleBase, EncoderAlignmentValidationMixin):
     """
     Lightning module for AttentionLSTMModel for sequence-to-sequence forecasting.
 
@@ -196,26 +196,13 @@ class AttentionLSTM(TransformerModuleBase):
             causal_attention=causal_attention,
         )
 
-    def setup(self, stage: str | None = None) -> None:
-        """
-        Setup method called by Lightning to validate configuration.
-
-        This validates that the DataModule's encoder_alignment is compatible
-        with the AttentionLSTM model requirements.
-        """
-        super().setup(stage)
-
-        # Validate encoder alignment compatibility
-        if hasattr(self.trainer, "datamodule") and self.trainer.datamodule is not None:
-            datamodule = self.trainer.datamodule
-            if (
-                hasattr(datamodule, "hparams")
-                and "encoder_alignment" in datamodule.hparams
-            ):
-                encoder_alignment = datamodule.hparams["encoder_alignment"]
-                validate_encoder_alignment(
-                    self.model.__class__.__name__, encoder_alignment
-                )
+    def on_train_batch_start(
+        self, batch: EncoderDecoderTargetSample, batch_idx: int
+    ) -> None:
+        """Validate encoder alignment on first training batch."""
+        if batch_idx == 0 and self.current_epoch == 0:
+            self.validate_encoder_alignment_with_batch(batch)
+        super().on_train_batch_start(batch, batch_idx)
 
     def forward(
         self,
@@ -236,15 +223,12 @@ class AttentionLSTM(TransformerModuleBase):
         torch.Tensor | tuple[torch.Tensor, HIDDEN_STATE]
             Model output, optionally with encoder states.
         """
-        # Extract and reshape lengths like PF-TFT
         encoder_lengths = batch.get("encoder_lengths")
         decoder_lengths = batch.get("decoder_lengths")
         if encoder_lengths is not None:
             encoder_lengths = encoder_lengths[..., 0]  # (B, 1) -> (B,)
         if decoder_lengths is not None:
             decoder_lengths = decoder_lengths[..., 0]  # (B, 1) -> (B,)
-
-        # Slice decoder inputs to keep only num_future_features (like PF-TFT)
         decoder_inputs = batch["decoder_input"][
             ..., : self.hparams["num_future_features"]
         ]

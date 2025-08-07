@@ -283,45 +283,35 @@ class AttentionLSTMModel(torch.nn.Module):
             If return_encoder_states=True:
                 Tuple of (output, encoder_states) where encoder_states is (h_n, c_n)
         """
-        # Determine if we should use packed sequences for efficiency
         use_encoder_packing = should_use_packing(encoder_lengths)
         use_decoder_packing = should_use_packing(decoder_lengths)
 
-        # 1. Encode past sequence
         if use_encoder_packing and encoder_lengths is not None:
-            # Pack encoder sequences for efficient LSTM processing
             packed_encoder_input = pack_encoder_sequences(
                 past_sequence,
                 encoder_lengths,
-                align_first=False,  # Already aligned by collate_fn
+                align_first=False,
             )
             packed_encoder_output, encoder_states = self.encoder(packed_encoder_input)
-            # Unpack for consistent tensor format
             encoder_output, _ = unpack_to_fixed_length(
                 packed_encoder_output, total_length=past_sequence.size(1)
             )
         else:
-            # Standard LSTM processing
             encoder_output, encoder_states = self.encoder(past_sequence)
 
-        # 2. Decode future sequence using encoder context
         if use_decoder_packing and decoder_lengths is not None:
-            # Pack decoder sequences for efficient LSTM processing
             packed_decoder_input = pack_decoder_sequences(
                 future_sequence, decoder_lengths
             )
             packed_decoder_output, _ = self.decoder(
                 packed_decoder_input, encoder_states
             )
-            # Unpack for consistent tensor format
             decoder_output, _ = unpack_to_fixed_length(
                 packed_decoder_output, total_length=future_sequence.size(1)
             )
         else:
-            # Standard LSTM processing
             decoder_output, _ = self.decoder(future_sequence, encoder_states)
 
-        # 3. Apply self-attention with optional masking
         attention_mask = None
         if decoder_lengths is not None and encoder_lengths is not None:
             max_encoder_length = past_sequence.size(1)

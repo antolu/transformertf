@@ -9,6 +9,7 @@ from ...data import EncoderDecoderTargetSample
 from ...nn import VALID_ACTIVATIONS, QuantileLoss
 from ...utils import ops
 from .._base_module import DEFAULT_LOGGING_METRICS, LightningModuleBase, MetricLiteral
+from .._validation_mixin import EncoderAlignmentValidationMixin
 from ._model import HIDDEN_STATE, EncoderDecoderLSTMModel
 
 if typing.TYPE_CHECKING:
@@ -22,7 +23,7 @@ class StepOutput(typing.TypedDict):
     point_prediction: typing.NotRequired[torch.Tensor]
 
 
-class EncoderDecoderLSTM(LightningModuleBase):
+class EncoderDecoderLSTM(LightningModuleBase, EncoderAlignmentValidationMixin):
     """
     Lightning module for EncoderDecoderLSTM model for sequence-to-sequence forecasting.
 
@@ -180,8 +181,8 @@ class EncoderDecoderLSTM(LightningModuleBase):
         self.model = EncoderDecoderLSTMModel(
             num_past_features=num_past_features,
             num_future_features=num_future_features,
-            encoder_d_model=d_encoder,
-            decoder_d_model=d_decoder,
+            d_encoder=d_encoder,
+            d_decoder=d_decoder,
             num_encoder_layers=num_encoder_layers,
             num_decoder_layers=num_decoder_layers,
             dropout=dropout,
@@ -190,6 +191,14 @@ class EncoderDecoderLSTM(LightningModuleBase):
             mlp_activation=mlp_activation,
             mlp_dropout=mlp_dropout,
         )
+
+    def on_train_batch_start(
+        self, batch: EncoderDecoderTargetSample, batch_idx: int
+    ) -> None:
+        """Validate encoder alignment on first training batch."""
+        if batch_idx == 0 and self.current_epoch == 0:
+            self.validate_encoder_alignment_with_batch(batch)
+        super().on_train_batch_start(batch, batch_idx)
 
     def forward(
         self,
@@ -212,9 +221,18 @@ class EncoderDecoderLSTM(LightningModuleBase):
         torch.Tensor | tuple[torch.Tensor, HIDDEN_STATE]
             Model output, optionally with encoder states.
         """
+        encoder_lengths = batch.get("encoder_lengths")
+        decoder_lengths = batch.get("decoder_lengths")
+        if encoder_lengths is not None:
+            encoder_lengths = encoder_lengths[..., 0]
+        if decoder_lengths is not None:
+            decoder_lengths = decoder_lengths[..., 0]
+
         return self.model(
             past_sequence=batch["encoder_input"],
             future_sequence=batch["decoder_input"],
+            encoder_lengths=encoder_lengths,
+            decoder_lengths=decoder_lengths,
             return_encoder_states=return_encoder_states,
         )
 
@@ -250,9 +268,18 @@ class EncoderDecoderLSTM(LightningModuleBase):
         loss, model_output = self._compute_loss_and_output(batch)
 
         # Get encoder states for potential analysis
+        encoder_lengths = batch.get("encoder_lengths")
+        decoder_lengths = batch.get("decoder_lengths")
+        if encoder_lengths is not None:
+            encoder_lengths = encoder_lengths[..., 0]
+        if decoder_lengths is not None:
+            decoder_lengths = decoder_lengths[..., 0]
+
         _, encoder_states = self.model(
             past_sequence=batch["encoder_input"],
             future_sequence=batch["decoder_input"],
+            encoder_lengths=encoder_lengths,
+            decoder_lengths=decoder_lengths,
             return_encoder_states=True,
         )
 
@@ -302,9 +329,18 @@ class EncoderDecoderLSTM(LightningModuleBase):
         loss, model_output = self._compute_loss_and_output(batch)
 
         # Get encoder states
+        encoder_lengths = batch.get("encoder_lengths")
+        decoder_lengths = batch.get("decoder_lengths")
+        if encoder_lengths is not None:
+            encoder_lengths = encoder_lengths[..., 0]
+        if decoder_lengths is not None:
+            decoder_lengths = decoder_lengths[..., 0]
+
         _, encoder_states = self.model(
             past_sequence=batch["encoder_input"],
             future_sequence=batch["decoder_input"],
+            encoder_lengths=encoder_lengths,
+            decoder_lengths=decoder_lengths,
             return_encoder_states=True,
         )
 
@@ -354,9 +390,18 @@ class EncoderDecoderLSTM(LightningModuleBase):
         loss, model_output = self._compute_loss_and_output(batch)
 
         # Get encoder states
+        encoder_lengths = batch.get("encoder_lengths")
+        decoder_lengths = batch.get("decoder_lengths")
+        if encoder_lengths is not None:
+            encoder_lengths = encoder_lengths[..., 0]
+        if decoder_lengths is not None:
+            decoder_lengths = decoder_lengths[..., 0]
+
         _, encoder_states = self.model(
             past_sequence=batch["encoder_input"],
             future_sequence=batch["decoder_input"],
+            encoder_lengths=encoder_lengths,
+            decoder_lengths=decoder_lengths,
             return_encoder_states=True,
         )
 
@@ -405,9 +450,18 @@ class EncoderDecoderLSTM(LightningModuleBase):
             Dictionary containing model output and encoder states.
         """
         # Get model output and encoder states
+        encoder_lengths = batch.get("encoder_lengths")
+        decoder_lengths = batch.get("decoder_lengths")
+        if encoder_lengths is not None:
+            encoder_lengths = encoder_lengths[..., 0]
+        if decoder_lengths is not None:
+            decoder_lengths = decoder_lengths[..., 0]
+
         output, encoder_states = self.model(
             past_sequence=batch["encoder_input"],
             future_sequence=batch["decoder_input"],
+            encoder_lengths=encoder_lengths,
+            decoder_lengths=decoder_lengths,
             return_encoder_states=True,
         )
 

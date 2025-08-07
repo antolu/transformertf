@@ -13,53 +13,75 @@ __all__ = [
 ]
 
 
-def validate_encoder_alignment(model_class_name: str, encoder_alignment: str) -> None:
+def validate_encoder_alignment(
+    encoder_input: torch.Tensor,
+    encoder_lengths: torch.Tensor | None,
+    expected_alignment: str,
+) -> None:
     """
-    Validate that the encoder alignment is compatible with the model type.
+    Validate that encoder sequences are aligned as expected by checking padding location.
 
-    This function checks if the specified encoder alignment is appropriate for
-    the given model class and raises an informative error if there's a mismatch.
+    This function examines the actual tensor structure to determine if sequences
+    are left-aligned (padding at start) or right-aligned (padding at end).
 
     Parameters
     ----------
-    model_class_name : str
-        The name of the model class to validate against.
-    encoder_alignment : str
-        The encoder alignment setting ("left" or "right").
+    encoder_input : torch.Tensor
+        Encoder input tensor of shape (batch_size, seq_len, features).
+    encoder_lengths : torch.Tensor | None
+        Actual lengths of encoder sequences. If None, no validation is performed.
+    expected_alignment : {"left", "right"}
+        Expected alignment - "left" for padding at start, "right" for padding at end.
 
     Raises
     ------
     ValueError
-        If the encoder alignment is incompatible with the model type.
+        If the actual padding location doesn't match expected alignment.
 
     Examples
     --------
-    >>> validate_encoder_alignment("AttentionLSTMModel", "left")  # OK
-    >>> validate_encoder_alignment("TemporalFusionTransformerModel", "right")  # OK
-    >>> validate_encoder_alignment("AttentionLSTMModel", "right")  # Raises ValueError
+    >>> # Left-aligned: padding at start
+    >>> input_tensor = torch.tensor([[[0, 0], [1, 2], [3, 4]]])  # pad, data, data
+    >>> lengths = torch.tensor([2])
+    >>> validate_encoder_alignment(input_tensor, lengths, "left")  # OK
+
+    >>> # Right-aligned: padding at end
+    >>> input_tensor = torch.tensor([[[1, 2], [3, 4], [0, 0]]])  # data, data, pad
+    >>> lengths = torch.tensor([2])
+    >>> validate_encoder_alignment(input_tensor, lengths, "right")  # OK
     """
-    # LSTM models require left alignment for efficient packing
-    lstm_models = {"AttentionLSTMModel", "EncoderDecoderLSTM", "LSTM"}
+    if encoder_lengths is None:
+        return
 
-    # TFT models require right alignment for backwards compatibility
-    tft_models = {"TemporalFusionTransformerModel", "TemporalFusionTransformer"}
+    _batch_size, seq_len, _ = encoder_input.shape
 
-    if model_class_name in lstm_models and encoder_alignment != "left":
-        msg = (
-            f"Model '{model_class_name}' requires encoder_alignment='left' for efficient "
-            f"packed sequence processing, but got '{encoder_alignment}'. "
-            f"Please update your DataModule configuration to use encoder_alignment='left'."
+    for i, length in enumerate(encoder_lengths):
+        length = int(length)
+        if length >= seq_len:
+            continue
+
+        # Check if padding is at the beginning (left alignment)
+        padding_at_start = torch.allclose(
+            encoder_input[i, : seq_len - length],
+            torch.zeros_like(encoder_input[i, : seq_len - length]),
         )
-        raise ValueError(msg)
-
-    if model_class_name in tft_models and encoder_alignment != "right":
-        msg = (
-            f"Model '{model_class_name}' requires encoder_alignment='right' for backwards "
-            f"compatibility, but got '{encoder_alignment}'. "
-            f"Please update your DataModule configuration to use encoder_alignment='right', "
-            f"or use the migration script to update your model configuration."
+        # Check if padding is at the end (right alignment)
+        padding_at_end = torch.allclose(
+            encoder_input[i, length:], torch.zeros_like(encoder_input[i, length:])
         )
-        raise ValueError(msg)
+
+        if expected_alignment == "left" and not padding_at_start:
+            msg = (
+                f"Expected left alignment (padding at start) but found non-zero values at the beginning of sequence {i}. "
+                f"Sequence length: {length}, but first {seq_len - length} positions should be zero."
+            )
+            raise ValueError(msg)
+        if expected_alignment == "right" and not padding_at_end:
+            msg = (
+                f"Expected right alignment (padding at end) but found non-zero values at the end of sequence {i}. "
+                f"Sequence length: {length}, but positions {length}: should be zero."
+            )
+            raise ValueError(msg)
 
 
 def should_use_packing(lengths: torch.Tensor | None) -> bool:
@@ -103,16 +125,12 @@ def should_use_packing(lengths: torch.Tensor | None) -> bool:
     if lengths.numel() == 0:
         return False
 
-    # Check if all lengths are the same
     min_len = lengths.min()
     max_len = lengths.max()
 
-    # No variation in lengths - packing adds overhead without benefit
     if min_len == max_len:
         return False
 
-    # Use packing if there's significant variation (>10% difference)
-    # or if the batch is large enough to benefit from the efficiency
     length_variation = (max_len - min_len).float() / max_len.float()
     batch_size = lengths.numel()
 
@@ -158,7 +176,6 @@ def align_encoder_sequences(
     _batch_size, seq_len, _num_features = sequences.shape
     max_length = max_length or seq_len
 
-    # Create output tensor
     aligned = torch.zeros_like(sequences)
 
     for i, length in enumerate(lengths):
@@ -166,15 +183,11 @@ def align_encoder_sequences(
         if length <= 0:
             continue
 
-        # Calculate padding amount (how much to shift right)
         padding_amount = max_length - length
 
-        # Copy the valid sequence data to the right position
         if padding_amount > 0:
-            # Move non-padded data to the right
             aligned[i, padding_amount : padding_amount + length] = sequences[i, :length]
         else:
-            # No padding needed
             aligned[i] = sequences[i]
 
     return aligned
