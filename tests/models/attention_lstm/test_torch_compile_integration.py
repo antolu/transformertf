@@ -7,10 +7,18 @@ when using the @torch.compiler.disable decorated sequence utilities.
 
 from __future__ import annotations
 
+import shutil
+
 import pytest
 import torch
 
 from transformertf.models.attention_lstm import AttentionLSTMModel
+
+# Check if GCC is available for torch.compile tests
+HAS_GCC = shutil.which("gcc") is not None
+torch_compile_available = pytest.mark.skipif(
+    not HAS_GCC, reason="torch.compile tests require gcc"
+)
 
 
 class TestAttentionLSTMTorchCompile:
@@ -85,6 +93,7 @@ class TestAttentionLSTMTorchCompile:
         expected_shape = (4, 10, 1)
         assert output_compiled.shape == expected_shape
 
+    @torch_compile_available
     def test_attention_lstm_torch_compile_without_packing(
         self, attention_lstm_model, sample_data
     ):
@@ -102,6 +111,7 @@ class TestAttentionLSTMTorchCompile:
         expected_shape = (4, 10, 1)
         assert output_no_packing.shape == expected_shape
 
+    @torch_compile_available
     def test_attention_lstm_compiled_vs_regular_consistency(
         self, attention_lstm_model, sample_data
     ):
@@ -135,6 +145,7 @@ class TestAttentionLSTMTorchCompile:
         # but should be reasonably close for most operations
         # Note: We don't assert exact equality due to potential numerical differences
 
+    @torch_compile_available
     def test_attention_lstm_compile_with_return_encoder_states(
         self, attention_lstm_model, sample_data
     ):
@@ -161,6 +172,7 @@ class TestAttentionLSTMTorchCompile:
         assert hidden_state.shape == (2, 4, 32)  # (num_layers, batch_size, d_model)
         assert cell_state.shape == (2, 4, 32)
 
+    @torch_compile_available
     def test_attention_lstm_compile_gradient_flow(
         self, attention_lstm_model, sample_data
     ):
@@ -192,6 +204,7 @@ class TestAttentionLSTMTorchCompile:
             if param.requires_grad:
                 assert param.grad is not None
 
+    @torch_compile_available
     def test_attention_lstm_compile_different_batch_sizes(self, attention_lstm_model):
         """Test torch.compile compatibility with different batch sizes."""
         compiled_model = torch.compile(attention_lstm_model)
@@ -213,6 +226,7 @@ class TestAttentionLSTMTorchCompile:
             expected_shape = (batch_size, 8, 1)
             assert output.shape == expected_shape
 
+    @torch_compile_available
     def test_attention_lstm_compile_edge_case_lengths(self, attention_lstm_model):
         """Test torch.compile with edge case sequence lengths."""
         compiled_model = torch.compile(attention_lstm_model)
