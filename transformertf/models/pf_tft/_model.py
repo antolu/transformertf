@@ -21,7 +21,7 @@ class PFTemporalFusionTransformerModel(torch.nn.Module):
         num_future_features: int,
         num_static_features: int = 0,
         d_model: int = 300,
-        hidden_continuous_dim: int = 8,
+        d_hidden_continuous: int = 8,
         num_heads: int = 4,
         num_lstm_layers: int = 2,
         dropout: float = 0.1,
@@ -43,7 +43,7 @@ class PFTemporalFusionTransformerModel(torch.nn.Module):
             hyperparameter, as it determines the model capacity.
         variable_selection_dim : int, optional
             Dimension of the variable selection network, by default 100.
-        hidden_continuous_dim : int, optional
+        d_hidden_continuous : int, optional
             Dimension of the hidden continuous features, by default 8.
         num_heads : int, optional
             Number of attention heads, by default 4.
@@ -62,7 +62,7 @@ class PFTemporalFusionTransformerModel(torch.nn.Module):
         self.num_future_features = num_future_features
         self.num_static_features = num_static_features  # not used
         self.d_model = d_model
-        self.hidden_continuous_dim = hidden_continuous_dim
+        self.d_hidden_continuous = d_hidden_continuous
         self.num_heads = num_heads
         self.num_lstm_layers = num_lstm_layers
         self.dropout = dropout
@@ -72,14 +72,14 @@ class PFTemporalFusionTransformerModel(torch.nn.Module):
         # TODO: static covariate embeddings
         self.static_vs = VariableSelection(
             num_features=num_static_features,
-            d_hidden=hidden_continuous_dim,
+            d_hidden=d_hidden_continuous,
             d_model=d_model,
             dropout=dropout,
         )
 
         self.enc_vs = VariableSelection(
             num_features=num_past_features,
-            d_hidden=hidden_continuous_dim,
+            d_hidden=d_hidden_continuous,
             d_model=d_model,
             context_size=d_model,
             dropout=dropout,
@@ -87,7 +87,7 @@ class PFTemporalFusionTransformerModel(torch.nn.Module):
 
         self.dec_vs = VariableSelection(
             num_features=num_future_features,
-            d_hidden=hidden_continuous_dim,
+            d_hidden=d_hidden_continuous,
             d_model=d_model,
             context_size=d_model,
             dropout=dropout,

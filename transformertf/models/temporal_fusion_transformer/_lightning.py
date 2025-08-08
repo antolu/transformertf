@@ -45,7 +45,7 @@ class TemporalFusionTransformer(TransformerModuleBase):
     d_model : int, default=300
         Dimension of the model's hidden representations. This affects model
         capacity and computational requirements.
-    hidden_continuous_dim : int, default=8
+    d_hidden_continuous : int, default=8
         Dimension of the continuous variable embeddings in the variable
         selection networks.
     num_heads : int, default=4
@@ -172,7 +172,7 @@ class TemporalFusionTransformer(TransformerModuleBase):
         ctxt_seq_len: int,
         tgt_seq_len: int,
         d_model: int = 300,
-        hidden_continuous_dim: int = 8,
+        d_hidden_continuous: int = 8,
         num_heads: int = 4,
         num_lstm_layers: int = 2,
         dropout: float = 0.1,
@@ -208,7 +208,7 @@ class TemporalFusionTransformer(TransformerModuleBase):
             tgt_seq_len=tgt_seq_len,
             d_model=d_model,
             num_static_features=1,
-            hidden_continuous_dim=hidden_continuous_dim,
+            d_hidden_continuous=d_hidden_continuous,
             num_heads=num_heads,
             num_lstm_layers=num_lstm_layers,
             dropout=dropout,
