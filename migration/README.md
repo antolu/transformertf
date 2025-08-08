@@ -1,6 +1,6 @@
-# Migration Scripts
+# Migration and Patch Scripts
 
-This directory contains scripts to migrate existing TransformerTF projects to use the new standardized hyperparameter naming conventions.
+This directory contains scripts to migrate existing TransformerTF projects and patch compatibility issues across versions.
 
 ## Background
 
@@ -27,93 +27,93 @@ TransformerTF has standardized hyperparameter names across all models to improve
 #### Model-Specific Parameters
 - `num_lstm_layers` - Number of LSTM layers in TFT
 
-These scripts help migrate existing checkpoints and configuration files to use the new parameter names.
+## Migration Scripts
 
-## Available Scripts
+### 1. `migrate_hyperparameter_names_v0.12.py`
 
-### 1. `migrate_hyperparameter_names.py`
-
-Migrates PyTorch Lightning checkpoint files (`.ckpt`, `.pth`) to update hyperparameter names in the saved metadata.
+**Purpose:** Migrates both PyTorch Lightning checkpoint files (`.ckpt`, `.pth`) and YAML configuration files (`.yaml`, `.yml`) to update hyperparameter names.
 
 **Basic Usage:**
 ```bash
 # Migrate a single checkpoint
-python scripts/migrate_hyperparameter_names.py model.ckpt
+python scripts/migrate_hyperparameter_names_v0.12.py model.ckpt
+
+# Migrate a YAML config
+python scripts/migrate_hyperparameter_names_v0.12.py config.yml
 
 # Dry run to see what would change
-python scripts/migrate_hyperparameter_names.py model.ckpt --dry-run
+python scripts/migrate_hyperparameter_names_v0.12.py model.ckpt --dry-run
 
-# Specify output location
-python scripts/migrate_hyperparameter_names.py model.ckpt --output migrated_model.ckpt
-
-# Skip backup creation
-python scripts/migrate_hyperparameter_names.py model.ckpt --no-backup
+# Migrate entire directory
+python scripts/migrate_hyperparameter_names_v0.12.py --directory configs/
 ```
 
 **Features:**
-- Automatically detects model type for context-specific migrations
-- Creates backup files by default (`.ckpt.backup`)
-- Preserves all checkpoint data, only updates hyperparameter names
+- Unified script handles both checkpoints and YAML configs
+- Automatically detects file type by extension
+- Universal parameter mappings across all models
 - Supports dry-run mode to preview changes
+- Directory migration support
 
-### 2. `migrate_config_files.py`
+### 2. `migrate_tft_encoder_alignment_v0.13.py`
 
-Migrates YAML configuration files to use the new parameter names.
+**Purpose:** Migrates TFT-family model configurations and checkpoints to use explicit `encoder_alignment='right'` for backwards compatibility with the new left-aligned default.
 
-**Basic Usage:**
-```bash
-# Migrate a single config file
-python scripts/migrate_config_files.py config.yml
-
-# Migrate multiple files
-python scripts/migrate_config_files.py *.yml --batch
-
-# In-place modification
-python scripts/migrate_config_files.py config.yml --in-place
-
-# Dry run to see changes
-python scripts/migrate_config_files.py config.yml --dry-run
-
-# Specify output location
-python scripts/migrate_config_files.py config.yml --output migrated_config.yml
-```
-
-**Features:**
-- Preserves YAML formatting and comments
-- Model-specific parameter mapping based on detected model type
-- Batch processing for multiple files
-- In-place editing option
-
-### 3. `migrate_project.py`
-
-Batch migration script that finds and migrates all checkpoint and configuration files in a project directory.
+**Supported Models:**
+- TemporalFusionTransformer (TFT)
+- PFTemporalFusionTransformer (PFTFT)  
+- xTFT
 
 **Basic Usage:**
 ```bash
-# Migrate entire project
-python scripts/migrate_project.py /path/to/project
+# Migrate a config file
+python scripts/migrate_tft_encoder_alignment_v0.13.py config.yaml
 
-# Migrate current directory
-python scripts/migrate_project.py .
+# Migrate a checkpoint
+python scripts/migrate_tft_encoder_alignment_v0.13.py model.ckpt
 
-# Dry run to see what would be migrated
-python scripts/migrate_project.py /path/to/project --dry-run
+# Migrate entire directory
+python scripts/migrate_tft_encoder_alignment_v0.13.py --directory configs/
 
-# Only migrate checkpoints
-python scripts/migrate_project.py /path/to/project --checkpoints-only
-
-# Only migrate config files
-python scripts/migrate_project.py /path/to/project --configs-only
-
-# Non-recursive (current directory only)
-python scripts/migrate_project.py /path/to/project --no-recursive
+# Dry run to preview changes
+python scripts/migrate_tft_encoder_alignment_v0.13.py --dry-run config.yaml
 ```
 
 **Features:**
-- Recursively searches directories for files to migrate
-- Processes both checkpoint and configuration files
-- Excludes already-migrated and backup files
-- Comprehensive reporting
+- Detects TFT-family models automatically
+- Adds `encoder_alignment='right'` to data module configuration
+- Works with both YAML configs and PyTorch Lightning checkpoints
+- Skips non-TFT models
+
+## Patch Scripts (Version Compatibility)
+
+### 1. `patch_add_legacy_target_flag_v0.11.py`
+
+**Purpose:** Adds backwards compatibility for checkpoints with the old `num_future_known_covariates` calculation that included the target variable.
+
+**Usage:**
+```bash
+python scripts/patch_add_legacy_target_flag_v0.11.py checkpoint.ckpt
+python scripts/patch_add_legacy_target_flag_v0.11.py checkpoint.ckpt --output checkpoint_patched.ckpt
+```
+
+### 2. `patch_time_format_relative_legacy_v0.8.py`
+
+**Purpose:** Patches v0.7 checkpoints for v0.8 compatibility by changing `time_format` from "relative" to "relative_legacy" due to StandardScaler to MaxScaler default change.
+
+**Usage:**
+```bash
+python scripts/patch_time_format_relative_legacy_v0.8.py checkpoint.ckpt
+```
+
+### 3. `patch_maxscaler_attributes_v0.10.py`
+
+**Purpose:** Updates MaxScaler attributes from `data_min_/data_max_` to `min_/max_` for v0.9.2 to v0.10.0 compatibility.
+
+**Usage:**
+```bash
+python scripts/patch_maxscaler_attributes_v0.10.py checkpoint.ckpt
+```
 
 ## Migration Strategy
 
@@ -121,12 +121,12 @@ python scripts/migrate_project.py /path/to/project --no-recursive
 
 1. **Test with dry-run first:**
    ```bash
-   python scripts/migrate_hyperparameter_names.py your_model.ckpt --dry-run
+   python scripts/migrate_hyperparameter_names_v0.12.py your_model.ckpt --dry-run
    ```
 
-2. **Migrate with backup (default):**
+2. **Migrate with default behavior:**
    ```bash
-   python scripts/migrate_hyperparameter_names.py your_model.ckpt
+   python scripts/migrate_hyperparameter_names_v0.12.py your_model.ckpt
    ```
 
 3. **Verify the migration worked:**
@@ -142,12 +142,17 @@ python scripts/migrate_project.py /path/to/project --no-recursive
 
 2. **Dry run to see what will change:**
    ```bash
-   python scripts/migrate_project.py /path/to/project --dry-run
+   python scripts/migrate_hyperparameter_names_v0.12.py --dry-run --directory /path/to/project
    ```
 
 3. **Run the migration:**
    ```bash
-   python scripts/migrate_project.py /path/to/project
+   python scripts/migrate_hyperparameter_names_v0.12.py --directory /path/to/project
+   ```
+
+4. **Migrate TFT-family models if needed:**
+   ```bash
+   python scripts/migrate_tft_encoder_alignment_v0.13.py --directory /path/to/project
    ```
 
 ## Parameter Mapping Reference
@@ -195,12 +200,11 @@ model:
 
 ## Troubleshooting
 
-### Script Fails to Find Model Type
+### Script Fails to Process Files
 
-If the migration script cannot detect your model type:
-- The script will use global mappings only
-- You may need to manually verify parameter names after migration
-- Check that your checkpoint contains the expected hyperparameters
+- Ensure file extensions are correct (`.ckpt`, `.pth` for checkpoints; `.yaml`, `.yml` for configs)
+- Check file permissions and that files exist
+- Use absolute paths if running from different directories
 
 ### YAML Parsing Errors
 
@@ -214,18 +218,7 @@ If configuration file migration fails:
 If migrated checkpoints won't load:
 - Verify the checkpoint structure wasn't corrupted
 - Check that all required parameters are present
-- Use the backup files to restore if needed
-
-### Import Errors
-
-If you get import errors when running the scripts:
-```bash
-# Make sure you're in the scripts directory
-cd scripts
-
-# Or use absolute paths
-python /path/to/transformertf/scripts/migrate_hyperparameter_names.py model.ckpt
-```
+- Create backups before migration to restore if needed
 
 ## Dependencies
 
@@ -301,8 +294,9 @@ If you encounter issues with migration:
 
 - [ ] Backup your project directory
 - [ ] Run dry-run migration to preview changes
-- [ ] Migrate checkpoint files
-- [ ] Migrate configuration files
+- [ ] Migrate hyperparameter names with `migrate_hyperparameter_names_v0.12.py`
+- [ ] Migrate TFT encoder alignment with `migrate_tft_encoder_alignment_v0.13.py` if using TFT models
+- [ ] Apply version-specific patches if needed
 - [ ] Test loading migrated checkpoints
 - [ ] Verify migrated configs work with new TransformerTF version
 - [ ] Update any hardcoded parameter names in your scripts

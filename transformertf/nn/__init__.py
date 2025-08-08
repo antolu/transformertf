@@ -18,7 +18,17 @@ from ._transformer_encoder import (
     generate_mask,
 )
 from ._variable_selection import VariableSelection
-from ._weighted_loss import WeightedHuberLoss, WeightedMAELoss, WeightedMSELoss
+from ._weighted_loss import (
+    HuberLoss,
+    L1Loss,
+    MAELoss,
+    MAPELoss,
+    MSELoss,
+    SMAPELoss,
+    WeightedHuberLoss,
+    WeightedMAELoss,
+    WeightedMSELoss,
+)
 
 for _mod in (
     AddNorm,
@@ -37,12 +47,18 @@ for _mod in (
     MLP,
     VALID_ACTIVATIONS,
     VALID_LOSS,
-    WeightedMAELoss,
-    WeightedMSELoss,
-    WeightedHuberLoss,
+    HuberLoss,
+    L1Loss,
+    MAELoss,
+    MAPELoss,
+    MSELoss,
+    SMAPELoss,
     TransformerEncoder,
     SimplePositionalEncoding,
     generate_mask,
+    WeightedHuberLoss,
+    WeightedMAELoss,
+    WeightedMSELoss,
 ):
     replace_modname(_mod, __name__)
 
@@ -57,9 +73,15 @@ __all__ = [
     "GateAddNorm",
     "GatedLinearUnit",
     "GatedResidualNetwork",
+    "HuberLoss",
     "InterpretableMultiHeadAttention",
+    "L1Loss",
+    "MAELoss",
+    "MAPELoss",
+    "MSELoss",
     "QuantileLoss",
     "ResampleNorm",
+    "SMAPELoss",
     "SimplePositionalEncoding",
     "TemporalConvBlock",
     "TemporalDecoder",

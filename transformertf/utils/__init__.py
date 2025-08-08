@@ -1,6 +1,7 @@
 from .._mod_replace import replace_modname
 from . import _ops as ops
 from . import _signal as signal
+from . import sequence
 from ._compile import compile, maybe_compile, set_compile  # noqa: A004
 from ._configure_optimizer import (
     LrSchedulerDict,
@@ -11,6 +12,7 @@ from ._configure_optimizer import (
 
 ops.__module__ = __name__ + "ops"
 signal.__module__ = __name__ + "signal"
+sequence.__module__ = __name__ + "sequence"
 
 for func in (
     configure_lr_scheduler,
@@ -32,6 +34,7 @@ __all__ = [
     "configure_optimizers",
     "maybe_compile",
     "ops",
+    "sequence",
     "set_compile",
     "signal",
 ]

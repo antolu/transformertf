@@ -193,3 +193,8 @@ All models use standardized hyperparameter names following PyTorch and academic 
   - Deprecated
 - Add code examples when appropriate, especially for breaking changes
 - Clearly call out breaking changes
+
+## GitLab CI/CD Workflow
+
+- Always use GitLab CLI (glab) for creating and editing merge requests
+  - Learn how to use glab CLI for efficient merge request management

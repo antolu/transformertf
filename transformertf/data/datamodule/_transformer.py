@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import sys
 import typing
 
@@ -31,6 +32,9 @@ else:
 
 if typing.TYPE_CHECKING:
     from ..transform import BaseTransform
+
+# Import sequence utilities for collate function
+from ...utils.sequence import align_encoder_sequences
 
 
 class TransformerDataModule(DataModuleBase):
@@ -111,6 +115,9 @@ class TransformerDataModule(DataModuleBase):
         Whether to shuffle training data. Default is True.
     distributed : bool or "auto", optional
         Distributed training configuration. Default is "auto".
+    encoder_alignment : {"left", "right"}, optional
+        Encoder sequence alignment strategy. "left" aligns sequences for LSTM packing
+        efficiency, "right" maintains TFT backwards compatibility. Default is "left".
 
     Attributes
     ----------
@@ -215,6 +222,7 @@ class TransformerDataModule(DataModuleBase):
         dtype: VALID_DTYPES = "float32",
         shuffle: bool = True,
         distributed: bool | typing.Literal["auto"] = "auto",
+        encoder_alignment: typing.Literal["left", "right"] = "left",
         _legacy_target_in_future_covariates: bool = False,
     ):
         """
@@ -520,23 +528,47 @@ class EncoderDecoderDataModule(TransformerDataModule):
             add_target_to_past=self.hparams["add_target_to_past"],
         )
 
-    @staticmethod
     def collate_fn(  # type: ignore[override]
+        self,
+    ) -> typing.Callable[
+        [list[EncoderDecoderTargetSample]], EncoderDecoderTargetSample
+    ]:
+        """
+        Returns a collate function for encoder-decoder samples with variable lengths.
+
+        Returns
+        -------
+        callable
+            A collate function that takes a list of EncoderDecoderTargetSample and returns
+            a collated batch with all samples padded/trimmed to consistent lengths.
+        """
+        return functools.partial(
+            EncoderDecoderDataModule._collate_impl,
+            encoder_alignment=self.hparams["encoder_alignment"],
+        )
+
+    @staticmethod
+    def _collate_impl(
         samples: list[EncoderDecoderTargetSample],
+        *,
+        encoder_alignment: typing.Literal["left", "right"],
     ) -> EncoderDecoderTargetSample:
         """
         Collate function for encoder-decoder samples with variable lengths.
 
         This function handles batching of encoder-decoder samples that may have
-        different sequence lengths due to randomization. It trims sequences to
-        the maximum length in the batch and maintains proper alignment between
-        encoder and decoder components.
+        different sequence lengths due to randomization. The sequence alignment
+        strategy is controlled by the encoder_alignment parameter:
+
+        - "right": Encoder sequences right-padded (TFT-style, backwards compatible)
+        - "left": Encoder sequences left-padded (LSTM-style, efficient for packing)
 
         Parameters
         ----------
         samples : list of EncoderDecoderTargetSample
-            List of samples to collate into a batch. Each sample is a dictionary
-            containing encoder_input, decoder_input, target, and optional length/mask info.
+            List of samples to collate into a batch.
+        encoder_alignment : {"left", "right"}
+            Sequence alignment strategy.
 
         Returns
         -------
@@ -547,11 +579,11 @@ class EncoderDecoderDataModule(TransformerDataModule):
 
         Notes
         -----
-        The collation strategy:
-        - Encoder sequences are trimmed from the beginning (keeping recent context)
-        - Decoder sequences are trimmed from the end (keeping early predictions)
+        The collation behavior is explicit and deterministic:
+        - "right" alignment: Encoder sequences trimmed from beginning, right-padded
+        - "left" alignment: Encoder sequences prepared for LSTM pack_padded_sequence
+        - Decoder sequences are always trimmed from the end (keeping early predictions)
         - Maximum lengths are determined by the longest sequences in the batch
-        - Proper alignment is maintained between decoder input and target output
         """
         if all("encoder_lengths" in sample for sample in samples):
             max_enc_len = max(sample["encoder_lengths"] for sample in samples)
@@ -571,11 +603,14 @@ class EncoderDecoderDataModule(TransformerDataModule):
 
         cut_samples = []
         for sample in samples:
+            # All alignments use the same trimming initially
+            # Left alignment will be applied after collation if needed
             cut_sample = {
                 "encoder_input": sample["encoder_input"][-max_enc_len:],
                 "decoder_input": sample["decoder_input"][:max_tgt_len],
                 "target": sample["target"][:max_tgt_len],
             }
+
             if "encoder_lengths" in sample:
                 cut_sample["encoder_lengths"] = sample["encoder_lengths"]
             if "decoder_lengths" in sample:
@@ -589,7 +624,31 @@ class EncoderDecoderDataModule(TransformerDataModule):
 
             cut_samples.append(cut_sample)
 
-        return typing.cast(
+        batch = typing.cast(
             EncoderDecoderTargetSample[torch.Tensor],
             torch.utils.data.dataloader.default_collate(cut_samples),
         )
+
+        # Apply left alignment for LSTM models if requested
+        if (
+            encoder_alignment == "left"
+            and "encoder_lengths" in batch
+            and batch["encoder_lengths"] is not None
+        ):
+            # Check if we actually have variable lengths that would benefit from alignment
+            encoder_lengths = (
+                batch["encoder_lengths"].squeeze(-1)
+                if batch["encoder_lengths"].dim() > 1
+                else batch["encoder_lengths"]
+            )
+            if not (encoder_lengths == encoder_lengths[0]).all():
+                # Variable lengths detected - align encoder sequences for packing
+                batch["encoder_input"] = align_encoder_sequences(
+                    batch["encoder_input"], encoder_lengths, max_enc_len
+                )
+                if "encoder_mask" in batch:
+                    batch["encoder_mask"] = align_encoder_sequences(
+                        batch["encoder_mask"], encoder_lengths, max_enc_len
+                    )
+
+        return batch

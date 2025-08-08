@@ -5,6 +5,12 @@ import typing
 import torch
 
 from ...nn import MLP, VALID_ACTIVATIONS
+from ...utils.sequence import (
+    pack_decoder_sequences,
+    pack_encoder_sequences,
+    should_use_packing,
+    unpack_to_fixed_length,
+)
 
 __all__ = ["EncoderDecoderLSTMModel"]
 
@@ -184,6 +190,8 @@ class EncoderDecoderLSTMModel(torch.nn.Module):
         self,
         past_sequence: torch.Tensor,
         future_sequence: torch.Tensor,
+        encoder_lengths: torch.Tensor | None = None,
+        decoder_lengths: torch.Tensor | None = None,
         *,
         return_encoder_states: typing.Literal[False] = False,
     ) -> torch.Tensor: ...
@@ -193,6 +201,8 @@ class EncoderDecoderLSTMModel(torch.nn.Module):
         self,
         past_sequence: torch.Tensor,
         future_sequence: torch.Tensor,
+        encoder_lengths: torch.Tensor | None = None,
+        decoder_lengths: torch.Tensor | None = None,
         *,
         return_encoder_states: typing.Literal[True],
     ) -> tuple[torch.Tensor, HIDDEN_STATE]: ...
@@ -201,6 +211,8 @@ class EncoderDecoderLSTMModel(torch.nn.Module):
         self,
         past_sequence: torch.Tensor,
         future_sequence: torch.Tensor,
+        encoder_lengths: torch.Tensor | None = None,
+        decoder_lengths: torch.Tensor | None = None,
         *,
         return_encoder_states: bool = False,
     ) -> torch.Tensor | tuple[torch.Tensor, HIDDEN_STATE]:
@@ -213,6 +225,10 @@ class EncoderDecoderLSTMModel(torch.nn.Module):
             Past sequence tensor of shape (batch_size, past_seq_len, num_past_features).
         future_sequence : torch.Tensor
             Future sequence tensor of shape (batch_size, future_seq_len, num_future_features).
+        encoder_lengths : torch.Tensor, optional
+            Actual lengths of encoder sequences for packed processing.
+        decoder_lengths : torch.Tensor, optional
+            Actual lengths of decoder sequences for packed processing.
         return_encoder_states : bool, default=False
             Whether to return the encoder's final hidden states.
 
@@ -224,16 +240,34 @@ class EncoderDecoderLSTMModel(torch.nn.Module):
             If return_encoder_states=True:
                 Tuple of (output, encoder_states) where encoder_states is (h_n, c_n)
         """
-        # Encode past sequence
-        _, encoder_states = self.encoder(past_sequence)
+        use_encoder_packing = should_use_packing(encoder_lengths)
+        use_decoder_packing = should_use_packing(decoder_lengths)
 
-        # Project encoder states to decoder dimensions if needed
+        if use_encoder_packing and encoder_lengths is not None:
+            packed_encoder_input = pack_encoder_sequences(
+                past_sequence,
+                encoder_lengths,
+                align_first=False,
+            )
+            _, encoder_states = self.encoder(packed_encoder_input)
+        else:
+            _, encoder_states = self.encoder(past_sequence)
+
         decoder_init_states = self._project_encoder_states(encoder_states)
 
-        # Decode future sequence using encoder context
-        decoder_output, _ = self.decoder(future_sequence, decoder_init_states)
+        if use_decoder_packing and decoder_lengths is not None:
+            packed_decoder_input = pack_decoder_sequences(
+                future_sequence, decoder_lengths
+            )
+            packed_decoder_output, _ = self.decoder(
+                packed_decoder_input, decoder_init_states
+            )
+            decoder_output, _ = unpack_to_fixed_length(
+                packed_decoder_output, total_length=future_sequence.size(1)
+            )
+        else:
+            decoder_output, _ = self.decoder(future_sequence, decoder_init_states)
 
-        # Apply MLP head
         output = self.mlp_head(decoder_output)
 
         if return_encoder_states:

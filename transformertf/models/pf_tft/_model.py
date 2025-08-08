@@ -252,6 +252,7 @@ class PFTemporalFusionTransformerModel(torch.nn.Module):
             enc_seq_len,
             dec_seq_len,
             causal_attention=self.causal_attention,
+            encoder_alignment="right",
         )
 
         # multi-head attention and post-processing
