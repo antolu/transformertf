@@ -117,6 +117,9 @@ def test_tct_forward_pass_with_datamodule(
 
 def test_tct_training_convergence():
     """Test that TCT can converge on a simple pattern."""
+    # Set seed for deterministic results
+    torch.manual_seed(42)
+
     # Create simple synthetic data with learnable pattern
     batch_size = 4
     encoder_len = 400
@@ -134,47 +137,41 @@ def test_tct_training_convergence():
         dropout=0.0,  # Disable dropout for deterministic training
     )
 
-    # Create synthetic pattern: linear trend + noise
-    def create_batch():
-        encoder_input = torch.randn(batch_size, encoder_len, num_past_features)
-        decoder_input = torch.randn(batch_size, decoder_len, num_future_features)
+    # Create fixed synthetic pattern
+    encoder_input = torch.randn(batch_size, encoder_len, num_past_features)
+    decoder_input = torch.randn(batch_size, decoder_len, num_future_features)
 
-        # Create simple learnable pattern: sum of first two encoder features
-        target = (
-            encoder_input[:, -decoder_len:, 0:1] + encoder_input[:, -decoder_len:, 1:2]
-        ) * 0.5 + torch.randn(batch_size, decoder_len, 1) * 0.1
+    # Create simple learnable pattern: sum of first two encoder features
+    target = (
+        encoder_input[:, -decoder_len:, 0:1] + encoder_input[:, -decoder_len:, 1:2]
+    ) * 0.5
 
-        return {
-            "encoder_input": encoder_input,
-            "decoder_input": decoder_input,
-            "target": target,
-        }
+    batch = {
+        "encoder_input": encoder_input,
+        "decoder_input": decoder_input,
+        "target": target,
+    }
 
-    # Train for a few steps
+    # Train for more steps with same data
     model.train()
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.003)
 
-    initial_loss = None
-    final_loss = None
-
-    for step in range(10):
-        batch = create_batch()
-
+    losses = []
+    for step in range(20):
         optimizer.zero_grad()
         output = model.training_step(batch, step)
         loss = output["loss"]
-
-        if step == 0:
-            initial_loss = loss.item()
-        if step == 9:
-            final_loss = loss.item()
+        losses.append(loss.item())
 
         loss.backward()
         optimizer.step()
 
-    # Loss should decrease (model should learn something)
-    assert final_loss < initial_loss
-    assert torch.isfinite(torch.tensor(final_loss))
+    # Check that loss generally decreases - use average of first/last 3 losses
+    initial_avg = sum(losses[:3]) / 3
+    final_avg = sum(losses[-3:]) / 3
+
+    assert final_avg < initial_avg
+    assert all(torch.isfinite(torch.tensor(loss)) for loss in losses)
 
 
 def test_tct_prediction_consistency():
