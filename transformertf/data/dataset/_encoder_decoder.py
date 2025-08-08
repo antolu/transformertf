@@ -197,6 +197,17 @@ class EncoderDecoderDataset(TransformerDataset):
     def _apply_randomize_seq_len(
         self, sample: EncoderDecoderTargetSample[pd.DataFrame]
     ) -> EncoderDecoderTargetSample[pd.DataFrame]:
+        # Check for existing window-level padding by examining decoder_mask
+        # Window padding sets decoder_mask to 0.0 for padded rows
+        window_padded_length = self.tgt_seq_len
+        if "decoder_mask" in sample:
+            # Find the last non-zero row in decoder_mask by checking the first column
+            # (mask should be the same across all features)
+            decoder_mask_first_col = sample["decoder_mask"].iloc[:, 0].to_numpy()
+            non_zero_positions = np.nonzero(decoder_mask_first_col)[0]
+            if len(non_zero_positions) > 0:
+                window_padded_length = int(non_zero_positions[-1] + 1)
+
         if self._randomize_seq_len:
             assert self._min_ctxt_seq_len is not None
             assert self._min_tgt_seq_len is not None
@@ -208,7 +219,11 @@ class EncoderDecoderDataset(TransformerDataset):
 
             sample["encoder_lengths"] = pd.DataFrame({"encoder_lengths": [encoder_len]})
 
-            decoder_len = sample_len(self._min_tgt_seq_len, self.tgt_seq_len)
+            # Apply sequence length randomization, but respect existing window padding
+            randomized_len = sample_len(self._min_tgt_seq_len, self.tgt_seq_len)
+            # decoder_lengths should be the minimum of randomized length and window-padded length
+            decoder_len = min(randomized_len, window_padded_length)
+
             to_zero = decoder_len
             sample["decoder_input"][to_zero:] = 0.0
             sample["decoder_mask"][to_zero:] = 0.0
@@ -222,8 +237,9 @@ class EncoderDecoderDataset(TransformerDataset):
             sample["encoder_lengths"] = pd.DataFrame({
                 "encoder_lengths": [self.ctxt_seq_len],
             })
+            # Use window-padded length instead of full tgt_seq_len
             sample["decoder_lengths"] = pd.DataFrame({
-                "decoder_lengths": [self.tgt_seq_len],
+                "decoder_lengths": [window_padded_length],
             })
 
         return sample
