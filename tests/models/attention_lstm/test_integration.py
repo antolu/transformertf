@@ -14,7 +14,7 @@ from transformertf.models.attention_lstm import AttentionLSTM
 @pytest.fixture
 def sample_data() -> pd.DataFrame:
     """Create sample time series data for testing."""
-    n_samples = 1000
+    n_samples = 988
     num_features = 3
 
     # Generate synthetic time series data
@@ -42,9 +42,6 @@ def temp_data_file(sample_data: pd.DataFrame) -> Path:
         return temp_path
 
 
-@pytest.mark.xfail(
-    reason="Complex data module integration requires proper data format and group configuration"
-)
 def test_attention_lstm_with_data_module(temp_data_file: Path) -> None:
     """Test AttentionLSTM integration with EncoderDecoderDataModule."""
     # Create data module
@@ -60,7 +57,7 @@ def test_attention_lstm_with_data_module(temp_data_file: Path) -> None:
         num_workers=0,
     )
 
-    # Setup the data module
+    datamodule.prepare_data()
     datamodule.setup()
 
     # Get feature dimensions from data module
