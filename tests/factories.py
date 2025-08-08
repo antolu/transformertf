@@ -116,7 +116,7 @@ class TFTModelFactory(factory.Factory):
     d_model = fuzzy.FuzzyChoice([32, 64, 128])
     num_heads = fuzzy.FuzzyChoice([2, 4, 8])
     output_dim = 1
-    hidden_continuous_dim = fuzzy.FuzzyInteger(8, 32)
+    d_hidden_continuous = fuzzy.FuzzyInteger(8, 32)
 
 
 class TFTLightningFactory(factory.Factory):
@@ -133,7 +133,7 @@ class TFTLightningFactory(factory.Factory):
     d_model = fuzzy.FuzzyChoice([32, 64, 128])
     num_heads = fuzzy.FuzzyChoice([2, 4, 8])
     output_dim = 1
-    hidden_continuous_dim = fuzzy.FuzzyInteger(8, 32)
+    d_hidden_continuous = fuzzy.FuzzyInteger(8, 32)
     learning_rate = fuzzy.FuzzyFloat(1e-4, 1e-2)
 
 

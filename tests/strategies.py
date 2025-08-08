@@ -93,7 +93,7 @@ def tft_config_strategy(draw):
         "d_model": draw(st.sampled_from([16, 32, 64, 128])),
         "num_heads": draw(st.sampled_from([1, 2, 4, 8])),
         "output_dim": 1,
-        "hidden_continuous_dim": draw(st.integers(min_value=8, max_value=32)),
+        "d_hidden_continuous": draw(st.integers(min_value=8, max_value=32)),
         "dropout": draw(st.floats(min_value=0.0, max_value=0.5)),
     }
 

@@ -24,7 +24,7 @@ def test_forward_pass_performance():
         d_model=64,
         num_heads=8,
         output_dim=1,
-        hidden_continuous_dim=32,
+        d_hidden_continuous=32,
     )
 
     past = torch.randn(8, 100, 3)
@@ -65,7 +65,7 @@ def test_large_batch_performance():
         d_model=32,
         num_heads=4,
         output_dim=1,
-        hidden_continuous_dim=16,
+        d_hidden_continuous=16,
     )
 
     past = torch.randn(64, 50, 2)

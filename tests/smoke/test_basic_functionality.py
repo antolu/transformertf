@@ -34,7 +34,7 @@ class TestSmokeTests:
             d_model=16,
             num_heads=2,
             output_dim=1,
-            hidden_continuous_dim=8,
+            d_hidden_continuous=8,
         )
         assert model is not None
 
@@ -49,7 +49,7 @@ class TestSmokeTests:
             d_model=16,
             num_heads=2,
             output_dim=1,
-            hidden_continuous_dim=8,
+            d_hidden_continuous=8,
         )
 
         past = torch.randn(2, 10, 2)
@@ -114,7 +114,7 @@ class TestSmokeTests:
             d_model=16,
             num_heads=2,
             output_dim=1,
-            hidden_continuous_dim=8,
+            d_hidden_continuous=8,
         ).to(device)
 
         past = torch.randn(2, 10, 2).to(device)

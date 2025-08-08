@@ -36,7 +36,7 @@ def test_full_training_pipeline(tmp_path):
         "d_model": 32,
         "num_heads": 4,
         "output_dim": 1,
-        "hidden_continuous_dim": 16,
+        "d_hidden_continuous": 16,
     }
 
     model = TFTModelFactory.create(**model_config)
@@ -67,7 +67,7 @@ def test_model_training_step():
         d_model=32,
         num_heads=4,
         output_dim=1,
-        hidden_continuous_dim=16,
+        d_hidden_continuous=16,
     )
 
     # Create sample batch
@@ -109,7 +109,7 @@ def test_model_different_sequence_lengths():
         d_model=32,
         num_heads=4,
         output_dim=1,
-        hidden_continuous_dim=16,
+        d_hidden_continuous=16,
     )
 
     # Test with different sequence lengths
@@ -141,7 +141,7 @@ def test_model_with_static_features():
         d_model=32,
         num_heads=4,
         output_dim=1,
-        hidden_continuous_dim=16,
+        d_hidden_continuous=16,
         num_static_features=3,
     )
 

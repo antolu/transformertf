@@ -40,7 +40,7 @@ def test_temporal_fusion_transformer_model(
         d_model=32,
         num_heads=4,
         output_dim=1,
-        hidden_continuous_dim=12,
+        d_hidden_continuous=12,
     )
 
     output = model(past_covariates, future_covariates)
@@ -92,7 +92,7 @@ def test_tft_model_different_batch_sizes():
         d_model=32,
         num_heads=4,
         output_dim=1,
-        hidden_continuous_dim=16,
+        d_hidden_continuous=16,
     )
 
     # Test with different batch sizes
@@ -117,7 +117,7 @@ def test_tft_model_deterministic():
         d_model=32,
         num_heads=4,
         output_dim=1,
-        hidden_continuous_dim=16,
+        d_hidden_continuous=16,
         dropout=0.0,  # No dropout for deterministic behavior
     )
     model.eval()
@@ -145,7 +145,7 @@ def test_tft_model_gradient_flow():
         d_model=32,
         num_heads=4,
         output_dim=1,
-        hidden_continuous_dim=16,
+        d_hidden_continuous=16,
     )
 
     past = torch.randn(2, 20, 2)
@@ -174,7 +174,7 @@ def test_tft_model_output_consistency():
         d_model=32,
         num_heads=4,
         output_dim=1,
-        hidden_continuous_dim=16,
+        d_hidden_continuous=16,
     )
 
     # Set model to eval mode
@@ -212,7 +212,7 @@ def test_tft_model_edge_cases(edge_case):
         d_model=16,
         num_heads=2,
         output_dim=1,
-        hidden_continuous_dim=8,
+        d_hidden_continuous=8,
     )
 
     if edge_case == "single_element":
@@ -247,7 +247,7 @@ def test_tft_model_with_mocked_attention():
             d_model=32,
             num_heads=4,
             output_dim=1,
-            hidden_continuous_dim=16,
+            d_hidden_continuous=16,
         )
 
         # Test that mock was called during initialization
