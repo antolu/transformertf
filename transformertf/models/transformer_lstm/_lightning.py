@@ -176,15 +176,11 @@ class TransformerLSTM(TransformerModuleBase, EncoderAlignmentValidationMixin):
         super().__init__()
         self.save_hyperparameters(ignore=["criterion"])
 
-        # Set up criterion
         self.criterion = criterion or MSELoss()
 
-        # Handle quantile loss case
         if isinstance(self.criterion, QuantileLoss):
             output_dim = len(self.criterion.quantiles)
             self.hparams["output_dim"] = output_dim
-
-        # Create the model
         self.model = TransformerLSTMModel(
             num_past_features=num_past_features,
             num_future_features=num_future_features,
