@@ -56,7 +56,6 @@ class TransformerBlock(torch.nn.Module):
     ):
         super().__init__()
 
-        # Validate that d_model is divisible by num_heads
         assert d_model % num_heads == 0, (
             f"d_model ({d_model}) must be divisible by num_heads ({num_heads})"
         )
@@ -65,21 +64,17 @@ class TransformerBlock(torch.nn.Module):
         self.num_heads = num_heads
         self.dropout = dropout
 
-        # Encoder self-attention
         self.encoder_self_attention = InterpretableMultiHeadAttention(
             d_model=d_model,
             num_heads=num_heads,
             dropout=dropout,
         )
 
-        # Cross-attention between decoder and full sequence
         self.cross_attention = InterpretableMultiHeadAttention(
             d_model=d_model,
             num_heads=num_heads,
             dropout=dropout,
         )
-
-        # GateAddNorm layers for residual connections with layer normalization
         self.encoder_gate_add_norm = GateAddNorm(
             input_dim=d_model,
             output_dim=d_model,
@@ -122,12 +117,10 @@ class TransformerBlock(torch.nn.Module):
         """
 
         # 1. Encoder self-attention with masking for variable lengths
-        # Create encoder self-attention mask using get_attention_mask
         encoder_self_mask = None
         if encoder_lengths is not None:
             encoder_seq_len = encoder_output.size(1)
 
-            # Use get_attention_mask with encoder_lengths twice for encoder self-attention
             encoder_mask_full = get_attention_mask(
                 encoder_lengths=encoder_lengths,
                 decoder_lengths=encoder_lengths,  # Pass encoder_lengths twice
@@ -135,16 +128,12 @@ class TransformerBlock(torch.nn.Module):
                 max_decoder_length=encoder_seq_len,  # Same as max_encoder_length
                 causal_attention=False,  # No causality for encoder self-attention
             )
-            # Extract just the encoder self-attention part
             encoder_self_mask = encoder_mask_full[:, :, :encoder_seq_len]
 
-        # encoder attention + residual connection
         encoder_attn_output = self.encoder_self_attention(
             encoder_output, encoder_output, encoder_output, mask=encoder_self_mask
         )
         encoder_output = self.encoder_gate_add_norm(encoder_attn_output, encoder_output)
-
-        # decoder cross attention + residual connection
         full_sequence = torch.cat([encoder_output, decoder_output], dim=1)
         decoder_attn_output = self.cross_attention(
             decoder_output, full_sequence, full_sequence, mask=attention_mask
@@ -217,7 +206,6 @@ class TransformerLSTMModel(torch.nn.Module):
     ):
         super().__init__()
 
-        # Validate that d_model is divisible by num_heads
         assert d_model % num_heads == 0, (
             f"d_model ({d_model}) must be divisible by num_heads ({num_heads})"
         )
@@ -248,7 +236,6 @@ class TransformerLSTMModel(torch.nn.Module):
         )
 
         if share_lstm_weights:
-            # Use the same LSTM for both encoder and decoder
             self.encoder = self.decoder = torch.nn.LSTM(
                 input_size=d_model,
                 hidden_size=d_model,
@@ -257,7 +244,6 @@ class TransformerLSTMModel(torch.nn.Module):
                 batch_first=True,
             )
         else:
-            # Encoder LSTM
             self.encoder = torch.nn.LSTM(
                 input_size=d_model,
                 hidden_size=d_model,
@@ -266,7 +252,6 @@ class TransformerLSTMModel(torch.nn.Module):
                 batch_first=True,
             )
 
-            # Decoder LSTM
             self.decoder = torch.nn.LSTM(
                 input_size=d_model,
                 hidden_size=d_model,
@@ -275,7 +260,6 @@ class TransformerLSTMModel(torch.nn.Module):
                 batch_first=True,
             )
 
-        # Transformer blocks
         self.transformer_blocks = torch.nn.ModuleList([
             TransformerBlock(
                 d_model=d_model,
@@ -284,8 +268,6 @@ class TransformerLSTMModel(torch.nn.Module):
             )
             for _ in range(num_transformer_blocks)
         ])
-
-        # Output projection
         self.output_head = torch.nn.Linear(d_model, output_dim)
 
     @typing.overload
@@ -343,7 +325,6 @@ class TransformerLSTMModel(torch.nn.Module):
             If return_encoder_states=True:
                 Tuple of (output, encoder_states) where encoder_states is (h_n, c_n)
         """
-        # Determine if we should use packed sequences for efficiency
         use_encoder_packing = should_use_packing(encoder_lengths)
         use_decoder_packing = should_use_packing(decoder_lengths)
 
@@ -351,19 +332,16 @@ class TransformerLSTMModel(torch.nn.Module):
         encoder_grn_output = self.encoder_grn(past_sequence)
 
         if use_encoder_packing and encoder_lengths is not None:
-            # Pack encoder sequences for efficient LSTM processing
             packed_encoder_input = pack_encoder_sequences(
                 encoder_grn_output,
                 encoder_lengths,
                 align_first=False,  # Already aligned by collate_fn
             )
             packed_encoder_output, encoder_states = self.encoder(packed_encoder_input)
-            # Unpack for consistent tensor format
             encoder_output, _ = unpack_to_fixed_length(
                 packed_encoder_output, total_length=past_sequence.size(1)
             )
         else:
-            # Standard LSTM processing
             encoder_output, encoder_states = self.encoder(encoder_grn_output)
 
         encoder_output = encoder_output + encoder_grn_output
@@ -372,19 +350,16 @@ class TransformerLSTMModel(torch.nn.Module):
         decoder_grn_output = self.decoder_grn(future_sequence)
 
         if use_decoder_packing and decoder_lengths is not None:
-            # Pack decoder sequences for efficient LSTM processing
             packed_decoder_input = pack_decoder_sequences(
                 decoder_grn_output, decoder_lengths
             )
             packed_decoder_output, _ = self.decoder(
                 packed_decoder_input, encoder_states
             )
-            # Unpack for consistent tensor format
             decoder_output, _ = unpack_to_fixed_length(
                 packed_decoder_output, total_length=future_sequence.size(1)
             )
         else:
-            # Standard LSTM processing
             decoder_output, _ = self.decoder(decoder_grn_output, encoder_states)
 
         decoder_output = decoder_output + decoder_grn_output
@@ -395,7 +370,6 @@ class TransformerLSTMModel(torch.nn.Module):
             max_encoder_length = past_sequence.size(1)
             max_decoder_length = future_sequence.size(1)
 
-            # Validate lengths
             if (encoder_lengths <= 0).any():
                 msg = "All encoder lengths must be positive"
                 raise ValueError(msg)
@@ -426,8 +400,6 @@ class TransformerLSTMModel(torch.nn.Module):
             current_encoder, current_decoder = transformer_block(
                 current_encoder, current_decoder, attention_mask, encoder_lengths
             )
-
-        # 5. Final output projection
         output = self.output_head(current_decoder)
 
         if return_encoder_states:
