@@ -206,7 +206,9 @@ def pack_encoder_sequences(
     Pack encoder sequences for efficient LSTM processing.
 
     This function handles the alignment from right-padding to left-padding
-    and then packs the sequences for RNN efficiency.
+    and then packs the sequences for RNN efficiency. PyTorch automatically
+    sorts sequences by length internally when enforce_sorted=False, providing
+    optimal RNN performance while maintaining batch order consistency.
 
     This function is decorated with @torch.compiler.disable to avoid
     torch.compile incompatibility with pack_padded_sequence operations.
@@ -226,7 +228,9 @@ def pack_encoder_sequences(
     batch_first : bool, default=True
         Whether input has batch dimension first.
     enforce_sorted : bool, default=False
-        Whether to sort sequences by length (can be more efficient).
+        Whether sequences are pre-sorted by length. If False, PyTorch will
+        automatically sort sequences internally for optimal RNN efficiency
+        and restore the original batch order in outputs.
 
     Returns
     -------
@@ -256,7 +260,9 @@ def pack_decoder_sequences(
     Pack decoder sequences for efficient LSTM processing.
 
     Decoder sequences are already right-padded (padding at the end) which
-    is the expected format for packing, so no alignment is needed.
+    is the expected format for packing, so no alignment is needed. PyTorch
+    automatically sorts sequences by length internally when enforce_sorted=False,
+    providing optimal RNN performance while maintaining batch order consistency.
 
     This function is decorated with @torch.compiler.disable to avoid
     torch.compile incompatibility with pack_padded_sequence operations.
@@ -275,7 +281,9 @@ def pack_decoder_sequences(
     batch_first : bool, default=True
         Whether input has batch dimension first.
     enforce_sorted : bool, default=False
-        Whether to sort sequences by length (can be more efficient).
+        Whether sequences are pre-sorted by length. If False, PyTorch will
+        automatically sort sequences internally for optimal RNN efficiency
+        and restore the original batch order in outputs.
 
     Returns
     -------
