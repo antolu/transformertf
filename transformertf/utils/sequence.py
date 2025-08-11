@@ -74,13 +74,13 @@ def validate_encoder_alignment(
         if expected_alignment == "left" and not padding_at_end:
             msg = (
                 f"Expected left alignment (data at left, padding at right) but found non-zero values at the end of sequence {i}. "
-                f"Sequence length: {length}, but positions {length}: should be zero."
+                f"Sequence length: {seq_len}, but positions {length}: should be zero."
             )
             raise ValueError(msg)
         if expected_alignment == "right" and not padding_at_start:
             msg = (
                 f"Expected right alignment (data at right, padding at left) but found non-zero values at the beginning of sequence {i}. "
-                f"Sequence length: {length}, but first {seq_len - length} positions should be zero."
+                f"Sequence length: {seq_len}, but first {seq_len - length} positions should be zero."
             )
             raise ValueError(msg)
 
