@@ -631,9 +631,9 @@ class EncoderDecoderDataModule(TransformerDataModule):
             torch.utils.data.dataloader.default_collate(cut_samples),
         )
 
-        # Apply right alignment for TFT-style models if requested
+        # default is right alignment from the Dataset.
         if (
-            encoder_alignment == "right"
+            encoder_alignment == "left"
             and "encoder_lengths" in batch
             and batch["encoder_lengths"] is not None
         ):
@@ -646,11 +646,17 @@ class EncoderDecoderDataModule(TransformerDataModule):
             if not (encoder_lengths == encoder_lengths[0]).all():
                 # Variable lengths detected - align encoder sequences to right-aligned format
                 batch["encoder_input"] = align_encoder_sequences(
-                    batch["encoder_input"], encoder_lengths, max_enc_len
+                    batch["encoder_input"],
+                    encoder_lengths,
+                    max_enc_len,
+                    alignment="left",
                 )
                 if "encoder_mask" in batch:
                     batch["encoder_mask"] = align_encoder_sequences(
-                        batch["encoder_mask"], encoder_lengths, max_enc_len
+                        batch["encoder_mask"],
+                        encoder_lengths,
+                        max_enc_len,
+                        alignment="left",
                     )
 
         return batch

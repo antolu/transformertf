@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import typing
+
 import torch
 import torch.nn.utils.rnn as rnn_utils
 
@@ -142,6 +144,7 @@ def align_encoder_sequences(
     sequences: torch.Tensor,
     lengths: torch.Tensor,
     max_length: int | None = None,
+    alignment: typing.Literal["left", "right"] = "right",
 ) -> torch.Tensor:
     """
     Align encoder sequences to right-aligned format (data at right, padding at left).
@@ -178,6 +181,10 @@ def align_encoder_sequences(
     _batch_size, seq_len, _num_features = sequences.shape
     max_length = max_length or seq_len
 
+    assert alignment in {"left", "right"}, (
+        f"Invalid alignment: {alignment}. Expected 'left' or 'right'.",
+    )
+
     aligned = torch.zeros_like(sequences)
 
     for i, length in enumerate(lengths):
@@ -185,12 +192,17 @@ def align_encoder_sequences(
         if length <= 0:
             continue
 
-        padding_amount = max_length - length
+        if alignment == "right":
+            padding_amount = max_length - length
 
-        if padding_amount > 0:
-            aligned[i, padding_amount : padding_amount + length] = sequences[i, :length]
+            if padding_amount > 0:
+                aligned[i, padding_amount : padding_amount + length] = sequences[
+                    i, :length
+                ]
+            else:
+                aligned[i] = sequences[i]
         else:
-            aligned[i] = sequences[i]
+            padding_amount = max_length - length
 
     return aligned
 
@@ -240,7 +252,7 @@ def pack_encoder_sequences(
         Packed sequences ready for LSTM processing.
     """
     if align_first:
-        sequences = align_encoder_sequences(sequences, lengths)
+        sequences = align_encoder_sequences(sequences, lengths, alignment="left")
 
     return rnn_utils.pack_padded_sequence(
         sequences,
