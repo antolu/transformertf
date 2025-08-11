@@ -202,7 +202,7 @@ def align_encoder_sequences(
             else:
                 aligned[i] = sequences[i]
         else:
-            padding_amount = max_length - length
+            aligned[i, :length] = sequences[i, :length]
 
     return aligned
 
