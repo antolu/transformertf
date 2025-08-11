@@ -952,9 +952,9 @@ def get_attention_mask(
         attend to previous positions. If False, allows attention to all
         non-padded positions.
     encoder_alignment : str, default="left"
-        Alignment of encoder sequences. Either "left" (padding at start) or "right" (padding at end).
+        Alignment of encoder sequences. Either "left" (data at start, padding at end) or "right" (data at end, padding at start).
     decoder_alignment : str, default="left"
-        Alignment of decoder sequences. Either "left" (padding at start) or "right" (padding at end).
+        Alignment of decoder sequences. Either "left" (data at start, padding at end) or "right" (data at end, padding at start).
 
     Returns
     -------
@@ -1060,8 +1060,8 @@ def create_mask(
         Shape: (batch_size,).
     alignment : str, default="left"
         Sequence alignment type:
-        - "left": Sequences are left-aligned (padding at start)
-        - "right": Sequences are right-aligned (padding at end)
+        - "left": Sequences are left-aligned (data at start, padding at end)
+        - "right": Sequences are right-aligned (data at end, padding at start)
     inverse : bool, default=False
         If False, returns True where positions are invalid (padded).
         If True, returns True where positions are valid (not padded).
@@ -1072,25 +1072,25 @@ def create_mask(
         Boolean mask of shape (len(lengths), size).
 
         For left alignment:
-        - When inverse=False: mask[i, j] = True if j < (size - lengths[i]) (padded position)
-        - When inverse=True: mask[i, j] = True if j >= (size - lengths[i]) (valid position)
-
-        For right alignment:
         - When inverse=False: mask[i, j] = True if lengths[i] <= j (padded position)
         - When inverse=True: mask[i, j] = True if lengths[i] > j (valid position)
+
+        For right alignment:
+        - When inverse=False: mask[i, j] = True if j < (size - lengths[i]) (padded position)
+        - When inverse=True: mask[i, j] = True if j >= (size - lengths[i]) (valid position)
 
     Examples
     --------
     >>> lengths = torch.tensor([3, 5, 2])
     >>>
-    >>> # Right alignment (traditional behavior)
-    >>> mask = create_mask(size=6, lengths=lengths, alignment="right", inverse=False)
+    >>> # Left alignment (standard behavior)
+    >>> mask = create_mask(size=6, lengths=lengths, alignment="left", inverse=False)
     >>> # mask = [[False, False, False, True, True, True],     # len=3, padding at end
     >>> #          [False, False, False, False, False, True],  # len=5, padding at end
     >>> #          [False, False, True, True, True, True]]     # len=2, padding at end
     >>>
-    >>> # Left alignment (new default)
-    >>> mask = create_mask(size=6, lengths=lengths, alignment="left", inverse=False)
+    >>> # Right alignment (data at end)
+    >>> mask = create_mask(size=6, lengths=lengths, alignment="right", inverse=False)
     >>> # mask = [[True, True, True, False, False, False],     # len=3, padding at start
     >>> #          [True, False, False, False, False, False],  # len=5, padding at start
     >>> #          [True, True, True, True, False, False]]     # len=2, padding at start
@@ -1103,8 +1103,8 @@ def create_mask(
     - Handle variable-length sequences in batched operations
 
     The alignment parameter is critical for correct masking behavior:
-    - Use "left" when sequences have been aligned for RNN packing (padding at start)
-    - Use "right" for traditional padding (padding at end)
+    - Use "left" for standard left-aligned sequences (data at start, padding at end)
+    - Use "right" for right-aligned sequences (data at end, padding at start)
 
     See Also
     --------
@@ -1117,14 +1117,14 @@ def create_mask(
 
     indices = torch.arange(size, device=lengths.device).unsqueeze(0)
 
-    if alignment == "right":
-        # Right alignment: padding at end
+    if alignment == "left":
+        # Left alignment: data at start, padding at end
         if inverse:  # return where values are
             return indices < lengths.unsqueeze(-1)
         # return where no values are (padding positions)
         return indices >= lengths.unsqueeze(-1)
 
-    # Left alignment: padding at start
+    # Right alignment: data at end, padding at start
     padding_start_positions = size - lengths.unsqueeze(-1)
     if inverse:  # return where values are
         return indices >= padding_start_positions

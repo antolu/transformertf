@@ -212,7 +212,7 @@ def test_packing_decision_logic():
 
 def test_align_encoder_sequences_correctness():
     """Test that align_encoder_sequences correctly moves padding."""
-    # Create right-padded sequences (padding at end)
+    # Create left-padded sequences (padding at end)
     sequences = torch.tensor(
         [
             [[1, 2], [3, 4], [0, 0]],  # length=2, padding at end
@@ -224,7 +224,7 @@ def test_align_encoder_sequences_correctness():
 
     aligned = align_encoder_sequences(sequences, lengths)
 
-    # First sequence should have padding moved to beginning
+    # First sequence should have padding moved to beginning (right-aligned)
     expected_first = torch.tensor([[0, 0], [1, 2], [3, 4]], dtype=torch.float32)
     torch.testing.assert_close(aligned[0], expected_first)
 
@@ -234,10 +234,10 @@ def test_align_encoder_sequences_correctness():
 
 def test_validate_encoder_alignment():
     """Test encoder alignment validation function."""
-    # Test left-aligned sequences (padding at start)
+    # Test left-aligned sequences (padding at end)
     left_aligned = torch.tensor(
         [
-            [[0, 0], [1, 2], [3, 4]],  # padding at start
+            [[1, 2], [3, 4], [0, 0]],  # padding at end
             [[5, 6], [7, 8], [9, 10]],  # no padding
         ],
         dtype=torch.float32,
@@ -248,13 +248,13 @@ def test_validate_encoder_alignment():
     validate_encoder_alignment(left_aligned, lengths, "left")
 
     # Should raise for right alignment expectation
-    with pytest.raises(ValueError, match="Expected right alignment"):
+    with pytest.raises(ValueError, match="Expected right alignment.*padding at start"):
         validate_encoder_alignment(left_aligned, lengths, "right")
 
-    # Test right-aligned sequences (padding at end)
+    # Test right-aligned sequences (padding at start)
     right_aligned = torch.tensor(
         [
-            [[1, 2], [3, 4], [0, 0]],  # padding at end
+            [[0, 0], [1, 2], [3, 4]],  # padding at start
             [[5, 6], [7, 8], [9, 10]],  # no padding
         ],
         dtype=torch.float32,
@@ -264,7 +264,7 @@ def test_validate_encoder_alignment():
     validate_encoder_alignment(right_aligned, lengths, "right")
 
     # Should raise for left alignment expectation
-    with pytest.raises(ValueError, match="Expected left alignment"):
+    with pytest.raises(ValueError, match="Expected left alignment.*padding at end"):
         validate_encoder_alignment(right_aligned, lengths, "left")
 
 

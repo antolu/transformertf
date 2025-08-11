@@ -21,35 +21,7 @@ class TestCreateMask:
         lengths = torch.tensor([3, 5, 2])
         mask = create_mask(size=6, lengths=lengths, alignment="right", inverse=False)
 
-        # Right alignment: padding at end, mask True where lengths[i] <= j
-        expected = torch.tensor([
-            [
-                False,
-                False,
-                False,
-                True,
-                True,
-                True,
-            ],  # len=3, padding at positions 3,4,5
-            [False, False, False, False, False, True],  # len=5, padding at position 5
-            [
-                False,
-                False,
-                True,
-                True,
-                True,
-                True,
-            ],  # len=2, padding at positions 2,3,4,5
-        ])
-
-        assert torch.equal(mask, expected)
-
-    def test_create_mask_left_alignment_new_behavior(self):
-        """Test that left alignment correctly masks padding at the start."""
-        lengths = torch.tensor([3, 5, 2])
-        mask = create_mask(size=6, lengths=lengths, alignment="left", inverse=False)
-
-        # Left alignment: padding at start, mask True where j < (size - lengths[i])
+        # Right alignment: padding at start, mask True where j < (size - lengths[i])
         expected = torch.tensor([
             [
                 True,
@@ -72,16 +44,44 @@ class TestCreateMask:
 
         assert torch.equal(mask, expected)
 
+    def test_create_mask_left_alignment_new_behavior(self):
+        """Test that left alignment correctly masks padding at the start."""
+        lengths = torch.tensor([3, 5, 2])
+        mask = create_mask(size=6, lengths=lengths, alignment="left", inverse=False)
+
+        # Left alignment: padding at end, mask True where lengths[i] <= j
+        expected = torch.tensor([
+            [
+                False,
+                False,
+                False,
+                True,
+                True,
+                True,
+            ],  # len=3, padding at positions 3,4,5
+            [False, False, False, False, False, True],  # len=5, padding at position 5
+            [
+                False,
+                False,
+                True,
+                True,
+                True,
+                True,
+            ],  # len=2, padding at positions 2,3,4,5
+        ])
+
+        assert torch.equal(mask, expected)
+
     def test_create_mask_inverse_right_alignment(self):
         """Test inverse masking with right alignment."""
         lengths = torch.tensor([3, 5, 2])
         mask = create_mask(size=6, lengths=lengths, alignment="right", inverse=True)
 
-        # Right alignment inverse: True where values are (j < lengths[i])
+        # Right alignment inverse: True where values are (j >= (size - lengths[i]))
         expected = torch.tensor([
-            [True, True, True, False, False, False],  # len=3, valid positions 0,1,2
-            [True, True, True, True, True, False],  # len=5, valid positions 0,1,2,3,4
-            [True, True, False, False, False, False],  # len=2, valid positions 0,1
+            [False, False, False, True, True, True],  # len=3, valid positions 3,4,5
+            [False, True, True, True, True, True],  # len=5, valid positions 1,2,3,4,5
+            [False, False, False, False, True, True],  # len=2, valid positions 4,5
         ])
 
         assert torch.equal(mask, expected)
@@ -91,11 +91,11 @@ class TestCreateMask:
         lengths = torch.tensor([3, 5, 2])
         mask = create_mask(size=6, lengths=lengths, alignment="left", inverse=True)
 
-        # Left alignment inverse: True where values are (j >= (size - lengths[i]))
+        # Left alignment inverse: True where values are (j < lengths[i])
         expected = torch.tensor([
-            [False, False, False, True, True, True],  # len=3, valid positions 3,4,5
-            [False, True, True, True, True, True],  # len=5, valid positions 1,2,3,4,5
-            [False, False, False, False, True, True],  # len=2, valid positions 4,5
+            [True, True, True, False, False, False],  # len=3, valid positions 0,1,2
+            [True, True, True, True, True, False],  # len=5, valid positions 0,1,2,3,4
+            [True, True, False, False, False, False],  # len=2, valid positions 0,1
         ])
 
         assert torch.equal(mask, expected)
@@ -259,26 +259,26 @@ class TestAlignmentIntegration:
 
     def test_left_aligned_sequence_masking(self):
         """Test that left-aligned sequences get masked correctly."""
-        # Create left-aligned sequences (padding at start)
+        # Create left-aligned sequences (padding at end)
         batch_size, max_len = 2, 5
         lengths = torch.tensor([3, 2])
 
-        # Left-aligned sequences: padding at start
+        # Left-aligned sequences: padding at end
         sequences = torch.zeros(batch_size, max_len, 1)
-        sequences[0, 2:5] = torch.tensor([
+        sequences[0, 0:3] = torch.tensor([
             [1],
             [2],
             [3],
-        ])  # valid data at positions 2,3,4
-        sequences[1, 3:5] = torch.tensor([[4], [5]])  # valid data at positions 3,4
+        ])  # valid data at positions 0,1,2
+        sequences[1, 0:2] = torch.tensor([[4], [5]])  # valid data at positions 0,1
 
         # Create mask for left alignment
         mask = create_mask(max_len, lengths, alignment="left", inverse=False)
 
         # Verify mask correctly identifies padding positions
         expected_mask = torch.tensor([
-            [True, True, False, False, False],  # positions 0,1 are padding
-            [True, True, True, False, False],  # positions 0,1,2 are padding
+            [False, False, False, True, True],  # positions 3,4 are padding
+            [False, False, True, True, True],  # positions 2,3,4 are padding
         ])
 
         assert torch.equal(mask, expected_mask)
@@ -297,26 +297,26 @@ class TestAlignmentIntegration:
 
     def test_right_aligned_sequence_masking(self):
         """Test that right-aligned sequences get masked correctly."""
-        # Create right-aligned sequences (padding at end)
+        # Create right-aligned sequences (padding at start)
         batch_size, max_len = 2, 5
         lengths = torch.tensor([3, 2])
 
-        # Right-aligned sequences: padding at end
+        # Right-aligned sequences: padding at start
         sequences = torch.zeros(batch_size, max_len, 1)
-        sequences[0, 0:3] = torch.tensor([
+        sequences[0, 2:5] = torch.tensor([
             [1],
             [2],
             [3],
-        ])  # valid data at positions 0,1,2
-        sequences[1, 0:2] = torch.tensor([[4], [5]])  # valid data at positions 0,1
+        ])  # valid data at positions 2,3,4
+        sequences[1, 3:5] = torch.tensor([[4], [5]])  # valid data at positions 3,4
 
         # Create mask for right alignment
         mask = create_mask(max_len, lengths, alignment="right", inverse=False)
 
         # Verify mask correctly identifies padding positions
         expected_mask = torch.tensor([
-            [False, False, False, True, True],  # positions 3,4 are padding
-            [False, False, True, True, True],  # positions 2,3,4 are padding
+            [True, True, False, False, False],  # positions 0,1 are padding
+            [True, True, True, False, False],  # positions 0,1,2 are padding
         ])
 
         assert torch.equal(mask, expected_mask)

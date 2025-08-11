@@ -116,8 +116,10 @@ class TransformerDataModule(DataModuleBase):
     distributed : bool or "auto", optional
         Distributed training configuration. Default is "auto".
     encoder_alignment : {"left", "right"}, optional
-        Encoder sequence alignment strategy. "left" aligns sequences for LSTM packing
-        efficiency, "right" maintains TFT backwards compatibility. Default is "left".
+        Encoder sequence alignment strategy. "left" produces standard left-aligned sequences
+        (data at start, padding at end) for PyTorch compatibility. "right" produces
+        right-aligned sequences (data at end, padding at start) for TFT-style models.
+        Default is "left".
 
     Attributes
     ----------
@@ -560,8 +562,8 @@ class EncoderDecoderDataModule(TransformerDataModule):
         different sequence lengths due to randomization. The sequence alignment
         strategy is controlled by the encoder_alignment parameter:
 
-        - "right": Encoder sequences right-padded (TFT-style, backwards compatible)
-        - "left": Encoder sequences left-padded (LSTM-style, efficient for packing)
+        - "left": Encoder sequences left-aligned (data at start, LSTM-style, PyTorch compatible)
+        - "right": Encoder sequences right-aligned (data at end, TFT-style)
 
         Parameters
         ----------
@@ -580,8 +582,8 @@ class EncoderDecoderDataModule(TransformerDataModule):
         Notes
         -----
         The collation behavior is explicit and deterministic:
-        - "right" alignment: Encoder sequences trimmed from beginning, right-padded
-        - "left" alignment: Encoder sequences prepared for LSTM pack_padded_sequence
+        - "left" alignment: Encoder sequences left-aligned (data at start, padding at end)
+        - "right" alignment: Encoder sequences right-aligned (data at end, padding at start)
         - Decoder sequences are always trimmed from the end (keeping early predictions)
         - Maximum lengths are determined by the longest sequences in the batch
         """
@@ -629,9 +631,9 @@ class EncoderDecoderDataModule(TransformerDataModule):
             torch.utils.data.dataloader.default_collate(cut_samples),
         )
 
-        # Apply left alignment for LSTM models if requested
+        # Apply right alignment for TFT-style models if requested
         if (
-            encoder_alignment == "left"
+            encoder_alignment == "right"
             and "encoder_lengths" in batch
             and batch["encoder_lengths"] is not None
         ):
@@ -642,7 +644,7 @@ class EncoderDecoderDataModule(TransformerDataModule):
                 else batch["encoder_lengths"]
             )
             if not (encoder_lengths == encoder_lengths[0]).all():
-                # Variable lengths detected - align encoder sequences for packing
+                # Variable lengths detected - align encoder sequences to right-aligned format
                 batch["encoder_input"] = align_encoder_sequences(
                     batch["encoder_input"], encoder_lengths, max_enc_len
                 )
