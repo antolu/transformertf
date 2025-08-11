@@ -192,17 +192,34 @@ def align_encoder_sequences(
         if length <= 0:
             continue
 
-        if alignment == "right":
-            padding_amount = max_length - length
+        padding_at_start = (
+            torch.allclose(
+                sequences[i, : seq_len - length],
+                torch.zeros_like(sequences[i, : seq_len - length]),
+            )
+            if length < seq_len
+            else False
+        )
 
-            if padding_amount > 0:
-                aligned[i, padding_amount : padding_amount + length] = sequences[
-                    i, :length
-                ]
+        if alignment == "right":
+            if padding_at_start:
+                aligned[i, :] = sequences[i, :]
             else:
-                aligned[i] = sequences[i]
+                padding_amount = max_length - length
+                if padding_amount > 0:
+                    aligned[i, padding_amount : padding_amount + length] = sequences[
+                        i, :length
+                    ]
+                else:
+                    aligned[i] = sequences[i]
         else:
-            aligned[i, :length] = sequences[i, :length]
+            if padding_at_start:
+                # Input is right-aligned, extract data from the end
+                start_idx = seq_len - length
+                aligned[i, :length] = sequences[i, start_idx : start_idx + length]
+            else:
+                # Input is left-aligned, copy directly
+                aligned[i, :length] = sequences[i, :length]
 
     return aligned
 
