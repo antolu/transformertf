@@ -64,6 +64,7 @@ def is_tft_family_checkpoint(checkpoint: dict[str, Any]) -> bool:
     # Check model state dict keys for TFT-specific patterns
     state_dict = checkpoint.get("state_dict", {})
     if isinstance(state_dict, dict):
+        # Standard TFT patterns
         tft_indicators = [
             "model.variable_selection_encoder",
             "model.variable_selection_decoder",
@@ -72,8 +73,18 @@ def is_tft_family_checkpoint(checkpoint: dict[str, Any]) -> bool:
             "model.lstm_decoder",
             "model.selection_layer",
         ]
+        # PFTemporalFusionTransformer patterns
+        pftft_indicators = [
+            "model.enc_vs",
+            "model.dec_vs",
+            "model.static_vs",
+            "model.enc_lstm",
+            "model.dec_lstm",
+            "model.static_enrichment",
+        ]
+        all_indicators = tft_indicators + pftft_indicators
         if any(
-            any(indicator in key for key in state_dict) for indicator in tft_indicators
+            any(indicator in key for key in state_dict) for indicator in all_indicators
         ):
             return True
 
