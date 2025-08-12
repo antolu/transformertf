@@ -222,7 +222,7 @@ def test_align_encoder_sequences_correctness():
     )
     lengths = torch.tensor([2, 3])
 
-    aligned = align_encoder_sequences(sequences, lengths, alignment="right")
+    aligned = align_encoder_sequences(sequences, lengths)
 
     # First sequence should have padding moved to beginning (right-aligned)
     expected_first = torch.tensor([[0, 0], [1, 2], [3, 4]], dtype=torch.float32)
@@ -387,15 +387,11 @@ def test_align_sequences_max_length_parameter():
     lengths = torch.tensor([2, 3])
 
     # Test with max_length smaller than sequence length
-    aligned_small = align_encoder_sequences(
-        sequences, lengths, max_length=3, alignment="right"
-    )
+    aligned_small = align_encoder_sequences(sequences, lengths, max_length=3)
     assert aligned_small.shape == sequences.shape
 
     # Test with max_length equal to sequence length
-    aligned_equal = align_encoder_sequences(
-        sequences, lengths, max_length=4, alignment="right"
-    )
+    aligned_equal = align_encoder_sequences(sequences, lengths, max_length=4)
     assert aligned_equal.shape == sequences.shape
 
     # The alignment should work correctly regardless

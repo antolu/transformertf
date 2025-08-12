@@ -144,7 +144,7 @@ def align_encoder_sequences(
     sequences: torch.Tensor,
     lengths: torch.Tensor,
     max_length: int | None = None,
-    alignment: typing.Literal["left", "right"] = "left",
+    alignment: typing.Literal["left", "right"] = "right",
 ) -> torch.Tensor:
     """
     Align encoder sequences to specified alignment format.
@@ -165,10 +165,10 @@ def align_encoder_sequences(
         Actual lengths of each sequence, shape (batch_size,).
     max_length : int, optional
         Maximum sequence length. If None, uses sequences.size(1).
-    alignment : {"left", "right"}, default "left"
+    alignment : {"left", "right"}, default "right"
         Target alignment format:
         - "left": data at start, padding at end (PyTorch compatible)
-        - "right": data at end, padding at start (TFT-style)
+        - "right": data at end, padding at start (TFT-style, maintains temporal continuity)
 
     Returns
     -------
@@ -177,18 +177,18 @@ def align_encoder_sequences(
 
     Examples
     --------
-    >>> # Default: Convert to left alignment (data at start, padding at end)
-    >>> sequences = torch.tensor([[[0, 0], [1, 2], [3, 4]],  # len=2, right-aligned
-    ...                          [[5, 6], [7, 8], [9, 10]]])  # len=3, right-aligned
+    >>> # Default: Convert to right alignment (data at end, padding at start)
+    >>> sequences = torch.tensor([[[1, 2], [3, 4], [0, 0]],  # len=2, left-aligned
+    ...                          [[5, 6], [7, 8], [9, 10]]])  # len=3, left-aligned
     >>> lengths = torch.tensor([2, 3])
-    >>> left_aligned = align_encoder_sequences(sequences, lengths)  # default: alignment="left"
-    >>> # Result: [[[1, 2], [3, 4], [0, 0]],    # left-aligned
-    >>> #          [[5, 6], [7, 8], [9, 10]]]   # left-aligned
-
-    >>> # Convert to right alignment (data at end, padding at start)
-    >>> right_aligned = align_encoder_sequences(left_aligned, lengths, alignment="right")
+    >>> right_aligned = align_encoder_sequences(sequences, lengths)  # default: alignment="right"
     >>> # Result: [[[0, 0], [1, 2], [3, 4]],    # right-aligned
     >>> #          [[5, 6], [7, 8], [9, 10]]]   # right-aligned
+
+    >>> # Convert to left alignment (data at start, padding at end)
+    >>> left_aligned = align_encoder_sequences(right_aligned, lengths, alignment="left")
+    >>> # Result: [[[1, 2], [3, 4], [0, 0]],    # left-aligned
+    >>> #          [[5, 6], [7, 8], [9, 10]]]   # left-aligned
     """
     _batch_size, seq_len, _num_features = sequences.shape
     max_length = max_length or seq_len

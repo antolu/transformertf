@@ -50,7 +50,7 @@ def test_align_encoder_sequences():
     ])
     lengths = torch.tensor([2, 3, 1])
 
-    aligned = align_encoder_sequences(sequences, lengths, alignment="right")
+    aligned = align_encoder_sequences(sequences, lengths)
 
     # Expected: right-aligned (padding at beginning, data at end)
     expected = torch.tensor([
@@ -75,7 +75,7 @@ def test_pack_encoder_sequences():
     assert isinstance(packed, rnn_utils.PackedSequence)
 
     # Test without alignment (sequences already aligned)
-    aligned_sequences = align_encoder_sequences(sequences, lengths, alignment="right")
+    aligned_sequences = align_encoder_sequences(sequences, lengths)
     packed_no_align = pack_encoder_sequences(
         aligned_sequences, lengths, align_first=False
     )
@@ -159,9 +159,7 @@ def test_alignment_with_variable_max_length():
     lengths = torch.tensor([2, 3])
 
     # Test with custom max length
-    aligned = align_encoder_sequences(
-        sequences, lengths, max_length=4, alignment="right"
-    )
+    aligned = align_encoder_sequences(sequences, lengths, max_length=4)
 
     expected = torch.tensor([
         [[0, 0], [0, 0], [1, 2], [3, 4]],  # 2 padding + 2 data
@@ -179,7 +177,7 @@ def test_zero_length_sequences():
     ])
     lengths = torch.tensor([2, 0])  # Second sequence has zero length
 
-    aligned = align_encoder_sequences(sequences, lengths, alignment="right")
+    aligned = align_encoder_sequences(sequences, lengths)
 
     # Second sequence should be all zeros (no data to move)
     assert torch.equal(aligned[1], torch.zeros_like(aligned[1]))

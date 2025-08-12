@@ -6,14 +6,16 @@ Understanding Encoder Alignment
 
 TransformerTF supports two sequence alignment strategies that control how variable-length sequences are padded and masked. This is essential for models using PyTorch's ``pack_padded_sequence`` functionality and attention mechanisms.
 
-**Left Alignment (Default)**
+**Left Alignment**
     - Data positioned at start, padding at end
     - PyTorch ``pack_padded_sequence`` compatible
     - Used by LSTM-style models
 
-**Right Alignment**
+**Right Alignment (Default)**
     - Data positioned at end, padding at start
-    - Used by TFT-family models
+    - Used by TFT-family models and encoder-decoder architectures
+    - Default choice because time series data is often truncated from the left (earlier in time)
+      to maintain continuity with decoder sequences that predict future values
     - Requires alignment conversion for PyTorch packing
 
 Concrete Tensor Examples
@@ -39,14 +41,14 @@ Given sequences with lengths ``[3, 2, 4]`` padded to max length ``5``:
    #         [4., 5., 0., 0., 0.],  ← data=[4,5], padding=[0,0,0]
    #         [6., 7., 8., 9., 0.]]) ← data=[6,7,8,9], padding=[0]
 
-**Right Alignment (encoder_alignment="right")**
+**Right Alignment (encoder_alignment="right", Default)**
 
 .. code-block:: python
 
    from transformertf.utils.sequence import align_encoder_sequences
 
-   # Convert to right alignment - data at end, padding at start
-   right_aligned = align_encoder_sequences(sequences, lengths)
+   # Default behavior: Convert to right alignment - data at end, padding at start
+   right_aligned = align_encoder_sequences(sequences, lengths)  # alignment="right" is default
 
    print(right_aligned[:, :, 0])
    # tensor([[0., 0., 1., 2., 3.],  ← padding=[0,0], data=[1,2,3]
@@ -110,7 +112,7 @@ Use left alignment for models that work directly with PyTorch's packed sequences
    data:
      class_path: transformertf.data.EncoderDecoderDataModule
      init_args:
-       encoder_alignment: "left"  # Default - data at start, padding at end
+       encoder_alignment: "left"  # Explicit left - data at start, padding at end
        train_df_paths: ["data.parquet"]
        target_covariate: "magnetic_field"
        known_covariates: ["voltage", "temperature"]
@@ -130,7 +132,7 @@ Use right alignment for Temporal Fusion Transformer and related models:
    data:
      class_path: transformertf.data.EncoderDecoderDataModule
      init_args:
-       encoder_alignment: "right"  # Data at end, padding at start
+       encoder_alignment: "right"  # Default - data at end, padding at start
        train_df_paths: ["data.parquet"]
        target_covariate: "magnetic_field"
        known_covariates: ["voltage", "temperature"]
