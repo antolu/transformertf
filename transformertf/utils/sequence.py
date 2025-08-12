@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import typing
+
 import torch
 import torch.nn.utils.rnn as rnn_utils
 
@@ -22,7 +24,7 @@ def validate_encoder_alignment(
     Validate that encoder sequences are aligned as expected by checking padding location.
 
     This function examines the actual tensor structure to determine if sequences
-    are left-aligned (padding at start) or right-aligned (padding at end).
+    are left-aligned (padding at end) or right-aligned (padding at start).
 
     Parameters
     ----------
@@ -31,7 +33,7 @@ def validate_encoder_alignment(
     encoder_lengths : torch.Tensor | None
         Actual lengths of encoder sequences. If None, no validation is performed.
     expected_alignment : {"left", "right"}
-        Expected alignment - "left" for padding at start, "right" for padding at end.
+        Expected alignment - "left" for padding at end, "right" for padding at start.
 
     Raises
     ------
@@ -40,15 +42,15 @@ def validate_encoder_alignment(
 
     Examples
     --------
-    >>> # Left-aligned: padding at start
-    >>> input_tensor = torch.tensor([[[0, 0], [1, 2], [3, 4]]])  # pad, data, data
-    >>> lengths = torch.tensor([2])
-    >>> validate_encoder_alignment(input_tensor, lengths, "left")  # OK
-
-    >>> # Right-aligned: padding at end
+    >>> # Left-aligned: padding at end
     >>> input_tensor = torch.tensor([[[1, 2], [3, 4], [0, 0]]])  # data, data, pad
     >>> lengths = torch.tensor([2])
     >>> validate_encoder_alignment(input_tensor, lengths, "right")  # OK
+
+    >>> # Right-aligned: padding at start
+    >>> input_tensor = torch.tensor([[[0, 0], [1, 2], [3, 4]]])  # pad, data, data
+    >>> lengths = torch.tensor([2])
+    >>> validate_encoder_alignment(input_tensor, lengths, "left")  # OK
     """
     if encoder_lengths is None:
         return
@@ -58,28 +60,29 @@ def validate_encoder_alignment(
     for i, length in enumerate(encoder_lengths):
         length = int(length)
         if length >= seq_len:
+            # No validation needed - sequence uses full length (no padding)
             continue
 
-        # Check if padding is at the beginning (left alignment)
+        # Check if padding is at the beginning (right alignment - data at right, padding at left)
         padding_at_start = torch.allclose(
             encoder_input[i, : seq_len - length],
             torch.zeros_like(encoder_input[i, : seq_len - length]),
         )
-        # Check if padding is at the end (right alignment)
+        # Check if padding is at the end (left alignment - data at left, padding at right)
         padding_at_end = torch.allclose(
             encoder_input[i, length:], torch.zeros_like(encoder_input[i, length:])
         )
 
-        if expected_alignment == "left" and not padding_at_start:
+        if expected_alignment == "left" and not padding_at_end:
             msg = (
-                f"Expected left alignment (padding at start) but found non-zero values at the beginning of sequence {i}. "
-                f"Sequence length: {length}, but first {seq_len - length} positions should be zero."
+                f"Expected left alignment (data at left, padding at right) but found non-zero values at the end of sequence {i}. "
+                f"Sequence length: {seq_len}, but positions {length}: should be zero."
             )
             raise ValueError(msg)
-        if expected_alignment == "right" and not padding_at_end:
+        if expected_alignment == "right" and not padding_at_start:
             msg = (
-                f"Expected right alignment (padding at end) but found non-zero values at the end of sequence {i}. "
-                f"Sequence length: {length}, but positions {length}: should be zero."
+                f"Expected right alignment (data at right, padding at left) but found non-zero values at the beginning of sequence {i}. "
+                f"Sequence length: {seq_len}, but first {seq_len - length} positions should be zero."
             )
             raise ValueError(msg)
 
@@ -134,47 +137,65 @@ def should_use_packing(lengths: torch.Tensor | None) -> bool:
     length_variation = (max_len - min_len).float() / max_len.float()
     batch_size = lengths.numel()
 
-    return length_variation > 0.1 or batch_size >= 8
+    return bool(length_variation > 0.1 or batch_size >= 8)
 
 
 def align_encoder_sequences(
     sequences: torch.Tensor,
     lengths: torch.Tensor,
     max_length: int | None = None,
+    alignment: typing.Literal["left", "right"] = "right",
 ) -> torch.Tensor:
     """
-    Align encoder sequences from right-padding to left-padding for packing.
+    Align encoder sequences to specified alignment format.
 
-    When randomize_seq_len=True, encoder sequences are shortened from the left
-    but then right-padded during collation. LSTM models need these sequences
-    to be left-padded (aligned to the right) for efficient packing.
+    This function converts between left-aligned and right-aligned sequence formats:
+    - Left alignment: data at start, padding at end
+    - Right alignment: data at end, padding at start
+
+    The function automatically detects the input alignment and converts to the
+    requested output alignment.
 
     Parameters
     ----------
     sequences : torch.Tensor
         Input sequences of shape (batch_size, seq_len, features).
-        Assumed to be right-padded (padding at the end).
+        Can be either left-aligned or right-aligned.
     lengths : torch.Tensor
         Actual lengths of each sequence, shape (batch_size,).
     max_length : int, optional
         Maximum sequence length. If None, uses sequences.size(1).
+    alignment : {"left", "right"}, default "right"
+        Target alignment format:
+        - "left": data at start, padding at end (PyTorch compatible)
+        - "right": data at end, padding at start (TFT-style, maintains temporal continuity)
 
     Returns
     -------
     torch.Tensor
-        Sequences aligned for packing, with padding moved to the beginning.
+        Sequences aligned to the specified format.
 
     Examples
     --------
-    >>> sequences = torch.tensor([[[1, 2], [3, 4], [0, 0]],  # len=2
-    ...                          [[5, 6], [7, 8], [9, 10]]])  # len=3
+    >>> # Default: Convert to right alignment (data at end, padding at start)
+    >>> sequences = torch.tensor([[[1, 2], [3, 4], [0, 0]],  # len=2, left-aligned
+    ...                          [[5, 6], [7, 8], [9, 10]]])  # len=3, left-aligned
     >>> lengths = torch.tensor([2, 3])
-    >>> aligned = align_encoder_sequences(sequences, lengths)
-    >>> # Result: [[[0, 0], [1, 2], [3, 4]],
-    >>> #          [[5, 6], [7, 8], [9, 10]]]
+    >>> right_aligned = align_encoder_sequences(sequences, lengths)  # default: alignment="right"
+    >>> # Result: [[[0, 0], [1, 2], [3, 4]],    # right-aligned
+    >>> #          [[5, 6], [7, 8], [9, 10]]]   # right-aligned
+
+    >>> # Convert to left alignment (data at start, padding at end)
+    >>> left_aligned = align_encoder_sequences(right_aligned, lengths, alignment="left")
+    >>> # Result: [[[1, 2], [3, 4], [0, 0]],    # left-aligned
+    >>> #          [[5, 6], [7, 8], [9, 10]]]   # left-aligned
     """
     _batch_size, seq_len, _num_features = sequences.shape
     max_length = max_length or seq_len
+
+    assert alignment in {"left", "right"}, (
+        f"Invalid alignment: {alignment}. Expected 'left' or 'right'.",
+    )
 
     aligned = torch.zeros_like(sequences)
 
@@ -183,12 +204,34 @@ def align_encoder_sequences(
         if length <= 0:
             continue
 
-        padding_amount = max_length - length
+        padding_at_start = (
+            torch.allclose(
+                sequences[i, : seq_len - length],
+                torch.zeros_like(sequences[i, : seq_len - length]),
+            )
+            if length < seq_len
+            else False
+        )
 
-        if padding_amount > 0:
-            aligned[i, padding_amount : padding_amount + length] = sequences[i, :length]
+        if alignment == "right":
+            if padding_at_start:
+                aligned[i, :] = sequences[i, :]
+            else:
+                padding_amount = max_length - length
+                if padding_amount > 0:
+                    aligned[i, padding_amount : padding_amount + length] = sequences[
+                        i, :length
+                    ]
+                else:
+                    aligned[i] = sequences[i]
         else:
-            aligned[i] = sequences[i]
+            if padding_at_start:
+                # Input is right-aligned, extract data from the end
+                start_idx = seq_len - length
+                aligned[i, :length] = sequences[i, start_idx : start_idx + length]
+            else:
+                # Input is left-aligned, copy directly
+                aligned[i, :length] = sequences[i, :length]
 
     return aligned
 
@@ -205,7 +248,7 @@ def pack_encoder_sequences(
     """
     Pack encoder sequences for efficient LSTM processing.
 
-    This function handles the alignment from right-padding to left-padding
+    This function handles the alignment from left-padding to right-padding
     and then packs the sequences for RNN efficiency. PyTorch automatically
     sorts sequences by length internally when enforce_sorted=False, providing
     optimal RNN performance while maintaining batch order consistency.
@@ -224,7 +267,7 @@ def pack_encoder_sequences(
     lengths : torch.Tensor
         Actual lengths of each sequence, shape (batch_size,).
     align_first : bool, default=True
-        Whether to align sequences before packing (move padding to beginning).
+        Whether to align sequences before packing (move data to right, padding to left).
     batch_first : bool, default=True
         Whether input has batch dimension first.
     enforce_sorted : bool, default=False
@@ -238,7 +281,7 @@ def pack_encoder_sequences(
         Packed sequences ready for LSTM processing.
     """
     if align_first:
-        sequences = align_encoder_sequences(sequences, lengths)
+        sequences = align_encoder_sequences(sequences, lengths, alignment="left")
 
     return rnn_utils.pack_padded_sequence(
         sequences,
@@ -259,7 +302,7 @@ def pack_decoder_sequences(
     """
     Pack decoder sequences for efficient LSTM processing.
 
-    Decoder sequences are already right-padded (padding at the end) which
+    Decoder sequences are already left-padded (data at left, padding at right) which
     is the expected format for packing, so no alignment is needed. PyTorch
     automatically sorts sequences by length internally when enforce_sorted=False,
     providing optimal RNN performance while maintaining batch order consistency.
@@ -275,7 +318,7 @@ def pack_decoder_sequences(
     ----------
     sequences : torch.Tensor
         Input sequences of shape (batch_size, seq_len, features).
-        Expected to be right-padded.
+        Expected to be left-padded (data at left, padding at right).
     lengths : torch.Tensor
         Actual lengths of each sequence, shape (batch_size,).
     batch_first : bool, default=True

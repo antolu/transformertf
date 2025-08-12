@@ -111,6 +111,7 @@ Documentation Contents
     :maxdepth: 2
 
     usage
+    alignment_docs
     tutorials/index
     examples
     extending_api

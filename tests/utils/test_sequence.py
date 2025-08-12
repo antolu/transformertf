@@ -41,8 +41,8 @@ def test_should_use_packing():
 
 
 def test_align_encoder_sequences():
-    """Test encoder sequence alignment from right-padding to left-padding."""
-    # Create test sequences: right-padded
+    """Test encoder sequence alignment from left-aligned to right-aligned."""
+    # Create test sequences: left-aligned (data at start, padding at end)
     sequences = torch.tensor([
         [[1, 2], [3, 4], [0, 0]],  # length=2, padding at end
         [[5, 6], [7, 8], [9, 10]],  # length=3, no padding
@@ -52,7 +52,7 @@ def test_align_encoder_sequences():
 
     aligned = align_encoder_sequences(sequences, lengths)
 
-    # Expected: left-padded (padding at beginning)
+    # Expected: right-aligned (padding at beginning, data at end)
     expected = torch.tensor([
         [[0, 0], [1, 2], [3, 4]],  # padding moved to beginning
         [[5, 6], [7, 8], [9, 10]],  # no change needed
@@ -114,10 +114,10 @@ def test_unpack_to_fixed_length():
 
 def test_encoder_alignment_validation():
     """Test encoder alignment validation using actual tensor structure."""
-    # Test left alignment (padding at start)
+    # Test left alignment (padding at end)
     left_aligned = torch.tensor([
-        [[0, 0], [1, 2], [3, 4]],  # length=2, padding at start
-        [[0, 0], [0, 0], [5, 6]],  # length=1, padding at start
+        [[1, 2], [3, 4], [0, 0]],  # length=2, padding at end
+        [[5, 6], [0, 0], [0, 0]],  # length=1, padding at end
     ])
     lengths = torch.tensor([2, 1])
 
@@ -125,20 +125,24 @@ def test_encoder_alignment_validation():
     validate_encoder_alignment(left_aligned, lengths, "left")
 
     # Should fail for right alignment
-    with pytest.raises(ValueError, match="Expected right alignment.*padding at end"):
+    with pytest.raises(
+        ValueError, match="Expected right alignment.*data at right.*padding at left"
+    ):
         validate_encoder_alignment(left_aligned, lengths, "right")
 
-    # Test right alignment (padding at end)
+    # Test right alignment (padding at start)
     right_aligned = torch.tensor([
-        [[1, 2], [3, 4], [0, 0]],  # length=2, padding at end
-        [[5, 6], [0, 0], [0, 0]],  # length=1, padding at end
+        [[0, 0], [1, 2], [3, 4]],  # length=2, padding at start
+        [[0, 0], [0, 0], [5, 6]],  # length=1, padding at start
     ])
 
     # Should pass for right alignment
     validate_encoder_alignment(right_aligned, lengths, "right")
 
     # Should fail for left alignment
-    with pytest.raises(ValueError, match="Expected left alignment.*padding at start"):
+    with pytest.raises(
+        ValueError, match="Expected left alignment.*data at left.*padding at right"
+    ):
         validate_encoder_alignment(right_aligned, lengths, "left")
 
     # Test with no length information (should pass)
@@ -197,7 +201,7 @@ def test_encoder_alignment_edge_cases():
 
     # Test with mixed length sequences
     mixed_sequences = torch.tensor([
-        [[0, 0], [1, 2], [3, 4]],  # length=2, left-aligned
+        [[1, 2], [3, 4], [0, 0]],  # length=2, left-aligned (padding at end)
         [[5, 6], [7, 8], [9, 10]],  # length=3, no padding
     ])
     mixed_lengths = torch.tensor([2, 3])

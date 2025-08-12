@@ -134,13 +134,13 @@ class TestTransformerMaskedLoss:
         masked_loss = model.calc_loss(model_output, batch)
 
         # Manually compute expected loss for left alignment
-        # With length 2, positions [2, 3] should be valid (left-aligned)
+        # With length 2, positions [0, 1] should be valid (left-aligned: data at start)
         mask = create_mask(
             seq_len, decoder_lengths.squeeze(-1), alignment="left", inverse=True
         )
-        expected_positions = mask[0]  # Should be [False, False, True, True]
+        expected_positions = mask[0]  # Should be [True, True, False, False]
 
-        assert expected_positions.tolist() == [False, False, True, True]
+        assert expected_positions.tolist() == [True, True, False, False]
 
         # Loss should be computed only on valid positions
         expected_loss = torch.tensor(1.0)  # (1-0)^2 = 1 for both valid positions
