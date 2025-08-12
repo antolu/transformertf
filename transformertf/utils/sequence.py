@@ -144,37 +144,49 @@ def align_encoder_sequences(
     sequences: torch.Tensor,
     lengths: torch.Tensor,
     max_length: int | None = None,
-    alignment: typing.Literal["left", "right"] = "right",
+    alignment: typing.Literal["left", "right"] = "left",
 ) -> torch.Tensor:
     """
-    Align encoder sequences to right-aligned format (data at right, padding at left).
+    Align encoder sequences to specified alignment format.
 
-    This function converts left-aligned sequences (data at left, padding at right)
-    to right-aligned sequences (data at right, padding at left) for models that
-    require right-aligned input data.
+    This function converts between left-aligned and right-aligned sequence formats:
+    - Left alignment: data at start, padding at end
+    - Right alignment: data at end, padding at start
+
+    The function automatically detects the input alignment and converts to the
+    requested output alignment.
 
     Parameters
     ----------
     sequences : torch.Tensor
         Input sequences of shape (batch_size, seq_len, features).
-        Assumed to be left-aligned (data at left, padding at right).
+        Can be either left-aligned or right-aligned.
     lengths : torch.Tensor
         Actual lengths of each sequence, shape (batch_size,).
     max_length : int, optional
         Maximum sequence length. If None, uses sequences.size(1).
+    alignment : {"left", "right"}, default "left"
+        Target alignment format:
+        - "left": data at start, padding at end (PyTorch compatible)
+        - "right": data at end, padding at start (TFT-style)
 
     Returns
     -------
     torch.Tensor
-        Right-aligned sequences with data moved to the right and padding at the left.
+        Sequences aligned to the specified format.
 
     Examples
     --------
-    >>> # Left-aligned: data at left, padding at right
-    >>> sequences = torch.tensor([[[1, 2], [3, 4], [0, 0]],  # len=2, left-aligned
-    ...                          [[5, 6], [7, 8], [9, 10]]])  # len=3, left-aligned
+    >>> # Default: Convert to left alignment (data at start, padding at end)
+    >>> sequences = torch.tensor([[[0, 0], [1, 2], [3, 4]],  # len=2, right-aligned
+    ...                          [[5, 6], [7, 8], [9, 10]]])  # len=3, right-aligned
     >>> lengths = torch.tensor([2, 3])
-    >>> aligned = align_encoder_sequences(sequences, lengths)
+    >>> left_aligned = align_encoder_sequences(sequences, lengths)  # default: alignment="left"
+    >>> # Result: [[[1, 2], [3, 4], [0, 0]],    # left-aligned
+    >>> #          [[5, 6], [7, 8], [9, 10]]]   # left-aligned
+
+    >>> # Convert to right alignment (data at end, padding at start)
+    >>> right_aligned = align_encoder_sequences(left_aligned, lengths, alignment="right")
     >>> # Result: [[[0, 0], [1, 2], [3, 4]],    # right-aligned
     >>> #          [[5, 6], [7, 8], [9, 10]]]   # right-aligned
     """

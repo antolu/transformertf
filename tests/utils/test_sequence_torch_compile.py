@@ -222,7 +222,7 @@ def test_align_encoder_sequences_correctness():
     )
     lengths = torch.tensor([2, 3])
 
-    aligned = align_encoder_sequences(sequences, lengths)
+    aligned = align_encoder_sequences(sequences, lengths, alignment="right")
 
     # First sequence should have padding moved to beginning (right-aligned)
     expected_first = torch.tensor([[0, 0], [1, 2], [3, 4]], dtype=torch.float32)
@@ -248,7 +248,9 @@ def test_validate_encoder_alignment():
     validate_encoder_alignment(left_aligned, lengths, "left")
 
     # Should raise for right alignment expectation
-    with pytest.raises(ValueError, match="Expected right alignment.*padding at start"):
+    with pytest.raises(
+        ValueError, match="Expected right alignment.*data at right.*padding at left"
+    ):
         validate_encoder_alignment(left_aligned, lengths, "right")
 
     # Test right-aligned sequences (padding at start)
@@ -264,7 +266,9 @@ def test_validate_encoder_alignment():
     validate_encoder_alignment(right_aligned, lengths, "right")
 
     # Should raise for left alignment expectation
-    with pytest.raises(ValueError, match="Expected left alignment.*padding at end"):
+    with pytest.raises(
+        ValueError, match="Expected left alignment.*data at left.*padding at right"
+    ):
         validate_encoder_alignment(right_aligned, lengths, "left")
 
 
@@ -383,11 +387,15 @@ def test_align_sequences_max_length_parameter():
     lengths = torch.tensor([2, 3])
 
     # Test with max_length smaller than sequence length
-    aligned_small = align_encoder_sequences(sequences, lengths, max_length=3)
+    aligned_small = align_encoder_sequences(
+        sequences, lengths, max_length=3, alignment="right"
+    )
     assert aligned_small.shape == sequences.shape
 
     # Test with max_length equal to sequence length
-    aligned_equal = align_encoder_sequences(sequences, lengths, max_length=4)
+    aligned_equal = align_encoder_sequences(
+        sequences, lengths, max_length=4, alignment="right"
+    )
     assert aligned_equal.shape == sequences.shape
 
     # The alignment should work correctly regardless
