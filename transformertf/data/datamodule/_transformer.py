@@ -223,6 +223,7 @@ class TransformerDataModule(DataModuleBase):
         shuffle: bool = True,
         distributed: bool | typing.Literal["auto"] = "auto",
         encoder_alignment: typing.Literal["left", "right"] = "left",
+        mask_encoder_features: list[str] | None = None,
         _legacy_target_in_future_covariates: bool = False,
     ):
         """
@@ -526,6 +527,7 @@ class EncoderDecoderDataModule(TransformerDataModule):
             time_format=time_format,
             noise_std=self.hparams["noise_std"] if not predict else 0.0,
             add_target_to_past=self.hparams["add_target_to_past"],
+            masked_encoder_features=self.hparams.get("mask_encoder_features"),
         )
 
     def collate_fn(  # type: ignore[override]

@@ -46,6 +46,7 @@ class TransformerDataset(AbstractTimeSeriesDataset):
         add_target_to_past: bool = True,
         transforms: dict[str, BaseTransform] | None = None,
         dtype: VALID_DTYPES = "float32",
+        masked_encoder_features: list[str] | None = None,
     ):
         """
         Dataset to train a transformer
@@ -135,6 +136,7 @@ class TransformerDataset(AbstractTimeSeriesDataset):
         self._noise_std = noise_std
 
         self._transforms = transforms or {}
+        self._masked_encoder_features = masked_encoder_features or []
 
         self._sample_gen = window_strategy.create_sample_generators(
             input_data=self._input_data,

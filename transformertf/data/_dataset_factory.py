@@ -131,6 +131,7 @@ class DatasetFactory:
         time_format: Literal["relative", "absolute"] = "relative",
         noise_std: float = 0.0,
         add_target_to_past: bool = True,
+        masked_encoder_features: list[str] | None = None,
     ) -> EncoderDecoderDataset:
         """
         Create EncoderDecoderDataset with explicit parameters.
@@ -163,6 +164,8 @@ class DatasetFactory:
             Standard deviation for noise injection. Default is 0.0.
         add_target_to_past : bool, optional
             Whether to add target to past context. Default is True.
+        masked_encoder_features : list[str] | None, optional
+            List of encoder feature names to mask (zero out). Default is None.
 
         Returns
         -------
@@ -212,6 +215,7 @@ class DatasetFactory:
             time_format=time_format,
             noise_std=noise_std,
             add_target_to_past=add_target_to_past,
+            masked_encoder_features=masked_encoder_features,
         )
 
 
