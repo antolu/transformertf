@@ -259,7 +259,7 @@ class EncoderDecoderPredictDataset(
         )
 
         # decoder lengths must be computed from actual number of future time steps
-        sample_torch["decoder_lengths"] = sample_torch["decoder_lengths"]  # .flatten()
+        sample_torch["decoder_lengths"] = sample_torch["decoder_lengths"].flatten()
 
         return sample_torch
 
