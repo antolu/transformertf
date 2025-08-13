@@ -12,11 +12,12 @@ import torch
 
 from .._dataset_factory import DatasetFactory
 from .._downsample import DOWNSAMPLE_METHODS
-from .._dtype import VALID_DTYPES
+from .._dtype import VALID_DTYPES, get_dtype
 from .._sample_generator import EncoderDecoderTargetSample
 from .._transform_builder import TransformBuilder
 from .._window_generator import WindowGenerator
 from ..dataset import EncoderDecoderDataset
+from ..dataset._encoder_decoder_predict import EncoderDecoderPredictDataset
 from ..transform import (
     BaseTransform,
     DeltaTransform,
@@ -652,3 +653,97 @@ class EncoderDecoderDataModule(TransformerDataModule):
                     )
 
         return batch
+
+    def create_prediction_dataset(
+        self,
+        past_covariates: pd.DataFrame,
+        future_covariates: pd.DataFrame,
+        past_target: pd.DataFrame | np.ndarray | pd.Series,
+        *,
+        context_length: int | None = None,
+        prediction_length: int | None = None,
+        apply_transforms: bool = True,
+    ) -> EncoderDecoderPredictDataset:
+        """
+        Create a prediction dataset configured with this DataModule's settings.
+
+        This method creates an EncoderDecoderPredictDataset using the same configuration
+        as the DataModule (transforms, column mappings, etc.) to ensure consistency
+        between training and prediction.
+
+        Parameters
+        ----------
+        past_covariates : pd.DataFrame
+            Past covariates to be used for prediction. Should contain the same
+            columns as specified in the DataModule's known_covariates.
+        future_covariates : pd.DataFrame
+            Future covariates to be used for prediction. Should contain the same
+            columns as specified in the DataModule's known_covariates.
+        past_target : pd.DataFrame | np.ndarray | pd.Series
+            Past target values to be used for prediction context.
+        context_length : int, optional
+            Length of the context window. If None, uses the DataModule's ctxt_seq_len.
+        prediction_length : int, optional
+            Length of the prediction window. If None, uses the DataModule's tgt_seq_len.
+        apply_transforms : bool, default=True
+            Whether to apply the DataModule's transforms to the prediction data.
+
+        Returns
+        -------
+        EncoderDecoderPredictDataset
+            Configured prediction dataset ready for inference.
+
+        Examples
+        --------
+        >>> # Configure DataModule
+        >>> dm = EncoderDecoderDataModule(
+        ...     known_covariates=["temp", "humidity"],
+        ...     target_covariate="demand",
+        ...     ctxt_seq_len=168,
+        ...     tgt_seq_len=24,
+        ...     train_df_paths="train.parquet"
+        ... )
+        >>> dm.setup("fit")  # Fit transforms
+        >>>
+        >>> # Create prediction dataset
+        >>> pred_dataset = dm.create_prediction_dataset(
+        ...     past_covariates=past_data[["temp", "humidity"]],
+        ...     future_covariates=future_data[["temp", "humidity"]],
+        ...     past_target=past_data["demand"]
+        ... )
+        >>>
+        >>> # Use for prediction
+        >>> sample = pred_dataset[0]
+        >>> predictions = model.predict_step(sample, 0)
+        """
+        # Use DataModule settings as defaults
+        context_length = context_length or self.ctxt_seq_len
+        prediction_length = prediction_length or self.tgt_seq_len
+
+        # Extract input columns from DataModule configuration
+        input_columns = list(self.hparams["known_covariates"] or [])
+        known_past_columns = list(self.hparams.get("known_past_covariates") or [])
+        target_column = self.hparams["target_covariate"]
+
+        # Use fitted transforms if available and requested
+        transforms = self.transforms if apply_transforms else None
+
+        # Ensure dtype is a torch.dtype, not string
+        dtype = self.hparams.get("dtype", torch.float32)
+        if isinstance(dtype, str):
+            dtype = get_dtype(dtype)
+
+        return EncoderDecoderPredictDataset(
+            past_covariates=past_covariates,
+            future_covariates=future_covariates,
+            past_target=past_target,
+            context_length=context_length,
+            prediction_length=prediction_length,
+            input_columns=input_columns,
+            target_column=target_column,
+            known_past_columns=known_past_columns if known_past_columns else None,
+            transforms=transforms,
+            time_format=self.hparams.get("time_format", "relative"),
+            apply_transforms=apply_transforms,
+            dtype=dtype,
+        )

@@ -468,25 +468,22 @@ class TransformerPredictionSampleGenerator(SampleGenerator[EncoderDecoderSample[
             tgt = tgt.reset_index(drop=True)
             decoder_mask = decoder_mask.reset_index(drop=True)
 
-        encoder_lengths: T
-        if isinstance(src, pd.DataFrame):
-            encoder_lengths = pd.DataFrame({"encoder_lengths": [self._context_length]})  # type: ignore[assignment]
-        elif isinstance(src, torch.Tensor):
-            encoder_lengths = torch.tensor([self._context_length])  # type: ignore[assignment]
-        else:
-            encoder_lengths = np.array([self._context_length])  # type: ignore[assignment]
+        # Create length tensors consistently as 1D structures
+        encoder_length_value = self._context_length
+        decoder_length_value = self._prediction_length - numel_pad
 
+        encoder_lengths: T
         decoder_lengths: T
-        if isinstance(tgt, pd.DataFrame):
-            decoder_lengths = pd.DataFrame({  # type: ignore[assignment]
-                "decoder_lengths": [self._prediction_length - numel_pad]
-            })
-        elif isinstance(tgt, torch.Tensor):
-            decoder_lengths = torch.tensor(  # type: ignore[assignment]
-                [self._prediction_length - numel_pad], dtype=torch.float32
-            )
+        if isinstance(src, pd.DataFrame):
+            # Create Series instead of DataFrame to ensure 1D structure when converted to tensor
+            encoder_lengths = pd.Series([encoder_length_value], name="encoder_lengths")  # type: ignore[assignment]
+            decoder_lengths = pd.Series([decoder_length_value], name="decoder_lengths")  # type: ignore[assignment]
+        elif isinstance(src, torch.Tensor):
+            encoder_lengths = torch.tensor([encoder_length_value])  # type: ignore[assignment]
+            decoder_lengths = torch.tensor([decoder_length_value], dtype=torch.float32)  # type: ignore[assignment]
         else:
-            decoder_lengths = np.array([self._prediction_length - numel_pad])  # type: ignore[assignment]
+            encoder_lengths = np.array([encoder_length_value])  # type: ignore[assignment]
+            decoder_lengths = np.array([decoder_length_value])  # type: ignore[assignment]
 
         return typing.cast(
             EncoderDecoderSample[T],

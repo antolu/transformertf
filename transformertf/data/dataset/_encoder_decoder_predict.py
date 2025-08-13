@@ -15,6 +15,9 @@ from ..transform import BaseTransform
 from ._base import AbstractTimeSeriesDataset, DataSetType
 from ._encoder_decoder import EncoderDecoderDataset, apply_transforms, convert_sample
 
+if typing.TYPE_CHECKING:
+    from ..datamodule._transformer import EncoderDecoderDataModule
+
 
 class EncoderDecoderPredictDataset(
     AbstractTimeSeriesDataset, torch.utils.data.IterableDataset
@@ -99,6 +102,20 @@ class EncoderDecoderPredictDataset(
             raise ValueError(msg)
 
         self._transforms = transforms or {}
+
+        # Validate input parameters
+        if context_length <= 0:
+            msg = f"context_length must be positive, got {context_length}"
+            raise ValueError(msg)
+        if prediction_length <= 0:
+            msg = f"prediction_length must be positive, got {prediction_length}"
+            raise ValueError(msg)
+        if len(past_covariates) == 0:
+            msg = "past_covariates cannot be empty"
+            raise ValueError(msg)
+        if len(future_covariates) == 0:
+            msg = "future_covariates cannot be empty"
+            raise ValueError(msg)
 
         self._context_length = context_length
         self._target_length = prediction_length
@@ -192,6 +209,67 @@ class EncoderDecoderPredictDataset(
             known_past_covariates=self._past_known_covariates,
         )
 
+    @classmethod
+    def from_datamodule(
+        cls,
+        datamodule: EncoderDecoderDataModule,
+        past_covariates: pd.DataFrame,
+        future_covariates: pd.DataFrame,
+        past_target: pd.DataFrame | np.ndarray | pd.Series,
+        *,
+        context_length: int | None = None,
+        prediction_length: int | None = None,
+        apply_transforms: bool = True,
+    ) -> EncoderDecoderPredictDataset:
+        """
+        Create a prediction dataset from an existing DataModule configuration.
+
+        This class method provides an alternative way to create prediction datasets
+        by extracting configuration from a fitted DataModule. This ensures perfect
+        consistency between training and prediction settings.
+
+        Parameters
+        ----------
+        datamodule : EncoderDecoderDataModule
+            Fitted DataModule containing transforms and configuration.
+        past_covariates : pd.DataFrame
+            Past covariates for prediction context.
+        future_covariates : pd.DataFrame
+            Future covariates for prediction.
+        past_target : pd.DataFrame | np.ndarray | pd.Series
+            Past target values for prediction context.
+        context_length : int, optional
+            Context window length. If None, uses datamodule.ctxt_seq_len.
+        prediction_length : int, optional
+            Prediction window length. If None, uses datamodule.tgt_seq_len.
+        apply_transforms : bool, default=True
+            Whether to apply fitted transforms from the datamodule.
+
+        Returns
+        -------
+        EncoderDecoderPredictDataset
+            Configured prediction dataset.
+
+        Examples
+        --------
+        >>> # Create from fitted datamodule
+        >>> pred_dataset = EncoderDecoderPredictDataset.from_datamodule(
+        ...     datamodule=fitted_dm,
+        ...     past_covariates=past_data,
+        ...     future_covariates=future_data,
+        ...     past_target=past_targets
+        ... )
+        >>> sample = pred_dataset[0]
+        """
+        return datamodule.create_prediction_dataset(
+            past_covariates=past_covariates,
+            future_covariates=future_covariates,
+            past_target=past_target,
+            context_length=context_length,
+            prediction_length=prediction_length,
+            apply_transforms=apply_transforms,
+        )
+
     def append_past_target(
         self,
         past_target: np.ndarray | torch.Tensor,
@@ -224,11 +302,15 @@ class EncoderDecoderPredictDataset(
         Appends the past covariates to the dataset. This method must be called
         between iterations to append the past covariates to the dataset.
         """
-        colname = (self._known_past_columns or [])[0]
+        # Get column name once to avoid duplication
+        if not self._known_past_columns:
+            msg = "known_past_columns must be provided to append past covariates"
+            raise ValueError(msg)
+        colname = self._known_past_columns[0]
+
         if not isinstance(past_covariates, pd.DataFrame):
             past_covariates = pd.DataFrame({colname: past_covariates})
         if transform:
-            colname = (self._known_past_columns or [])[0]
             past_covariates = _apply_transforms(
                 past_covariates, {colname: self._transforms[colname]}
             )
@@ -236,7 +318,17 @@ class EncoderDecoderPredictDataset(
         self._sample_generator.add_known_past_context(past_covariates)
 
     def __getitem__(self, idx: int) -> EncoderDecoderSample:
+        # Validate index bounds
+        if idx < 0 or idx >= len(self._sample_generator):
+            msg = f"Index {idx} out of bounds for dataset with {len(self._sample_generator)} samples"
+            raise IndexError(msg)
+
         sample = self._sample_generator[idx]
+
+        # Validate sample structure
+        if "encoder_input" not in sample or "decoder_input" not in sample:
+            msg = f"Invalid sample structure at index {idx}: missing required keys"
+            raise RuntimeError(msg)
         sample = EncoderDecoderDataset._format_time_data(  # noqa: SLF001
             sample, time_format=self._time_format
         )
@@ -248,9 +340,20 @@ class EncoderDecoderPredictDataset(
         sample_torch = convert_sample(sample, self._dtype)  # type: ignore[arg-type]
         sample_torch = EncoderDecoderDataset._apply_masks(sample_torch)  # noqa: SLF001
 
-        # always ensure that time starts at 0
+        # Validate tensor shapes after conversion
+        if sample_torch["encoder_input"].dim() != 2:
+            msg = f"Expected 2D encoder_input tensor, got {sample_torch['encoder_input'].dim()}D"
+            raise RuntimeError(msg)
+        if sample_torch["decoder_input"].dim() != 2:
+            msg = f"Expected 2D decoder_input tensor, got {sample_torch['decoder_input'].dim()}D"
+            raise RuntimeError(msg)
+
+        # always ensure that time starts at 0 if time column exists
         if "__time__" in sample["encoder_input"].columns:
-            sample_torch["encoder_input"][0, 0] = 0.0
+            # Find time column index to avoid hardcoded assumptions
+            time_col_idx = list(sample["encoder_input"].columns).index("__time__")
+            if sample_torch["encoder_input"].shape[0] > 0:  # Ensure non-empty tensor
+                sample_torch["encoder_input"][0, time_col_idx] = 0.0
 
         sample_torch["encoder_lengths"] = torch.tensor(
             (sample["encoder_input"].shape[0],),
@@ -258,8 +361,8 @@ class EncoderDecoderPredictDataset(
             device=sample_torch["encoder_input"].device,
         )
 
-        # decoder lengths must be computed from actual number of future time steps
-        sample_torch["decoder_lengths"] = sample_torch["decoder_lengths"].flatten()
+        # decoder lengths are now consistently 1D from the sample generator
+        # No .flatten() needed since Phase 1 fix ensures proper shape
 
         return sample_torch
 
