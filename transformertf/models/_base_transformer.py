@@ -992,6 +992,10 @@ def get_attention_mask(
     --------
     create_mask : Utility function for creating basic padding masks
     """
+    # Ensure lengths tensors are 1D (batch_size,)
+    encoder_lengths = encoder_lengths.flatten()
+    decoder_lengths = decoder_lengths.flatten()
+
     if causal_attention:
         # indices to which is attended
         attend_step = torch.arange(max_decoder_length, device=encoder_lengths.device)
