@@ -62,6 +62,8 @@ class EncoderDecoderLSTM(LightningModuleBase, EncoderAlignmentValidationMixin):
     criterion : torch.nn.Module | None, default=None
         Loss function for training. If None, defaults to MSELoss.
         Use QuantileLoss for probabilistic forecasting.
+    compile_model : bool, default=False
+        Whether to compile the model using torch.compile for performance optimization.
     logging_metrics : collections.abc.Container[MetricLiteral], default=DEFAULT_LOGGING_METRICS
         Container of metric names to compute and log. If empty, only loss is logged.
 
@@ -156,6 +158,7 @@ class EncoderDecoderLSTM(LightningModuleBase, EncoderAlignmentValidationMixin):
         mlp_activation: VALID_ACTIVATIONS = "relu",
         mlp_dropout: float = 0.1,
         criterion: torch.nn.Module | None = None,
+        compile_model: bool = False,
         *,
         logging_metrics: collections.abc.Container[
             MetricLiteral
@@ -163,11 +166,6 @@ class EncoderDecoderLSTM(LightningModuleBase, EncoderAlignmentValidationMixin):
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["criterion"])
-
-        # Store metrics configuration
-        self._logging_metrics = getattr(
-            self.hparams, "logging_metrics", logging_metrics
-        )
 
         # Set up criterion
         self.criterion = criterion or torch.nn.MSELoss()
