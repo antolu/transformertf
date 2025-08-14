@@ -51,6 +51,12 @@ class EncoderDecoderDataset(TransformerDataset):
             sample, transforms=self._transforms
         )
 
+        # Apply encoder feature masking at DataFrame level
+        if self._masked_encoder_features:
+            for feature_name in self._masked_encoder_features:
+                if feature_name in sample["encoder_input"].columns:
+                    sample["encoder_input"][feature_name] = 0.0
+
         sample_torch = convert_sample(sample, self._dtype)
 
         # add noise
