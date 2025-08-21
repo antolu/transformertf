@@ -65,6 +65,7 @@ def mse_loss(
             loss,
             order=regularization_order,
             reduction="none",
+            dim=regularization_dim,
         ).sum(dim=regularization_dim)
 
     if reduction == "mean":
@@ -80,13 +81,29 @@ def manual_smoothness(
     error: torch.Tensor,
     order: typing.Literal[1, 2, 3],
     reduction: typing.Literal["mean", "sum", "none"] | None = "mean",
+    dim: int = 0,
 ) -> torch.Tensor:
+    # Create slice objects for the specified dimension
+    def slice_dim(start: int | None = None, stop: int | None = None) -> list:
+        slices = [slice(None)] * error.dim()
+        slices[dim] = slice(start, stop)
+        return slices
+
     if order == 1:
-        diff = error[1:] - error[:-1]
+        diff = error[slice_dim(1, None)] - error[slice_dim(None, -1)]
     elif order == 2:
-        diff = error[2:] - 2 * error[1:-1] + error[:-2]
+        diff = (
+            error[slice_dim(2, None)]
+            - 2 * error[slice_dim(1, -1)]
+            + error[slice_dim(None, -2)]
+        )
     elif order == 3:
-        diff = error[3:] - 3 * error[2:-1] + 3 * error[1:-2] - error[:-3]
+        diff = (
+            error[slice_dim(3, None)]
+            - 3 * error[slice_dim(2, -1)]
+            + 3 * error[slice_dim(1, -2)]
+            - error[slice_dim(None, -3)]
+        )
     else:
         msg = f"Unsupported order: {order}. Supported orders are 1, 2, and 3."
         raise ValueError(msg)
