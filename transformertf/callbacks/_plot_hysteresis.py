@@ -290,11 +290,6 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
             # Use first target value as integration constant
             first_target = targets_cumsum[0].item()
 
-            # Proper reconstruction: y[t] = y[0] + cumsum(delta * dt)
-            # Since inverse_transform already did cumsum, we need to:
-            # 1. Scale by dt (cumsum result needs dt scaling)
-            # 2. Adjust starting point to first_target
-
             predictions_scaled = predictions_cumsum
             targets_scaled = targets_cumsum
 
