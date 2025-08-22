@@ -689,6 +689,10 @@ class TransformerModuleBase(LightningModuleBase):
         - "*.weight" matches all weight parameters
         - "encoder.layer.[0-2].*" matches first 3 encoder layers
 
+        **IMPORTANT**: Most patterns need wildcards (.*) at the end to match full parameter
+        paths. For example, "attention" won't match "attention.query_layers.0.weight",
+        but "attention.*" will.
+
         Examples
         --------
         >>> # Freeze embeddings and first encoder layer, train rest
@@ -697,13 +701,38 @@ class TransformerModuleBase(LightningModuleBase):
         ...     "exclude": ["embeddings.*", "encoder.layer.0.*"]
         ... }
         >>>
-        >>> # Train only attention and output layers
-        >>> trainable_parameters = ["encoder.attention", "decoder.attention", "head"]
+        >>> # Train only attention and output layers (MUST include wildcards)
+        >>> trainable_parameters = ["encoder.attention.*", "decoder.attention.*", "head.*"]
         >>>
         >>> # Fine-tune only the last few transformer layers
         >>> trainable_parameters = {
         ...     "include": ["encoder.layer.[6-11].*", "head.*"]
         ... }
+        >>>
+        >>> # Real TransformerLSTM example - train only last block
+        >>> trainable_parameters = [
+        ...     "transformer_blocks.2.*",  # All parameters in block 2
+        ...     "output_head.*"            # Output projection layer
+        ... ]
+        >>>
+        >>> # AttentionLSTM example - train only attention components
+        >>> trainable_parameters = [
+        ...     "attention.*",           # All attention parameters
+        ...     "gate_add_norm.*",       # Skip connection layers
+        ...     "output_head.*"          # Output layer
+        ... ]
+        >>>
+        >>> # Train multiple transformer blocks
+        >>> trainable_parameters = [
+        ...     "transformer_blocks.[12].*",  # Blocks 1 and 2 only
+        ...     "output_head.*"
+        ... ]
+        >>>
+        >>> # Train all attention layers across all blocks
+        >>> trainable_parameters = [
+        ...     "*attention*",           # Any parameter with "attention" in name
+        ...     "output_head.*"
+        ... ]
         """
         if self.hparams["trainable_parameters"] is None:
             yield from super().parameters(recurse=recurse)
