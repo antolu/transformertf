@@ -1,3 +1,24 @@
+"""
+Length Handling Standardization
+=============================
+
+This module standardizes length data handling across encoder-decoder datasets:
+
+1. **Series Standardization**: All length data (encoder_lengths, decoder_lengths)
+   is created as pandas Series with named columns, not DataFrames. This prevents
+   indexing errors when accessing length values.
+
+2. **Robust Extraction**: The _extract_length_value() helper safely extracts
+   integer values from either DataFrame or Series formats, providing defensive
+   compatibility during transition periods.
+
+3. **Tensor Conversion**: Length Series are converted to 1D tensors during
+   sample processing, maintaining consistency across the pipeline.
+
+4. **Cross-Dataset Consistency**: Both EncoderDecoderDataset and
+   EncoderDecoderPredictDataset follow the same Series-based approach.
+"""
+
 from __future__ import annotations
 
 import typing
@@ -17,6 +38,39 @@ from ._base import _check_index
 from ._transformer import TransformerDataset
 
 RND_G = np.random.default_rng()
+
+
+def _extract_length_value(length_data: pd.DataFrame | pd.Series) -> int:
+    """
+    Safely extract length value from either DataFrame or Series.
+
+    Parameters
+    ----------
+    length_data : pd.DataFrame | pd.Series
+        Length data that could be either DataFrame (1,1) or Series (1,).
+
+    Returns
+    -------
+    int
+        The length value as an integer.
+
+    Raises
+    ------
+    ValueError
+        If the data structure is unexpected or contains multiple values.
+    """
+    if isinstance(length_data, pd.DataFrame):
+        if length_data.shape != (1, 1):
+            msg = f"Expected DataFrame shape (1, 1), got {length_data.shape}"
+            raise ValueError(msg)
+        return int(length_data.iloc[0, 0].item())
+    if isinstance(length_data, pd.Series):
+        if len(length_data) != 1:
+            msg = f"Expected Series length 1, got {len(length_data)}"
+            raise ValueError(msg)
+        return int(length_data.iloc[0].item())
+    msg = f"Expected DataFrame or Series, got {type(length_data)}"
+    raise TypeError(msg)
 
 
 class EncoderDecoderDataset(TransformerDataset):
@@ -176,7 +230,8 @@ class EncoderDecoderDataset(TransformerDataset):
         if encoder:
             ctxt_seq_len = ctxt_seq_len or len(sample["encoder_input"])  # type: ignore[typeddict-item]
 
-            ctxt_start = int(ctxt_seq_len - sample["encoder_lengths"].iloc[0, 0].item())  # type: ignore[typeddict-item, union-attr, operator, arg-type]
+            encoder_length = _extract_length_value(sample["encoder_lengths"])  # type: ignore[typeddict-item]
+            ctxt_start = int(ctxt_seq_len - encoder_length)
         else:
             ctxt_start = 0
 
@@ -223,7 +278,7 @@ class EncoderDecoderDataset(TransformerDataset):
             sample["encoder_input"].iloc[:to_zero] = 0.0
             sample["encoder_mask"].iloc[:to_zero] = 0.0
 
-            sample["encoder_lengths"] = pd.DataFrame({"encoder_lengths": [encoder_len]})
+            sample["encoder_lengths"] = pd.Series([encoder_len], name="encoder_lengths")
 
             # Apply sequence length randomization, but respect existing window padding
             randomized_len = sample_len(self._min_tgt_seq_len, self.tgt_seq_len)
@@ -238,15 +293,15 @@ class EncoderDecoderDataset(TransformerDataset):
             if "target_mask" in sample:
                 sample["target_mask"][to_zero:] = 0.0
 
-            sample["decoder_lengths"] = pd.DataFrame({"decoder_lengths": [decoder_len]})
+            sample["decoder_lengths"] = pd.Series([decoder_len], name="decoder_lengths")
         else:
-            sample["encoder_lengths"] = pd.DataFrame({
-                "encoder_lengths": [self.ctxt_seq_len],
-            })
+            sample["encoder_lengths"] = pd.Series(
+                [self.ctxt_seq_len], name="encoder_lengths"
+            )
             # Use window-padded length instead of full tgt_seq_len
-            sample["decoder_lengths"] = pd.DataFrame({
-                "decoder_lengths": [window_padded_length],
-            })
+            sample["decoder_lengths"] = pd.Series(
+                [window_padded_length], name="decoder_lengths"
+            )
 
         return sample
 
@@ -292,7 +347,7 @@ class EncoderDecoderDataset(TransformerDataset):
         sample: EncoderDecoderSample[pd.DataFrame] = {
             "encoder_input": df,
             "encoder_mask": pd.DataFrame(np.ones((len(df), 1))),
-            "encoder_lengths": pd.DataFrame({"encoder_lengths": [len(df)]}),
+            "encoder_lengths": pd.Series([len(df)], name="encoder_lengths"),
         }
 
         # shift time to start with 0
@@ -348,7 +403,7 @@ class EncoderDecoderDataset(TransformerDataset):
         sample: EncoderDecoderSample[pd.DataFrame] = {
             "decoder_input": df,
             "decoder_mask": pd.DataFrame(np.ones((len(df), 1))),
-            "decoder_lengths": pd.DataFrame({"decoder_lengths": [len(df)]}),
+            "decoder_lengths": pd.Series([len(df)], name="decoder_lengths"),
         }
 
         # shift time to start with 0
