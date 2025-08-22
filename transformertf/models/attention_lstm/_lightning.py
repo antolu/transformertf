@@ -42,7 +42,12 @@ class AttentionLSTM(TransformerModuleBase, EncoderAlignmentValidationMixin):
     num_future_features : int
         Number of input features in the future sequence (decoder input).
     d_model : int, default=128
-        Hidden size used for both encoder and decoder LSTM layers.
+        Hidden size used for both encoder and decoder LSTM layers when d_encoder
+        and d_decoder are not specified.
+    d_encoder : int, optional
+        Hidden size for encoder LSTM layers. Takes precedence over d_model if provided.
+    d_decoder : int, optional
+        Hidden size for decoder LSTM layers. Takes precedence over d_model if provided.
     num_layers : int, default=2
         Number of LSTM layers used for both encoder and decoder.
     dropout : float, default=0.1
@@ -129,10 +134,11 @@ class AttentionLSTM(TransformerModuleBase, EncoderAlignmentValidationMixin):
     The model uses decoder_lengths to create attention masks for variable sequence
     lengths, ensuring proper handling of padded sequences in batches.
 
-    **Self-Attention Enhancement:**
+    **Cross-Attention Enhancement:**
 
-    Unlike the basic encoder-decoder LSTM, this model includes self-attention on
-    decoder outputs with optional gating for enhanced sequence modeling capabilities.
+    Unlike the basic encoder-decoder LSTM, this model includes cross-attention where
+    decoder outputs attend to concatenated encoder-decoder sequences, with optional
+    gating for enhanced sequence modeling capabilities.
 
     **Quantile Support:**
 
@@ -163,6 +169,8 @@ class AttentionLSTM(TransformerModuleBase, EncoderAlignmentValidationMixin):
         causal_attention: bool = True,
         criterion: torch.nn.Module | None = None,
         *,
+        d_encoder: int | None = None,
+        d_decoder: int | None = None,
         prediction_type: typing.Literal["delta", "point"] | None = None,
         log_grad_norm: bool = False,
         compile_model: bool = False,
@@ -194,6 +202,8 @@ class AttentionLSTM(TransformerModuleBase, EncoderAlignmentValidationMixin):
             trainable_add=trainable_add,
             output_dim=output_dim,
             causal_attention=causal_attention,
+            d_encoder=d_encoder,
+            d_decoder=d_decoder,
         )
 
     def on_train_batch_start(
@@ -207,7 +217,7 @@ class AttentionLSTM(TransformerModuleBase, EncoderAlignmentValidationMixin):
     def forward(
         self,
         batch: EncoderDecoderTargetSample,
-    ) -> torch.Tensor | tuple[torch.Tensor, HIDDEN_STATE]:
+    ) -> dict[str, torch.Tensor | HIDDEN_STATE]:
         """
         Forward pass through the model.
 
@@ -215,13 +225,11 @@ class AttentionLSTM(TransformerModuleBase, EncoderAlignmentValidationMixin):
         ----------
         batch : EncoderDecoderTargetSample
             Batch containing encoder_input, decoder_input, encoder_lengths, decoder_lengths, and optionally target.
-        return_encoder_states : bool, default=False
-            Whether to return encoder hidden states along with output.
 
         Returns
         -------
-        torch.Tensor | tuple[torch.Tensor, HIDDEN_STATE]
-            Model output, optionally with encoder states.
+        dict[str, torch.Tensor | HIDDEN_STATE]
+            Dictionary containing 'output' tensor and 'encoder_states' tuple.
         """
         encoder_lengths = batch.get("encoder_lengths")
         decoder_lengths = batch.get("decoder_lengths")
