@@ -277,8 +277,6 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
 
         if self._has_delta_transform(target_transform):
             # Extract time step size for proper scaling
-            dt = self._get_time_step_size(val_dataset)
-
             # Apply inverse transform (includes cumsum from DeltaTransform)
             if target_transform.transform_type == BaseTransform.TransformType.XY:
                 predictions_cumsum = target_transform.inverse_transform(
@@ -297,8 +295,8 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
             # 1. Scale by dt (cumsum result needs dt scaling)
             # 2. Adjust starting point to first_target
 
-            predictions_scaled = predictions_cumsum * dt
-            targets_scaled = targets_cumsum * dt
+            predictions_scaled = predictions_cumsum
+            targets_scaled = targets_cumsum
 
             # Adjust to start from correct integration constant
             predictions = (
@@ -309,7 +307,7 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
             targets = targets_scaled.cpu().numpy()
 
             # Update time array to reflect actual time values
-            time = np.arange(len(predictions)) * dt
+            time = np.arange(len(predictions))
 
         else:
             # Standard inverse transform (existing logic)
