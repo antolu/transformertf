@@ -317,6 +317,15 @@ class LightningModuleBase(L.LightningModule):
         else:
             data = {"output": outputs} | batch
 
+        self._test_outputs[dataloader_idx].append(ops.to_cpu(ops.detach(data)))  # type: ignore[arg-type,type-var]
+
+        if self.hparams.get("logging_metrics"):
+            if "target" not in batch:
+                msg = "Expected 'target' key in batch during validation"
+                raise ValueError(msg)
+            other_metrics = self.calc_other_metrics(outputs, batch["target"])
+            self.common_log_step(other_metrics, "test")  # type: ignore[attr-defined]
+
         self._test_outputs[dataloader_idx].append(ops.to_cpu(ops.detach(data)))  # type: ignore[type-var, arg-type]
 
     def on_predict_epoch_start(self) -> None:
