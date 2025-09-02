@@ -317,8 +317,6 @@ class LightningModuleBase(L.LightningModule):
         else:
             data = {"output": outputs} | batch
 
-        self._test_outputs[dataloader_idx].append(ops.to_cpu(ops.detach(data)))  # type: ignore[arg-type,type-var]
-
         if self.hparams.get("logging_metrics"):
             if "target" not in batch:
                 msg = "Expected 'target' key in batch during validation"
