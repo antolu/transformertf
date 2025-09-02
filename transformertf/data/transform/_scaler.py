@@ -284,33 +284,32 @@ class RunningNormalizer(BaseTransform):
         return f"{self.__class__.__name__}({', '.join(f'{k}={v}' for k, v in params.items())})"
 
 
-class MinMaxScaler(BaseTransform):
+class MaxScaler(BaseTransform):
+    """
+    A class used to scale data based on the maximum value of each feature.
+    The data is scaled w.r.t. the maximum value only (scaled values can be negative).
+
+    This is the base scaler that handles simple max-only scaling. MinMaxScaler
+    extends this to also handle minimum values.
+    """
+
     _transform_type = BaseTransform.TransformType.X
-    min_: torch.Tensor
     max_: torch.Tensor
-    data_min_: torch.Tensor
     data_max_: torch.Tensor
-    frozen_: torch.Tensor
     num_features_: torch.Tensor
+    frozen_: torch.Tensor
 
     def __init__(
         self,
         num_features_: int = 1,
-        min_: torch.Tensor | float = 0.0,
         max_: torch.Tensor | float = 1.0,
-        data_min_: torch.Tensor | float = 0.0,
         data_max_: torch.Tensor | float = 1.0,
         *,
         frozen_: bool = False,
     ):
         super().__init__()
-        self.register_buffer("min_", torch.ones(num_features_) * min_)
         self.register_buffer("max_", torch.ones(num_features_) * max_)
-
-        # add data min and max
-        self.register_buffer("data_min_", torch.ones(num_features_) * data_min_)
         self.register_buffer("data_max_", torch.ones(num_features_) * data_max_)
-
         self.register_buffer("frozen_", torch.tensor(frozen_, requires_grad=False))
         self.register_buffer(
             "num_features_", torch.tensor(num_features_, requires_grad=False)
@@ -318,7 +317,7 @@ class MinMaxScaler(BaseTransform):
 
     def forward(self, y: torch.Tensor) -> torch.Tensor:
         """
-        Apply the forward transformation to the input data.
+        Apply max-only scaling transformation.
 
         Parameters
         ----------
@@ -328,17 +327,15 @@ class MinMaxScaler(BaseTransform):
         Returns
         -------
         torch.Tensor
-            The transformed data.
+            The scaled data (can be negative if input is negative).
         """
-        return (y - self.data_min_) / (self.data_max_ - self.data_min_) * (
-            self.max_ - self.min_
-        ) + self.min_
+        return y / self.data_max_ * self.max_
 
     def fit(
         self, x: np.ndarray | torch.Tensor, y: np.ndarray | torch.Tensor | None = None
-    ) -> MinMaxScaler:
+    ) -> MaxScaler:
         """
-        Fit the scaler to the data.
+        Fit the scaler to the data by finding the maximum value.
 
         Parameters
         ----------
@@ -350,8 +347,8 @@ class MinMaxScaler(BaseTransform):
 
         Returns
         -------
-        MinMaxScaler
-            The fitted scaler.
+        MaxScaler
+            The fitted scaler (self).
         """
         if self.frozen_:
             log.warning("The scaler is frozen and cannot be fitted.")
@@ -362,12 +359,6 @@ class MinMaxScaler(BaseTransform):
 
         y = _as_torch(y)
         self.data_max_ = torch.max(y, dim=0)[0].view_as(self.data_max_)
-        self.data_min_ = torch.min(y, dim=0)[0].view_as(self.data_min_)
-
-        if torch.allclose(self.data_max_, self.data_min_):
-            msg = "The data has no variance. The scaler will not be able to transform the data."
-            log.warning(msg)
-
         return self
 
     def transform(
@@ -387,7 +378,7 @@ class MinMaxScaler(BaseTransform):
         Returns
         -------
         torch.Tensor
-            The transformed data.
+            The transformed data scaled by max value.
         """
         if y is None:
             y = x
@@ -410,20 +401,16 @@ class MinMaxScaler(BaseTransform):
         Returns
         -------
         torch.Tensor
-            The inverse transformed data.
+            The inverse transformed data in the original scale.
         """
         if y is None:
             y = x
-        return _as_torch(y) * (self.data_max_ - self.data_min_) + self.data_min_
+
+        y = _as_torch(y)
+        return y * self.data_max_ / self.max_
 
     def __sklearn_is_fitted__(self) -> bool:  # noqa: PLW3201
-        return (
-            not (
-                torch.all(self.data_max_ == 1.0).item()
-                and torch.all(self.data_min_ == 0.0).item()
-            )
-            or self.frozen_
-        )
+        return torch.all(self.data_max_ != 1.0).item() or self.frozen_
 
     def __str__(self) -> str:
         params = {
@@ -434,66 +421,84 @@ class MinMaxScaler(BaseTransform):
         return f"{self.__class__.__name__}({', '.join(f'{k}={v}' for k, v in params.items())})"
 
 
-class MaxScaler(MinMaxScaler):
+class MinMaxScaler(MaxScaler):
     """
-    A class used to scale data based on provided maximum and minimum values.
-    The data is only scaled w.r.t. the maximum value (i.e. the scaled values can be negative).
+    A class used to scale data to a specified range [min_, max_].
 
-    Attributes
-    ----------
-    num_features_ : int
-        The number of features to scale.
-    max_ : torch.Tensor or float
-        The maximum value for scaling. Stored as a buffer.
-    data_max_ : torch.Tensor or float
-        The maximum value of the data. Stored as a buffer.
-
-    Parameters
-    ----------
-    num_features_ : int, optional
-        The number of features to scale (default is 1).
-    max_ : torch.Tensor or float, optional
-        The maximum value for scaling (default is 1.0).
-    data_max_ : torch.Tensor or float, optional
-        The maximum value of the data (default is 1.0).
+    This extends MaxScaler by adding minimum value handling, providing full
+    min-max normalization capabilities. This is the more general case that
+    can handle arbitrary target ranges like [-1, 1] or [0, 1].
     """
 
     _transform_type = BaseTransform.TransformType.X
-    max_: torch.Tensor
-    data_max_: torch.Tensor
-    num_features_: torch.Tensor
-    frozen_: torch.Tensor
+    min_: torch.Tensor
+    data_min_: torch.Tensor
 
     def __init__(
         self,
         num_features_: int = 1,
+        min_: torch.Tensor | float = 0.0,
         max_: torch.Tensor | float = 1.0,
+        data_min_: torch.Tensor | float = 0.0,
         data_max_: torch.Tensor | float = 1.0,
         *,
         frozen_: bool = False,
     ):
-        super().__init__()
-        max_ += torch.zeros(num_features_, requires_grad=False)
-        self.register_buffer("max_", max_)
-        self.register_buffer(
-            "data_max_", data_max_ + torch.zeros(num_features_, requires_grad=False)
+        # Initialize parent MaxScaler first
+        super().__init__(
+            num_features_=num_features_,
+            max_=max_,
+            data_max_=data_max_,
+            frozen_=frozen_,
         )
-        self.register_buffer("frozen_", torch.tensor(frozen_, requires_grad=False))
-        self.register_buffer(
-            "num_features_", torch.tensor(num_features_, requires_grad=False)
-        )
+        # Add min-specific buffers
+        self.register_buffer("min_", torch.ones(num_features_) * min_)
+        self.register_buffer("data_min_", torch.ones(num_features_) * data_min_)
 
-    def forward(self, y: torch.Tensor) -> torch.Tensor:  # type: ignore[has-type]
-        return y / self.data_max_ * self.max_
+    def forward(self, y: torch.Tensor) -> torch.Tensor:
+        """
+        Apply min-max scaling transformation.
+
+        Parameters
+        ----------
+        y : torch.Tensor
+            The input data to transform.
+
+        Returns
+        -------
+        torch.Tensor
+            The scaled data in the range [min_, max_].
+        """
+        denominator = self.data_max_ - self.data_min_
+        # When there's no variance (constant data), map all values to the center of the target range
+        has_variance = denominator != 0.0
+        center_value = (self.max_ + self.min_) / 2.0
+
+        # For features with variance, apply normal scaling
+        return torch.where(
+            has_variance,
+            (y - self.data_min_) / denominator * (self.max_ - self.min_) + self.min_,
+            center_value,
+        )
 
     def fit(
         self, x: np.ndarray | torch.Tensor, y: np.ndarray | torch.Tensor | None = None
-    ) -> MaxScaler:
+    ) -> MinMaxScaler:
         """
-        Fit the scaler to the data.
+        Fit the scaler to the data by finding min and max values.
 
+        Parameters
+        ----------
+        x : np.ndarray or torch.Tensor
+            The data to fit the scaler to.
+        y : np.ndarray or torch.Tensor, optional
+            The data to fit the scaler to. If None, x is used.
+            Default is None.
 
-
+        Returns
+        -------
+        MinMaxScaler
+            The fitted scaler (self).
         """
         if self.frozen_:
             log.warning("The scaler is frozen and cannot be fitted.")
@@ -502,38 +507,21 @@ class MaxScaler(MinMaxScaler):
         if y is None:
             y = x
 
-        y = _as_torch(y)  # type: ignore[has-type]
+        y = _as_torch(y)
         self.data_max_ = torch.max(y, dim=0)[0].view_as(self.data_max_)
+        self.data_min_ = torch.min(y, dim=0)[0].view_as(self.data_min_)
+
+        if torch.allclose(self.data_max_, self.data_min_):
+            msg = "The data has no variance. The scaler will not be able to transform the data."
+            log.warning(msg)
+
         return self
-
-    def transform(
-        self, x: np.ndarray | torch.Tensor, y: np.ndarray | torch.Tensor | None = None
-    ) -> torch.Tensor:
-        """
-        Transform the data using the fitted scaler into [0, max_].
-
-        Parameters
-        ----------
-        x : np.ndarray or torch.Tensor
-            The data to transform.
-        y : np.ndarray or torch.Tensor, optional
-            The data to transform. If None, x is used.
-            Default is None.
-
-        Returns
-        -------
-        torch.Tensor
-            The transformed data in the range [0, max_].
-        """
-        if y is None:
-            y = x
-        return self.forward(_as_torch(y))
 
     def inverse_transform(
         self, x: np.ndarray | torch.Tensor, y: np.ndarray | torch.Tensor | None = None
     ) -> torch.Tensor:
         """
-        Inverse transform the data from [0, max_] to the original scale using the fitted scaler.
+        Inverse transform the data using the fitted min-max scaler.
 
         Parameters
         ----------
@@ -550,17 +538,16 @@ class MaxScaler(MinMaxScaler):
         """
         if y is None:
             y = x
-
-        y = _as_torch(y)  # type: ignore[has-type]
-        return y * self.data_max_ / self.max_
+        y = _as_torch(y)
+        return (y - self.min_) / (self.max_ - self.min_) * (
+            self.data_max_ - self.data_min_
+        ) + self.data_min_
 
     def __sklearn_is_fitted__(self) -> bool:  # noqa: PLW3201
-        return torch.all(self.data_max_ != 1.0).item() or self.frozen_
-
-    def __str__(self) -> str:
-        params = {
-            k: v
-            for k, v in self.__dict__.items()
-            if not k.startswith("_") and k.endswith("_")
-        }
-        return f"{self.__class__.__name__}({', '.join(f'{k}={v}' for k, v in params.items())})"
+        return (
+            not (
+                torch.all(self.data_max_ == 1.0).item()
+                and torch.all(self.data_min_ == 0.0).item()
+            )
+            or self.frozen_
+        )

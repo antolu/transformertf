@@ -96,8 +96,8 @@ class TransformerDataModule(DataModuleBase):
         are added to the model inputs. Default is None.
     time_format : {"relative", "absolute", "relative_legacy"}, optional
         Format for temporal features:
-        - "relative": Time differences (Δt) normalized with MaxScaler
-        - "absolute": Absolute time normalized with MaxScaler
+        - "relative": Time differences (Δt) normalized with MinMaxScaler [-1, 1]
+        - "absolute": Absolute time normalized with MinMaxScaler [-1, 1]
         - "relative_legacy": Time differences with StandardScaler (deprecated)
         Default is "absolute".
     add_target_to_past : bool, optional
@@ -318,7 +318,7 @@ class TransformerDataModule(DataModuleBase):
         Stride is a form of downsamle, since samples are taken at `stride` intervals,
         so we need to fit the scalers taking this into account. The relative time
         uses dt (relative time difference), so we only need to find the largest
-        dt possible to fit a MaxScaler (since dt is assumed to be always positive).
+        dt possible to fit a MinMaxScaler (since dt is assumed to be always positive).
         """
         for df in dfs:
             for start in range(stride):

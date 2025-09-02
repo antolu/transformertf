@@ -22,6 +22,7 @@ from .transform import (
     BaseTransform,
     DeltaTransform,
     MaxScaler,
+    MinMaxScaler,
     StandardScaler,
     TransformCollection,
 )
@@ -175,8 +176,8 @@ class TransformBuilder:
         ----------
         time_format : {"relative", "absolute", "relative_legacy"}
             Format for time transforms:
-            - "relative": Delta + MaxScaler
-            - "absolute": MaxScaler only
+            - "relative": Delta + MinMaxScaler [-1, 1]
+            - "absolute": MinMaxScaler [-1, 1] only
             - "relative_legacy": Delta + StandardScaler
         time_column : str, optional
             Name of time column. Default is TIME_PREFIX.
@@ -193,11 +194,14 @@ class TransformBuilder:
         # Add format-specific transforms
         if normalize:
             if time_format == "relative":
-                transforms.extend([DeltaTransform(), MaxScaler(num_features_=1)])
+                transforms.extend([
+                    DeltaTransform(),
+                    MinMaxScaler(num_features_=1, min_=-1.0, max_=1.0),
+                ])
             elif time_format == "relative_legacy":
                 transforms.extend([DeltaTransform(), StandardScaler(num_features_=1)])
             elif time_format == "absolute":
-                transforms.append(MaxScaler(num_features_=1))
+                transforms.append(MinMaxScaler(num_features_=1, min_=-1.0, max_=1.0))
             else:
                 msg = (
                     f"Unknown time format '{time_format}'. "
@@ -389,7 +393,7 @@ class CommonTransformPatterns:
         extra_transforms: list[BaseTransform] | None = None,
     ) -> TransformBuilder:
         """
-        Add relative time transforms (Delta + MaxScaler).
+        Add relative time transforms (Delta + MinMaxScaler [-1, 1]).
 
         Parameters
         ----------
@@ -416,7 +420,7 @@ class CommonTransformPatterns:
         extra_transforms: list[BaseTransform] | None = None,
     ) -> TransformBuilder:
         """
-        Add absolute time transforms (MaxScaler only).
+        Add absolute time transforms (MinMaxScaler [-1, 1] only).
 
         Parameters
         ----------
