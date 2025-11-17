@@ -475,11 +475,14 @@ class MinMaxScaler(MaxScaler):
         center_value = (self.max_ + self.min_) / 2.0
 
         # For features with variance, apply normal scaling
-        return torch.where(
+        scaled = torch.where(
             has_variance,
             (y - self.data_min_) / denominator * (self.max_ - self.min_) + self.min_,
             center_value,
         )
+
+        # Clamp to [min_, max_] to handle floating point precision issues
+        return torch.clamp(scaled, self.min_, self.max_)
 
     def fit(
         self, x: np.ndarray | torch.Tensor, y: np.ndarray | torch.Tensor | None = None
