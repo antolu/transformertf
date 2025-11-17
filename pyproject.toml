@@ -59,9 +59,10 @@ test = [
 ]
 doc = ["acc-py-sphinx", "myst-parser", "sphinx-copybutton"]
 dev = ["pre-commit", "ruff", "mypy"]
-tune = ["ray[tune] >= 2.4.0"]
+tune = ["ray[tune] >= 2.4.0", "pydantic >= 2.0"]
 tune-algorithms = [
   "ray[tune] >= 2.4.0",
+  "pydantic >= 2.0",
   "ax-platform >= 1.0.0",
   "bayesian-optimization >= 3.1.0",
   "ConfigSpace >= 0.2.0",
