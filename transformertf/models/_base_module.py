@@ -454,12 +454,8 @@ class LightningModuleBase(L.LightningModule):
             elif metric_name == "SMAPE":
                 loss_dict["SMAPE"] = F.smape_loss(prediction, target)
             elif metric_name == "RMSE":
-                # Calculate MSE first if needed for RMSE
-                if "MSE" not in loss_dict:
-                    mse_value = torch.nn.functional.mse_loss(prediction, target)
-                    loss_dict["RMSE"] = torch.sqrt(mse_value)
-                else:
-                    loss_dict["RMSE"] = torch.sqrt(loss_dict["MSE"])
+                mse_value = torch.nn.functional.mse_loss(prediction, target)
+                loss_dict["RMSE"] = torch.sqrt(mse_value)
 
         return loss_dict
 
