@@ -16,6 +16,7 @@ from .common import (
     print_success,
 )
 from .hyperparameters import migrate_file_hyperparameters
+from .scaler_inheritance import migrate_file_scaler_inheritance
 from .tft_alignment import migrate_file_tft_alignment
 from .version_upgrades import migrate_version_upgrade
 
@@ -33,6 +34,9 @@ Examples:
 
   # Migrate TFT alignment with backup
   python migrate.py tft-alignment --backup config.yaml
+
+  # Migrate scaler inheritance
+  python migrate.py scaler-inheritance model.ckpt
 
   # Apply version upgrade
   python migrate.py v0.11-upgrade model.ckpt
@@ -92,6 +96,14 @@ Examples:
         description="Add explicit encoder_alignment='right' for TFT-family models",
     )
     add_common_args(tft_parser)
+
+    # Scaler inheritance subcommand
+    scaler_parser = subparsers.add_parser(
+        "scaler-inheritance",
+        help="Migrate scaler inheritance structure (MaxScaler/MinMaxScaler refactor)",
+        description="Update models with old scaler inheritance to new structure",
+    )
+    add_common_args(scaler_parser)
 
     # Version upgrade subcommands
     for version, desc in [
@@ -235,6 +247,59 @@ def run_tft_alignment_migration(args: argparse.Namespace) -> int:
     return 0
 
 
+def run_scaler_inheritance_migration(args: argparse.Namespace) -> int:
+    """Run scaler inheritance migration."""
+    files = get_files_to_process(args)
+    if not files:
+        return 0
+
+    # Only process checkpoint files for scaler inheritance migration
+    checkpoint_files = [f for f in files if is_checkpoint_file(f)]
+    if not checkpoint_files:
+        print_info("No checkpoint files found for scaler inheritance migration")
+        return 0
+
+    print_info(
+        f"Processing {len(checkpoint_files)} checkpoints for scaler inheritance migration"
+    )
+
+    if (
+        not args.dry_run
+        and not args.force
+        and not confirm_operation(
+            f"Migrate scaler inheritance in {len(checkpoint_files)} checkpoints?"
+        )
+    ):
+        return 1
+
+    success_count = 0
+    total_count = len(checkpoint_files)
+
+    for checkpoint_path in checkpoint_files:
+        try:
+            if migrate_file_scaler_inheritance(
+                checkpoint_path, dry_run=args.dry_run, backup=args.backup
+            ):
+                success_count += 1
+        except MigrationError as e:
+            print_error(f"Migration failed for {checkpoint_path}: {e}")
+            return 1
+        except Exception as e:
+            print_error(f"Unexpected error processing {checkpoint_path}: {e}")
+            return 1
+
+    if args.dry_run:
+        print_success(
+            f"Dry run completed. Would migrate {success_count}/{total_count} checkpoints"
+        )
+    else:
+        print_success(
+            f"Migration completed. Processed {success_count}/{total_count} checkpoints"
+        )
+
+    return 0
+
+
 def run_version_upgrade(args: argparse.Namespace) -> int:
     """Run version-specific upgrade migration."""
     files = get_files_to_process(args)
@@ -300,6 +365,8 @@ def main() -> int:
             return run_hyperparameters_migration(args)
         if args.command == "tft-alignment":
             return run_tft_alignment_migration(args)
+        if args.command == "scaler-inheritance":
+            return run_scaler_inheritance_migration(args)
         if args.command.endswith("-upgrade"):
             return run_version_upgrade(args)
         print_error(f"Unknown command: {args.command}")

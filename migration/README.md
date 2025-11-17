@@ -14,6 +14,9 @@ python migrate.py hyperparameters config.yaml model.ckpt
 # Run TFT alignment migration
 python migrate.py tft-alignment --backup config.yaml
 
+# Run scaler inheritance migration
+python migrate.py scaler-inheritance model.ckpt
+
 # Apply version upgrade
 python migrate.py v0.11-upgrade model.ckpt
 
@@ -34,6 +37,13 @@ Standardized hyperparameter names across all models to improve consistency and a
 
 ### TFT Encoder Alignment (v0.13)  
 Default encoder alignment changed from "right" to "left". TFT-family models require explicit `encoder_alignment="right"` for compatibility.
+
+### Scaler Inheritance Refactoring
+The inheritance structure of MaxScaler and MinMaxScaler has been swapped for better design:
+- **Old**: MinMaxScaler was the base class, MaxScaler inherited from it
+- **New**: MaxScaler is the base class, MinMaxScaler inherits from it
+
+This change improves the logical hierarchy where the more general functionality (min-max scaling) extends the more specific functionality (max-only scaling).
 
 ### Version-Specific Breaking Changes
 - **v0.8**: time_format "relative" → "relative_legacy" (StandardScaler → MaxScaler change)
@@ -73,6 +83,21 @@ python migrate.py tft-alignment --directory ./tft_configs
 ```
 
 **Affected models**: TemporalFusionTransformer, PFTemporalFusionTransformer, xTFT
+
+### Scaler Inheritance Migration
+```bash
+# Migrate scaler inheritance structure in saved models
+python migrate.py scaler-inheritance [OPTIONS] CHECKPOINTS...
+
+# Examples
+python migrate.py scaler-inheritance model.ckpt
+python migrate.py scaler-inheritance --backup --directory ./checkpoints
+python migrate.py scaler-inheritance --dry-run model1.ckpt model2.ckpt
+```
+
+**What it does**: Updates saved models that contain scalers with the old inheritance structure to be compatible with the new structure where MaxScaler is the base class and MinMaxScaler inherits from it. The functionality remains the same, only the class hierarchy is updated.
+
+**Note**: Only processes checkpoint files (.ckpt, .pth, .pt)
 
 ### Version Upgrades
 ```bash
@@ -116,6 +141,7 @@ python migrate.py hyperparameters --backup model.ckpt
 # Chain multiple operations (same file paths)
 python migrate.py hyperparameters model.ckpt
 python migrate.py tft-alignment model.ckpt
+python migrate.py scaler-inheritance model.ckpt
 python migrate.py v0.11-upgrade model.ckpt
 ```
 
@@ -133,7 +159,10 @@ python migrate.py hyperparameters --backup --directory /path/to/project
 # 4. Apply TFT alignment if needed
 python migrate.py tft-alignment --directory /path/to/project
 
-# 5. Apply version upgrades if needed
+# 5. Apply scaler inheritance migration if needed
+python migrate.py scaler-inheritance --directory /path/to/project
+
+# 6. Apply version upgrades if needed
 python migrate.py v0.11-upgrade --directory /path/to/project
 ```
 
