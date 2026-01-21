@@ -207,6 +207,7 @@ downloads/
 eggs/
 .eggs/
 lib/
+!migration/lib/
 lib64/
 parts/
 sdist/
