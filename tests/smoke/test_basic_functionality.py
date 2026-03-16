@@ -17,9 +17,6 @@ class TestSmokeTests:
     def test_imports(self):
         """Test that all modules can be imported."""
         import transformertf
-        import transformertf.data
-        import transformertf.models
-        import transformertf.nn
 
         assert transformertf is not None
 

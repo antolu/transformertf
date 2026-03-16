@@ -341,13 +341,15 @@ class RelPartialLearnableMultiHeadAttn(RelMultiHeadAttn):
         if attn_mask is not None and attn_mask.any().item():
             if attn_mask.dim() == 2:
                 attn_score = (
-                    attn_score.float()
+                    attn_score
+                    .float()
                     .masked_fill(attn_mask[None, :, :, None], -float("inf"))
                     .type_as(attn_score)
                 )
             elif attn_mask.dim() == 3:
                 attn_score = (
-                    attn_score.float()
+                    attn_score
+                    .float()
                     .masked_fill(attn_mask[:, :, :, None], -float("inf"))
                     .type_as(attn_score)
                 )

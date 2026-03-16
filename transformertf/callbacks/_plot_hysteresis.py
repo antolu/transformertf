@@ -4,7 +4,6 @@ import logging
 import typing
 
 import lightning as L
-import matplotlib
 
 # matplotlib.use("Agg")
 import matplotlib.figure
@@ -307,12 +306,14 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
             # Standard inverse transform (existing logic)
             if target_transform.transform_type == BaseTransform.TransformType.XY:
                 predictions = (
-                    target_transform.inverse_transform(depends_on, predictions)
+                    target_transform
+                    .inverse_transform(depends_on, predictions)
                     .cpu()
                     .numpy()
                 )
                 targets = (
-                    target_transform.inverse_transform(depends_on, targets)
+                    target_transform
+                    .inverse_transform(depends_on, targets)
                     .cpu()
                     .numpy()
                 )

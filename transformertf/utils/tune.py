@@ -18,7 +18,6 @@ import ray.train
 import ray.tune
 import ray.tune.integration.pytorch_lightning
 import ray.tune.schedulers
-import ray.tune.search
 import torch
 
 log = logging.getLogger(__name__)

@@ -59,7 +59,6 @@ import einops._torch_specific
 import lightning as L
 import lightning.pytorch.cli
 import pytorch_optimizer  # noqa: F401
-import rich
 import rich.logging
 import torch
 from lightning import LightningModule
