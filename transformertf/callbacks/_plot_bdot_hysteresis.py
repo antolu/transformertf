@@ -4,7 +4,6 @@ import logging
 import typing
 
 import lightning as L
-import matplotlib
 
 # matplotlib.use("Agg")
 import matplotlib.figure
@@ -275,7 +274,8 @@ class PlotBdotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
             val_dataset.transforms[current_key_clean].inverse_transform(current).numpy()
         )
         current_dot = (
-            val_dataset.transforms[current_dot_key_clean]
+            val_dataset
+            .transforms[current_dot_key_clean]
             .inverse_transform(current_dot)
             .numpy()
         )
@@ -304,7 +304,8 @@ class PlotBdotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
             # Standard inverse transform
             if target_transform.transform_type == BaseTransform.TransformType.XY:
                 predictions = (
-                    target_transform.inverse_transform(current, predictions)
+                    target_transform
+                    .inverse_transform(current, predictions)
                     .cpu()
                     .numpy()
                 )

@@ -363,7 +363,8 @@ def test_transform_builder_method_chaining() -> None:
 
     # Should be able to chain all methods
     result = (
-        builder.add_covariate_transforms(["temp"], {}, normalize=True)
+        builder
+        .add_covariate_transforms(["temp"], {}, normalize=True)
         .add_target_transforms("demand", {}, normalize=True)
         .add_time_transforms("relative")
         .add_conditional_transforms(True, {"extra": [LogTransform()]})
@@ -510,7 +511,8 @@ def test_common_transform_patterns_pattern_chaining() -> None:
 
     # Should be able to chain patterns
     transforms = (
-        CommonTransformPatterns.standard_normalization(builder, ["temp", "pressure"])
+        CommonTransformPatterns
+        .standard_normalization(builder, ["temp", "pressure"])
         .add_covariate_transforms(
             ["volume"], {}, normalize=True, normalize_type=MaxScaler
         )
@@ -546,7 +548,8 @@ def test_transform_builder_integration_complex_transform_setup() -> None:
     }
 
     transforms = (
-        builder.add_validation_rule(validate_sensor_pairs)
+        builder
+        .add_validation_rule(validate_sensor_pairs)
         .add_covariate_transforms(
             ["sensor1", "sensor2"],
             extra_transforms,
