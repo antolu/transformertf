@@ -6,6 +6,7 @@ from .bwlstm import BWLSTM1, BWLSTM2, BWLSTM3
 from .encoder_decoder_lstm import EncoderDecoderLSTM
 from .gru import GRU
 from .lstm import LSTM
+from .patchtst import PatchTST, PatchTSTModel
 from .pete import PETE
 from .pf_tft import PFTemporalFusionTransformer
 from .sa_bwlstm import SABWLSTM
@@ -36,6 +37,8 @@ for _mod in (
     TemporalConvTransformer,
     TCT,
     TimeXer,
+    PatchTST,
+    PatchTSTModel,
 ):
     replace_modname(_mod, __name__)
 
@@ -55,6 +58,8 @@ __all__ = [
     "EncoderDecoderLSTM",
     "LightningModuleBase",
     "PFTemporalFusionTransformer",
+    "PatchTST",
+    "PatchTSTModel",
     "TemporalConvTransformer",
     "TemporalFusionTransformer",
     "TimeXer",
