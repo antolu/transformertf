@@ -15,7 +15,6 @@ N_FUTURE = 3
 @pytest.fixture(scope="module")
 def small_module():
     return PatchTST(
-        num_past_features=N_PAST,
         num_future_features=N_FUTURE,
         ctxt_seq_len=CTXT,
         tgt_seq_len=TGT,
@@ -50,7 +49,6 @@ def test_construction(small_module):
     assert small_module is not None
     assert small_module.hparams["ctxt_seq_len"] == CTXT
     assert small_module.hparams["tgt_seq_len"] == TGT
-    assert small_module.hparams["num_past_features"] == N_PAST
     assert small_module.hparams["num_future_features"] == N_FUTURE
 
 

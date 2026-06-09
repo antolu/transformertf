@@ -682,16 +682,6 @@ def _check_patchtst_constraints(
     if datamodule.hparams.get("time_column") is not None:
         msg = "PatchTST does not use temporal marks; set time_column=None."
         raise ValueError(msg)
-    n_past = datamodule.num_past_known_covariates
-    n_future = datamodule.num_future_known_covariates
-    if n_past - 1 != n_future:
-        msg = (
-            f"PatchTST requires num_past_features - 1 == num_future_features, "
-            f"got {n_past} - 1 = {n_past - 1} vs {n_future}. "
-            f"Ensure known_covariates and known_past_covariates are configured so "
-            f"that past has exactly one more channel (the target) than future."
-        )
-        raise ValueError(msg)
 
 
 def main() -> None:

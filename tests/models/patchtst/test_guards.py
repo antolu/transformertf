@@ -10,7 +10,6 @@ from transformertf.models.patchtst import PatchTST
 
 def _make_model() -> PatchTST:
     return PatchTST(
-        num_past_features=4,
         num_future_features=3,
         ctxt_seq_len=64,
         tgt_seq_len=20,
@@ -50,13 +49,6 @@ def test_guard_time_column():
         _check_patchtst_constraints(model, dm)
 
 
-def test_guard_covariate_mismatch():
-    model = _make_model()
-    dm = _make_dm(n_past=5, n_future=3)
-    with pytest.raises(ValueError, match="covariate"):
-        _check_patchtst_constraints(model, dm)
-
-
 def test_guard_passes_valid_config():
     model = _make_model()
     dm = _make_dm()
@@ -67,7 +59,7 @@ def test_guard_skips_non_patchtst():
     from transformertf.models.timexer import TimeXer
 
     model = TimeXer(
-        num_past_features=3,
+        num_past_features=4,
         ctxt_seq_len=64,
         tgt_seq_len=32,
         d_model=32,

@@ -20,7 +20,6 @@ __all__ = ["PatchTST"]
 class PatchTST(TransformerModuleBase):
     def __init__(
         self,
-        num_past_features: int,
         num_future_features: int,
         ctxt_seq_len: int,
         tgt_seq_len: int,
