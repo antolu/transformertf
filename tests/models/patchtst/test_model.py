@@ -15,10 +15,8 @@ def small_model():
     from transformertf.models.patchtst._model import PatchTSTModel
 
     return PatchTSTModel(
-        num_past_covariates=C_ENC,
         num_future_covariates=C_DEC,
         ctxt_seq_len=CTXT,
-        tgt_seq_len=TGT,
         patch_len=16,
         d_model=32,
         num_heads=4,
@@ -53,10 +51,8 @@ def test_patchtst_model_gradient_flow():
     from transformertf.models.patchtst._model import PatchTSTModel
 
     model = PatchTSTModel(
-        num_past_covariates=C_ENC,
         num_future_covariates=C_DEC,
         ctxt_seq_len=CTXT,
-        tgt_seq_len=TGT,
         patch_len=16,
         d_model=32,
         num_heads=4,
@@ -81,10 +77,8 @@ def test_patchtst_model_patch_len_guard():
 
     with pytest.raises(ValueError, match="divisible"):
         PatchTSTModel(
-            num_past_covariates=C_ENC,
             num_future_covariates=C_DEC,
             ctxt_seq_len=65,  # not divisible by 16
-            tgt_seq_len=TGT,
             patch_len=16,
             d_model=32,
             num_heads=4,

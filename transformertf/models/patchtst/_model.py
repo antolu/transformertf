@@ -14,10 +14,8 @@ __all__ = ["PatchTSTModel"]
 class PatchTSTModel(torch.nn.Module):
     def __init__(
         self,
-        num_past_covariates: int,
         num_future_covariates: int,
         ctxt_seq_len: int,
-        tgt_seq_len: int,
         patch_len: int,
         d_model: int,
         num_heads: int,
@@ -73,15 +71,17 @@ class PatchTSTModel(torch.nn.Module):
             target = encoder_input[:, :, -1:]
             mean = target.mean(dim=1, keepdim=True)
             std = target.std(dim=1, keepdim=True) + 1e-5
-            encoder_input = encoder_input.clone()
-            encoder_input[:, :, -1:] = (target - mean) / std
+            normalized_target = (target - mean) / std
+            encoder_input = torch.cat(
+                [encoder_input[:, :, :-1], normalized_target], dim=-1
+            )
 
         x = self.patch_embedding(encoder_input)  # (B, C_enc, patch_num, d_model)
         for block in self.encoder_blocks:
             x = block(x)
 
-        B_out, C, P, D = x.shape
-        patch_memory = x.reshape(B_out, C * P, D)  # (B, C_enc*patch_num, d_model)
+        _, C, P, D = x.shape
+        patch_memory = x.reshape(B, C * P, D)  # (B, C_enc*patch_num, d_model)
 
         pooled = patch_memory.mean(dim=1)  # (B, d_model)
         h0 = (
