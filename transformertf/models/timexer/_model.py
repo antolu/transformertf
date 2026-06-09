@@ -3,10 +3,9 @@ from __future__ import annotations
 import math
 
 import torch
-import torch.nn as nn
 
 
-class _PositionalEmbedding(nn.Module):
+class _PositionalEmbedding(torch.torch.nn.Module):
     def __init__(self, d_model: int, max_len: int = 5000) -> None:
         super().__init__()
         pe = torch.zeros(max_len, d_model)
@@ -23,14 +22,14 @@ class _PositionalEmbedding(nn.Module):
         return self.pe[:, : x.size(1)]  # type: ignore[index]
 
 
-class _EnEmbedding(nn.Module):
+class _EnEmbedding(torch.nn.Module):
     def __init__(self, d_model: int, patch_len: int, dropout: float) -> None:
         super().__init__()
         self.patch_len = patch_len
-        self.value_embedding = nn.Linear(patch_len, d_model, bias=False)
+        self.value_embedding = torch.nn.Linear(patch_len, d_model, bias=False)
         self.position_embedding = _PositionalEmbedding(d_model)
-        self.glb_token = nn.Parameter(torch.randn(1, 1, 1, d_model))
-        self.dropout = nn.Dropout(dropout)
+        self.glb_token = torch.nn.Parameter(torch.randn(1, 1, 1, d_model))
+        self.dropout = torch.nn.Dropout(dropout)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         B = x.size(0)
@@ -47,11 +46,11 @@ class _EnEmbedding(nn.Module):
         return self.dropout(x)
 
 
-class _ExEmbedding(nn.Module):
+class _ExEmbedding(torch.nn.Module):
     def __init__(self, total_seq_len: int, d_model: int, dropout: float) -> None:
         super().__init__()
-        self.value_embedding = nn.Linear(total_seq_len, d_model)
-        self.dropout = nn.Dropout(dropout)
+        self.value_embedding = torch.nn.Linear(total_seq_len, d_model)
+        self.dropout = torch.nn.Dropout(dropout)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = x.permute(0, 2, 1)  # (B, num_covariates, total_seq_len)
@@ -59,21 +58,21 @@ class _ExEmbedding(nn.Module):
         return self.dropout(x)
 
 
-class _EncoderLayer(nn.Module):
+class _EncoderLayer(torch.nn.Module):
     def __init__(self, d_model: int, num_heads: int, d_ff: int, dropout: float) -> None:
         super().__init__()
-        self.self_attn = nn.MultiheadAttention(
+        self.self_attn = torch.nn.MultiheadAttention(
             d_model, num_heads, dropout=dropout, batch_first=True
         )
-        self.cross_attn = nn.MultiheadAttention(
+        self.cross_attn = torch.nn.MultiheadAttention(
             d_model, num_heads, dropout=dropout, batch_first=True
         )
-        self.conv1 = nn.Conv1d(d_model, d_ff, kernel_size=1)
-        self.conv2 = nn.Conv1d(d_ff, d_model, kernel_size=1)
-        self.norm1 = nn.LayerNorm(d_model)
-        self.norm2 = nn.LayerNorm(d_model)
-        self.norm3 = nn.LayerNorm(d_model)
-        self.dropout = nn.Dropout(dropout)
+        self.conv1 = torch.nn.Conv1d(d_model, d_ff, kernel_size=1)
+        self.conv2 = torch.nn.Conv1d(d_ff, d_model, kernel_size=1)
+        self.norm1 = torch.nn.LayerNorm(d_model)
+        self.norm2 = torch.nn.LayerNorm(d_model)
+        self.norm3 = torch.nn.LayerNorm(d_model)
+        self.dropout = torch.nn.Dropout(dropout)
 
     def forward(self, x: torch.Tensor, cross: torch.Tensor) -> torch.Tensor:
         attn_out, _ = self.self_attn(x, x, x)
@@ -92,20 +91,18 @@ class _EncoderLayer(nn.Module):
         return self.norm3(residual + self.dropout(x))
 
 
-class _FlattenHead(nn.Module):
-    def __init__(self, nf: int, pred_len: int, dropout: float) -> None:
+class _FlattenHead(torch.nn.Module):
+    def __init__(self, nf: int, pred_len: int) -> None:
         super().__init__()
-        self.flatten = nn.Flatten(start_dim=-2)
-        self.linear = nn.Linear(nf, pred_len)
-        self.dropout = nn.Dropout(dropout)
+        self.flatten = torch.nn.Flatten(start_dim=-2)
+        self.linear = torch.nn.Linear(nf, pred_len)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.flatten(x)  # (B, 1, nf)
-        x = self.linear(x)  # (B, 1, pred_len)
-        return self.dropout(x)
+        return self.linear(x)  # (B, 1, pred_len)
 
 
-class TimeXerModel(nn.Module):
+class TimeXerModel(torch.nn.Module):
     def __init__(
         self,
         ctxt_seq_len: int,
@@ -130,14 +127,13 @@ class TimeXerModel(nn.Module):
 
         self.en_embedding = _EnEmbedding(d_model, patch_len, dropout)
         self.ex_embedding = _ExEmbedding(ctxt_seq_len + tgt_seq_len, d_model, dropout)
-        self.encoder = nn.ModuleList([
+        self.encoder = torch.nn.ModuleList([
             _EncoderLayer(d_model, num_heads, d_ff, dropout) for _ in range(num_layers)
         ])
-        self.norm = nn.LayerNorm(d_model)
+        self.norm = torch.nn.LayerNorm(d_model)
         self.head = _FlattenHead(
             nf=d_model * (patch_num + 1),
             pred_len=tgt_seq_len,
-            dropout=dropout,
         )
 
     def forward(self, x_enc: torch.Tensor, x_ex: torch.Tensor) -> torch.Tensor:
