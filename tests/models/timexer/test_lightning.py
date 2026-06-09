@@ -14,7 +14,7 @@ NUM_PAST_COVARIATES = 3  # includes target, so model gets 2 exogenous channels
 @pytest.fixture(scope="module")
 def timexer_module():
     return TimeXer(
-        num_past_covariates=NUM_PAST_COVARIATES,
+        num_past_features=NUM_PAST_COVARIATES,
         ctxt_seq_len=CTXT,
         tgt_seq_len=TGT,
         d_model=32,
@@ -46,7 +46,7 @@ def test_timexer_lightning_construction(timexer_module):
     assert timexer_module is not None
     assert timexer_module.hparams["ctxt_seq_len"] == CTXT
     assert timexer_module.hparams["tgt_seq_len"] == TGT
-    assert timexer_module.hparams["num_past_covariates"] == NUM_PAST_COVARIATES
+    assert timexer_module.hparams["num_past_features"] == NUM_PAST_COVARIATES
 
 
 def test_timexer_forward_output_shape(timexer_module):

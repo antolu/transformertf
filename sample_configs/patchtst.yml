@@ -24,10 +24,10 @@ model:
     num_heads: 8
     num_layers: 3
     d_ff: 256
-    lstm_hidden: 128
-    lstm_num_layers: 2
+    d_lstm: 128
+    num_lstm_layers: 2
     dropout: 0.1
-    use_revin: true
+    use_norm: true
     log_grad_norm: true
     compile_model: false
 data:

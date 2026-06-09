@@ -18,7 +18,7 @@ from ._model import TimeXerModel
 class TimeXer(TransformerModuleBase):
     def __init__(
         self,
-        num_past_covariates: int,
+        num_past_features: int,
         ctxt_seq_len: int,
         tgt_seq_len: int,
         d_model: int = 512,
@@ -49,7 +49,7 @@ class TimeXer(TransformerModuleBase):
         self.model = TimeXerModel(
             ctxt_seq_len=ctxt_seq_len,
             tgt_seq_len=tgt_seq_len,
-            num_past_covariates=num_past_covariates - 1,
+            num_past_features=num_past_features - 1,
             d_model=d_model,
             num_heads=num_heads,
             num_layers=num_layers,

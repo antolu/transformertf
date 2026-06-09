@@ -20,8 +20,8 @@ __all__ = ["PatchTST"]
 class PatchTST(TransformerModuleBase):
     def __init__(
         self,
-        num_past_covariates: int,
-        num_future_covariates: int,
+        num_past_features: int,
+        num_future_features: int,
         ctxt_seq_len: int,
         tgt_seq_len: int,
         patch_len: int = 16,
@@ -29,10 +29,10 @@ class PatchTST(TransformerModuleBase):
         num_heads: int = 8,
         num_layers: int = 3,
         d_ff: int = 256,
-        lstm_hidden: int = 128,
-        lstm_num_layers: int = 2,
+        d_lstm: int = 128,
+        num_lstm_layers: int = 2,
         dropout: float = 0.1,
-        use_revin: bool = True,
+        use_norm: bool = True,
         criterion: QuantileLoss | torch.nn.Module | None = None,
         *,
         log_grad_norm: bool = False,
@@ -52,17 +52,17 @@ class PatchTST(TransformerModuleBase):
         )
 
         self.model = PatchTSTModel(
-            num_future_covariates=num_future_covariates,
+            num_future_features=num_future_features,
             ctxt_seq_len=ctxt_seq_len,
             patch_len=patch_len,
             d_model=d_model,
             num_heads=num_heads,
             num_layers=num_layers,
             d_ff=d_ff,
-            lstm_hidden=lstm_hidden,
-            lstm_num_layers=lstm_num_layers,
+            d_lstm=d_lstm,
+            num_lstm_layers=num_lstm_layers,
             dropout=dropout,
-            use_revin=use_revin,
+            use_norm=use_norm,
         )
 
     def forward(self, x: EncoderDecoderTargetSample) -> dict[str, torch.Tensor]:

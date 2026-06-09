@@ -17,7 +17,7 @@ class TimeXerModel(torch.nn.Module):
         self,
         ctxt_seq_len: int,
         tgt_seq_len: int,
-        num_past_covariates: int,
+        num_past_features: int,
         d_model: int = 512,
         num_heads: int = 8,
         num_layers: int = 3,

@@ -10,7 +10,7 @@ from transformertf.models.timexer import TimeXer
 
 def test_guard_randomize_seq_len():
     model = TimeXer(
-        num_past_covariates=3,
+        num_past_features=3,
         ctxt_seq_len=64,
         tgt_seq_len=32,
         d_model=32,
@@ -31,7 +31,7 @@ def test_guard_randomize_seq_len():
 
 def test_guard_covariate_mismatch():
     model = TimeXer(
-        num_past_covariates=3,
+        num_past_features=3,
         ctxt_seq_len=64,
         tgt_seq_len=32,
         d_model=32,
@@ -52,7 +52,7 @@ def test_guard_covariate_mismatch():
 
 def test_guard_passes_valid_config():
     model = TimeXer(
-        num_past_covariates=3,
+        num_past_features=3,
         ctxt_seq_len=64,
         tgt_seq_len=32,
         d_model=32,

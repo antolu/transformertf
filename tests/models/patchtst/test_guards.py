@@ -10,8 +10,8 @@ from transformertf.models.patchtst import PatchTST
 
 def _make_model() -> PatchTST:
     return PatchTST(
-        num_past_covariates=4,
-        num_future_covariates=3,
+        num_past_features=4,
+        num_future_features=3,
         ctxt_seq_len=64,
         tgt_seq_len=20,
         patch_len=16,
@@ -19,8 +19,8 @@ def _make_model() -> PatchTST:
         num_heads=4,
         num_layers=2,
         d_ff=64,
-        lstm_hidden=48,
-        lstm_num_layers=2,
+        d_lstm=48,
+        num_lstm_layers=2,
         dropout=0.0,
     )
 
@@ -67,7 +67,7 @@ def test_guard_skips_non_patchtst():
     from transformertf.models.timexer import TimeXer
 
     model = TimeXer(
-        num_past_covariates=3,
+        num_past_features=3,
         ctxt_seq_len=64,
         tgt_seq_len=32,
         d_model=32,

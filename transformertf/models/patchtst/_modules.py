@@ -110,21 +110,21 @@ class LSTMDecoderWithAttention(torch.nn.Module):
     def __init__(
         self,
         d_model: int,
-        lstm_hidden: int,
-        lstm_num_layers: int,
+        d_lstm: int,
+        num_lstm_layers: int,
         dropout: float,
     ) -> None:
         super().__init__()
         self.lstm = torch.nn.LSTM(
             input_size=d_model * 2,
-            hidden_size=lstm_hidden,
-            num_layers=lstm_num_layers,
+            hidden_size=d_lstm,
+            num_layers=num_lstm_layers,
             batch_first=True,
-            dropout=dropout if lstm_num_layers > 1 else 0.0,
+            dropout=dropout if num_lstm_layers > 1 else 0.0,
         )
-        self.attention = BahdanauAttention(query_dim=lstm_hidden, memory_dim=d_model)
-        self.norm = torch.nn.LayerNorm(lstm_hidden)
-        self.output_head = torch.nn.Linear(lstm_hidden, 1)
+        self.attention = BahdanauAttention(query_dim=d_lstm, memory_dim=d_model)
+        self.norm = torch.nn.LayerNorm(d_lstm)
+        self.output_head = torch.nn.Linear(d_lstm, 1)
 
     def forward(
         self,

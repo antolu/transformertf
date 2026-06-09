@@ -15,8 +15,8 @@ N_FUTURE = 3
 @pytest.fixture(scope="module")
 def small_module():
     return PatchTST(
-        num_past_covariates=N_PAST,
-        num_future_covariates=N_FUTURE,
+        num_past_features=N_PAST,
+        num_future_features=N_FUTURE,
         ctxt_seq_len=CTXT,
         tgt_seq_len=TGT,
         patch_len=16,
@@ -24,8 +24,8 @@ def small_module():
         num_heads=4,
         num_layers=2,
         d_ff=64,
-        lstm_hidden=48,
-        lstm_num_layers=2,
+        d_lstm=48,
+        num_lstm_layers=2,
         dropout=0.0,
     )
 
@@ -50,8 +50,8 @@ def test_construction(small_module):
     assert small_module is not None
     assert small_module.hparams["ctxt_seq_len"] == CTXT
     assert small_module.hparams["tgt_seq_len"] == TGT
-    assert small_module.hparams["num_past_covariates"] == N_PAST
-    assert small_module.hparams["num_future_covariates"] == N_FUTURE
+    assert small_module.hparams["num_past_features"] == N_PAST
+    assert small_module.hparams["num_future_features"] == N_FUTURE
 
 
 def test_forward_output_shape(small_module):

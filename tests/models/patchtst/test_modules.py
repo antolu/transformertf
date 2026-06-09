@@ -68,9 +68,7 @@ def test_lstm_decoder_with_attention_shape():
     S = C * PATCH_NUM
     TGT = 20
     H = 48
-    dec = LSTMDecoderWithAttention(
-        d_model=D, lstm_hidden=H, lstm_num_layers=2, dropout=0.0
-    )
+    dec = LSTMDecoderWithAttention(d_model=D, d_lstm=H, num_lstm_layers=2, dropout=0.0)
     decoder_embed = torch.randn(B, TGT, D)
     memory = torch.randn(B, S, D)
     h0 = torch.zeros(2, B, H)

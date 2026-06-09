@@ -15,17 +15,17 @@ def small_model():
     from transformertf.models.patchtst._model import PatchTSTModel
 
     return PatchTSTModel(
-        num_future_covariates=C_DEC,
+        num_future_features=C_DEC,
         ctxt_seq_len=CTXT,
         patch_len=16,
         d_model=32,
         num_heads=4,
         num_layers=2,
         d_ff=64,
-        lstm_hidden=48,
-        lstm_num_layers=2,
+        d_lstm=48,
+        num_lstm_layers=2,
         dropout=0.0,
-        use_revin=True,
+        use_norm=True,
     )
 
 
@@ -51,17 +51,17 @@ def test_patchtst_model_gradient_flow():
     from transformertf.models.patchtst._model import PatchTSTModel
 
     model = PatchTSTModel(
-        num_future_covariates=C_DEC,
+        num_future_features=C_DEC,
         ctxt_seq_len=CTXT,
         patch_len=16,
         d_model=32,
         num_heads=4,
         num_layers=2,
         d_ff=64,
-        lstm_hidden=48,
-        lstm_num_layers=2,
+        d_lstm=48,
+        num_lstm_layers=2,
         dropout=0.0,
-        use_revin=True,
+        use_norm=True,
     )
     enc = torch.randn(B, CTXT, C_ENC)
     dec = torch.randn(B, TGT, C_DEC)
@@ -77,17 +77,17 @@ def test_patchtst_model_patch_len_guard():
 
     with pytest.raises(ValueError, match="divisible"):
         PatchTSTModel(
-            num_future_covariates=C_DEC,
+            num_future_features=C_DEC,
             ctxt_seq_len=65,  # not divisible by 16
             patch_len=16,
             d_model=32,
             num_heads=4,
             num_layers=2,
             d_ff=64,
-            lstm_hidden=48,
-            lstm_num_layers=2,
+            d_lstm=48,
+            num_lstm_layers=2,
             dropout=0.0,
-            use_revin=True,
+            use_norm=True,
         )
 
 

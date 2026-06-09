@@ -14,24 +14,24 @@ __all__ = ["PatchTSTModel"]
 class PatchTSTModel(torch.nn.Module):
     def __init__(
         self,
-        num_future_covariates: int,
+        num_future_features: int,
         ctxt_seq_len: int,
         patch_len: int,
         d_model: int,
         num_heads: int,
         num_layers: int,
         d_ff: int,
-        lstm_hidden: int,
-        lstm_num_layers: int,
+        d_lstm: int,
+        num_lstm_layers: int,
         dropout: float,
-        use_revin: bool,
+        use_norm: bool,
     ) -> None:
         super().__init__()
         if ctxt_seq_len % patch_len != 0:
             msg = f"ctxt_seq_len ({ctxt_seq_len}) must be divisible by patch_len ({patch_len})"
             raise ValueError(msg)
 
-        self.use_revin = use_revin
+        self.use_norm = use_norm
         patch_num = ctxt_seq_len // patch_len
 
         self.patch_embedding = PatchEmbedding(
@@ -47,18 +47,18 @@ class PatchTSTModel(torch.nn.Module):
             for _ in range(num_layers)
         ])
 
-        self.h0_proj = torch.nn.Linear(d_model, lstm_hidden * lstm_num_layers)
-        self.c0_proj = torch.nn.Linear(d_model, lstm_hidden * lstm_num_layers)
+        self.h0_proj = torch.nn.Linear(d_model, d_lstm * num_lstm_layers)
+        self.c0_proj = torch.nn.Linear(d_model, d_lstm * num_lstm_layers)
 
-        self.decoder_proj = torch.nn.Linear(num_future_covariates, d_model)
+        self.decoder_proj = torch.nn.Linear(num_future_features, d_model)
         self.decoder = LSTMDecoderWithAttention(
             d_model=d_model,
-            lstm_hidden=lstm_hidden,
-            lstm_num_layers=lstm_num_layers,
+            d_lstm=d_lstm,
+            num_lstm_layers=num_lstm_layers,
             dropout=dropout,
         )
-        self._lstm_num_layers = lstm_num_layers
-        self._lstm_hidden = lstm_hidden
+        self._num_lstm_layers = num_lstm_layers
+        self._d_lstm = d_lstm
 
     def forward(
         self,
@@ -67,7 +67,7 @@ class PatchTSTModel(torch.nn.Module):
     ) -> torch.Tensor:
         B = encoder_input.shape[0]
 
-        if self.use_revin:
+        if self.use_norm:
             target = encoder_input[:, :, -1:]
             mean = target.mean(dim=1, keepdim=True)
             std = target.std(dim=1, keepdim=True) + 1e-5
@@ -86,13 +86,13 @@ class PatchTSTModel(torch.nn.Module):
         pooled = patch_memory.mean(dim=1)  # (B, d_model)
         h0 = (
             self.h0_proj(pooled)
-            .reshape(B, self._lstm_num_layers, self._lstm_hidden)
+            .reshape(B, self._num_lstm_layers, self._d_lstm)
             .permute(1, 0, 2)
             .contiguous()
         )
         c0 = (
             self.c0_proj(pooled)
-            .reshape(B, self._lstm_num_layers, self._lstm_hidden)
+            .reshape(B, self._num_lstm_layers, self._d_lstm)
             .permute(1, 0, 2)
             .contiguous()
         )
@@ -100,7 +100,7 @@ class PatchTSTModel(torch.nn.Module):
         decoder_embed = self.decoder_proj(decoder_input)  # (B, tgt_seq_len, d_model)
         out = self.decoder(decoder_embed, patch_memory, h0, c0)  # (B, tgt_seq_len, 1)
 
-        if self.use_revin:
+        if self.use_norm:
             out = out * std + mean
 
         return out

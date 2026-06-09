@@ -645,13 +645,6 @@ def add_num_features_link(
         apply_on="instantiate",
     )
 
-    # TimeXer
-    parser.link_arguments(
-        "data.num_past_known_covariates",
-        "model.init_args.num_past_covariates",
-        apply_on="instantiate",
-    )
-
 
 def _check_timexer_constraints(
     model: LightningModuleBase,
@@ -669,7 +662,7 @@ def _check_timexer_constraints(
     n_future = datamodule.num_future_known_covariates
     if n_past - 1 != n_future:
         msg = (
-            f"TimeXer requires num_past_known_covariates - 1 == num_future_known_covariates, "
+            f"TimeXer requires num_past_features - 1 == num_future_features, "
             f"got {n_past} - 1 = {n_past - 1} vs {n_future}. "
             f"Use equal covariate counts past and future, or add known_past_covariates "
             f"that are not in known_covariates."
@@ -693,7 +686,7 @@ def _check_patchtst_constraints(
     n_future = datamodule.num_future_known_covariates
     if n_past - 1 != n_future:
         msg = (
-            f"PatchTST requires num_past_covariates - 1 == num_future_covariates, "
+            f"PatchTST requires num_past_features - 1 == num_future_features, "
             f"got {n_past} - 1 = {n_past - 1} vs {n_future}. "
             f"Ensure known_covariates and known_past_covariates are configured so "
             f"that past has exactly one more channel (the target) than future."

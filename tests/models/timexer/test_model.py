@@ -6,7 +6,7 @@ import torch
 BATCH = 4
 CTXT = 64  # must be divisible by patch_len=16
 TGT = 32
-N_COVARIATES = 2  # num_past_covariates (excl. target)
+N_COVARIATES = 2  # num_past_features (excl. target)
 
 
 def test_timexer_model_construction():
@@ -15,7 +15,7 @@ def test_timexer_model_construction():
     model = TimeXerModel(
         ctxt_seq_len=CTXT,
         tgt_seq_len=TGT,
-        num_past_covariates=N_COVARIATES,
+        num_past_features=N_COVARIATES,
         d_model=32,
         num_heads=4,
         num_layers=2,
@@ -32,7 +32,7 @@ def small_model():
     return TimeXerModel(
         ctxt_seq_len=CTXT,
         tgt_seq_len=TGT,
-        num_past_covariates=N_COVARIATES,
+        num_past_features=N_COVARIATES,
         d_model=32,
         num_heads=4,
         num_layers=2,
@@ -62,7 +62,7 @@ def test_timexer_model_gradient_flow():
     model = TimeXerModel(
         ctxt_seq_len=CTXT,
         tgt_seq_len=TGT,
-        num_past_covariates=N_COVARIATES,
+        num_past_features=N_COVARIATES,
         d_model=32,
         num_heads=4,
         num_layers=2,
@@ -86,7 +86,7 @@ def test_timexer_model_patch_len_not_divisor_raises():
         TimeXerModel(
             ctxt_seq_len=65,  # not divisible by patch_len=16
             tgt_seq_len=TGT,
-            num_past_covariates=N_COVARIATES,
+            num_past_features=N_COVARIATES,
             patch_len=16,
         )
 
@@ -97,7 +97,7 @@ def test_timexer_model_deterministic_eval():
     model = TimeXerModel(
         ctxt_seq_len=CTXT,
         tgt_seq_len=TGT,
-        num_past_covariates=N_COVARIATES,
+        num_past_features=N_COVARIATES,
         d_model=32,
         num_heads=4,
         num_layers=2,
