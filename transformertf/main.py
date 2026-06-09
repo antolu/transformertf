@@ -76,6 +76,7 @@ from transformertf.models.attention_lstm import (  # noqa: F401
 )
 from transformertf.models.bwlstm import BWLSTM1, BWLSTM2, BWLSTM3  # noqa: F401
 from transformertf.models.lstm import LSTM  # noqa: F401
+from transformertf.models.patchtst import PatchTST as _PatchTST
 from transformertf.models.timexer import TimeXer as _TimeXer
 from transformertf.models.tsmixer import TSMixer  # noqa: F401
 
@@ -351,6 +352,7 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
 
     def before_fit(self) -> None:
         _check_timexer_constraints(self.model, self.datamodule)
+        _check_patchtst_constraints(self.model, self.datamodule)
         # hijack model checkpoint callbacks to save to checkpoint_dir/version_{version}
         if (
             hasattr(self.config, "fit")
@@ -671,6 +673,30 @@ def _check_timexer_constraints(
             f"got {n_past} - 1 = {n_past - 1} vs {n_future}. "
             f"Use equal covariate counts past and future, or add known_past_covariates "
             f"that are not in known_covariates."
+        )
+        raise ValueError(msg)
+
+
+def _check_patchtst_constraints(
+    model: LightningModuleBase,
+    datamodule: DataModuleBase,
+) -> None:
+    if not isinstance(model, _PatchTST):
+        return
+    if datamodule.hparams.get("randomize_seq_len"):
+        msg = "PatchTST requires fixed sequence lengths; set randomize_seq_len=False."
+        raise ValueError(msg)
+    if datamodule.hparams.get("time_column") is not None:
+        msg = "PatchTST does not use temporal marks; set time_column=None."
+        raise ValueError(msg)
+    n_past = datamodule.num_past_known_covariates
+    n_future = datamodule.num_future_known_covariates
+    if n_past - 1 != n_future:
+        msg = (
+            f"PatchTST requires num_past_covariates - 1 == num_future_covariates, "
+            f"got {n_past} - 1 = {n_past - 1} vs {n_future}. "
+            f"Ensure known_covariates and known_past_covariates are configured so "
+            f"that past has exactly one more channel (the target) than future."
         )
         raise ValueError(msg)
 
