@@ -1093,6 +1093,10 @@ class DataModuleBase(L.LightningDataModule):
         are serializable. This function translates transforms into strings, with the
         init kwargs taken from the transform's state_dict. No positional arguments are
         supported.
+
+        Must be called after all save_hyperparameters() calls in the subclass chain.
+        Subclasses that call save_hyperparameters() after super().__init__() will
+        overwrite self.hparams and lose the patch, so they must call this again.
         """
         if len(self._extra_transforms_source) == 0:  # no extra transforms
             return

@@ -262,6 +262,10 @@ class TransformerDataModule(DataModuleBase):
             else []
         )
 
+        # Must be called after save_hyperparameters — the subclass save_hyperparameters
+        # call above overwrites self.hparams and loses the patch applied in super().__init__().
+        self._patch_extra_transforms_hparams()
+
     def _create_transforms(self) -> None:
         """
         Create transforms using TransformBuilder, including time transforms.
