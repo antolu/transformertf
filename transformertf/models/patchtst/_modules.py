@@ -15,7 +15,6 @@ __all__ = [
 class PatchEmbedding(torch.nn.Module):
     def __init__(
         self,
-        num_channels: int,
         patch_len: int,
         d_model: int,
         patch_num: int,

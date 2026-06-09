@@ -9,9 +9,7 @@ PATCH_NUM = T // P  # 4
 def test_patch_embedding_output_shape():
     from transformertf.models.patchtst._modules import PatchEmbedding
 
-    emb = PatchEmbedding(
-        num_channels=C, patch_len=P, d_model=D, patch_num=PATCH_NUM, dropout=0.0
-    )
+    emb = PatchEmbedding(patch_len=P, d_model=D, patch_num=PATCH_NUM, dropout=0.0)
     x = torch.randn(B, T, C)
     out = emb(x)
     assert out.shape == (B, C, PATCH_NUM, D)
@@ -20,9 +18,7 @@ def test_patch_embedding_output_shape():
 def test_patch_embedding_finite():
     from transformertf.models.patchtst._modules import PatchEmbedding
 
-    emb = PatchEmbedding(
-        num_channels=C, patch_len=P, d_model=D, patch_num=PATCH_NUM, dropout=0.0
-    )
+    emb = PatchEmbedding(patch_len=P, d_model=D, patch_num=PATCH_NUM, dropout=0.0)
     x = torch.randn(B, T, C)
     out = emb(x)
     assert torch.isfinite(out).all()
