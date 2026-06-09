@@ -82,6 +82,7 @@ def test_timexer_hparams_saved(timexer_module):
     assert timexer_module.hparams["d_model"] == 32
     assert timexer_module.hparams["patch_len"] == 16
     assert timexer_module.hparams["num_layers"] == 2
+    assert "criterion" not in timexer_module.hparams
 
 
 def test_timexer_importable_from_models():
