@@ -679,9 +679,6 @@ def _check_patchtst_constraints(
     if datamodule.hparams.get("randomize_seq_len"):
         msg = "PatchTST requires fixed sequence lengths; set randomize_seq_len=False."
         raise ValueError(msg)
-    if datamodule.hparams.get("time_column") is not None:
-        msg = "PatchTST does not use temporal marks; set time_column=None."
-        raise ValueError(msg)
 
 
 def main() -> None:

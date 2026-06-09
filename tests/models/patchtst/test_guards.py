@@ -42,13 +42,6 @@ def test_guard_randomize_seq_len():
         _check_patchtst_constraints(model, dm)
 
 
-def test_guard_time_column():
-    model = _make_model()
-    dm = _make_dm(time_column="timestamp")
-    with pytest.raises(ValueError, match="time_column"):
-        _check_patchtst_constraints(model, dm)
-
-
 def test_guard_passes_valid_config():
     model = _make_model()
     dm = _make_dm()
