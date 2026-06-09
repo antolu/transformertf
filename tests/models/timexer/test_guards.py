@@ -1,14 +1,14 @@
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 import pytest
+
+from transformertf.main import _check_timexer_constraints
+from transformertf.models.timexer import TimeXer
 
 
 def test_guard_randomize_seq_len():
-    from unittest.mock import MagicMock
-
-    from transformertf.main import _check_timexer_constraints
-    from transformertf.models.timexer import TimeXer
-
     model = TimeXer(
         num_past_covariates=3,
         ctxt_seq_len=64,
@@ -30,11 +30,6 @@ def test_guard_randomize_seq_len():
 
 
 def test_guard_covariate_mismatch():
-    from unittest.mock import MagicMock
-
-    from transformertf.main import _check_timexer_constraints
-    from transformertf.models.timexer import TimeXer
-
     model = TimeXer(
         num_past_covariates=3,
         ctxt_seq_len=64,
@@ -56,11 +51,6 @@ def test_guard_covariate_mismatch():
 
 
 def test_guard_passes_valid_config():
-    from unittest.mock import MagicMock
-
-    from transformertf.main import _check_timexer_constraints
-    from transformertf.models.timexer import TimeXer
-
     model = TimeXer(
         num_past_covariates=3,
         ctxt_seq_len=64,
