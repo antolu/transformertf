@@ -76,6 +76,7 @@ from transformertf.models.attention_lstm import (  # noqa: F401
 )
 from transformertf.models.bwlstm import BWLSTM1, BWLSTM2, BWLSTM3  # noqa: F401
 from transformertf.models.lstm import LSTM  # noqa: F401
+from transformertf.models.timexer import TimeXer as _TimeXer
 from transformertf.models.tsmixer import TSMixer  # noqa: F401
 
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -349,6 +350,7 @@ class LightningCLI(lightning.pytorch.cli.LightningCLI):
         )
 
     def before_fit(self) -> None:
+        _check_timexer_constraints(self.model, self.datamodule)
         # hijack model checkpoint callbacks to save to checkpoint_dir/version_{version}
         if (
             hasattr(self.config, "fit")
@@ -640,6 +642,37 @@ def add_num_features_link(
         "model.init_args.num_features",
         apply_on="instantiate",
     )
+
+    # TimeXer
+    parser.link_arguments(
+        "data.num_past_known_covariates",
+        "model.init_args.num_past_covariates",
+        apply_on="instantiate",
+    )
+
+
+def _check_timexer_constraints(
+    model: LightningModuleBase,
+    datamodule: DataModuleBase,
+) -> None:
+    if not isinstance(model, _TimeXer):
+        return
+    if datamodule.hparams.get("randomize_seq_len"):
+        msg = (
+            "TimeXer does not support randomize_seq_len=True — sequence lengths "
+            "are baked into the linear embedding layers."
+        )
+        raise ValueError(msg)
+    n_past = datamodule.num_past_known_covariates
+    n_future = datamodule.num_future_known_covariates
+    if n_past - 1 != n_future:
+        msg = (
+            f"TimeXer requires num_past_known_covariates - 1 == num_future_known_covariates, "
+            f"got {n_past} - 1 = {n_past - 1} vs {n_future}. "
+            f"Use equal covariate counts past and future, or add known_past_covariates "
+            f"that are not in known_covariates."
+        )
+        raise ValueError(msg)
 
 
 def main() -> None:

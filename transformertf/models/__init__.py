@@ -12,6 +12,7 @@ from .sa_bwlstm import SABWLSTM
 from .temporal_conv_transformer import TCT, TemporalConvTransformer
 from .temporal_fusion_transformer import TemporalFusionTransformer
 from .tft import TFT
+from .timexer import TimeXer
 from .transformer_v2 import VanillaTransformerV2
 from .xtft import xTFT
 
@@ -34,6 +35,7 @@ for _mod in (
     BWLSTM3,
     TemporalConvTransformer,
     TCT,
+    TimeXer,
 ):
     replace_modname(_mod, __name__)
 
@@ -55,6 +57,7 @@ __all__ = [
     "PFTemporalFusionTransformer",
     "TemporalConvTransformer",
     "TemporalFusionTransformer",
+    "TimeXer",
     "TransformerModuleBase",
     "VanillaTransformerV2",
     "xTFT",
