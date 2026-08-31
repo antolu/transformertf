@@ -1,0 +1,47 @@
+# lightning.pytorch==2.2.1
+seed_everything: true
+trainer:
+  accelerator: auto
+  strategy: auto
+  devices: auto
+  num_nodes: 1
+  precision: null
+  max_epochs: 100
+  check_val_every_n_epoch: 1
+  gradient_clip_val: 1.0
+  use_distributed_sampler: false
+ckpt_path: null
+optimizer:
+  class_path: torch.optim.AdamW
+  init_args:
+    lr: 0.001
+    weight_decay: 1e-4
+model:
+  class_path: transformertf.models.patchtst.PatchTST
+  init_args:
+    patch_len: 16
+    d_model: 128
+    num_heads: 8
+    num_layers: 3
+    d_ff: 256
+    d_lstm: 128
+    num_lstm_layers: 2
+    dropout: 0.1
+    use_norm: true
+    log_grad_norm: true
+    compile_model: false
+data:
+  class_path: transformertf.data.EncoderDecoderDataModule
+  init_args:
+    known_covariates:
+      - "I_meas_A_medfilt"
+    target_covariate: "B_meas_T_medfilt"
+    known_past_covariates: null
+    train_df_paths:
+      - "data/train.parquet"
+    val_df_paths:
+      - "data/val.parquet"
+    normalize: true
+    ctxt_seq_len: 512
+    tgt_seq_len: 128
+    randomize_seq_len: false
