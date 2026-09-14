@@ -169,8 +169,6 @@ class VanillaTransformer(TransformerModuleBase):
     def __init__(
         self,
         num_features: int,
-        ctxt_seq_len: int,
-        tgt_seq_len: int,
         d_model: int = 128,
         num_heads: int = 8,
         num_encoder_layers: int = 6,
@@ -181,6 +179,7 @@ class VanillaTransformer(TransformerModuleBase):
         output_dim: int = 7,
         criterion: QuantileLoss | None = None,
         prediction_type: typing.Literal["delta", "point"] | None = None,
+        causal_attention: bool = True,
         *,
         log_grad_norm: bool = False,
         compile_model: bool = False,
@@ -199,8 +198,6 @@ class VanillaTransformer(TransformerModuleBase):
 
         self.model = VanillaTransformerModel(
             num_features=num_features,
-            seq_len=ctxt_seq_len,
-            out_seq_len=tgt_seq_len,
             d_model=d_model,
             num_heads=num_heads,
             num_encoder_layers=num_encoder_layers,
@@ -209,6 +206,7 @@ class VanillaTransformer(TransformerModuleBase):
             activation=activation,
             d_fc=d_fc,
             output_dim=output_dim,
+            causal_attention=causal_attention,
         )
 
     def forward(self, x: EncoderDecoderTargetSample) -> dict[str, torch.Tensor]:
