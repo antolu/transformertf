@@ -283,15 +283,18 @@ class VanillaTransformer(TransformerModuleBase):
 
         loss = self.calc_loss(model_output, batch)
 
-        loss_dict = {"loss": loss}
-        point_prediction_dict: dict[str, torch.Tensor] = {}
         if isinstance(self.criterion, QuantileLoss):
             point_prediction = self.criterion.point_prediction(model_output)
-            point_prediction_dict = {"point_prediction": point_prediction}
+        else:
+            point_prediction = model_output
 
-        self.common_log_step(loss_dict, "train")
+        self.common_log_step({"loss": loss}, "train")
 
-        return loss_dict | {"output": model_output} | point_prediction_dict
+        return {
+            "loss": loss,
+            "output": model_output,
+            "point_prediction": point_prediction,
+        }
 
     def validation_step(
         self,
@@ -304,12 +307,15 @@ class VanillaTransformer(TransformerModuleBase):
 
         loss = self.calc_loss(model_output, batch)
 
-        loss_dict = {"loss": loss}
-        point_prediction_dict: dict[str, torch.Tensor] = {}
         if isinstance(self.criterion, QuantileLoss):
             point_prediction = self.criterion.point_prediction(model_output)
-            point_prediction_dict = {"point_prediction": point_prediction}
+        else:
+            point_prediction = model_output
 
-        self.common_log_step(loss_dict, "validation")
+        self.common_log_step({"loss": loss}, "validation")
 
-        return loss_dict | {"output": model_output} | point_prediction_dict
+        return {
+            "loss": loss,
+            "output": model_output,
+            "point_prediction": point_prediction,
+        }
