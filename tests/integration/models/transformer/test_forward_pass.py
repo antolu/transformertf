@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import typing
-
 import torch
 
 from transformertf.data import EncoderDecoderDataModule
@@ -12,18 +10,9 @@ from transformertf.models.transformer import (
 
 def test_transformer_forward_pass_simple(
     transformer_module: VanillaTransformer,
-    transformer_module_config: dict[str, typing.Any],
 ) -> None:
-    x_past = torch.rand(
-        1,
-        transformer_module_config["ctxt_seq_len"],
-        2,
-    )
-    x_future = torch.rand(
-        1,
-        transformer_module_config["tgt_seq_len"],
-        2,
-    )
+    x_past = torch.rand(1, 32, 2)
+    x_future = torch.rand(1, 16, 2)
 
     batch = {
         "encoder_input": x_past,
