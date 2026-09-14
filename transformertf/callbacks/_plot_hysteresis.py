@@ -341,8 +341,16 @@ class PlotHysteresisCallback(L.pytorch.callbacks.callback.Callback):
             trainer.logger.experiment["validation/field_curve"].append(fig_field)
             trainer.logger.experiment["validation/hysteresis"].append(fig_hysteresis)
             trainer.logger.experiment.sync()
+        elif isinstance(trainer.logger, L.pytorch.loggers.WandbLogger):
+            trainer.logger.experiment.log(
+                {
+                    "validation/field_curve": fig_field,
+                    "validation/hysteresis": fig_hysteresis,
+                },
+                step=trainer.global_step,
+            )
         else:
-            msg = "The PlotHysteresisCallback only supports TensorBoard and Neptune loggers."
+            msg = "The PlotHysteresisCallback only supports TensorBoard, Neptune, and WandB loggers."
             raise ValueError(msg)  # noqa: TRY004
 
         plt.close("all")
