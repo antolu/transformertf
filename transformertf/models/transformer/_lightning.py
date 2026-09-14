@@ -177,12 +177,13 @@ class VanillaTransformer(TransformerModuleBase):
         activation: str = "relu",
         d_fc: int | tuple[int, ...] = 1024,
         output_dim: int = 7,
-        criterion: QuantileLoss | None = None,
+        criterion: torch.nn.Module | None = None,
         prediction_type: typing.Literal["delta", "point"] | None = None,
         causal_attention: bool = True,
         *,
         log_grad_norm: bool = False,
         compile_model: bool = False,
+        trainable_parameters: list[str] | None = None,
         logging_metrics: collections.abc.Container[
             MetricLiteral
         ] = DEFAULT_LOGGING_METRICS,
